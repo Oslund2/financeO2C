@@ -25,6 +25,9 @@ export function CastFilmStrip({ seriesId, onNavigate }: CastFilmStripProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
+  const touchStartX = useRef<number>(0);
+  const touchEndX = useRef<number>(0);
+  const isDragging = useRef<boolean>(false);
 
   useEffect(() => {
     loadCharacters();
@@ -51,16 +54,25 @@ export function CastFilmStrip({ seriesId, onNavigate }: CastFilmStripProps) {
       if (error) throw error;
 
       const sortedData = (data || []).sort((a, b) => {
-        const aIndex = ROLE_ORDER.indexOf(a.role);
-        const bIndex = ROLE_ORDER.indexOf(b.role);
+        const aRole = a.role || '';
+        const bRole = b.role || '';
 
+        const aIndex = ROLE_ORDER.indexOf(aRole);
+        const bIndex = ROLE_ORDER.indexOf(bRole);
+
+        if (aIndex === -1 && bIndex === -1) return 0;
         if (aIndex === -1) return 1;
         if (bIndex === -1) return -1;
 
-        return aIndex - bIndex;
+        if (aIndex !== bIndex) {
+          return aIndex - bIndex;
+        }
+
+        return a.name.localeCompare(b.name);
       });
 
       console.log('Characters loaded and sorted by role:', sortedData.map(c => ({ name: c.name, role: c.role })));
+      console.log('First 3 characters:', sortedData.slice(0, 3).map(c => c.name));
       setCharacters(sortedData);
     } catch (error) {
       console.error('Error loading characters:', error);
@@ -95,6 +107,42 @@ export function CastFilmStrip({ seriesId, onNavigate }: CastFilmStripProps) {
     });
 
     setTimeout(checkScrollButtons, 300);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    isDragging.current = false;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const currentX = e.touches[0].clientX;
+    const diff = touchStartX.current - currentX;
+
+    if (Math.abs(diff) > 10) {
+      isDragging.current = true;
+    }
+
+    container.scrollLeft += diff;
+    touchStartX.current = currentX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    touchEndX.current = e.changedTouches[0].clientX;
+    const swipeDistance = touchStartX.current - touchEndX.current;
+    const minSwipeDistance = 50;
+
+    if (Math.abs(swipeDistance) > minSwipeDistance && !isDragging.current) {
+      if (swipeDistance > 0) {
+        scroll('right');
+      } else {
+        scroll('left');
+      }
+    }
+
+    checkScrollButtons();
   };
 
   const groupedCharacters = ROLE_ORDER.reduce((acc, role) => {
@@ -165,6 +213,9 @@ export function CastFilmStrip({ seriesId, onNavigate }: CastFilmStripProps) {
           <div
             ref={scrollContainerRef}
             onScroll={checkScrollButtons}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
             className="flex gap-3 overflow-x-auto scrollbar-hide scroll-smooth pb-2"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
