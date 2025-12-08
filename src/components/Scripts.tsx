@@ -520,10 +520,11 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
                     )}
                     <button
                       onClick={() => setViewingScript(script)}
-                      className="p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
                       title="View full script"
                     >
-                      <Eye className="w-5 h-5 text-blue-600" />
+                      <Eye className="w-4 h-4" />
+                      View Script
                     </button>
                     <button
                       onClick={() => setSelectedScript(script)}
