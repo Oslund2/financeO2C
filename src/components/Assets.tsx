@@ -3,6 +3,7 @@ import { Image, Search, Filter, Sparkles, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
+import { AssetUploadModal } from './AssetUploadModal';
 
 type Asset = Database['public']['Tables']['assets']['Row'];
 
@@ -16,6 +17,7 @@ export function Assets({ seriesId }: AssetsProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState<string>('all');
   const [loading, setLoading] = useState(true);
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
     asset: Asset | null;
@@ -131,7 +133,10 @@ export function Assets({ seriesId }: AssetsProps) {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Asset Library</h1>
             <p className="text-gray-600">Browse and manage your production assets</p>
           </div>
-          <button className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium">
+          <button
+            onClick={() => setShowUploadModal(true)}
+            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium"
+          >
             <Plus className="w-5 h-5" />
             Upload Asset
           </button>
@@ -171,7 +176,10 @@ export function Assets({ seriesId }: AssetsProps) {
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No assets yet</h3>
             <p className="text-gray-600 mb-6">Generate or upload assets to get started</p>
             <div className="flex gap-3 justify-center">
-              <button className="px-6 py-3 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium">
+              <button
+                onClick={() => setShowUploadModal(true)}
+                className="px-6 py-3 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium"
+              >
                 Upload Asset
               </button>
               <button className="px-6 py-3 bg-gradient-to-r from-scripps-navy to-scripps-blue text-white rounded-lg hover:shadow-lg transition-all font-medium flex items-center gap-2">
@@ -242,6 +250,13 @@ export function Assets({ seriesId }: AssetsProps) {
             ? `This asset is currently used in ${deleteModal.asset.usage_count} place(s). Deleting it may affect your production.`
             : 'This asset will be permanently deleted from your library.'
         }
+      />
+
+      <AssetUploadModal
+        isOpen={showUploadModal}
+        onClose={() => setShowUploadModal(false)}
+        onUploadComplete={loadAssets}
+        seriesId={seriesId}
       />
     </div>
   );
