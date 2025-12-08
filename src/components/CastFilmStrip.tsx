@@ -25,6 +25,9 @@ export function CastFilmStrip({ seriesId, onNavigate }: CastFilmStripProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
+  const touchStartRef = useRef<number>(0);
+  const touchEndRef = useRef<number>(0);
+  const isDraggingRef = useRef<boolean>(false);
 
   useEffect(() => {
     loadCharacters();
@@ -39,7 +42,6 @@ export function CastFilmStrip({ seriesId, onNavigate }: CastFilmStripProps) {
       let query = supabase
         .from('characters')
         .select('id, name, reference_image_url, role')
-        .not('reference_image_url', 'is', null)
         .order('created_at', { ascending: true });
 
       if (seriesId) {
@@ -95,6 +97,29 @@ export function CastFilmStrip({ seriesId, onNavigate }: CastFilmStripProps) {
     });
 
     setTimeout(checkScrollButtons, 300);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartRef.current = e.touches[0].clientX;
+    isDraggingRef.current = true;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDraggingRef.current) return;
+
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    touchEndRef.current = e.touches[0].clientX;
+    const diff = touchStartRef.current - touchEndRef.current;
+
+    container.scrollLeft += diff * 0.5;
+    touchStartRef.current = touchEndRef.current;
+  };
+
+  const handleTouchEnd = () => {
+    isDraggingRef.current = false;
+    setTimeout(checkScrollButtons, 100);
   };
 
   const groupedCharacters = ROLE_ORDER.reduce((acc, role) => {
@@ -165,6 +190,9 @@ export function CastFilmStrip({ seriesId, onNavigate }: CastFilmStripProps) {
           <div
             ref={scrollContainerRef}
             onScroll={checkScrollButtons}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
             className="flex gap-3 overflow-x-auto scrollbar-hide scroll-smooth pb-2"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
