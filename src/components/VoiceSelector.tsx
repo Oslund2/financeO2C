@@ -126,7 +126,7 @@ export function VoiceSelector({ selectedVoiceId, onVoiceSelect }: VoiceSelectorP
             {isConfigError && (
               <p className="text-sm text-red-700 mt-2">
                 The Eleven Labs API key is configured in your environment secrets.
-                Make sure <code className="bg-red-100 px-1 rounded">ELEVENLABS_API_KEY</code> is set.
+                Make sure <code className="bg-red-100 px-1 rounded">VITE_ELEVENLABS_API_KEY</code> is set.
               </p>
             )}
             <button

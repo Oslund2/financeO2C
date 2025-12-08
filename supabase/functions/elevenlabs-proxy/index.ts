@@ -3,7 +3,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey, X-Elevenlabs-Api-Key",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
 const ELEVENLABS_API_BASE = "https://api.elevenlabs.io/v1";
@@ -17,11 +17,8 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // Try to get API key from request header first, then fall back to env
-    const requestApiKey = req.headers.get("x-elevenlabs-api-key");
-    const envApiKey = Deno.env.get("ELEVENLABS_API_KEY");
-    const apiKey = requestApiKey || envApiKey;
-
+    const apiKey = Deno.env.get("VITE_ELEVENLABS_API_KEY");
+    
     if (!apiKey) {
       return new Response(
         JSON.stringify({ error: "Eleven Labs API key is not configured" }),

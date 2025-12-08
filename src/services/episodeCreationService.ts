@@ -52,7 +52,7 @@ export async function getScriptWithDetails(scriptId: string) {
   if (!script) throw new Error('Script not found');
 
   const { data: acts, error: actsError } = await supabase
-    .from('script_acts')
+    .from('acts')
     .select('*')
     .eq('script_id', scriptId)
     .order('act_number', { ascending: true });
@@ -62,7 +62,7 @@ export async function getScriptWithDetails(scriptId: string) {
   const actsWithScenes = await Promise.all(
     (acts || []).map(async (act) => {
       const { data: scenes, error: scenesError } = await supabase
-        .from('script_scenes')
+        .from('scenes')
         .select('*')
         .eq('act_id', act.id)
         .order('scene_number', { ascending: true });
@@ -104,7 +104,7 @@ export async function validateScriptForEpisode(scriptId: string): Promise<{
   }
 
   const { data: acts } = await supabase
-    .from('script_acts')
+    .from('acts')
     .select('id')
     .eq('script_id', scriptId);
 
