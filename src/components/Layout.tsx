@@ -8,7 +8,8 @@ import {
   Settings,
   Sparkles,
   Clapperboard,
-  Camera
+  Camera,
+  Shield
 } from 'lucide-react';
 import { Logo } from './Logo';
 
@@ -28,6 +29,7 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
     { id: 'episodes', label: 'Episodes', icon: Film },
     { id: 'production', label: 'Production', icon: PlayCircle },
     { id: 'ai-studio', label: 'AI Studio', icon: Sparkles },
+    { id: 'backup-recovery', label: 'Backup & Recovery', icon: Shield },
   ];
 
   return (

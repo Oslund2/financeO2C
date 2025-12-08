@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, FileText, Trash2, Edit2, CheckCircle, Clock, Sparkles, Lock, Film, AlertCircle, DollarSign, ArrowRight, Zap } from 'lucide-react';
+import { Plus, Search, FileText, Trash2, Edit2, CheckCircle, Clock, Sparkles, Lock, Film, AlertCircle, DollarSign, ArrowRight, Zap, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
@@ -96,7 +96,7 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
 
     try {
       const { count: actsCount } = await supabase
-        .from('acts')
+        .from('script_acts')
         .select('*', { count: 'exact', head: true })
         .eq('script_id', script.id);
 
@@ -104,13 +104,22 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
         relatedItems.push({ label: 'Acts', count: actsCount });
       }
 
-      const { count: scenesCount } = await supabase
-        .from('scenes')
-        .select('*', { count: 'exact', head: true })
+      const { data: actsData } = await supabase
+        .from('script_acts')
+        .select('id')
         .eq('script_id', script.id);
 
-      if (scenesCount) {
-        relatedItems.push({ label: 'Scenes', count: scenesCount });
+      const actIds = (actsData || []).map(a => a.id);
+
+      if (actIds.length > 0) {
+        const { count: scenesCount } = await supabase
+          .from('script_scenes')
+          .select('*', { count: 'exact', head: true })
+          .in('act_id', actIds);
+
+        if (scenesCount) {
+          relatedItems.push({ label: 'Scenes', count: scenesCount });
+        }
       }
 
       const { count: episodesCount } = await supabase
@@ -540,7 +549,7 @@ function ScriptEditor({ script, onClose, onSave }: ScriptEditorProps) {
   const loadScriptContent = async () => {
     try {
       const { data: actsData, error: actsError } = await supabase
-        .from('acts')
+        .from('script_acts')
         .select('*')
         .eq('script_id', script.id)
         .order('act_number', { ascending: true });
@@ -550,7 +559,7 @@ function ScriptEditor({ script, onClose, onSave }: ScriptEditorProps) {
       const actsWithScenes = await Promise.all(
         (actsData || []).map(async (act) => {
           const { data: scenesData, error: scenesError } = await supabase
-            .from('scenes')
+            .from('script_scenes')
             .select('*')
             .eq('act_id', act.id)
             .order('scene_number', { ascending: true});
@@ -593,11 +602,11 @@ function ScriptEditor({ script, onClose, onSave }: ScriptEditorProps) {
 
       for (const act of acts) {
         const { error: actError } = await supabase
-          .from('acts')
+          .from('script_acts')
           .update({
-            title: act.title,
-            description: act.description,
-            duration: act.duration
+            content: act.content,
+            duration_estimate: act.duration_estimate,
+            notes: act.notes
           })
           .eq('id', act.id);
 
@@ -605,13 +614,13 @@ function ScriptEditor({ script, onClose, onSave }: ScriptEditorProps) {
 
         for (const scene of act.scenes) {
           const { error: sceneError } = await supabase
-            .from('scenes')
+            .from('script_scenes')
             .update({
-              title: scene.title,
+              setting: scene.setting,
               description: scene.description,
               dialogue: scene.dialogue,
-              duration: scene.duration,
-              claymation_notes: scene.claymation_notes
+              stage_directions: scene.stage_directions,
+              duration_estimate: scene.duration_estimate
             })
             .eq('id', scene.id);
 
@@ -657,19 +666,82 @@ function ScriptEditor({ script, onClose, onSave }: ScriptEditorProps) {
     ));
   };
 
+  const handleCreateAct = async () => {
+    try {
+      const newActNumber = acts.length > 0 ? Math.max(...acts.map(a => a.act_number)) + 1 : 1;
+
+      const { data: newAct, error } = await supabase
+        .from('script_acts')
+        .insert([{
+          script_id: script.id,
+          act_number: newActNumber,
+          content: '',
+          notes: `Act ${newActNumber}`,
+          duration_estimate: 0
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setActs([...acts, { ...newAct, scenes: [] }]);
+      setExpandedActs(new Set([...expandedActs, newAct.id]));
+    } catch (error) {
+      console.error('Error creating act:', error);
+      alert('Failed to create act. Please try again.');
+    }
+  };
+
+  const handleDeleteAct = async (actId: string) => {
+    const act = acts.find(a => a.id === actId);
+    if (!act) return;
+
+    if (act.scenes.length > 0) {
+      const confirmed = confirm(
+        `This act has ${act.scenes.length} scene${act.scenes.length > 1 ? 's' : ''}. Deleting it will also delete all scenes. Continue?`
+      );
+      if (!confirmed) return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('script_acts')
+        .delete()
+        .eq('id', actId);
+
+      if (error) throw error;
+
+      setActs(acts.filter(a => a.id !== actId));
+    } catch (error) {
+      console.error('Error deleting act:', error);
+      alert('Failed to delete act. Please try again.');
+    }
+  };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Edit Script</h2>
             <p className="text-sm text-gray-600">Edit script content and metadata</p>
           </div>
           <button
-            onClick={onClose}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onClose();
+            }}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            <span className="text-xl">×</span>
+            <X className="w-5 h-5 text-gray-600" />
           </button>
         </div>
 
@@ -804,21 +876,61 @@ function ScriptEditor({ script, onClose, onSave }: ScriptEditorProps) {
               </div>
 
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">Acts & Scenes</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900">Acts & Scenes</h3>
+                  <button
+                    onClick={handleCreateAct}
+                    className="flex items-center gap-2 px-4 py-2 bg-scripps-blue text-white rounded-lg hover:bg-opacity-90 transition-colors text-sm font-medium"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Act
+                  </button>
+                </div>
                 {acts.length === 0 ? (
                   <div className="bg-gray-50 rounded-lg p-8 text-center border border-gray-200">
-                    <p className="text-gray-600">No acts or scenes found for this script.</p>
+                    <p className="text-gray-600 mb-3">No acts or scenes found for this script.</p>
+                    <button
+                      onClick={handleCreateAct}
+                      className="px-4 py-2 bg-scripps-blue text-white rounded-lg hover:bg-opacity-90 transition-colors text-sm font-medium"
+                    >
+                      Create First Act
+                    </button>
                   </div>
                 ) : (
                   acts.map((act) => (
                     <div key={act.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                      <div
-                        className="bg-gray-50 p-4 cursor-pointer hover:bg-gray-100 transition-colors"
-                        onClick={() => toggleAct(act.id)}
-                      >
+                      <div className="bg-gray-50 p-4">
                         <div className="flex items-center justify-between">
-                          <h4 className="font-semibold text-gray-900">Act {act.act_number}: {act.title}</h4>
-                          <span className="text-gray-600">{expandedActs.has(act.id) ? '−' : '+'}</span>
+                          <div
+                            className="flex-1 cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() => toggleAct(act.id)}
+                          >
+                            <h4 className="font-semibold text-gray-900">Act {act.act_number} {act.notes ? `- ${act.notes}` : ''}</h4>
+                            <div className="flex items-center gap-3 mt-1">
+                              <span className="text-sm text-gray-600">{act.scenes?.length || 0} scenes</span>
+                              {act.duration_estimate > 0 && (
+                                <span className="text-sm text-gray-600">~{Math.floor(act.duration_estimate / 60)}m {act.duration_estimate % 60}s</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => toggleAct(act.id)}
+                              className="p-2 hover:bg-gray-200 rounded transition-colors"
+                            >
+                              <span className="text-gray-600">{expandedActs.has(act.id) ? '−' : '+'}</span>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteAct(act.id);
+                              }}
+                              className="p-2 hover:bg-red-100 rounded transition-colors"
+                              title="Delete act"
+                            >
+                              <Trash2 className="w-4 h-4 text-red-600" />
+                            </button>
+                          </div>
                         </div>
                       </div>
 
@@ -828,19 +940,31 @@ function ScriptEditor({ script, onClose, onSave }: ScriptEditorProps) {
                             <label className="block text-sm font-semibold text-gray-700 mb-2">Act Title</label>
                             <input
                               type="text"
-                              value={act.title}
-                              onChange={(e) => updateAct(act.id, 'title', e.target.value)}
+                              value={act.notes || ''}
+                              onChange={(e) => updateAct(act.id, 'notes', e.target.value)}
                               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
+                              placeholder="e.g., Setup, Confrontation, Resolution"
                             />
                           </div>
 
                           <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">Content</label>
                             <textarea
-                              value={act.description || ''}
-                              onChange={(e) => updateAct(act.id, 'description', e.target.value)}
-                              rows={2}
+                              value={act.content || ''}
+                              onChange={(e) => updateAct(act.id, 'content', e.target.value)}
+                              rows={3}
                               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
+                              placeholder="Act description and key plot points..."
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">Duration (seconds)</label>
+                            <input
+                              type="number"
+                              value={act.duration_estimate || 0}
+                              onChange={(e) => updateAct(act.id, 'duration_estimate', parseInt(e.target.value) || 0)}
+                              className="w-32 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
                             />
                           </div>
 
@@ -851,13 +975,14 @@ function ScriptEditor({ script, onClose, onSave }: ScriptEditorProps) {
                                 <div className="space-y-3">
                                   <div>
                                     <label className="block text-xs font-semibold text-gray-600 mb-1">
-                                      Scene {scene.scene_number} Title
+                                      Scene {scene.scene_number} Setting
                                     </label>
                                     <input
                                       type="text"
-                                      value={scene.title}
-                                      onChange={(e) => updateScene(act.id, scene.id, 'title', e.target.value)}
+                                      value={scene.setting || ''}
+                                      onChange={(e) => updateScene(act.id, scene.id, 'setting', e.target.value)}
                                       className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
+                                      placeholder="Location/setting"
                                     />
                                   </div>
 
@@ -868,6 +993,7 @@ function ScriptEditor({ script, onClose, onSave }: ScriptEditorProps) {
                                       onChange={(e) => updateScene(act.id, scene.id, 'description', e.target.value)}
                                       rows={2}
                                       className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
+                                      placeholder="What happens in this scene..."
                                     />
                                   </div>
 
@@ -892,13 +1018,26 @@ function ScriptEditor({ script, onClose, onSave }: ScriptEditorProps) {
 
                                   <div>
                                     <label className="block text-xs font-semibold text-gray-600 mb-1">
-                                      Claymation Notes
+                                      Stage Directions
                                     </label>
                                     <textarea
-                                      value={scene.claymation_notes || ''}
-                                      onChange={(e) => updateScene(act.id, scene.id, 'claymation_notes', e.target.value)}
+                                      value={scene.stage_directions || ''}
+                                      onChange={(e) => updateScene(act.id, scene.id, 'stage_directions', e.target.value)}
                                       rows={2}
                                       className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
+                                      placeholder="Production notes and stage directions..."
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-xs font-semibold text-gray-600 mb-1">
+                                      Duration (seconds)
+                                    </label>
+                                    <input
+                                      type="number"
+                                      value={scene.duration_estimate || 0}
+                                      onChange={(e) => updateScene(act.id, scene.id, 'duration_estimate', parseInt(e.target.value) || 0)}
+                                      className="w-32 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
                                     />
                                   </div>
                                 </div>
@@ -917,7 +1056,12 @@ function ScriptEditor({ script, onClose, onSave }: ScriptEditorProps) {
 
         <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 flex justify-end gap-3 flex-shrink-0">
           <button
-            onClick={onClose}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onClose();
+            }}
             className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all font-medium"
           >
             Cancel
@@ -1023,18 +1167,29 @@ function CreateEpisodeModal({ script, onClose, onSuccess }: CreateEpisodeModalPr
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Create Episode from Script</h2>
             <p className="text-sm text-gray-600">Review costs and create production episode</p>
           </div>
           <button
-            onClick={onClose}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onClose();
+            }}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            <span className="text-xl">×</span>
+            <X className="w-5 h-5 text-gray-600" />
           </button>
         </div>
 
@@ -1163,7 +1318,12 @@ function CreateEpisodeModal({ script, onClose, onSuccess }: CreateEpisodeModalPr
 
         <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 flex justify-end gap-3 flex-shrink-0">
           <button
-            onClick={onClose}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onClose();
+            }}
             className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all font-medium"
           >
             Cancel

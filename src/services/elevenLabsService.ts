@@ -43,10 +43,23 @@ export class ElevenLabsService {
     }
 
     try {
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const elevenLabsKey = import.meta.env.VITE_ELEVENLABS_API_KEY;
+
+      const headers: Record<string, string> = {
+        'Authorization': `Bearer ${anonKey}`,
+        'apikey': anonKey,
+      };
+
+      if (elevenLabsKey) {
+        headers['X-Elevenlabs-Api-Key'] = elevenLabsKey;
+      }
+
       const response = await fetch(
         `${this.edgeFunctionUrl}?path=/voices&method=GET`,
         {
           method: 'GET',
+          headers,
         }
       );
 
@@ -78,13 +91,24 @@ export class ElevenLabsService {
 
   async generatePreview(voiceId: string, text: string): Promise<Blob> {
     try {
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const elevenLabsKey = import.meta.env.VITE_ELEVENLABS_API_KEY;
+
+      const headers: Record<string, string> = {
+        'Authorization': `Bearer ${anonKey}`,
+        'apikey': anonKey,
+        'Content-Type': 'application/json',
+      };
+
+      if (elevenLabsKey) {
+        headers['X-Elevenlabs-Api-Key'] = elevenLabsKey;
+      }
+
       const response = await fetch(
         `${this.edgeFunctionUrl}?path=/text-to-speech/${voiceId}&method=POST`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers,
           body: JSON.stringify({
             text: text,
             model_id: 'eleven_monolingual_v1',

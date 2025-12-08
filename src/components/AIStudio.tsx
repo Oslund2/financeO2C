@@ -28,7 +28,7 @@ export function AIStudio({ seriesId, onNavigate }: AIStudioProps) {
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center shadow-md">
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg flex items-center justify-center shadow-md">
               <Sparkles className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -39,7 +39,7 @@ export function AIStudio({ seriesId, onNavigate }: AIStudioProps) {
         </div>
 
         <div className="bg-white rounded-xl shadow-md border border-gray-200 mb-6">
-          <div className="flex border-b border-gray-200">
+          <div className="flex border-b border-gray-200 overflow-x-auto">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -48,7 +48,7 @@ export function AIStudio({ seriesId, onNavigate }: AIStudioProps) {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 font-medium transition-all ${
+                  className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 font-medium transition-all whitespace-nowrap ${
                     isActive
                       ? 'text-scripps-blue border-b-2 border-scripps-blue bg-blue-50'
                       : 'text-gray-600 hover:bg-gray-50'
@@ -126,7 +126,7 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
     }
 
     if (!configStatus?.configured) {
-      setGenerationError('Vertex AI is not configured. Please set up your API credentials in Settings.');
+      setGenerationError('Gemini API is not configured. Please set up your API key in Settings.');
       return;
     }
 
@@ -223,13 +223,13 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
 
       for (const act of generatedData.script.acts) {
         const { data: actData, error: actError } = await supabase
-          .from('acts')
+          .from('script_acts')
           .insert([{
             script_id: script.id,
             act_number: act.act_number,
-            title: act.title,
-            description: act.description,
-            duration: act.scenes.reduce((sum: number, s: any) => sum + (s.duration_estimate || 0), 0)
+            content: `${act.title}\n\n${act.description}`,
+            duration_estimate: act.scenes.reduce((sum: number, s: any) => sum + (s.duration_estimate || 0), 0),
+            notes: act.title
           }])
           .select()
           .single();
@@ -239,15 +239,15 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
         for (let sceneIndex = 0; sceneIndex < act.scenes.length; sceneIndex++) {
           const scene = act.scenes[sceneIndex];
           const { error: sceneError } = await supabase
-            .from('scenes')
+            .from('script_scenes')
             .insert([{
               act_id: actData.id,
               scene_number: sceneIndex + 1,
-              title: scene.title,
+              setting: scene.title,
               description: scene.description,
               dialogue: scene.dialogue,
-              duration: scene.duration_estimate,
-              claymation_notes: scene.claymation_notes
+              stage_directions: scene.claymation_notes || '',
+              duration_estimate: scene.duration_estimate
             }]);
 
           if (sceneError) throw sceneError;
@@ -263,7 +263,7 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
           entity_id: script.id,
           entity_type: 'script',
           status: 'completed',
-          service: 'vertex_ai_gemini',
+          service: 'gemini_2.0_flash',
           request_payload: formData,
           response_data: { script: generatedData.script },
           completed_at: new Date().toISOString()
@@ -289,9 +289,9 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
           <div className="flex items-start gap-3">
             <AlertCircle className="w-6 h-6 text-red-600 mt-1 flex-shrink-0" />
             <div className="flex-1">
-              <h3 className="font-semibold text-red-900 mb-1">Vertex AI Not Configured</h3>
+              <h3 className="font-semibold text-red-900 mb-1">Gemini API Not Configured</h3>
               <p className="text-sm text-red-800 mb-2">
-                To use AI script generation, you need to configure your Vertex AI credentials in Bolt Secrets.
+                To use AI script generation, you need to configure your Gemini API key.
               </p>
               <p className="text-sm text-red-800 mb-2">
                 Missing: {configStatus?.missing.join(', ')}
@@ -313,9 +313,9 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
           <div className="flex items-start gap-3">
             <CheckCircle className="w-6 h-6 text-green-600 mt-1" />
             <div>
-              <h3 className="font-semibold text-green-900 mb-1">Vertex AI Connected</h3>
+              <h3 className="font-semibold text-green-900 mb-1">Gemini 2.0 Flash Connected</h3>
               <p className="text-sm text-green-800">
-                Your Vertex AI credentials are configured and ready to generate scripts.
+                Your Gemini API key is configured and ready to generate scripts.
               </p>
             </div>
           </div>
@@ -334,13 +334,13 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
         </div>
       )}
 
-      <div className="bg-gradient-to-r from-purple-100 to-pink-100 border border-purple-200 rounded-lg p-4">
+      <div className="bg-gradient-to-r from-blue-100 to-cyan-100 border border-blue-200 rounded-lg p-4">
         <div className="flex items-start gap-3">
-          <Wand2 className="w-6 h-6 text-purple-600 mt-1" />
+          <Wand2 className="w-6 h-6 text-blue-600 mt-1" />
           <div>
-            <h3 className="font-semibold text-purple-900 mb-1">AI-Powered Script Generation</h3>
-            <p className="text-sm text-purple-800">
-              Generate complete episode scripts using Vertex AI Gemini. Provide details about your episode, select characters, and let AI create a full script structure with acts, scenes, and dialogue.
+            <h3 className="font-semibold text-blue-900 mb-1">AI-Powered Script Generation</h3>
+            <p className="text-sm text-blue-800">
+              Generate complete episode scripts using Gemini 2.0 Flash. Provide details about your episode, select characters, and let AI create a full script structure with acts, scenes, and dialogue.
             </p>
           </div>
         </div>
@@ -484,14 +484,14 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
         <button
           onClick={handleGenerate}
           disabled={generating || !configStatus?.configured}
-          className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-lg hover:shadow-lg transition-all font-medium disabled:opacity-50 text-lg"
+          className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg hover:shadow-lg transition-all font-medium disabled:opacity-50 text-lg"
         >
           <Sparkles className="w-6 h-6" />
           {generating ? 'Generating Script with AI...' : 'Generate Complete Episode Script'}
         </button>
         {configStatus?.configured && (
           <p className="text-xs text-gray-600 text-center mt-2">
-            Using Vertex AI Gemini to generate a complete 3-act script with dialogue
+            Using Gemini 2.0 Flash to generate a complete 3-act script with dialogue
           </p>
         )}
       </div>
@@ -557,7 +557,7 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
               <button
                 onClick={handleSaveScript}
                 disabled={generating}
-                className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-lg hover:shadow-lg transition-all font-medium disabled:opacity-50"
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg hover:shadow-lg transition-all font-medium disabled:opacity-50"
               >
                 {generating ? 'Saving...' : 'Save Script'}
               </button>

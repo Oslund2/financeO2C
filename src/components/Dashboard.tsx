@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Plus, TrendingUp, Clock, CheckCircle, AlertCircle, Award, Globe, Sparkles, DollarSign, Languages, Tv, X, FileText, Film, ArrowRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Logo } from './Logo';
+import { SystemHealthWidget } from './SystemHealthWidget';
 
 interface DashboardProps {
   seriesId: string | null;
@@ -357,6 +358,10 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
           ))}
         </div>
 
+        <div className="mb-8">
+          <SystemHealthWidget onNavigateToBackup={() => onNavigate('backup-recovery')} />
+        </div>
+
         <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-xl shadow-md p-6 border-2 border-blue-200 mb-8">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
@@ -573,6 +578,7 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
           onClick={() => setFullscreenCard(null)}
         >
           <button
+            type="button"
             onClick={() => setFullscreenCard(null)}
             className="absolute top-6 right-6 w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all border border-white/20 hover:scale-110"
             aria-label="Close fullscreen view"

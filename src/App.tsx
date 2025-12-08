@@ -10,6 +10,7 @@ import { AIStudio } from './components/AIStudio';
 import { Settings } from './components/Settings';
 import { StoryboardGenerator } from './components/StoryboardGenerator';
 import { StoryboardViewer } from './components/StoryboardViewer';
+import BackupRecovery from './components/BackupRecovery';
 import { supabase } from './lib/supabase';
 import { initializeSampleData } from './utils/sampleData';
 
@@ -90,6 +91,7 @@ function App() {
       {currentView === 'storyboard-viewer' && navigationData?.storyboardId && (
         <StoryboardViewer storyboardId={navigationData.storyboardId} onNavigate={handleNavigate} />
       )}
+      {currentView === 'backup-recovery' && <BackupRecovery />}
       {currentView === 'settings' && <Settings />}
     </Layout>
   );

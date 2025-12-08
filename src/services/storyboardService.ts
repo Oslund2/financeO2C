@@ -50,16 +50,14 @@ const CAMERA_ANGLES = {
   pov: 'Point of view - from character\'s perspective'
 };
 
-export function getVertexAICredentials() {
-  const projectId = import.meta.env.VITE_VERTEX_AI_PROJECT_ID;
-  const location = import.meta.env.VITE_VERTEX_AI_LOCATION || 'us-central1';
-  const apiKey = import.meta.env.VITE_VERTEX_AI_API_KEY;
+export function getGeminiAPIKey() {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
-  if (!projectId || !apiKey) {
-    throw new Error('Vertex AI credentials not configured');
+  if (!apiKey) {
+    throw new Error('Gemini API key not configured');
   }
 
-  return { projectId, location, apiKey };
+  return apiKey;
 }
 
 export async function loadScriptWithDetails(scriptId: string) {
@@ -230,7 +228,7 @@ export async function generateShotDescription(
   characters: Character[],
   options: StoryboardGenerationOptions
 ): Promise<string> {
-  const { projectId, location, apiKey } = getVertexAICredentials();
+  const apiKey = getGeminiAPIKey();
 
   const characterInfo = characters.map(c =>
     `${c.name}: ${c.description || ''} - ${c.clay_features || 'claymation character'}`
@@ -263,13 +261,12 @@ Create a detailed shot description (2-3 sentences) that includes:
 
 Shot description:`;
 
-  const endpoint = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/gemini-1.5-flash:generateContent`;
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
-      'x-goog-api-key': apiKey
+      'Content-Type': 'application/json'
     },
     body: JSON.stringify({
       contents: [{

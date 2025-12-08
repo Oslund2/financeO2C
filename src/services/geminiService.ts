@@ -61,16 +61,14 @@ const DEFAULT_OPTIONS: GenerationOptions = {
   pacing: 'moderate'
 };
 
-function getVertexAICredentials() {
-  const projectId = import.meta.env.VITE_VERTEX_AI_PROJECT_ID;
-  const location = import.meta.env.VITE_VERTEX_AI_LOCATION || 'us-central1';
-  const apiKey = import.meta.env.VITE_VERTEX_AI_API_KEY;
+function getGeminiAPIKey() {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
-  if (!projectId || !apiKey) {
-    throw new Error('Vertex AI credentials not configured. Please set VITE_VERTEX_AI_PROJECT_ID and VITE_VERTEX_AI_API_KEY in Bolt Secrets.');
+  if (!apiKey) {
+    throw new Error('Gemini API key not configured. Please set VITE_GEMINI_API_KEY in environment variables.');
   }
 
-  return { projectId, location, apiKey };
+  return apiKey;
 }
 
 function buildScriptGenerationPrompt(
@@ -149,12 +147,12 @@ export async function generateScriptWithGemini(
   options: GenerationOptions = {}
 ): Promise<GeneratedScript> {
   try {
-    const { projectId, location, apiKey } = getVertexAICredentials();
+    const apiKey = getGeminiAPIKey();
     const mergedOptions = { ...DEFAULT_OPTIONS, ...options };
 
     const prompt = buildScriptGenerationPrompt(episode, characters, mergedOptions);
 
-    const endpoint = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/gemini-1.5-flash:generateContent`;
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
 
     const requestBody = {
       contents: [{
@@ -165,28 +163,28 @@ export async function generateScriptWithGemini(
         temperature: mergedOptions.temperature,
         maxOutputTokens: mergedOptions.maxTokens,
         topP: 0.95,
-        topK: 40
+        topK: 40,
+        responseMimeType: 'application/json'
       }
     };
 
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(requestBody)
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(`Vertex AI API error: ${response.status} ${response.statusText}. ${JSON.stringify(errorData)}`);
+      throw new Error(`Gemini API error: ${response.status} ${response.statusText}. ${JSON.stringify(errorData)}`);
     }
 
     const data = await response.json();
 
     if (!data.candidates || data.candidates.length === 0) {
-      throw new Error('No response generated from Vertex AI');
+      throw new Error('No response generated from Gemini');
     }
 
     const textContent = data.candidates[0].content.parts[0].text;
@@ -232,14 +230,11 @@ function validateGeneratedScript(script: GeneratedScript): void {
   });
 }
 
-export function checkVertexAIConfiguration(): { configured: boolean; missing: string[] } {
+export function checkGeminiConfiguration(): { configured: boolean; missing: string[] } {
   const missing: string[] = [];
 
-  if (!import.meta.env.VITE_VERTEX_AI_PROJECT_ID) {
-    missing.push('VITE_VERTEX_AI_PROJECT_ID');
-  }
-  if (!import.meta.env.VITE_VERTEX_AI_API_KEY) {
-    missing.push('VITE_VERTEX_AI_API_KEY');
+  if (!import.meta.env.VITE_GEMINI_API_KEY) {
+    missing.push('VITE_GEMINI_API_KEY');
   }
 
   return {
@@ -247,3 +242,5 @@ export function checkVertexAIConfiguration(): { configured: boolean; missing: st
     missing
   };
 }
+
+export const checkVertexAIConfiguration = checkGeminiConfiguration;

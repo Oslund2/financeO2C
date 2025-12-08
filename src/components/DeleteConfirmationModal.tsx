@@ -95,6 +95,7 @@ export function DeleteConfirmationModal({
               </div>
             </div>
             <button
+              type="button"
               onClick={onClose}
               disabled={isDeleting}
               className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
