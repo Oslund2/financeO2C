@@ -129,38 +129,38 @@ export function Assets({ seriesId }: AssetsProps) {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 md:mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Asset Library</h1>
-            <p className="text-gray-600">Browse and manage your production assets</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Asset Library</h1>
+            <p className="text-sm md:text-base text-gray-600">Browse and manage your production assets</p>
           </div>
           <button
             onClick={() => setShowUploadModal(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium"
+            className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium min-h-[44px]"
           >
             <Plus className="w-5 h-5" />
-            Upload Asset
+            <span>Upload Asset</span>
           </button>
         </div>
 
-        <div className="bg-white rounded-xl shadow-md p-4 mb-6 border border-gray-200">
-          <div className="flex gap-4">
+        <div className="bg-white rounded-xl shadow-md p-3 md:p-4 mb-4 md:mb-6 border border-gray-200">
+          <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search assets by name, description, or tags..."
+                placeholder="Search assets..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent text-sm md:text-base min-h-[44px]"
               />
             </div>
             <select
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
+              className="w-full sm:w-auto px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent text-sm md:text-base min-h-[44px]"
             >
               {assetTypes.map((type) => (
                 <option key={type.id} value={type.id}>
@@ -172,27 +172,27 @@ export function Assets({ seriesId }: AssetsProps) {
         </div>
 
         {filteredAssets.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-md p-12 text-center border border-gray-200">
+          <div className="bg-white rounded-xl shadow-md p-6 md:p-12 text-center border border-gray-200">
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Image className="w-8 h-8 text-scripps-blue" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No assets yet</h3>
-            <p className="text-gray-600 mb-6">Generate or upload assets to get started</p>
-            <div className="flex gap-3 justify-center">
+            <h3 className="text-lg md:text-xl font-semibold text-gray-900 mb-2">No assets yet</h3>
+            <p className="text-sm md:text-base text-gray-600 mb-6">Generate or upload assets to get started</p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center max-w-md mx-auto">
               <button
                 onClick={() => setShowUploadModal(true)}
-                className="px-6 py-3 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium"
+                className="px-6 py-3 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium min-h-[44px]"
               >
                 Upload Asset
               </button>
-              <button className="px-6 py-3 bg-gradient-to-r from-scripps-navy to-scripps-blue text-white rounded-lg hover:shadow-lg transition-all font-medium flex items-center gap-2">
+              <button className="px-6 py-3 bg-gradient-to-r from-scripps-navy to-scripps-blue text-white rounded-lg hover:shadow-lg transition-all font-medium flex items-center justify-center gap-2 min-h-[44px]">
                 <Sparkles className="w-5 h-5" />
                 Generate with AI
               </button>
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
             {filteredAssets.map((asset) => {
               const mimeType = asset.metadata?.mimeType || '';
               const isVideo = mimeType.startsWith('video/') || asset.asset_type === 'video_clip';
@@ -212,7 +212,7 @@ export function Assets({ seriesId }: AssetsProps) {
                   className="bg-white rounded-lg shadow-md hover:shadow-xl transition-all border border-gray-200 overflow-hidden group cursor-pointer"
                   onClick={() => setPreviewAsset(asset)}
                 >
-                  <div className="h-48 bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center relative">
+                  <div className="h-40 sm:h-48 bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center relative">
                     {isImage && (asset.thumbnail_url || asset.file_url) && (
                       <img
                         src={asset.thumbnail_url || asset.file_url || ''}
@@ -264,7 +264,7 @@ export function Assets({ seriesId }: AssetsProps) {
                     </div>
                     <button
                       onClick={(e) => handleDeleteClick(asset, e)}
-                      className="absolute bottom-2 right-2 p-2 bg-red-600 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700"
+                      className="absolute bottom-2 right-2 p-2.5 bg-red-600 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700 min-w-[44px] min-h-[44px] flex items-center justify-center"
                       title="Delete asset"
                     >
                       <Trash2 className="w-4 h-4" />

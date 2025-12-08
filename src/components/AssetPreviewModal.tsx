@@ -106,43 +106,43 @@ export default function AssetPreviewModal({ asset, onClose }: AssetPreviewModalP
   return (
     <div
       ref={modalRef}
-      className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-3 sm:p-4"
       onClick={handleBackdropClick}
     >
-      <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-start justify-between p-6 border-b border-gray-200">
-          <div className="flex-1">
-            <div className="flex items-center gap-3 mb-2">
-              <h2 className="text-2xl font-bold text-gray-900">{asset.name}</h2>
+        <div className="flex items-start justify-between p-4 sm:p-6 border-b border-gray-200">
+          <div className="flex-1 min-w-0 pr-2">
+            <div className="flex items-center gap-2 sm:gap-3 mb-2 flex-wrap">
+              <h2 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">{asset.name}</h2>
               {asset.ai_generated && (
-                <div className="flex items-center gap-1 px-2 py-1 bg-purple-500 text-white rounded text-xs font-medium">
+                <div className="flex items-center gap-1 px-2 py-1 bg-purple-500 text-white rounded text-xs font-medium shrink-0">
                   <Sparkles className="w-3 h-3" />
                   AI Generated
                 </div>
               )}
             </div>
             {asset.description && (
-              <p className="text-gray-600 text-sm">{asset.description}</p>
+              <p className="text-gray-600 text-xs sm:text-sm line-clamp-2">{asset.description}</p>
             )}
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0"
             title="Close"
           >
-            <X className="w-6 h-6 text-gray-600" />
+            <X className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="mb-6 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center min-h-[400px]">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+          <div className="mb-4 sm:mb-6 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center min-h-[200px] sm:min-h-[300px] md:min-h-[400px]">
             {isImage && (
               <img
                 src={asset.file_url}
                 alt={asset.name}
-                className="max-w-full max-h-[600px] object-contain"
+                className="max-w-full max-h-[300px] sm:max-h-[400px] md:max-h-[600px] object-contain"
               />
             )}
             {isVideo && (
@@ -150,14 +150,14 @@ export default function AssetPreviewModal({ asset, onClose }: AssetPreviewModalP
                 ref={videoRef}
                 src={asset.file_url}
                 controls
-                className="max-w-full max-h-[600px]"
+                className="max-w-full max-h-[300px] sm:max-h-[400px] md:max-h-[600px]"
                 preload="metadata"
               >
                 Your browser does not support video playback.
               </video>
             )}
             {isAudio && (
-              <div className="w-full p-8">
+              <div className="w-full p-4 sm:p-8">
                 <audio
                   ref={audioRef}
                   src={asset.file_url}
@@ -170,31 +170,31 @@ export default function AssetPreviewModal({ asset, onClose }: AssetPreviewModalP
               </div>
             )}
             {isDocument && (
-              <div className="w-full p-8">
+              <div className="w-full p-4 sm:p-8">
                 {isTextFile ? (
                   loadingText ? (
-                    <div className="text-center text-gray-600">Loading file content...</div>
+                    <div className="text-center text-gray-600 text-sm">Loading file content...</div>
                   ) : (
-                    <div className="bg-white p-6 rounded-lg border border-gray-300 max-h-96 overflow-y-auto">
-                      <pre className="whitespace-pre-wrap text-sm text-gray-800 font-mono">
+                    <div className="bg-white p-3 sm:p-6 rounded-lg border border-gray-300 max-h-64 sm:max-h-96 overflow-y-auto">
+                      <pre className="whitespace-pre-wrap text-xs sm:text-sm text-gray-800 font-mono">
                         {textContent}
                       </pre>
                     </div>
                   )
                 ) : (
                   <div className="flex flex-col items-center justify-center">
-                    <FileText className="w-24 h-24 text-orange-500 mb-4" />
-                    <p className="text-gray-700 font-medium mb-2">{asset.name}</p>
-                    <p className="text-sm text-gray-600 mb-4">
+                    <FileText className="w-16 h-16 sm:w-24 sm:h-24 text-orange-500 mb-3 sm:mb-4" />
+                    <p className="text-gray-700 font-medium mb-2 text-sm sm:text-base truncate max-w-full px-4">{asset.name}</p>
+                    <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4 text-center px-4">
                       Document files can be downloaded for viewing
                     </p>
                     <a
                       href={asset.file_url}
                       download={asset.name}
-                      className="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors flex items-center gap-2"
+                      className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors flex items-center gap-2 min-h-[44px]"
                     >
                       <Download className="w-4 h-4" />
-                      Download Document
+                      <span>Download Document</span>
                     </a>
                   </div>
                 )}
@@ -203,41 +203,41 @@ export default function AssetPreviewModal({ asset, onClose }: AssetPreviewModalP
           </div>
 
           {/* Metadata */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-3">
-              <div className="flex items-start gap-3">
-                <FileType className="w-5 h-5 text-gray-400 mt-0.5" />
-                <div>
-                  <div className="text-sm font-medium text-gray-700">Type</div>
-                  <div className="text-sm text-gray-600">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            <div className="space-y-2 sm:space-y-3">
+              <div className="flex items-start gap-2 sm:gap-3">
+                <FileType className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 mt-0.5 shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-xs sm:text-sm font-medium text-gray-700">Type</div>
+                  <div className="text-xs sm:text-sm text-gray-600 break-words">
                     {asset.asset_type.replace('_', ' ').toUpperCase()} ({getFileExtension()})
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-start gap-3">
-                <Download className="w-5 h-5 text-gray-400 mt-0.5" />
+              <div className="flex items-start gap-2 sm:gap-3">
+                <Download className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 mt-0.5 shrink-0" />
                 <div>
-                  <div className="text-sm font-medium text-gray-700">File Size</div>
-                  <div className="text-sm text-gray-600">{formatFileSize(fileSize)}</div>
+                  <div className="text-xs sm:text-sm font-medium text-gray-700">File Size</div>
+                  <div className="text-xs sm:text-sm text-gray-600">{formatFileSize(fileSize)}</div>
                 </div>
               </div>
 
-              <div className="flex items-start gap-3">
-                <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
+              <div className="flex items-start gap-2 sm:gap-3">
+                <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 mt-0.5 shrink-0" />
                 <div>
-                  <div className="text-sm font-medium text-gray-700">Created</div>
-                  <div className="text-sm text-gray-600">{formatDate(asset.created_at)}</div>
+                  <div className="text-xs sm:text-sm font-medium text-gray-700">Created</div>
+                  <div className="text-xs sm:text-sm text-gray-600">{formatDate(asset.created_at)}</div>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2 sm:space-y-3">
               {asset.tags && asset.tags.length > 0 && (
-                <div className="flex items-start gap-3">
-                  <Tag className="w-5 h-5 text-gray-400 mt-0.5" />
-                  <div>
-                    <div className="text-sm font-medium text-gray-700">Tags</div>
+                <div className="flex items-start gap-2 sm:gap-3">
+                  <Tag className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 mt-0.5 shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-xs sm:text-sm font-medium text-gray-700">Tags</div>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {asset.tags.map((tag, index) => (
                         <span
@@ -252,13 +252,13 @@ export default function AssetPreviewModal({ asset, onClose }: AssetPreviewModalP
                 </div>
               )}
 
-              <div className="flex items-start gap-3">
-                <div className="w-5 h-5 flex items-center justify-center text-gray-400 mt-0.5 font-bold text-lg">
+              <div className="flex items-start gap-2 sm:gap-3">
+                <div className="w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center text-gray-400 mt-0.5 font-bold text-base sm:text-lg shrink-0">
                   #
                 </div>
                 <div>
-                  <div className="text-sm font-medium text-gray-700">Usage Count</div>
-                  <div className="text-sm text-gray-600">Used {asset.usage_count} times</div>
+                  <div className="text-xs sm:text-sm font-medium text-gray-700">Usage Count</div>
+                  <div className="text-xs sm:text-sm text-gray-600">Used {asset.usage_count} times</div>
                 </div>
               </div>
             </div>
@@ -266,18 +266,18 @@ export default function AssetPreviewModal({ asset, onClose }: AssetPreviewModalP
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-gray-200 flex justify-between items-center bg-gray-50">
+        <div className="p-4 sm:p-6 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 bg-gray-50">
           <a
             href={asset.file_url}
             download={asset.name}
-            className="px-4 py-2 bg-scripps-blue text-white rounded-lg hover:bg-scripps-navy transition-colors flex items-center gap-2"
+            className="px-4 py-3 bg-scripps-blue text-white rounded-lg hover:bg-scripps-navy transition-colors flex items-center justify-center gap-2 min-h-[44px]"
           >
             <Download className="w-4 h-4" />
-            Download
+            <span>Download</span>
           </a>
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+            className="px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors min-h-[44px]"
           >
             Close
           </button>
