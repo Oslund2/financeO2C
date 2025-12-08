@@ -15,6 +15,7 @@ export function Characters({ seriesId }: CharactersProps) {
   const [characters, setCharacters] = useState<Character[]>([]);
   const [filteredCharacters, setFilteredCharacters] = useState<Character[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingCharacter, setEditingCharacter] = useState<Character | null>(null);
@@ -34,18 +35,23 @@ export function Characters({ seriesId }: CharactersProps) {
   }, [seriesId]);
 
   useEffect(() => {
+    let filtered = characters;
+
     if (searchQuery) {
-      const filtered = characters.filter(
+      filtered = filtered.filter(
         (char) =>
           char.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           char.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
           char.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
       );
-      setFilteredCharacters(filtered);
-    } else {
-      setFilteredCharacters(characters);
     }
-  }, [searchQuery, characters]);
+
+    if (roleFilter) {
+      filtered = filtered.filter((char) => char.role === roleFilter);
+    }
+
+    setFilteredCharacters(filtered);
+  }, [searchQuery, roleFilter, characters]);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -177,7 +183,7 @@ export function Characters({ seriesId }: CharactersProps) {
         </div>
 
         <div className="bg-white rounded-xl shadow-md p-3 sm:p-4 mb-4 sm:mb-6 border border-gray-200">
-          <div className="relative">
+          <div className="relative mb-3">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
@@ -186,6 +192,58 @@ export function Characters({ seriesId }: CharactersProps) {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent text-base"
             />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setRoleFilter(null)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                roleFilter === null
+                  ? 'bg-scripps-blue text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              All Roles
+            </button>
+            <button
+              onClick={() => setRoleFilter('Primary')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                roleFilter === 'Primary'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300'
+              }`}
+            >
+              Primary
+            </button>
+            <button
+              onClick={() => setRoleFilter('Ensemble')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                roleFilter === 'Ensemble'
+                  ? 'bg-green-600 text-white'
+                  : 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-300'
+              }`}
+            >
+              Ensemble
+            </button>
+            <button
+              onClick={() => setRoleFilter('Recurring')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                roleFilter === 'Recurring'
+                  ? 'bg-amber-600 text-white'
+                  : 'bg-amber-100 text-amber-700 hover:bg-amber-200 border border-amber-300'
+              }`}
+            >
+              Recurring
+            </button>
+            <button
+              onClick={() => setRoleFilter('Cameo')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                roleFilter === 'Cameo'
+                  ? 'bg-gray-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'
+              }`}
+            >
+              Cameo
+            </button>
           </div>
         </div>
 
@@ -258,8 +316,16 @@ export function Characters({ seriesId }: CharactersProps) {
                 <div className="p-5">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <h3 className="text-lg font-bold text-gray-900">{character.name}</h3>
+                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                          character.role === 'Primary' ? 'bg-blue-100 text-blue-700 border border-blue-300' :
+                          character.role === 'Ensemble' ? 'bg-green-100 text-green-700 border border-green-300' :
+                          character.role === 'Recurring' ? 'bg-amber-100 text-amber-700 border border-amber-300' :
+                          'bg-gray-100 text-gray-700 border border-gray-300'
+                        }`}>
+                          {character.role}
+                        </span>
                         {character.eleven_labs_voice_id && (
                           <div className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-full">
                             <Volume2 className="w-3 h-3" />
@@ -454,6 +520,7 @@ function CharacterForm({ character, seriesId, onClose, onSave }: CharacterFormPr
   const [formData, setFormData] = useState({
     name: character?.name || '',
     age: character?.age?.toString() || '',
+    role: character?.role || 'Ensemble',
     description: character?.description || '',
     personality: character?.personality || '',
     clay_features: character?.clay_features || '',
@@ -520,6 +587,7 @@ function CharacterForm({ character, seriesId, onClose, onSave }: CharacterFormPr
         series_id: seriesId,
         name: formData.name,
         age: formData.age ? parseInt(formData.age) : null,
+        role: formData.role,
         description: formData.description || null,
         personality: formData.personality || null,
         clay_features: formData.clay_features || null,
@@ -576,7 +644,7 @@ function CharacterForm({ character, seriesId, onClose, onSave }: CharacterFormPr
         </div>
 
         <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Name *
@@ -602,6 +670,23 @@ function CharacterForm({ character, seriesId, onClose, onSave }: CharacterFormPr
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent text-base"
                 placeholder="e.g., 10"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Character Role *
+              </label>
+              <select
+                required
+                value={formData.role}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent text-base bg-white"
+              >
+                <option value="Primary">Primary</option>
+                <option value="Ensemble">Ensemble</option>
+                <option value="Recurring">Recurring</option>
+                <option value="Cameo">Cameo</option>
+              </select>
             </div>
           </div>
 

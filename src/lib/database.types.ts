@@ -51,6 +51,7 @@ export interface Database {
           eleven_labs_voice_id: string | null
           reference_image_url: string | null
           tags: string[]
+          role: string
           created_at: string
           updated_at: string
         }
@@ -66,6 +67,7 @@ export interface Database {
           eleven_labs_voice_id?: string | null
           reference_image_url?: string | null
           tags?: string[]
+          role?: string
           created_at?: string
           updated_at?: string
         }
@@ -81,6 +83,7 @@ export interface Database {
           eleven_labs_voice_id?: string | null
           reference_image_url?: string | null
           tags?: string[]
+          role?: string
           created_at?: string
           updated_at?: string
         }
