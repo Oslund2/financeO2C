@@ -136,6 +136,7 @@ export function AssetUploadModal({ isOpen, onClose, onUploadComplete, seriesId }
         filename: selectedFile.name,
         size: selectedFile.size,
         type: selectedFile.type,
+        mimeType: selectedFile.type,
         uploaded_at: new Date().toISOString(),
       };
 

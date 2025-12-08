@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Image, Search, Filter, Sparkles, Plus, Trash2 } from 'lucide-react';
+import { Image, Search, Filter, Sparkles, Plus, Trash2, FileVideo, FileAudio, Play } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
 import { AssetUploadModal } from './AssetUploadModal';
+import AssetPreviewModal from './AssetPreviewModal';
 
 type Asset = Database['public']['Tables']['assets']['Row'];
 
@@ -18,6 +19,7 @@ export function Assets({ seriesId }: AssetsProps) {
   const [selectedType, setSelectedType] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
     asset: Asset | null;
@@ -190,50 +192,83 @@ export function Assets({ seriesId }: AssetsProps) {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {filteredAssets.map((asset) => (
-              <div
-                key={asset.id}
-                className="bg-white rounded-lg shadow-md hover:shadow-xl transition-all border border-gray-200 overflow-hidden group cursor-pointer"
-              >
-                <div className="h-48 bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center relative">
-                  {asset.thumbnail_url || asset.file_url ? (
-                    <img
-                      src={asset.thumbnail_url || asset.file_url || ''}
-                      alt={asset.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <Image className="w-12 h-12 text-gray-400" />
-                  )}
-                  {asset.ai_generated && (
-                    <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 bg-purple-500 text-white rounded text-xs font-medium">
-                      <Sparkles className="w-3 h-3" />
-                      AI
-                    </div>
-                  )}
-                  <div className="absolute top-2 right-2 px-2 py-1 bg-black bg-opacity-60 text-white rounded text-xs">
-                    {asset.asset_type.replace('_', ' ')}
-                  </div>
-                  <button
-                    onClick={(e) => handleDeleteClick(asset, e)}
-                    className="absolute bottom-2 right-2 p-2 bg-red-600 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700"
-                    title="Delete asset"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+            {filteredAssets.map((asset) => {
+              const mimeType = asset.metadata?.mimeType || '';
+              const isVideo = mimeType.startsWith('video/') || asset.asset_type === 'video_clip';
+              const isAudio = mimeType.startsWith('audio/') || asset.asset_type === 'audio_clip';
+              const isImage = mimeType.startsWith('image/') || asset.asset_type === 'character_ref' || asset.asset_type === 'background' || asset.asset_type === 'prop';
 
-                <div className="p-3">
-                  <h3 className="font-medium text-gray-900 truncate mb-1">{asset.name}</h3>
-                  {asset.description && (
-                    <p className="text-xs text-gray-600 line-clamp-2 mb-2">{asset.description}</p>
-                  )}
-                  {asset.usage_count > 0 && (
-                    <div className="text-xs text-gray-500">Used {asset.usage_count}x</div>
-                  )}
+              return (
+                <div
+                  key={asset.id}
+                  className="bg-white rounded-lg shadow-md hover:shadow-xl transition-all border border-gray-200 overflow-hidden group cursor-pointer"
+                  onClick={() => setPreviewAsset(asset)}
+                >
+                  <div className="h-48 bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center relative">
+                    {isImage && (asset.thumbnail_url || asset.file_url) && (
+                      <img
+                        src={asset.thumbnail_url || asset.file_url || ''}
+                        alt={asset.name}
+                        className="w-full h-full object-cover"
+                      />
+                    )}
+                    {isVideo && (
+                      <>
+                        {asset.file_url ? (
+                          <video
+                            src={asset.file_url}
+                            className="w-full h-full object-cover"
+                            preload="metadata"
+                          />
+                        ) : (
+                          <FileVideo className="w-12 h-12 text-gray-400" />
+                        )}
+                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center">
+                            <Play className="w-8 h-8 text-scripps-blue ml-1" />
+                          </div>
+                        </div>
+                      </>
+                    )}
+                    {isAudio && (
+                      <div className="flex flex-col items-center justify-center">
+                        <FileAudio className="w-16 h-16 text-scripps-blue mb-2" />
+                        <span className="text-xs text-gray-600 font-medium">Audio File</span>
+                      </div>
+                    )}
+                    {!isImage && !isVideo && !isAudio && (
+                      <Image className="w-12 h-12 text-gray-400" />
+                    )}
+                    {asset.ai_generated && (
+                      <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 bg-purple-500 text-white rounded text-xs font-medium">
+                        <Sparkles className="w-3 h-3" />
+                        AI
+                      </div>
+                    )}
+                    <div className="absolute top-2 right-2 px-2 py-1 bg-black bg-opacity-60 text-white rounded text-xs">
+                      {asset.asset_type.replace('_', ' ')}
+                    </div>
+                    <button
+                      onClick={(e) => handleDeleteClick(asset, e)}
+                      className="absolute bottom-2 right-2 p-2 bg-red-600 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700"
+                      title="Delete asset"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="p-3">
+                    <h3 className="font-medium text-gray-900 truncate mb-1">{asset.name}</h3>
+                    {asset.description && (
+                      <p className="text-xs text-gray-600 line-clamp-2 mb-2">{asset.description}</p>
+                    )}
+                    {asset.usage_count > 0 && (
+                      <div className="text-xs text-gray-500">Used {asset.usage_count}x</div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -258,6 +293,13 @@ export function Assets({ seriesId }: AssetsProps) {
         onUploadComplete={loadAssets}
         seriesId={seriesId}
       />
+
+      {previewAsset && (
+        <AssetPreviewModal
+          asset={previewAsset}
+          onClose={() => setPreviewAsset(null)}
+        />
+      )}
     </div>
   );
 }
