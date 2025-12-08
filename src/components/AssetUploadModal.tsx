@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Upload, FileVideo, FileAudio, Image as ImageIcon } from 'lucide-react';
+import { X, Upload, FileVideo, FileAudio, Image as ImageIcon, FileText } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 
@@ -33,11 +33,20 @@ export function AssetUploadModal({ isOpen, onClose, onUploadComplete, seriesId }
     { id: 'scene_image', label: 'Scene Image' },
     { id: 'video_clip', label: 'Video Clip' },
     { id: 'audio', label: 'Audio' },
+    { id: 'document', label: 'Document' },
   ];
 
   const getFileIcon = (fileType: string) => {
     if (fileType.startsWith('video/')) return <FileVideo className="w-12 h-12 text-purple-500" />;
     if (fileType.startsWith('audio/')) return <FileAudio className="w-12 h-12 text-green-500" />;
+    if (fileType.startsWith('text/') ||
+        fileType.includes('document') ||
+        fileType.includes('msword') ||
+        fileType.includes('ms-powerpoint') ||
+        fileType.includes('presentationml') ||
+        fileType.includes('wordprocessingml')) {
+      return <FileText className="w-12 h-12 text-orange-500" />;
+    }
     return <ImageIcon className="w-12 h-12 text-blue-500" />;
   };
 
@@ -237,12 +246,12 @@ export function AssetUploadModal({ isOpen, onClose, onUploadComplete, seriesId }
                   Drop your file here or click to browse
                 </p>
                 <p className="text-sm text-gray-600 mb-4">
-                  Supports images (JPG, PNG, GIF, WebP), videos (MP4, MOV, WebM), and audio (MP3, WAV, M4A)
+                  Supports images (JPG, PNG, GIF, WebP), videos (MP4, MOV, WebM), audio (MP3, WAV, M4A), and documents (TXT, DOCX, PPT, PPTX)
                 </p>
                 <input
                   type="file"
                   id="file-input"
-                  accept="image/*,video/*,audio/*"
+                  accept="image/*,video/*,audio/*,.txt,.doc,.docx,.ppt,.pptx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
                   onChange={handleFileInput}
                   className="hidden"
                 />

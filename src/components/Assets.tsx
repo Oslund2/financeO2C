@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Image, Search, Filter, Sparkles, Plus, Trash2, FileVideo, FileAudio, Play } from 'lucide-react';
+import { Image, Search, Filter, Sparkles, Plus, Trash2, FileVideo, FileAudio, Play, FileText } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
@@ -39,6 +39,7 @@ export function Assets({ seriesId }: AssetsProps) {
     { id: 'scene_image', label: 'Scenes' },
     { id: 'video_clip', label: 'Videos' },
     { id: 'audio', label: 'Audio' },
+    { id: 'document', label: 'Documents' },
   ];
 
   useEffect(() => {
@@ -196,6 +197,13 @@ export function Assets({ seriesId }: AssetsProps) {
               const mimeType = asset.metadata?.mimeType || '';
               const isVideo = mimeType.startsWith('video/') || asset.asset_type === 'video_clip';
               const isAudio = mimeType.startsWith('audio/') || asset.asset_type === 'audio_clip';
+              const isDocument = mimeType.startsWith('text/') ||
+                                 mimeType.includes('document') ||
+                                 mimeType.includes('msword') ||
+                                 mimeType.includes('ms-powerpoint') ||
+                                 mimeType.includes('presentationml') ||
+                                 mimeType.includes('wordprocessingml') ||
+                                 asset.asset_type === 'document';
               const isImage = mimeType.startsWith('image/') || asset.asset_type === 'character_ref' || asset.asset_type === 'background' || asset.asset_type === 'prop';
 
               return (
@@ -236,7 +244,13 @@ export function Assets({ seriesId }: AssetsProps) {
                         <span className="text-xs text-gray-600 font-medium">Audio File</span>
                       </div>
                     )}
-                    {!isImage && !isVideo && !isAudio && (
+                    {isDocument && (
+                      <div className="flex flex-col items-center justify-center">
+                        <FileText className="w-16 h-16 text-orange-500 mb-2" />
+                        <span className="text-xs text-gray-600 font-medium">Document</span>
+                      </div>
+                    )}
+                    {!isImage && !isVideo && !isAudio && !isDocument && (
                       <Image className="w-12 h-12 text-gray-400" />
                     )}
                     {asset.ai_generated && (

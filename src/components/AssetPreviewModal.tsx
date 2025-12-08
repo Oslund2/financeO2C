@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { X, Download, Tag, FileType, Calendar, Sparkles } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { X, Download, Tag, FileType, Calendar, Sparkles, FileText } from 'lucide-react';
 
 interface Asset {
   id: string;
@@ -24,11 +24,21 @@ export default function AssetPreviewModal({ asset, onClose }: AssetPreviewModalP
   const modalRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const [textContent, setTextContent] = useState<string>('');
+  const [loadingText, setLoadingText] = useState(false);
 
   const mimeType = asset.metadata?.mimeType || '';
   const fileSize = asset.metadata?.size;
   const isVideo = mimeType.startsWith('video/') || asset.asset_type === 'video_clip';
   const isAudio = mimeType.startsWith('audio/') || asset.asset_type === 'audio_clip';
+  const isDocument = mimeType.startsWith('text/') ||
+                     mimeType.includes('document') ||
+                     mimeType.includes('msword') ||
+                     mimeType.includes('ms-powerpoint') ||
+                     mimeType.includes('presentationml') ||
+                     mimeType.includes('wordprocessingml') ||
+                     asset.asset_type === 'document';
+  const isTextFile = mimeType === 'text/plain';
   const isImage = mimeType.startsWith('image/') || asset.asset_type === 'character_ref' || asset.asset_type === 'background' || asset.asset_type === 'prop';
 
   useEffect(() => {
@@ -46,6 +56,23 @@ export default function AssetPreviewModal({ asset, onClose }: AssetPreviewModalP
       document.body.style.overflow = 'unset';
     };
   }, [onClose]);
+
+  useEffect(() => {
+    if (isTextFile && asset.file_url) {
+      setLoadingText(true);
+      fetch(asset.file_url)
+        .then(response => response.text())
+        .then(text => {
+          setTextContent(text);
+          setLoadingText(false);
+        })
+        .catch(error => {
+          console.error('Error loading text file:', error);
+          setTextContent('Error loading file content.');
+          setLoadingText(false);
+        });
+    }
+  }, [isTextFile, asset.file_url]);
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === modalRef.current) {
@@ -140,6 +167,37 @@ export default function AssetPreviewModal({ asset, onClose }: AssetPreviewModalP
                 >
                   Your browser does not support audio playback.
                 </audio>
+              </div>
+            )}
+            {isDocument && (
+              <div className="w-full p-8">
+                {isTextFile ? (
+                  loadingText ? (
+                    <div className="text-center text-gray-600">Loading file content...</div>
+                  ) : (
+                    <div className="bg-white p-6 rounded-lg border border-gray-300 max-h-96 overflow-y-auto">
+                      <pre className="whitespace-pre-wrap text-sm text-gray-800 font-mono">
+                        {textContent}
+                      </pre>
+                    </div>
+                  )
+                ) : (
+                  <div className="flex flex-col items-center justify-center">
+                    <FileText className="w-24 h-24 text-orange-500 mb-4" />
+                    <p className="text-gray-700 font-medium mb-2">{asset.name}</p>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Document files can be downloaded for viewing
+                    </p>
+                    <a
+                      href={asset.file_url}
+                      download={asset.name}
+                      className="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors flex items-center gap-2"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download Document
+                    </a>
+                  </div>
+                )}
               </div>
             )}
           </div>
