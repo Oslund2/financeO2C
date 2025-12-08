@@ -53,9 +53,14 @@ export function CastFilmStrip({ seriesId, onNavigate }: CastFilmStripProps) {
       const sortedData = (data || []).sort((a, b) => {
         const aIndex = ROLE_ORDER.indexOf(a.role);
         const bIndex = ROLE_ORDER.indexOf(b.role);
+
+        if (aIndex === -1) return 1;
+        if (bIndex === -1) return -1;
+
         return aIndex - bIndex;
       });
 
+      console.log('Characters loaded and sorted by role:', sortedData.map(c => ({ name: c.name, role: c.role })));
       setCharacters(sortedData);
     } catch (error) {
       console.error('Error loading characters:', error);
@@ -99,6 +104,8 @@ export function CastFilmStrip({ seriesId, onNavigate }: CastFilmStripProps) {
     }
     return acc;
   }, {} as Record<string, Character[]>);
+
+  console.log('Grouped characters by role:', Object.keys(groupedCharacters));
 
   if (loading) {
     return (
