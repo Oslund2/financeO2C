@@ -3,6 +3,7 @@ import { Plus, TrendingUp, Clock, CheckCircle, AlertCircle, Award, Globe, Sparkl
 import { supabase } from '../lib/supabase';
 import { Logo } from './Logo';
 import { SystemHealthWidget } from './SystemHealthWidget';
+import { CastFilmStrip } from './CastFilmStrip';
 
 interface DashboardProps {
   seriesId: string | null;
@@ -218,6 +219,8 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
             <p className="text-sm sm:text-base lg:text-lg text-gray-600">AI-Powered Animation Production</p>
           </div>
         </div>
+
+        <CastFilmStrip seriesId={seriesId} onNavigate={onNavigate} />
 
         <div
           className="mb-6 sm:mb-8 bg-gradient-to-br from-scripps-navy via-scripps-blue to-scripps-light-blue rounded-xl sm:rounded-2xl shadow-2xl overflow-hidden border border-scripps-blue cursor-pointer hover:shadow-3xl transition-all"
