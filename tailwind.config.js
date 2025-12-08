@@ -9,6 +9,12 @@ export default {
         'scripps-light-blue': '#3C8EC5',
         'scripps-yellow': '#FFD100',
       },
+      minHeight: {
+        'touch': '44px',
+      },
+      minWidth: {
+        'touch': '44px',
+      },
     },
   },
   plugins: [],

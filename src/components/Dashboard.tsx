@@ -208,52 +208,53 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8 flex items-center gap-6">
-          <Logo size="large" />
+        <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
+          <Logo size="medium" className="hidden sm:block" />
+          <Logo size="small" className="sm:hidden" />
           <div>
-            <h1 className="text-4xl font-bold text-scripps-navy mb-2">Spelling Bee Animation Studio</h1>
-            <p className="text-lg text-gray-600">AI-Powered Animation Production</p>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-scripps-navy mb-1 sm:mb-2">Spelling Bee Animation Studio</h1>
+            <p className="text-sm sm:text-base lg:text-lg text-gray-600">AI-Powered Animation Production</p>
           </div>
         </div>
 
         <div
-          className="mb-8 bg-gradient-to-br from-scripps-navy via-scripps-blue to-scripps-light-blue rounded-2xl shadow-2xl overflow-hidden border border-scripps-blue cursor-pointer hover:shadow-3xl transition-all"
+          className="mb-6 sm:mb-8 bg-gradient-to-br from-scripps-navy via-scripps-blue to-scripps-light-blue rounded-xl sm:rounded-2xl shadow-2xl overflow-hidden border border-scripps-blue cursor-pointer hover:shadow-3xl transition-all"
           onClick={() => setFullscreenCard('main')}
         >
-          <div className="p-8 md:p-10">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                <Award className="w-8 h-8 text-scripps-yellow" />
+          <div className="p-6 sm:p-8 lg:p-10">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
+                <Award className="w-6 h-6 sm:w-8 sm:h-8 text-scripps-yellow" />
               </div>
               <div>
-                <h2 className="text-3xl font-bold text-white">Leveraging Iconic IP for Global Entertainment</h2>
+                <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white">Leveraging Iconic IP for Global Entertainment</h2>
               </div>
             </div>
 
-            <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 mb-6 border border-white/20">
-              <p className="text-lg text-white/95 leading-relaxed mb-4">
+            <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 sm:p-6 mb-4 sm:mb-6 border border-white/20">
+              <p className="text-sm sm:text-base lg:text-lg text-white/95 leading-relaxed mb-3 sm:mb-4">
                 Leveraging the iconic <span className="font-semibold text-scripps-yellow">Scripps National Spelling Bee</span> brand, this animated series transforms historic winning words into hilarious, educational adventures.
               </p>
-              <p className="text-base text-white/90 leading-relaxed mb-4">
+              <p className="text-xs sm:text-sm lg:text-base text-white/90 leading-relaxed">
                 This groundbreaking format blends new fictional characters with real-life Bee champions (secured via perpetual NIL) to expand our IP universe. Each 22-minute episode is thematically anchored by a specific winning word and designed for global scale across Scripps linear assets and streaming platforms.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               <div
-                className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20 hover:bg-white/15 transition-all cursor-pointer"
+                className="bg-white/10 backdrop-blur-md rounded-xl p-4 sm:p-6 border border-white/20 hover:bg-white/15 transition-all cursor-pointer active:bg-white/20"
                 onClick={(e) => {
                   e.stopPropagation();
                   setFullscreenCard('production');
                 }}
               >
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 bg-scripps-yellow/20 rounded-lg flex items-center justify-center">
-                    <Tv className="w-6 h-6 text-scripps-yellow" />
+                <div className="flex items-center gap-3 mb-3 sm:mb-4">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-scripps-yellow/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Tv className="w-5 h-5 sm:w-6 sm:h-6 text-scripps-yellow" />
                   </div>
-                  <h3 className="text-xl font-bold text-white">Production Format</h3>
+                  <h3 className="text-base sm:text-lg lg:text-xl font-bold text-white">Production Format</h3>
                 </div>
                 <div className="space-y-3 text-white/90">
                   <div className="flex items-start gap-2">
@@ -278,17 +279,17 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
               </div>
 
               <div
-                className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20 hover:bg-white/15 transition-all cursor-pointer"
+                className="bg-white/10 backdrop-blur-md rounded-xl p-4 sm:p-6 border border-white/20 hover:bg-white/15 transition-all cursor-pointer active:bg-white/20"
                 onClick={(e) => {
                   e.stopPropagation();
                   setFullscreenCard('monetization');
                 }}
               >
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 bg-scripps-yellow/20 rounded-lg flex items-center justify-center">
-                    <DollarSign className="w-6 h-6 text-scripps-yellow" />
+                <div className="flex items-center gap-3 mb-3 sm:mb-4">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-scripps-yellow/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-scripps-yellow" />
                   </div>
-                  <h3 className="text-xl font-bold text-white">Dynamic Monetization</h3>
+                  <h3 className="text-base sm:text-lg lg:text-xl font-bold text-white">Dynamic Monetization</h3>
                 </div>
                 <div className="space-y-3 text-white/90">
                   <div className="flex items-start gap-2">
@@ -313,17 +314,17 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
               </div>
 
               <div
-                className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20 hover:bg-white/15 transition-all cursor-pointer"
+                className="bg-white/10 backdrop-blur-md rounded-xl p-4 sm:p-6 border border-white/20 hover:bg-white/15 transition-all cursor-pointer active:bg-white/20"
                 onClick={(e) => {
                   e.stopPropagation();
                   setFullscreenCard('global');
                 }}
               >
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 bg-scripps-yellow/20 rounded-lg flex items-center justify-center">
-                    <Globe className="w-6 h-6 text-scripps-yellow" />
+                <div className="flex items-center gap-3 mb-3 sm:mb-4">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-scripps-yellow/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Globe className="w-5 h-5 sm:w-6 sm:h-6 text-scripps-yellow" />
                   </div>
-                  <h3 className="text-xl font-bold text-white">Global Scale</h3>
+                  <h3 className="text-base sm:text-lg lg:text-xl font-bold text-white">Global Scale</h3>
                 </div>
                 <div className="space-y-3 text-white/90">
                   <div className="flex items-start gap-2">
@@ -350,51 +351,51 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
           {statCards.map((card) => (
             <button
               key={card.label}
               onClick={card.onClick}
-              className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all p-6 text-left group border border-gray-200 hover:border-scripps-light-blue"
+              className="bg-white rounded-xl shadow-md hover:shadow-xl active:shadow-lg transition-all p-4 sm:p-6 text-left group border border-gray-200 hover:border-scripps-light-blue min-h-[120px] sm:min-h-0"
             >
-              <div className="flex items-start justify-between mb-4">
-                <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${card.color} flex items-center justify-center text-2xl shadow-md`}>
+              <div className="flex items-start justify-between mb-3 sm:mb-4">
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br ${card.color} flex items-center justify-center text-xl sm:text-2xl shadow-md flex-shrink-0`}>
                   {card.icon}
                 </div>
-                <TrendingUp className="w-5 h-5 text-gray-400 group-hover:text-scripps-blue transition-colors" />
+                <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 group-hover:text-scripps-blue transition-colors flex-shrink-0" />
               </div>
-              <div className="text-3xl font-bold text-gray-900 mb-1">{card.value}</div>
-              <div className="text-sm font-medium text-gray-600">{card.label}</div>
+              <div className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">{card.value}</div>
+              <div className="text-xs sm:text-sm font-medium text-gray-600">{card.label}</div>
             </button>
           ))}
         </div>
 
-        <div className="mb-8">
+        <div className="mb-6 sm:mb-8">
           <SystemHealthWidget onNavigateToBackup={() => onNavigate('backup-recovery')} />
         </div>
 
-        <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-xl shadow-md p-6 border-2 border-blue-200 mb-8">
-          <div className="flex items-center justify-between mb-6">
+        <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-xl shadow-md p-4 sm:p-6 border-2 border-blue-200 mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 sm:mb-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-scripps-blue rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 bg-scripps-blue rounded-lg flex items-center justify-center flex-shrink-0">
                 <TrendingUp className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-gray-900">Production Pipeline</h2>
-                <p className="text-sm text-gray-600">Script-to-Episode workflow overview</p>
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900">Production Pipeline</h2>
+                <p className="text-xs sm:text-sm text-gray-600">Script-to-Episode workflow</p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 text-sm">
               <button
                 onClick={() => onNavigate('scripts')}
-                className="text-sm font-medium text-scripps-blue hover:text-scripps-navy transition-colors"
+                className="font-medium text-scripps-blue hover:text-scripps-navy transition-colors min-h-[44px] px-3 flex items-center"
               >
                 View Scripts
               </button>
               <span className="text-gray-400">|</span>
               <button
                 onClick={() => onNavigate('episodes')}
-                className="text-sm font-medium text-scripps-blue hover:text-scripps-navy transition-colors"
+                className="font-medium text-scripps-blue hover:text-scripps-navy transition-colors min-h-[44px] px-3 flex items-center"
               >
                 View Episodes
               </button>

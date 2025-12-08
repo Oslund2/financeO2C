@@ -157,34 +157,34 @@ export function Characters({ seriesId }: CharactersProps) {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Characters</h1>
-            <p className="text-gray-600">Manage your animated character cast</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">Characters</h1>
+            <p className="text-sm sm:text-base text-gray-600">Manage your animated character cast</p>
           </div>
           <button
             onClick={() => {
               setEditingCharacter(null);
               setShowForm(true);
             }}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium"
+            className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium min-h-[44px] w-full sm:w-auto"
           >
             <Plus className="w-5 h-5" />
             New Character
           </button>
         </div>
 
-        <div className="bg-white rounded-xl shadow-md p-4 mb-6 border border-gray-200">
+        <div className="bg-white rounded-xl shadow-md p-3 sm:p-4 mb-4 sm:mb-6 border border-gray-200">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Search characters by name, description, or tags..."
+              placeholder="Search characters..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent text-base"
             />
           </div>
         </div>
@@ -201,13 +201,13 @@ export function Characters({ seriesId }: CharactersProps) {
                 setEditingCharacter(null);
                 setShowForm(true);
               }}
-              className="px-6 py-3 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium"
+              className="px-6 py-3 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium min-h-[44px]"
             >
               Create Character
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {filteredCharacters.map((character) => (
               <div
                 key={character.id}
@@ -224,33 +224,33 @@ export function Characters({ seriesId }: CharactersProps) {
                   ) : (
                     <div className="text-6xl">🎭</div>
                   )}
-                  <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 sm:opacity-100 transition-opacity">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         handleEdit(character);
                       }}
-                      className="p-2 bg-white rounded-lg shadow-md hover:bg-gray-50"
+                      className="p-2.5 bg-white rounded-lg shadow-md hover:bg-gray-50 active:bg-gray-100 min-w-[44px] min-h-[44px] flex items-center justify-center"
                     >
-                      <Edit2 className="w-4 h-4 text-gray-700" />
+                      <Edit2 className="w-5 h-5 text-gray-700" />
                     </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDuplicate(character);
                       }}
-                      className="p-2 bg-white rounded-lg shadow-md hover:bg-gray-50"
+                      className="p-2.5 bg-white rounded-lg shadow-md hover:bg-gray-50 active:bg-gray-100 min-w-[44px] min-h-[44px] flex items-center justify-center"
                     >
-                      <Copy className="w-4 h-4 text-gray-700" />
+                      <Copy className="w-5 h-5 text-gray-700" />
                     </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDeleteClick(character);
                       }}
-                      className="p-2 bg-white rounded-lg shadow-md hover:bg-red-50"
+                      className="p-2.5 bg-white rounded-lg shadow-md hover:bg-red-50 active:bg-red-100 min-w-[44px] min-h-[44px] flex items-center justify-center"
                     >
-                      <Trash2 className="w-4 h-4 text-red-600" />
+                      <Trash2 className="w-5 h-5 text-red-600" />
                     </button>
                   </div>
                 </div>
@@ -310,24 +310,25 @@ export function Characters({ seriesId }: CharactersProps) {
 
       {fullscreenCharacter && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-8 animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-0 sm:p-4 lg:p-8 animate-in fade-in duration-200"
           onClick={() => setFullscreenCharacter(null)}
         >
           <button
             type="button"
             onClick={() => setFullscreenCharacter(null)}
-            className="absolute top-6 right-6 w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all border border-white/20 hover:scale-110"
+            className="absolute top-4 right-4 sm:top-6 sm:right-6 w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all border border-white/20 hover:scale-110 z-10"
+            style={{ top: 'max(1rem, env(safe-area-inset-top))' }}
             aria-label="Close fullscreen view"
           >
             <X className="w-6 h-6" />
           </button>
 
           <div
-            className="max-w-6xl w-full max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200"
+            className="max-w-6xl w-full h-full sm:h-auto sm:max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="bg-gradient-to-br from-scripps-navy via-scripps-blue to-scripps-light-blue rounded-3xl shadow-2xl overflow-hidden border border-scripps-blue">
-              <div className="h-96 bg-gradient-to-br from-scripps-blue via-scripps-light-blue to-sky-400 flex items-center justify-center relative">
+            <div className="bg-gradient-to-br from-scripps-navy via-scripps-blue to-scripps-light-blue sm:rounded-3xl shadow-2xl overflow-hidden border-0 sm:border border-scripps-blue min-h-full sm:min-h-0">
+              <div className="h-64 sm:h-96 bg-gradient-to-br from-scripps-blue via-scripps-light-blue to-sky-400 flex items-center justify-center relative">
                 {fullscreenCharacter.reference_image_url ? (
                   <img
                     src={fullscreenCharacter.reference_image_url}
@@ -339,67 +340,67 @@ export function Characters({ seriesId }: CharactersProps) {
                 )}
               </div>
 
-              <div className="p-12 space-y-8">
-                <div className="flex items-center gap-4">
-                  <h2 className="text-6xl font-bold text-white flex-1">{fullscreenCharacter.name}</h2>
+              <div className="p-6 sm:p-8 lg:p-12 space-y-6 sm:space-y-8" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                  <h2 className="text-3xl sm:text-5xl lg:text-6xl font-bold text-white flex-1">{fullscreenCharacter.name}</h2>
                   {fullscreenCharacter.eleven_labs_voice_id && (
-                    <div className="flex items-center gap-2 px-4 py-2 bg-scripps-yellow/20 rounded-2xl border border-scripps-yellow/30">
-                      <Volume2 className="w-6 h-6 text-scripps-yellow" />
-                      <span className="text-xl font-semibold text-white">Voice Enabled</span>
+                    <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-scripps-yellow/20 rounded-2xl border border-scripps-yellow/30">
+                      <Volume2 className="w-5 h-5 sm:w-6 sm:h-6 text-scripps-yellow" />
+                      <span className="text-base sm:text-xl font-semibold text-white">Voice Enabled</span>
                     </div>
                   )}
                 </div>
 
                 {fullscreenCharacter.age && (
-                  <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
-                    <p className="text-2xl text-sky-300">
+                  <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 sm:p-6 border border-white/20">
+                    <p className="text-lg sm:text-2xl text-sky-300">
                       <span className="font-semibold text-scripps-yellow">Age:</span> {fullscreenCharacter.age}
                     </p>
                   </div>
                 )}
 
                 {fullscreenCharacter.description && (
-                  <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20">
-                    <h3 className="text-3xl font-bold text-scripps-yellow mb-4">Description</h3>
-                    <p className="text-2xl text-sky-300 leading-relaxed">{fullscreenCharacter.description}</p>
+                  <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 sm:p-6 lg:p-8 border border-white/20">
+                    <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-scripps-yellow mb-3 sm:mb-4">Description</h3>
+                    <p className="text-base sm:text-lg lg:text-2xl text-sky-300 leading-relaxed">{fullscreenCharacter.description}</p>
                   </div>
                 )}
 
                 {fullscreenCharacter.personality && (
-                  <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20">
-                    <h3 className="text-3xl font-bold text-scripps-yellow mb-4">Personality & Traits</h3>
-                    <p className="text-2xl text-sky-300 leading-relaxed">{fullscreenCharacter.personality}</p>
+                  <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 sm:p-6 lg:p-8 border border-white/20">
+                    <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-scripps-yellow mb-3 sm:mb-4">Personality & Traits</h3>
+                    <p className="text-base sm:text-lg lg:text-2xl text-sky-300 leading-relaxed">{fullscreenCharacter.personality}</p>
                   </div>
                 )}
 
                 {fullscreenCharacter.clay_features && (
-                  <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20">
-                    <div className="flex items-center gap-3 mb-4">
-                      <Sparkles className="w-8 h-8 text-scripps-yellow" />
-                      <h3 className="text-3xl font-bold text-scripps-yellow">Clay Feature</h3>
+                  <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 sm:p-6 lg:p-8 border border-white/20">
+                    <div className="flex items-center gap-3 mb-3 sm:mb-4">
+                      <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-scripps-yellow" />
+                      <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-scripps-yellow">Clay Feature</h3>
                     </div>
-                    <p className="text-2xl text-sky-300 leading-relaxed">{fullscreenCharacter.clay_features}</p>
+                    <p className="text-base sm:text-lg lg:text-2xl text-sky-300 leading-relaxed">{fullscreenCharacter.clay_features}</p>
                   </div>
                 )}
 
                 {fullscreenCharacter.voice_characteristics && (
-                  <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20">
-                    <div className="flex items-center gap-3 mb-4">
-                      <Volume2 className="w-8 h-8 text-scripps-yellow" />
-                      <h3 className="text-3xl font-bold text-scripps-yellow">Voice Characteristics</h3>
+                  <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 sm:p-6 lg:p-8 border border-white/20">
+                    <div className="flex items-center gap-3 mb-3 sm:mb-4">
+                      <Volume2 className="w-6 h-6 sm:w-8 sm:h-8 text-scripps-yellow" />
+                      <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-scripps-yellow">Voice Characteristics</h3>
                     </div>
-                    <p className="text-2xl text-sky-300 leading-relaxed">{fullscreenCharacter.voice_characteristics}</p>
+                    <p className="text-base sm:text-lg lg:text-2xl text-sky-300 leading-relaxed">{fullscreenCharacter.voice_characteristics}</p>
                   </div>
                 )}
 
                 {fullscreenCharacter.tags.length > 0 && (
-                  <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20">
-                    <h3 className="text-3xl font-bold text-scripps-yellow mb-6">Tags</h3>
-                    <div className="flex flex-wrap gap-3">
+                  <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 sm:p-6 lg:p-8 border border-white/20">
+                    <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-scripps-yellow mb-4 sm:mb-6">Tags</h3>
+                    <div className="flex flex-wrap gap-2 sm:gap-3">
                       {fullscreenCharacter.tags.map((tag, index) => (
                         <span
                           key={index}
-                          className="text-xl px-6 py-3 bg-scripps-yellow/20 text-white rounded-full border border-scripps-yellow/30 font-medium"
+                          className="text-sm sm:text-base lg:text-xl px-4 sm:px-6 py-2 sm:py-3 bg-scripps-yellow/20 text-white rounded-full border border-scripps-yellow/30 font-medium"
                         >
                           {tag}
                         </span>
@@ -550,15 +551,15 @@ function CharacterForm({ character, seriesId, onClose, onSave }: CharacterFormPr
 
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-0 sm:p-4"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-auto"
+        className="bg-white sm:rounded-xl shadow-2xl max-w-3xl w-full h-full sm:h-auto sm:max-h-[90vh] overflow-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
-          <h2 className="text-2xl font-bold text-gray-900">
+        <div className="sticky top-0 bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between z-10" style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
             {character?.id ? 'Edit Character' : 'New Character'}
           </h2>
           <button
@@ -568,14 +569,14 @@ function CharacterForm({ character, seriesId, onClose, onSave }: CharacterFormPr
               e.stopPropagation();
               onClose();
             }}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
           >
-            <X className="w-5 h-5 text-gray-600" />
+            <X className="w-6 h-6 text-gray-600" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Name *
@@ -585,7 +586,7 @@ function CharacterForm({ character, seriesId, onClose, onSave }: CharacterFormPr
                 required
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent text-base"
                 placeholder="e.g., Barnaby"
               />
             </div>
@@ -598,7 +599,7 @@ function CharacterForm({ character, seriesId, onClose, onSave }: CharacterFormPr
                 type="number"
                 value={formData.age}
                 onChange={(e) => setFormData({ ...formData, age: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent text-base"
                 placeholder="e.g., 10"
               />
             </div>
@@ -644,7 +645,7 @@ function CharacterForm({ character, seriesId, onClose, onSave }: CharacterFormPr
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={3}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent text-base"
               placeholder="Describe the character's appearance..."
             />
           </div>
@@ -657,7 +658,7 @@ function CharacterForm({ character, seriesId, onClose, onSave }: CharacterFormPr
               value={formData.personality}
               onChange={(e) => setFormData({ ...formData, personality: e.target.value })}
               rows={3}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent text-base"
               placeholder="Describe their personality, behaviors, and quirks..."
             />
           </div>
@@ -670,7 +671,7 @@ function CharacterForm({ character, seriesId, onClose, onSave }: CharacterFormPr
               value={formData.clay_features}
               onChange={(e) => setFormData({ ...formData, clay_features: e.target.value })}
               rows={2}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent text-base"
               placeholder="Special claymation characteristics (e.g., head inflates when excited)"
             />
           </div>
@@ -683,7 +684,7 @@ function CharacterForm({ character, seriesId, onClose, onSave }: CharacterFormPr
               value={formData.voice_characteristics}
               onChange={(e) => setFormData({ ...formData, voice_characteristics: e.target.value })}
               rows={2}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent text-base"
               placeholder="Describe the character's voice (e.g., high-pitched when nervous)"
             />
           </div>
@@ -703,12 +704,12 @@ function CharacterForm({ character, seriesId, onClose, onSave }: CharacterFormPr
               type="text"
               value={formData.tags}
               onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent text-base"
               placeholder="Comma-separated tags (e.g., protagonist, anxious, smart)"
             />
           </div>
 
-          <div className="flex gap-3 pt-4">
+          <div className="flex flex-col sm:flex-row gap-3 pt-4">
             <button
               type="button"
               onClick={(e) => {
@@ -716,14 +717,14 @@ function CharacterForm({ character, seriesId, onClose, onSave }: CharacterFormPr
                 e.stopPropagation();
                 onClose();
               }}
-              className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all font-medium"
+              className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 active:bg-gray-100 transition-all font-medium min-h-[44px]"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium disabled:opacity-50"
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg active:shadow-md transition-all font-medium disabled:opacity-50 min-h-[44px]"
             >
               {saving ? 'Saving...' : character?.id ? 'Update Character' : 'Create Character'}
             </button>
