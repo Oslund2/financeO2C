@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Sparkles, Wand2, FileText, Users, Image as ImageIcon, Video, Mic, AlertCircle, CheckCircle, Settings as SettingsIcon } from 'lucide-react';
+import { Sparkles, Wand2, FileText, Users, Image as ImageIcon, Video, Mic, AlertCircle, CheckCircle, Settings as SettingsIcon, ArrowRight, Eye } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { generateScriptWithGemini, checkVertexAIConfiguration } from '../services/geminiService';
@@ -95,6 +95,8 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [generatedData, setGeneratedData] = useState<any>(null);
+  const [savedScriptId, setSavedScriptId] = useState<string | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   useEffect(() => {
     loadCharacters();
@@ -271,9 +273,9 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
 
       if (jobError) console.error('Error logging production job:', jobError);
 
+      setSavedScriptId(script.id);
       setShowPreview(false);
-      alert('Script saved successfully!');
-      onNavigate('scripts');
+      setShowSuccessModal(true);
     } catch (error) {
       console.error('Error saving script:', error);
       alert('Failed to save script. Please try again.');
@@ -561,6 +563,80 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
               >
                 {generating ? 'Saving...' : 'Save Script'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden">
+            <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-6 text-white">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                  <CheckCircle className="w-7 h-7" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold">Script Saved Successfully!</h2>
+                  <p className="text-green-50 mt-1">Your AI-generated script is ready</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="font-semibold text-gray-900 mb-2">Script Details</h3>
+                <div className="text-sm text-gray-700 space-y-1">
+                  <p><span className="font-medium">Title:</span> {formData.title}</p>
+                  <p><span className="font-medium">Theme:</span> {formData.theme}</p>
+                  <p><span className="font-medium">Status:</span> Draft (ready for review)</p>
+                </div>
+              </div>
+
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-yellow-800">
+                    <p className="font-medium mb-1">Next Steps:</p>
+                    <ol className="list-decimal list-inside space-y-1">
+                      <li>Review and edit the script in the Scripts page</li>
+                      <li>Approve the script when ready</li>
+                      <li>Create an episode to start production</li>
+                    </ol>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowSuccessModal(false);
+                    setFormData({
+                      title: '',
+                      episodeNumber: '',
+                      theme: '',
+                      mainCharacters: [],
+                      vocabularyWords: '',
+                      plotSummary: '',
+                      tone: 'comedic',
+                    });
+                    setGeneratedData(null);
+                  }}
+                  className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                >
+                  Create Another Script
+                </button>
+                <button
+                  onClick={() => {
+                    setShowSuccessModal(false);
+                    onNavigate('scripts');
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium"
+                >
+                  <Eye className="w-5 h-5" />
+                  View Script
+                </button>
+              </div>
             </div>
           </div>
         </div>

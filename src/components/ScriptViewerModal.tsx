@@ -1,0 +1,334 @@
+import { useState, useEffect } from 'react';
+import { X, FileText, Clock, Sparkles, Calendar, Tag } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import type { Database } from '../lib/database.types';
+
+type Script = Database['public']['Tables']['scripts']['Row'];
+
+interface ScriptViewerModalProps {
+  script: Script;
+  onClose: () => void;
+  onEdit?: () => void;
+}
+
+interface Act {
+  id: string;
+  act_number: number;
+  content: string;
+  notes: string;
+  duration_estimate: number;
+  scenes: Scene[];
+}
+
+interface Scene {
+  id: string;
+  scene_number: number;
+  setting: string;
+  description: string;
+  dialogue: any;
+  stage_directions: string;
+  duration_estimate: number;
+  characters: string[];
+}
+
+export function ScriptViewerModal({ script, onClose, onEdit }: ScriptViewerModalProps) {
+  const [acts, setActs] = useState<Act[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeAct, setActiveAct] = useState<number>(0);
+
+  useEffect(() => {
+    loadScriptContent();
+  }, [script.id]);
+
+  const loadScriptContent = async () => {
+    try {
+      const { data: actsData, error: actsError } = await supabase
+        .from('script_acts')
+        .select('*')
+        .eq('script_id', script.id)
+        .order('act_number', { ascending: true });
+
+      if (actsError) throw actsError;
+
+      const actsWithScenes = await Promise.all(
+        (actsData || []).map(async (act) => {
+          const { data: scenesData, error: scenesError } = await supabase
+            .from('script_scenes')
+            .select('*')
+            .eq('act_id', act.id)
+            .order('scene_number', { ascending: true });
+
+          if (scenesError) throw scenesError;
+
+          return {
+            ...act,
+            scenes: scenesData || []
+          };
+        })
+      );
+
+      setActs(actsWithScenes);
+    } catch (error) {
+      console.error('Error loading script content:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDuration = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}m ${remainingSeconds}s`;
+  };
+
+  const totalScenes = acts.reduce((sum, act) => sum + act.scenes.length, 0);
+  const totalDuration = acts.reduce((sum, act) => sum + (act.duration_estimate || 0), 0);
+
+  return (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="bg-gradient-to-r from-scripps-blue to-scripps-light-blue p-6 text-white flex-shrink-0">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-2">
+                <FileText className="w-8 h-8" />
+                <div>
+                  <h2 className="text-2xl font-bold">{script.title}</h2>
+                  {script.episode_number && (
+                    <p className="text-blue-100 text-sm">
+                      Season {script.season_number} • Episode {script.episode_number}
+                    </p>
+                  )}
+                </div>
+              </div>
+              {script.ai_generated && (
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm">
+                  <Sparkles className="w-4 h-4" />
+                  <span>AI Generated</span>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-gray-50 border-b border-gray-200 px-6 py-4 flex-shrink-0">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-gray-500" />
+              <div>
+                <p className="text-gray-600">Runtime</p>
+                <p className="font-semibold text-gray-900">{script.runtime_minutes} min</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-gray-500" />
+              <div>
+                <p className="text-gray-600">Acts</p>
+                <p className="font-semibold text-gray-900">{acts.length}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-gray-500" />
+              <div>
+                <p className="text-gray-600">Scenes</p>
+                <p className="font-semibold text-gray-900">{totalScenes}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-gray-500" />
+              <div>
+                <p className="text-gray-600">Created</p>
+                <p className="font-semibold text-gray-900">
+                  {new Date(script.created_at).toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {script.synopsis && (
+          <div className="px-6 py-4 bg-blue-50 border-b border-blue-200 flex-shrink-0">
+            <h3 className="text-sm font-semibold text-gray-700 mb-1">Synopsis</h3>
+            <p className="text-gray-700 text-sm">{script.synopsis}</p>
+          </div>
+        )}
+
+        {script.theme && (
+          <div className="px-6 py-3 bg-yellow-50 border-b border-yellow-200 flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <Tag className="w-4 h-4 text-yellow-700" />
+              <span className="text-sm font-semibold text-gray-700">Theme:</span>
+              <span className="text-sm text-gray-700">{script.theme}</span>
+            </div>
+          </div>
+        )}
+
+        {script.vocabulary_words.length > 0 && (
+          <div className="px-6 py-3 bg-green-50 border-b border-green-200 flex-shrink-0">
+            <div className="flex items-start gap-2">
+              <span className="text-sm font-semibold text-gray-700">Vocabulary:</span>
+              <div className="flex flex-wrap gap-2">
+                {script.vocabulary_words.map((word, index) => (
+                  <span
+                    key={index}
+                    className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium"
+                  >
+                    {word}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {loading ? (
+          <div className="flex-1 flex items-center justify-center p-12">
+            <div className="text-center">
+              <div className="w-12 h-12 border-4 border-scripps-blue border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading script content...</p>
+            </div>
+          </div>
+        ) : acts.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center p-12">
+            <div className="text-center">
+              <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600">This script has no acts or scenes yet.</p>
+              {onEdit && (
+                <button
+                  onClick={onEdit}
+                  className="mt-4 px-4 py-2 bg-scripps-blue text-white rounded-lg hover:bg-opacity-90 transition-colors text-sm font-medium"
+                >
+                  Edit Script
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex border-b border-gray-200 overflow-x-auto flex-shrink-0">
+              {acts.map((act, index) => (
+                <button
+                  key={act.id}
+                  onClick={() => setActiveAct(index)}
+                  className={`flex-1 px-6 py-3 font-medium transition-all whitespace-nowrap ${
+                    activeAct === index
+                      ? 'text-scripps-blue border-b-2 border-scripps-blue bg-blue-50'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Act {act.act_number}
+                  {act.notes && ` • ${act.notes}`}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              {acts[activeAct] && (
+                <div className="space-y-6">
+                  {acts[activeAct].content && (
+                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                      <h3 className="font-semibold text-gray-900 mb-2">Act Overview</h3>
+                      <p className="text-gray-700 whitespace-pre-wrap">{acts[activeAct].content}</p>
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-gray-900 text-lg">
+                      Scenes ({acts[activeAct].scenes.length})
+                    </h3>
+                    {acts[activeAct].scenes.map((scene) => (
+                      <div
+                        key={scene.id}
+                        className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <h4 className="font-semibold text-gray-900 text-lg">
+                            Scene {scene.scene_number}
+                          </h4>
+                          {scene.duration_estimate > 0 && (
+                            <span className="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
+                              {formatDuration(scene.duration_estimate)}
+                            </span>
+                          )}
+                        </div>
+
+                        {scene.setting && (
+                          <div className="mb-3">
+                            <span className="text-sm font-semibold text-gray-700">Setting:</span>
+                            <span className="text-sm text-gray-600 ml-2">{scene.setting}</span>
+                          </div>
+                        )}
+
+                        {scene.description && (
+                          <div className="mb-4">
+                            <p className="text-gray-700 italic">{scene.description}</p>
+                          </div>
+                        )}
+
+                        {scene.dialogue && Array.isArray(scene.dialogue) && scene.dialogue.length > 0 && (
+                          <div className="space-y-3 mb-4">
+                            {scene.dialogue.map((line: any, lineIndex: number) => (
+                              <div key={lineIndex} className="pl-4 border-l-2 border-blue-200">
+                                <div className="font-semibold text-gray-900 mb-1">
+                                  {line.character}
+                                </div>
+                                <div className="text-gray-700">{line.line}</div>
+                                {line.stage_direction && (
+                                  <div className="text-sm text-gray-500 italic mt-1">
+                                    ({line.stage_direction})
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {scene.stage_directions && (
+                          <div className="mt-4 pt-4 border-t border-gray-200">
+                            <p className="text-sm text-gray-600">
+                              <span className="font-semibold">Production Notes:</span>{' '}
+                              {scene.stage_directions}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 flex justify-end gap-3 flex-shrink-0">
+          <button
+            onClick={onClose}
+            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all font-medium"
+          >
+            Close
+          </button>
+          {onEdit && (
+            <button
+              onClick={onEdit}
+              className="px-6 py-2 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium"
+            >
+              Edit Script
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

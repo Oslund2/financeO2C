@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, FileText, Trash2, Edit2, CheckCircle, Clock, Sparkles, Lock, Film, AlertCircle, DollarSign, ArrowRight, Zap, X } from 'lucide-react';
+import { Plus, Search, FileText, Trash2, Edit2, CheckCircle, Clock, Sparkles, Lock, Film, AlertCircle, DollarSign, ArrowRight, Zap, X, Eye, Filter } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
+import { ScriptViewerModal } from './ScriptViewerModal';
 import { getScriptLockInfo, type ScriptLockInfo } from '../services/scriptLockingService';
 import { createEpisodeFromScript, getScriptWithDetails, validateScriptForEpisode } from '../services/episodeCreationService';
 import { calculateProductionCosts, type CostComparison as CostComparisonType, type ScriptData } from '../services/costCalculationService';
@@ -19,8 +20,10 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
   const [scripts, setScripts] = useState<Script[]>([]);
   const [filteredScripts, setFilteredScripts] = useState<Script[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState<'all' | 'ai' | 'manual'>('all');
   const [loading, setLoading] = useState(true);
   const [selectedScript, setSelectedScript] = useState<Script | null>(null);
+  const [viewingScript, setViewingScript] = useState<Script | null>(null);
   const [scriptLocks, setScriptLocks] = useState<Map<string, ScriptLockInfo>>(new Map());
   const [episodeCounts, setEpisodeCounts] = useState<Map<string, number>>(new Map());
   const [createEpisodeModal, setCreateEpisodeModal] = useState<{
@@ -45,18 +48,25 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
   }, [seriesId]);
 
   useEffect(() => {
+    let filtered = scripts;
+
+    if (filterType === 'ai') {
+      filtered = filtered.filter(s => s.ai_generated);
+    } else if (filterType === 'manual') {
+      filtered = filtered.filter(s => !s.ai_generated);
+    }
+
     if (searchQuery) {
-      const filtered = scripts.filter(
+      filtered = filtered.filter(
         (script) =>
           script.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
           script.synopsis?.toLowerCase().includes(searchQuery.toLowerCase()) ||
           script.theme?.toLowerCase().includes(searchQuery.toLowerCase())
       );
-      setFilteredScripts(filtered);
-    } else {
-      setFilteredScripts(scripts);
     }
-  }, [searchQuery, scripts]);
+
+    setFilteredScripts(filtered);
+  }, [searchQuery, scripts, filterType]);
 
   const loadScripts = async () => {
     try {
@@ -209,6 +219,16 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
     }
   };
 
+  const isRecentScript = (createdAt: string) => {
+    const created = new Date(createdAt);
+    const now = new Date();
+    const hoursDiff = (now.getTime() - created.getTime()) / (1000 * 60 * 60);
+    return hoursDiff < 24;
+  };
+
+  const aiGeneratedCount = scripts.filter(s => s.ai_generated).length;
+  const manualScriptsCount = scripts.filter(s => !s.ai_generated).length;
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -238,7 +258,7 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
         </div>
 
         <div className="bg-white rounded-xl shadow-md p-4 mb-6 border border-gray-200">
-          <div className="relative">
+          <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
@@ -247,6 +267,44 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
             />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-gray-500" />
+            <span className="text-sm font-medium text-gray-700">Filter:</span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setFilterType('all')}
+                className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                  filterType === 'all'
+                    ? 'bg-scripps-blue text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                All ({scripts.length})
+              </button>
+              <button
+                onClick={() => setFilterType('ai')}
+                className={`flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                  filterType === 'ai'
+                    ? 'bg-purple-500 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <Sparkles className="w-3 h-3" />
+                AI Generated ({aiGeneratedCount})
+              </button>
+              <button
+                onClick={() => setFilterType('manual')}
+                className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                  filterType === 'manual'
+                    ? 'bg-scripps-blue text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Manual ({manualScriptsCount})
+              </button>
+            </div>
           </div>
         </div>
 
@@ -360,8 +418,13 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-3">
+                    <div className="flex items-center gap-3 mb-3 flex-wrap">
                       <h3 className="text-xl font-bold text-gray-900">{script.title}</h3>
+                      {isRecentScript(script.created_at) && (
+                        <div className="flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold animate-pulse">
+                          NEW
+                        </div>
+                      )}
                       <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs border ${getStatusColor(script.status)}`}>
                         {getStatusIcon(script.status)}
                         <span className="font-medium">{script.status}</span>
@@ -456,6 +519,13 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
                       </button>
                     )}
                     <button
+                      onClick={() => setViewingScript(script)}
+                      className="p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="View full script"
+                    >
+                      <Eye className="w-5 h-5 text-blue-600" />
+                    </button>
+                    <button
                       onClick={() => setSelectedScript(script)}
                       className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                       title="Edit script"
@@ -511,6 +581,17 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
             setCreateEpisodeModal({ isOpen: false, script: null });
             loadScripts();
             onNavigate('episodes');
+          }}
+        />
+      )}
+
+      {viewingScript && (
+        <ScriptViewerModal
+          script={viewingScript}
+          onClose={() => setViewingScript(null)}
+          onEdit={() => {
+            setSelectedScript(viewingScript);
+            setViewingScript(null);
           }}
         />
       )}
