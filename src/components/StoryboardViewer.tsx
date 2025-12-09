@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight, Film, Camera, Clock, MessageSquare, Lightbulb, Download, Grid3x3, List } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Film, Camera, Clock, MessageSquare, Lightbulb, Download, Grid3x3, List, Upload, Wand2, RefreshCw, ZoomIn } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
+import { uploadManualImage } from '../services/nanoBananaService';
+import { generateImagesForStoryboard } from '../services/storyboardService';
 
 type Storyboard = Database['public']['Tables']['storyboards']['Row'];
 type StoryboardShot = Database['public']['Tables']['storyboard_shots']['Row'];
@@ -17,6 +19,12 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
   const [currentShotIndex, setCurrentShotIndex] = useState(0);
   const [viewMode, setViewMode] = useState<'detailed' | 'grid'>('detailed');
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState(0);
+  const [generationStatus, setGenerationStatus] = useState('');
+  const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadStoryboard();
@@ -64,6 +72,93 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
 
   const handleExport = () => {
     alert('Export functionality coming soon! This will generate a PDF storyboard document.');
+  };
+
+  const handleUploadImage = async (file: File, shotId: string, actNumber: number, shotNumber: number) => {
+    setUploading(true);
+    try {
+      const { imageUrl, thumbnailUrl } = await uploadManualImage(file, storyboardId, actNumber, shotNumber);
+
+      await supabase
+        .from('storyboard_shots')
+        .update({
+          image_url: imageUrl,
+          thumbnail_url: thumbnailUrl,
+          generation_status: 'completed',
+          generation_metadata: {
+            source: 'manual_upload',
+            uploadedAt: new Date().toISOString()
+          }
+        })
+        .eq('id', shotId);
+
+      await loadStoryboard();
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert(error instanceof Error ? error.message : 'Failed to upload image');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleGenerateAllImages = async () => {
+    if (!confirm('Generate images for all shots without images? This may incur costs.')) return;
+
+    setGenerating(true);
+    try {
+      const pendingShots = shots.filter(s => !s.image_url).map(s => s.id);
+
+      if (pendingShots.length === 0) {
+        alert('All shots already have images!');
+        return;
+      }
+
+      await generateImagesForStoryboard(
+        storyboardId,
+        pendingShots,
+        (progress, status) => {
+          setGenerationProgress(progress);
+          setGenerationStatus(status);
+        }
+      );
+
+      await loadStoryboard();
+      alert('Image generation complete!');
+    } catch (error) {
+      console.error('Generation error:', error);
+      alert(error instanceof Error ? error.message : 'Failed to generate images');
+    } finally {
+      setGenerating(false);
+      setGenerationProgress(0);
+      setGenerationStatus('');
+    }
+  };
+
+  const handleGenerateSingleImage = async (shotId: string) => {
+    setGenerating(true);
+    try {
+      await generateImagesForStoryboard(
+        storyboardId,
+        [shotId],
+        (progress, status) => {
+          setGenerationProgress(progress);
+          setGenerationStatus(status);
+        }
+      );
+
+      await loadStoryboard();
+    } catch (error) {
+      console.error('Generation error:', error);
+      alert(error instanceof Error ? error.message : 'Failed to generate image');
+    } finally {
+      setGenerating(false);
+      setGenerationProgress(0);
+      setGenerationStatus('');
+    }
+  };
+
+  const getActNumberForShot = (shot: StoryboardShot): number => {
+    return 1;
   };
 
   if (loading) {
@@ -147,14 +242,23 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
                 }}
                 className="bg-white rounded-lg shadow-md hover:shadow-lg transition-all border border-gray-200 overflow-hidden group"
               >
-                <div className="aspect-video bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center relative">
-                  <Camera className="w-8 h-8 text-gray-400" />
+                <div className="aspect-video bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center relative overflow-hidden">
+                  {shot.image_url ? (
+                    <img src={shot.image_url} alt={`Shot ${shot.shot_number}`} className="w-full h-full object-cover" />
+                  ) : (
+                    <Camera className="w-8 h-8 text-gray-400" />
+                  )}
                   <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
                     #{shot.shot_number}
                   </div>
                   <div className="absolute top-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
                     {shot.duration_seconds}s
                   </div>
+                  {shot.generation_status === 'generating' && (
+                    <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                      <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  )}
                 </div>
                 <div className="p-3">
                   <div className="text-xs font-semibold text-gray-500 mb-1 uppercase">{shot.shot_type}</div>
@@ -183,6 +287,14 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
           </button>
 
           <div className="flex items-center gap-3">
+            <button
+              onClick={handleGenerateAllImages}
+              disabled={generating}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Wand2 className="w-4 h-4" />
+              {generating ? 'Generating...' : 'Generate All Images'}
+            </button>
             <button
               onClick={handleExport}
               className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
@@ -215,13 +327,66 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
           <div className="p-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div>
-                <div className="aspect-video bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex items-center justify-center mb-4 border-2 border-gray-300">
-                  <div className="text-center">
-                    <Camera className="w-16 h-16 text-gray-400 mx-auto mb-2" />
-                    <p className="text-gray-600 font-medium">Storyboard Panel</p>
-                    <p className="text-xs text-gray-500 mt-1">Shot #{currentShot.shot_number}</p>
-                  </div>
+                <div className="aspect-video bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex items-center justify-center mb-4 border-2 border-gray-300 relative overflow-hidden group">
+                  {currentShot.image_url ? (
+                    <>
+                      <img src={currentShot.image_url} alt={`Shot ${currentShot.shot_number}`} className="w-full h-full object-cover" />
+                      <button
+                        onClick={() => setZoomedImage(currentShot.image_url)}
+                        className="absolute top-2 right-2 p-2 bg-black bg-opacity-50 hover:bg-opacity-75 text-white rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                      >
+                        <ZoomIn className="w-5 h-5" />
+                      </button>
+                    </>
+                  ) : (
+                    <div className="text-center">
+                      <Camera className="w-16 h-16 text-gray-400 mx-auto mb-2" />
+                      <p className="text-gray-600 font-medium">No Image</p>
+                      <p className="text-xs text-gray-500 mt-1">Shot #{currentShot.shot_number}</p>
+                    </div>
+                  )}
+                  {currentShot.generation_status === 'generating' && (
+                    <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                      <div className="text-center text-white">
+                        <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                        <p className="text-sm font-medium">Generating...</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
+
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Upload className="w-4 h-4" />
+                    {uploading ? 'Uploading...' : 'Upload Image'}
+                  </button>
+                  <button
+                    onClick={() => handleGenerateSingleImage(currentShot.id)}
+                    disabled={generating}
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Wand2 className="w-4 h-4" />
+                    {generating ? 'Generating...' : 'Generate AI'}
+                  </button>
+                </div>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      handleUploadImage(file, currentShot.id, getActNumberForShot(currentShot), currentShot.shot_number);
+                    }
+                    e.target.value = '';
+                  }}
+                />
 
                 <div className="flex items-center justify-between">
                   <button
@@ -355,6 +520,41 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
           ))}
         </div>
       </div>
+
+      {zoomedImage && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4"
+          onClick={() => setZoomedImage(null)}
+        >
+          <div className="relative max-w-7xl max-h-full">
+            <img src={zoomedImage} alt="Zoomed shot" className="max-w-full max-h-screen object-contain" />
+            <button
+              onClick={() => setZoomedImage(null)}
+              className="absolute top-4 right-4 p-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white rounded-lg transition-all"
+            >
+              <ArrowLeft className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {generating && (
+        <div className="fixed bottom-4 right-4 bg-white rounded-lg shadow-xl border-2 border-blue-500 p-4 max-w-md z-40">
+          <div className="flex items-start gap-3">
+            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <div className="flex-1">
+              <p className="font-semibold text-gray-900 mb-1">Generating Images</p>
+              <p className="text-sm text-gray-600">{generationStatus}</p>
+              <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="h-full bg-blue-600 rounded-full transition-all duration-300"
+                  style={{ width: `${generationProgress}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
+import { generateStoryboardImage, isNanoBananaAvailable, calculateEstimatedCost } from './nanoBananaService';
 
 type Scene = Database['public']['Tables']['script_scenes']['Row'];
 type Act = Database['public']['Tables']['script_acts']['Row'];
@@ -28,6 +29,8 @@ interface StoryboardGenerationOptions {
   visualStyle?: string;
   claymationEmphasis?: boolean;
   includeVocabularyVisuals?: boolean;
+  imageGenerationMode?: 'auto' | 'manual' | 'text-only';
+  generateImagesPerAct?: number;
 }
 
 const SHOT_TYPES = {
@@ -531,3 +534,174 @@ export async function regenerateShot(
     })
     .eq('id', shotId);
 }
+
+export function selectShotsForImageGeneration(
+  allShots: any[],
+  acts: any[],
+  minShotsPerAct: number = 5
+): Set<string> {
+  const selectedShotIds = new Set<string>();
+
+  for (const act of acts) {
+    const actShots = allShots.filter(shot => {
+      const scene = act.scenes.find((s: any) => s.id === shot.sceneId);
+      return !!scene;
+    });
+
+    if (actShots.length === 0) continue;
+
+    const numberOfShotsToGenerate = Math.max(minShotsPerAct, Math.ceil(actShots.length * 0.5));
+    const actualShotsToGenerate = Math.min(numberOfShotsToGenerate, actShots.length);
+
+    const priorityShots: any[] = [];
+    const regularShots: any[] = [];
+
+    actShots.forEach(shot => {
+      const isEstablishing = shot.shotType === 'establishing';
+      const hasDialogue = shot.dialogueText && shot.dialogueText.length > 0;
+      const isCloseUp = shot.shotType === 'close_up';
+      const isReaction = shot.shotType === 'reaction';
+
+      if (isEstablishing || hasDialogue || isCloseUp || isReaction) {
+        priorityShots.push(shot);
+      } else {
+        regularShots.push(shot);
+      }
+    });
+
+    const shotsToSelect = [...priorityShots];
+
+    if (shotsToSelect.length < actualShotsToGenerate) {
+      const remaining = actualShotsToGenerate - shotsToSelect.length;
+      const interval = Math.floor(regularShots.length / remaining);
+
+      for (let i = 0; i < remaining && i * interval < regularShots.length; i++) {
+        shotsToSelect.push(regularShots[i * interval]);
+      }
+    }
+
+    shotsToSelect.slice(0, actualShotsToGenerate).forEach(shot => {
+      selectedShotIds.add(shot.shotNumber.toString());
+    });
+  }
+
+  return selectedShotIds;
+}
+
+export async function generateImagesForStoryboard(
+  storyboardId: string,
+  shotIds?: string[],
+  onProgress?: (progress: number, status: string, shotNumber?: number) => void
+): Promise<void> {
+  const { data: storyboard } = await supabase
+    .from('storyboards')
+    .select('*, scripts(*)')
+    .eq('id', storyboardId)
+    .single();
+
+  if (!storyboard) throw new Error('Storyboard not found');
+
+  let query = supabase
+    .from('storyboard_shots')
+    .select('*, script_scenes!inner(*, script_acts!inner(act_number))')
+    .eq('storyboard_id', storyboardId)
+    .order('shot_number', { ascending: true });
+
+  if (shotIds && shotIds.length > 0) {
+    query = query.in('id', shotIds);
+  }
+
+  const { data: shots } = await query;
+
+  if (!shots || shots.length === 0) {
+    throw new Error('No shots found for image generation');
+  }
+
+  let completedShots = 0;
+  const totalShots = shots.length;
+  let totalCost = 0;
+
+  for (const shot of shots) {
+    try {
+      onProgress?.(
+        (completedShots / totalShots) * 100,
+        `Generating image for shot ${shot.shot_number}...`,
+        shot.shot_number
+      );
+
+      await supabase
+        .from('storyboard_shots')
+        .update({ generation_status: 'generating' })
+        .eq('id', shot.id);
+
+      const actNumber = (shot.script_scenes as any).script_acts.act_number;
+
+      const result = await generateStoryboardImage(
+        {
+          prompt: shot.image_prompt || shot.shot_description || 'Storyboard panel',
+          aspectRatio: '16:9'
+        },
+        storyboardId,
+        actNumber,
+        shot.shot_number
+      );
+
+      await supabase
+        .from('storyboard_shots')
+        .update({
+          image_url: result.imageUrl,
+          thumbnail_url: result.thumbnailUrl,
+          generation_status: 'completed',
+          generation_metadata: {
+            generationTime: result.generationTime,
+            estimatedCost: result.estimatedCost,
+            generatedAt: new Date().toISOString()
+          }
+        })
+        .eq('id', shot.id);
+
+      totalCost += result.estimatedCost;
+      completedShots++;
+
+      await supabase
+        .from('production_jobs')
+        .insert({
+          job_type: 'image_generation',
+          entity_id: shot.id,
+          entity_type: 'storyboard_shot',
+          status: 'completed',
+          service: 'nano_banana',
+          request_payload: {
+            shotNumber: shot.shot_number,
+            prompt: shot.image_prompt
+          },
+          response_data: {
+            imageUrl: result.imageUrl,
+            generationTime: result.generationTime
+          },
+          estimated_cost: result.estimatedCost,
+          completed_at: new Date().toISOString()
+        });
+
+    } catch (error) {
+      console.error(`Failed to generate image for shot ${shot.shot_number}:`, error);
+
+      await supabase
+        .from('storyboard_shots')
+        .update({
+          generation_status: 'failed',
+          generation_metadata: {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            failedAt: new Date().toISOString()
+          }
+        })
+        .eq('id', shot.id);
+
+      completedShots++;
+    }
+  }
+
+  onProgress?.(100, `Image generation complete! Generated ${completedShots} images. Total cost: $${totalCost.toFixed(2)}`);
+}
+
+export { isNanoBananaAvailable, calculateEstimatedCost };
