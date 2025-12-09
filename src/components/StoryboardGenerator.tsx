@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Film, Play, CheckCircle, AlertCircle, Settings, Wand2, ArrowLeft, Image, Upload, Camera, X, Clock, Calendar, Tag } from 'lucide-react';
+import { Film, Play, CheckCircle, AlertCircle, Settings, Wand2, ArrowLeft, Image, Upload, Camera, X, Clock, Calendar, Tag, ChevronDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { generateStoryboardForScript, isNanoBananaAvailable, calculateEstimatedCost } from '../services/storyboardService';
@@ -29,6 +29,8 @@ export function StoryboardGenerator({ onNavigate }: StoryboardGeneratorProps) {
   const [error, setError] = useState<string | null>(null);
   const [configStatus, setConfigStatus] = useState<{ configured: boolean; missing: string[] } | null>(null);
   const [imageApiAvailable, setImageApiAvailable] = useState(false);
+  const [activeAct, setActiveAct] = useState(0);
+  const [showSettings, setShowSettings] = useState(false);
   const [options, setOptions] = useState({
     shotDensity: 'moderate' as 'sparse' | 'moderate' | 'dense',
     visualStyle: 'Bright, colorful, educational claymation',
@@ -80,6 +82,10 @@ export function StoryboardGenerator({ onNavigate }: StoryboardGeneratorProps) {
       );
 
       setScripts(scriptsWithStoryboards as any);
+
+      if (scriptsWithStoryboards.length > 0) {
+        setSelectedScript(scriptsWithStoryboards[0] as Script);
+      }
     } catch (error) {
       console.error('Error loading scripts:', error);
     } finally {
@@ -89,6 +95,7 @@ export function StoryboardGenerator({ onNavigate }: StoryboardGeneratorProps) {
 
   const loadScriptDetails = async (scriptId: string) => {
     setLoadingDetails(true);
+    setActiveAct(0);
     try {
       const { data: script, error: scriptError } = await supabase
         .from('scripts')
@@ -192,451 +199,13 @@ export function StoryboardGenerator({ onNavigate }: StoryboardGeneratorProps) {
     }
   };
 
-  const StoryboardModal = () => {
-    const [activeAct, setActiveAct] = useState(0);
-    const [showSettings, setShowSettings] = useState(false);
-    const totalShots = calculateTotalEstimatedShots();
-    const totalScenes = scriptDetails?.acts.reduce((sum, act) => sum + (act.scenes?.length || 0), 0) || 0;
-
-    const formatDuration = (seconds: number) => {
-      const minutes = Math.floor(seconds / 60);
-      const remainingSeconds = seconds % 60;
-      return `${minutes}m ${remainingSeconds}s`;
-    };
-
-    return (
-      <div
-        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-        onClick={() => setSelectedScript(null)}
-      >
-        <div
-          className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="bg-gradient-to-r from-scripps-blue to-scripps-light-blue p-6 text-white flex-shrink-0">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <Film className="w-8 h-8" />
-                  <div>
-                    <h2 className="text-2xl font-bold">{selectedScript?.title}</h2>
-                    {selectedScript?.episode_number && (
-                      <p className="text-blue-100 text-sm">
-                        Season {selectedScript.season_number} • Episode {selectedScript.episode_number}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                {selectedScript?.ai_generated && (
-                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm">
-                    <Wand2 className="w-4 h-4" />
-                    <span>AI Generated</span>
-                  </div>
-                )}
-              </div>
-              <button
-                onClick={() => setSelectedScript(null)}
-                className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-          </div>
-
-          <div className="bg-gray-50 border-b border-gray-200 px-6 py-4 flex-shrink-0">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-gray-500" />
-                <div>
-                  <p className="text-gray-600">Runtime</p>
-                  <p className="font-semibold text-gray-900">{selectedScript?.runtime_minutes} min</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Film className="w-4 h-4 text-gray-500" />
-                <div>
-                  <p className="text-gray-600">Acts</p>
-                  <p className="font-semibold text-gray-900">{scriptDetails?.acts.length || 0}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Camera className="w-4 h-4 text-gray-500" />
-                <div>
-                  <p className="text-gray-600">Scenes</p>
-                  <p className="font-semibold text-gray-900">{totalScenes}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-gray-500" />
-                <div>
-                  <p className="text-gray-600">Created</p>
-                  <p className="font-semibold text-gray-900">
-                    {new Date(selectedScript?.created_at || '').toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {selectedScript?.synopsis && (
-            <div className="px-6 py-4 bg-blue-50 border-b border-blue-200 flex-shrink-0">
-              <h3 className="text-sm font-semibold text-gray-700 mb-1">Synopsis</h3>
-              <p className="text-gray-700 text-sm">{selectedScript.synopsis}</p>
-            </div>
-          )}
-
-          {selectedScript?.theme && (
-            <div className="px-6 py-3 bg-yellow-50 border-b border-yellow-200 flex-shrink-0">
-              <div className="flex items-center gap-2">
-                <Tag className="w-4 h-4 text-yellow-700" />
-                <span className="text-sm font-semibold text-gray-700">Theme:</span>
-                <span className="text-sm text-gray-700">{selectedScript.theme}</span>
-              </div>
-            </div>
-          )}
-
-          {selectedScript?.vocabulary_words && selectedScript.vocabulary_words.length > 0 && (
-            <div className="px-6 py-3 bg-green-50 border-b border-green-200 flex-shrink-0">
-              <div className="flex items-start gap-2">
-                <span className="text-sm font-semibold text-gray-700">Vocabulary:</span>
-                <div className="flex flex-wrap gap-2">
-                  {selectedScript.vocabulary_words.map((word, index) => (
-                    <span
-                      key={index}
-                      className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium"
-                    >
-                      {word}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {loadingDetails ? (
-            <div className="flex-1 flex items-center justify-center p-12">
-              <div className="text-center">
-                <div className="w-12 h-12 border-4 border-scripps-blue border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                <p className="text-gray-600">Loading script content...</p>
-              </div>
-            </div>
-          ) : scriptDetails && scriptDetails.acts.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center p-12">
-              <div className="text-center">
-                <Film className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600">This script has no acts or scenes yet.</p>
-              </div>
-            </div>
-          ) : scriptDetails ? (
-            <>
-              <div className="flex border-b border-gray-200 overflow-x-auto flex-shrink-0">
-                {scriptDetails.acts.map((act, index) => (
-                  <button
-                    key={act.id}
-                    onClick={() => setActiveAct(index)}
-                    className={`flex-1 px-6 py-3 font-medium transition-all whitespace-nowrap ${
-                      activeAct === index
-                        ? 'text-scripps-blue border-b-2 border-scripps-blue bg-blue-50'
-                        : 'text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    Act {act.act_number}
-                    {act.notes && ` • ${act.notes}`}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-6">
-                {scriptDetails.acts[activeAct] && (
-                  <div className="space-y-6">
-                    {scriptDetails.acts[activeAct].content && (
-                      <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <h3 className="font-semibold text-gray-900 mb-2">Act Overview</h3>
-                        <p className="text-gray-700 whitespace-pre-wrap">{scriptDetails.acts[activeAct].content}</p>
-                      </div>
-                    )}
-
-                    <div className="space-y-4">
-                      <h3 className="font-semibold text-gray-900 text-lg">
-                        Scenes ({scriptDetails.acts[activeAct].scenes?.length || 0})
-                      </h3>
-                      {scriptDetails.acts[activeAct].scenes?.map((scene) => {
-                        const shotsPerScene = calculateShotsPerScene();
-                        const scenePlaceholders = Array.from({ length: shotsPerScene }, (_, i) => ({
-                          shotNumber: i + 1,
-                          type: i === 0 ? 'establishing' : i === shotsPerScene - 1 ? 'closing' : 'action'
-                        }));
-
-                        return (
-                          <div
-                            key={scene.id}
-                            className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow"
-                          >
-                            <div className="flex items-start justify-between mb-3">
-                              <h4 className="font-semibold text-gray-900 text-lg">
-                                Scene {scene.scene_number}
-                              </h4>
-                              {scene.duration_estimate > 0 && (
-                                <span className="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
-                                  {formatDuration(scene.duration_estimate)}
-                                </span>
-                              )}
-                            </div>
-
-                            {scene.setting && (
-                              <div className="mb-3">
-                                <span className="text-sm font-semibold text-gray-700">Setting:</span>
-                                <span className="text-sm text-gray-600 ml-2">{scene.setting}</span>
-                              </div>
-                            )}
-
-                            {scene.description && (
-                              <div className="mb-4">
-                                <p className="text-gray-700 italic">{scene.description}</p>
-                              </div>
-                            )}
-
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 my-4">
-                              {scenePlaceholders.map((placeholder) => (
-                                <div
-                                  key={placeholder.shotNumber}
-                                  className="aspect-video bg-gradient-to-br from-gray-100 to-gray-200 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center hover:border-blue-400 transition-colors"
-                                >
-                                  <Camera className="w-6 h-6 text-gray-400 mb-1" />
-                                  <span className="text-xs font-semibold text-gray-600">Shot {placeholder.shotNumber}</span>
-                                  <span className="text-xs text-gray-500 capitalize">{placeholder.type}</span>
-                                </div>
-                              ))}
-                            </div>
-
-                            {scene.dialogue && Array.isArray(scene.dialogue) && scene.dialogue.length > 0 && (
-                              <div className="space-y-3 mb-4">
-                                {scene.dialogue.map((line: any, lineIndex: number) => (
-                                  <div key={lineIndex} className="pl-4 border-l-2 border-blue-200">
-                                    <div className="font-semibold text-gray-900 mb-1">
-                                      {line.character}
-                                    </div>
-                                    <div className="text-gray-700">{line.line}</div>
-                                    {line.stage_direction && (
-                                      <div className="text-sm text-gray-500 italic mt-1">
-                                        ({line.stage_direction})
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-
-                            {scene.stage_directions && (
-                              <div className="mt-4 pt-4 border-t border-gray-200">
-                                <p className="text-sm text-gray-600">
-                                  <span className="font-semibold">Production Notes:</span>{' '}
-                                  {scene.stage_directions}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </>
-          ) : null}
-
-          <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 flex justify-between items-center gap-3 flex-shrink-0">
-            <button
-              onClick={() => setShowSettings(!showSettings)}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-all font-medium"
-            >
-              <Settings className="w-4 h-4" />
-              Settings
-            </button>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setSelectedScript(null)}
-                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all font-medium"
-              >
-                Close
-              </button>
-              <button
-                onClick={handleGenerate}
-                disabled={!configStatus?.configured || !scriptDetails}
-                className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Wand2 className="w-4 h-4" />
-                Generate Storyboard
-              </button>
-            </div>
-          </div>
-
-          {showSettings && (
-            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10 p-4">
-              <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[80vh] overflow-hidden flex flex-col">
-                <div className="bg-gradient-to-r from-blue-500 to-cyan-600 p-4 text-white flex items-center justify-between">
-                  <h3 className="text-lg font-bold">Generation Settings</h3>
-                  <button
-                    onClick={() => setShowSettings(false)}
-                    className="p-1 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                  {!configStatus?.configured && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                      <div className="flex items-start gap-2">
-                        <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
-                        <div>
-                          <h4 className="font-semibold text-red-900 text-sm mb-1">Vertex AI Not Configured</h4>
-                          <p className="text-xs text-red-800">Configure Vertex AI in Settings.</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {error && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                      <div className="flex items-start gap-2">
-                        <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
-                        <div>
-                          <h4 className="font-semibold text-red-900 text-sm mb-1">Generation Error</h4>
-                          <p className="text-xs text-red-800">{error}</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-2">Shot Density</label>
-                    <div className="space-y-2">
-                      {(['sparse', 'moderate', 'dense'] as const).map((density) => (
-                        <button
-                          key={density}
-                          onClick={() => setOptions({ ...options, shotDensity: density })}
-                          className={`w-full p-2 rounded-lg border-2 transition-all text-left ${
-                            options.shotDensity === density
-                              ? 'border-blue-500 bg-blue-50'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <div className="font-semibold text-gray-900 capitalize text-sm">{density}</div>
-                          <div className="text-xs text-gray-600">
-                            {density === 'sparse' && '4 shots/scene'}
-                            {density === 'moderate' && '5 shots/scene'}
-                            {density === 'dense' && '7 shots/scene'}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-2">Visual Style</label>
-                    <textarea
-                      value={options.visualStyle}
-                      onChange={(e) => setOptions({ ...options, visualStyle: e.target.value })}
-                      rows={3}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Describe visual style..."
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-2">Image Generation</label>
-                    <div className="space-y-2">
-                      <button
-                        onClick={() => setOptions({ ...options, imageGenerationMode: 'auto' })}
-                        disabled={!imageApiAvailable}
-                        className={`w-full p-2 rounded-lg border-2 transition-all text-left ${
-                          options.imageGenerationMode === 'auto'
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
-                        } ${!imageApiAvailable ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <Wand2 className="w-4 h-4" />
-                          <div className="font-semibold text-gray-900 text-sm">Auto Generate</div>
-                        </div>
-                      </button>
-
-                      <button
-                        onClick={() => setOptions({ ...options, imageGenerationMode: 'manual' })}
-                        className={`w-full p-2 rounded-lg border-2 transition-all text-left ${
-                          options.imageGenerationMode === 'manual'
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <Upload className="w-4 h-4" />
-                          <div className="font-semibold text-gray-900 text-sm">Manual Upload</div>
-                        </div>
-                      </button>
-
-                      <button
-                        onClick={() => setOptions({ ...options, imageGenerationMode: 'text-only' })}
-                        className={`w-full p-2 rounded-lg border-2 transition-all text-left ${
-                          options.imageGenerationMode === 'text-only'
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <Film className="w-4 h-4" />
-                          <div className="font-semibold text-gray-900 text-sm">Text Only</div>
-                        </div>
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="flex items-start gap-2 p-2 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
-                      <input
-                        type="checkbox"
-                        checked={options.claymationEmphasis}
-                        onChange={(e) => setOptions({ ...options, claymationEmphasis: e.target.checked })}
-                        className="w-4 h-4 mt-0.5 text-blue-500 rounded focus:ring-2 focus:ring-blue-500"
-                      />
-                      <div className="flex-1">
-                        <div className="font-semibold text-gray-900 text-sm">Claymation Style</div>
-                        <div className="text-xs text-gray-600">Include claymation-specific notes</div>
-                      </div>
-                    </label>
-
-                    <label className="flex items-start gap-2 p-2 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
-                      <input
-                        type="checkbox"
-                        checked={options.includeVocabularyVisuals}
-                        onChange={(e) => setOptions({ ...options, includeVocabularyVisuals: e.target.checked })}
-                        className="w-4 h-4 mt-0.5 text-blue-500 rounded focus:ring-2 focus:ring-blue-500"
-                      />
-                      <div className="flex-1">
-                        <div className="font-semibold text-gray-900 text-sm">Vocabulary Visuals</div>
-                        <div className="text-xs text-gray-600">Add effects for vocabulary words</div>
-                      </div>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="border-t border-gray-200 px-4 py-3 bg-gray-50">
-                  <button
-                    onClick={() => setShowSettings(false)}
-                    className="w-full px-4 py-2 bg-scripps-blue text-white rounded-lg hover:bg-opacity-90 transition-all font-medium"
-                  >
-                    Done
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
+  const formatDuration = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}m ${remainingSeconds}s`;
   };
+
+  const totalScenes = scriptDetails?.acts.reduce((sum, act) => sum + (act.scenes?.length || 0), 0) || 0;
 
   if (loading) {
     return (
@@ -690,21 +259,10 @@ export function StoryboardGenerator({ onNavigate }: StoryboardGeneratorProps) {
     );
   }
 
-  if (selectedScript) {
-    return <StoryboardModal />;
-  }
-
-  return (
-    <div className="p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Storyboard Generator</h1>
-          <p className="text-gray-600">
-            Transform your scripts into detailed visual storyboards using AI
-          </p>
-        </div>
-
-        {scripts.length === 0 ? (
+  if (scripts.length === 0) {
+    return (
+      <div className="p-8">
+        <div className="max-w-7xl mx-auto">
           <div className="bg-white rounded-xl shadow-md p-12 text-center border border-gray-200">
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Film className="w-8 h-8 text-scripps-blue" />
@@ -718,66 +276,463 @@ export function StoryboardGenerator({ onNavigate }: StoryboardGeneratorProps) {
               Go to Scripts
             </button>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4">
-            {scripts.map((script: any) => (
-              <div
-                key={script.id}
-                className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all border border-gray-200 p-6"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-xl font-bold text-gray-900">{script.title}</h3>
-                      {script.storyboard && (
-                        <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs border ${
-                          script.storyboard.status === 'completed'
-                            ? 'bg-green-100 text-green-800 border-green-200'
-                            : script.storyboard.status === 'generating'
-                            ? 'bg-yellow-100 text-yellow-800 border-yellow-200'
-                            : 'bg-gray-100 text-gray-800 border-gray-200'
-                        }`}>
-                          {script.storyboard.status === 'completed' && <CheckCircle className="w-3 h-3" />}
-                          <span className="font-medium capitalize">{script.storyboard.status}</span>
-                        </div>
-                      )}
-                    </div>
+        </div>
+      </div>
+    );
+  }
 
-                    {script.synopsis && (
-                      <p className="text-gray-700 mb-3">{script.synopsis}</p>
-                    )}
+  if (!selectedScript) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <Film className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-600">Select a script to get started</p>
+        </div>
+      </div>
+    );
+  }
 
-                    {script.storyboard && (
-                      <div className="flex items-center gap-4 text-sm text-gray-600">
-                        <span>{script.storyboard.completed_shots} / {script.storyboard.total_shots} shots</span>
-                      </div>
-                    )}
-                  </div>
+  return (
+    <div className="h-full flex flex-col bg-gray-50">
+      <div className="bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white">
+        <div className="px-6 py-4 border-b border-white border-opacity-20">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-blue-100">Select Script</label>
+            <button
+              onClick={() => onNavigate('scripts')}
+              className="text-sm text-blue-100 hover:text-white transition-colors"
+            >
+              View All Scripts
+            </button>
+          </div>
+          <div className="mt-2 relative">
+            <select
+              value={selectedScript.id}
+              onChange={(e) => {
+                const script = scripts.find((s: any) => s.id === e.target.value);
+                if (script) setSelectedScript(script as Script);
+              }}
+              className="w-full px-4 py-3 bg-white bg-opacity-20 text-white rounded-lg appearance-none cursor-pointer hover:bg-opacity-30 transition-all font-medium border border-white border-opacity-30 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
+            >
+              {scripts.map((script: any) => (
+                <option key={script.id} value={script.id} className="text-gray-900">
+                  {script.title}
+                  {script.episode_number && ` - S${script.season_number}E${script.episode_number}`}
+                  {script.storyboard?.status === 'completed' && ' (Storyboard Complete)'}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none" />
+          </div>
+        </div>
 
-                  <div className="ml-4">
-                    {script.storyboard?.status === 'completed' ? (
-                      <button
-                        onClick={() => onNavigate('storyboard-viewer', { storyboardId: script.storyboard.id })}
-                        className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:shadow-lg transition-all font-medium"
-                      >
-                        View Storyboard
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => setSelectedScript(script)}
-                        disabled={script.storyboard?.status === 'generating'}
-                        className="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg hover:shadow-lg transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {script.storyboard?.status === 'generating' ? 'Generating...' : 'Generate Storyboard'}
-                      </button>
-                    )}
-                  </div>
+        <div className="px-6 py-6">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-2">
+                <Film className="w-8 h-8" />
+                <div>
+                  <h1 className="text-2xl font-bold">{selectedScript.title}</h1>
+                  {selectedScript.episode_number && (
+                    <p className="text-blue-100 text-sm">
+                      Season {selectedScript.season_number} • Episode {selectedScript.episode_number}
+                    </p>
+                  )}
                 </div>
               </div>
+              {selectedScript.ai_generated && (
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm">
+                  <Wand2 className="w-4 h-4" />
+                  <span>AI Generated</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-gray-500" />
+            <div>
+              <p className="text-gray-600">Runtime</p>
+              <p className="font-semibold text-gray-900">{selectedScript.runtime_minutes} min</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Film className="w-4 h-4 text-gray-500" />
+            <div>
+              <p className="text-gray-600">Acts</p>
+              <p className="font-semibold text-gray-900">{scriptDetails?.acts.length || 0}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Camera className="w-4 h-4 text-gray-500" />
+            <div>
+              <p className="text-gray-600">Scenes</p>
+              <p className="font-semibold text-gray-900">{totalScenes}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-gray-500" />
+            <div>
+              <p className="text-gray-600">Created</p>
+              <p className="font-semibold text-gray-900">
+                {new Date(selectedScript.created_at || '').toLocaleDateString()}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {selectedScript.synopsis && (
+        <div className="px-6 py-4 bg-blue-50 border-b border-blue-200">
+          <h3 className="text-sm font-semibold text-gray-700 mb-1">Synopsis</h3>
+          <p className="text-gray-700 text-sm">{selectedScript.synopsis}</p>
+        </div>
+      )}
+
+      {selectedScript.theme && (
+        <div className="px-6 py-3 bg-yellow-50 border-b border-yellow-200">
+          <div className="flex items-center gap-2">
+            <Tag className="w-4 h-4 text-yellow-700" />
+            <span className="text-sm font-semibold text-gray-700">Theme:</span>
+            <span className="text-sm text-gray-700">{selectedScript.theme}</span>
+          </div>
+        </div>
+      )}
+
+      {selectedScript.vocabulary_words && selectedScript.vocabulary_words.length > 0 && (
+        <div className="px-6 py-3 bg-green-50 border-b border-green-200">
+          <div className="flex items-start gap-2">
+            <span className="text-sm font-semibold text-gray-700">Vocabulary:</span>
+            <div className="flex flex-wrap gap-2">
+              {selectedScript.vocabulary_words.map((word, index) => (
+                <span
+                  key={index}
+                  className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium"
+                >
+                  {word}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {loadingDetails ? (
+        <div className="flex-1 flex items-center justify-center p-12 bg-white">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-scripps-blue border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading script content...</p>
+          </div>
+        </div>
+      ) : scriptDetails && scriptDetails.acts.length === 0 ? (
+        <div className="flex-1 flex items-center justify-center p-12 bg-white">
+          <div className="text-center">
+            <Film className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600">This script has no acts or scenes yet.</p>
+          </div>
+        </div>
+      ) : scriptDetails ? (
+        <>
+          <div className="flex border-b border-gray-200 overflow-x-auto bg-white">
+            {scriptDetails.acts.map((act, index) => (
+              <button
+                key={act.id}
+                onClick={() => setActiveAct(index)}
+                className={`flex-1 min-w-[200px] px-6 py-3 font-medium transition-all whitespace-nowrap ${
+                  activeAct === index
+                    ? 'text-scripps-blue border-b-2 border-scripps-blue bg-blue-50'
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                Act {act.act_number}
+                {act.notes && ` • ${act.notes}`}
+              </button>
             ))}
           </div>
-        )}
+
+          <div className="flex-1 overflow-y-auto p-6 bg-white">
+            {scriptDetails.acts[activeAct] && (
+              <div className="max-w-6xl mx-auto space-y-6">
+                {scriptDetails.acts[activeAct].content && (
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <h3 className="font-semibold text-gray-900 mb-2">Act Overview</h3>
+                    <p className="text-gray-700 whitespace-pre-wrap">{scriptDetails.acts[activeAct].content}</p>
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-gray-900 text-lg">
+                    Scenes ({scriptDetails.acts[activeAct].scenes?.length || 0})
+                  </h3>
+                  {scriptDetails.acts[activeAct].scenes?.map((scene) => {
+                    const shotsPerScene = calculateShotsPerScene();
+                    const scenePlaceholders = Array.from({ length: shotsPerScene }, (_, i) => ({
+                      shotNumber: i + 1,
+                      type: i === 0 ? 'establishing' : i === shotsPerScene - 1 ? 'closing' : 'action'
+                    }));
+
+                    return (
+                      <div
+                        key={scene.id}
+                        className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <h4 className="font-semibold text-gray-900 text-lg">
+                            Scene {scene.scene_number}
+                          </h4>
+                          {scene.duration_estimate > 0 && (
+                            <span className="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
+                              {formatDuration(scene.duration_estimate)}
+                            </span>
+                          )}
+                        </div>
+
+                        {scene.setting && (
+                          <div className="mb-3">
+                            <span className="text-sm font-semibold text-gray-700">Setting:</span>
+                            <span className="text-sm text-gray-600 ml-2">{scene.setting}</span>
+                          </div>
+                        )}
+
+                        {scene.description && (
+                          <div className="mb-4">
+                            <p className="text-gray-700 italic">{scene.description}</p>
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 my-4">
+                          {scenePlaceholders.map((placeholder) => (
+                            <div
+                              key={placeholder.shotNumber}
+                              className="aspect-video bg-gradient-to-br from-gray-100 to-gray-200 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center hover:border-blue-400 transition-colors"
+                            >
+                              <Camera className="w-6 h-6 text-gray-400 mb-1" />
+                              <span className="text-xs font-semibold text-gray-600">Shot {placeholder.shotNumber}</span>
+                              <span className="text-xs text-gray-500 capitalize">{placeholder.type}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {scene.dialogue && Array.isArray(scene.dialogue) && scene.dialogue.length > 0 && (
+                          <div className="space-y-3 mb-4">
+                            {scene.dialogue.map((line: any, lineIndex: number) => (
+                              <div key={lineIndex} className="pl-4 border-l-2 border-blue-200">
+                                <div className="font-semibold text-gray-900 mb-1">
+                                  {line.character}
+                                </div>
+                                <div className="text-gray-700">{line.line}</div>
+                                {line.stage_direction && (
+                                  <div className="text-sm text-gray-500 italic mt-1">
+                                    ({line.stage_direction})
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {scene.stage_directions && (
+                          <div className="mt-4 pt-4 border-t border-gray-200">
+                            <p className="text-sm text-gray-600">
+                              <span className="font-semibold">Production Notes:</span>{' '}
+                              {scene.stage_directions}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      ) : null}
+
+      <div className="border-t border-gray-200 px-6 py-4 bg-white flex justify-between items-center gap-3">
+        <button
+          onClick={() => setShowSettings(!showSettings)}
+          className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-all font-medium"
+        >
+          <Settings className="w-4 h-4" />
+          Settings
+        </button>
+
+        <button
+          onClick={handleGenerate}
+          disabled={!configStatus?.configured || !scriptDetails}
+          className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Wand2 className="w-4 h-4" />
+          Generate Storyboard
+        </button>
       </div>
+
+      {showSettings && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="bg-gradient-to-r from-blue-500 to-cyan-600 p-4 text-white flex items-center justify-between">
+              <h3 className="text-lg font-bold">Generation Settings</h3>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="p-1 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {!configStatus?.configured && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
+                    <div>
+                      <h4 className="font-semibold text-red-900 text-sm mb-1">Vertex AI Not Configured</h4>
+                      <p className="text-xs text-red-800">Configure Vertex AI in Settings.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
+                    <div>
+                      <h4 className="font-semibold text-red-900 text-sm mb-1">Generation Error</h4>
+                      <p className="text-xs text-red-800">{error}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-2">Shot Density</label>
+                <div className="space-y-2">
+                  {(['sparse', 'moderate', 'dense'] as const).map((density) => (
+                    <button
+                      key={density}
+                      onClick={() => setOptions({ ...options, shotDensity: density })}
+                      className={`w-full p-2 rounded-lg border-2 transition-all text-left ${
+                        options.shotDensity === density
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="font-semibold text-gray-900 capitalize text-sm">{density}</div>
+                      <div className="text-xs text-gray-600">
+                        {density === 'sparse' && '4 shots/scene'}
+                        {density === 'moderate' && '5 shots/scene'}
+                        {density === 'dense' && '7 shots/scene'}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-2">Visual Style</label>
+                <textarea
+                  value={options.visualStyle}
+                  onChange={(e) => setOptions({ ...options, visualStyle: e.target.value })}
+                  rows={3}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Describe visual style..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-2">Image Generation</label>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => setOptions({ ...options, imageGenerationMode: 'auto' })}
+                    disabled={!imageApiAvailable}
+                    className={`w-full p-2 rounded-lg border-2 transition-all text-left ${
+                      options.imageGenerationMode === 'auto'
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    } ${!imageApiAvailable ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Wand2 className="w-4 h-4" />
+                      <div className="font-semibold text-gray-900 text-sm">Auto Generate</div>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => setOptions({ ...options, imageGenerationMode: 'manual' })}
+                    className={`w-full p-2 rounded-lg border-2 transition-all text-left ${
+                      options.imageGenerationMode === 'manual'
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Upload className="w-4 h-4" />
+                      <div className="font-semibold text-gray-900 text-sm">Manual Upload</div>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => setOptions({ ...options, imageGenerationMode: 'text-only' })}
+                    className={`w-full p-2 rounded-lg border-2 transition-all text-left ${
+                      options.imageGenerationMode === 'text-only'
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Film className="w-4 h-4" />
+                      <div className="font-semibold text-gray-900 text-sm">Text Only</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-start gap-2 p-2 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={options.claymationEmphasis}
+                    onChange={(e) => setOptions({ ...options, claymationEmphasis: e.target.checked })}
+                    className="w-4 h-4 mt-0.5 text-blue-500 rounded focus:ring-2 focus:ring-blue-500"
+                  />
+                  <div className="flex-1">
+                    <div className="font-semibold text-gray-900 text-sm">Claymation Style</div>
+                    <div className="text-xs text-gray-600">Include claymation-specific notes</div>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-2 p-2 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={options.includeVocabularyVisuals}
+                    onChange={(e) => setOptions({ ...options, includeVocabularyVisuals: e.target.checked })}
+                    className="w-4 h-4 mt-0.5 text-blue-500 rounded focus:ring-2 focus:ring-blue-500"
+                  />
+                  <div className="flex-1">
+                    <div className="font-semibold text-gray-900 text-sm">Vocabulary Visuals</div>
+                    <div className="text-xs text-gray-600">Add effects for vocabulary words</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div className="border-t border-gray-200 px-4 py-3 bg-gray-50">
+              <button
+                onClick={() => setShowSettings(false)}
+                className="w-full px-4 py-2 bg-scripps-blue text-white rounded-lg hover:bg-opacity-90 transition-all font-medium"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
