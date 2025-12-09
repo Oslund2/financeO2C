@@ -192,63 +192,7 @@ export function StoryboardGenerator({ onNavigate }: StoryboardGeneratorProps) {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-scripps-blue border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading scripts...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (generating) {
-    return (
-      <div className="p-8">
-        <div className="max-w-3xl mx-auto">
-          <div className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
-            <div className="text-center mb-8">
-              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
-                <Film className="w-10 h-10 text-white" />
-              </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Generating Storyboard</h2>
-              <p className="text-gray-600">{selectedScript?.title}</p>
-            </div>
-
-            <div className="mb-6">
-              <div className="flex justify-between text-sm text-gray-600 mb-2">
-                <span>{progressStatus}</span>
-                <span>{Math.round(progress)}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-blue-500 to-cyan-600 transition-all duration-500 ease-out"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-            </div>
-
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <Wand2 className="w-5 h-5 text-blue-600 mt-0.5" />
-                <div className="text-sm text-blue-800">
-                  <p className="font-semibold mb-1">AI Processing</p>
-                  <p>Analyzing scenes, breaking down shots, and generating detailed visual descriptions using Vertex AI Gemini.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (selectedScript) {
-    return <StoryboardModal />;
-  }
-
-  function StoryboardModal() {
+  const StoryboardModal = () => {
     const [activeAct, setActiveAct] = useState(0);
     const [showSettings, setShowSettings] = useState(false);
     const totalShots = calculateTotalEstimatedShots();
@@ -692,6 +636,62 @@ export function StoryboardGenerator({ onNavigate }: StoryboardGeneratorProps) {
         </div>
       </div>
     );
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-scripps-blue border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading scripts...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (generating) {
+    return (
+      <div className="p-8">
+        <div className="max-w-3xl mx-auto">
+          <div className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <div className="text-center mb-8">
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+                <Film className="w-10 h-10 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Generating Storyboard</h2>
+              <p className="text-gray-600">{selectedScript?.title}</p>
+            </div>
+
+            <div className="mb-6">
+              <div className="flex justify-between text-sm text-gray-600 mb-2">
+                <span>{progressStatus}</span>
+                <span>{Math.round(progress)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-blue-500 to-cyan-600 transition-all duration-500 ease-out"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <Wand2 className="w-5 h-5 text-blue-600 mt-0.5" />
+                <div className="text-sm text-blue-800">
+                  <p className="font-semibold mb-1">AI Processing</p>
+                  <p>Analyzing scenes, breaking down shots, and generating detailed visual descriptions using Vertex AI Gemini.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (selectedScript) {
+    return <StoryboardModal />;
   }
 
   return (
