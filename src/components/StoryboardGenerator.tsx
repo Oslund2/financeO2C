@@ -159,7 +159,10 @@ export function StoryboardGenerator({ onNavigate }: StoryboardGeneratorProps) {
   const calculateTotalEstimatedShots = () => {
     if (!scriptDetails) return 0;
     const shotsPerScene = calculateShotsPerScene();
-    const totalScenes = scriptDetails.acts.reduce((sum, act) => sum + act.scenes.length, 0);
+    const totalScenes = scriptDetails.acts.reduce((sum, act) => {
+      const scenes = (act.scenes && act.scenes.length > 0) ? act.scenes.length : 3;
+      return sum + scenes;
+    }, 0);
     return totalScenes * shotsPerScene;
   };
 
@@ -281,9 +284,20 @@ export function StoryboardGenerator({ onNavigate }: StoryboardGeneratorProps) {
                   <div className="space-y-8">
                     {scriptDetails.acts.map((act, actIndex) => {
                       const shotsPerScene = calculateShotsPerScene();
+                      const hasScenes = act.scenes && act.scenes.length > 0;
+                      const estimatedScenesInAct = hasScenes ? act.scenes.length : 3;
+
                       let shotCounter = scriptDetails.acts
                         .slice(0, actIndex)
-                        .reduce((sum, a) => sum + a.scenes.length * shotsPerScene, 0);
+                        .reduce((sum, a) => {
+                          const scenes = (a.scenes && a.scenes.length > 0) ? a.scenes.length : 3;
+                          return sum + scenes * shotsPerScene;
+                        }, 0);
+
+                      const actPlaceholders = Array.from({ length: estimatedScenesInAct * shotsPerScene }, (_, i) => ({
+                        shotNumber: shotCounter + i + 1,
+                        type: i % shotsPerScene === 0 ? 'establishing' : (i + 1) % shotsPerScene === 0 ? 'closing' : 'action'
+                      }));
 
                       return (
                         <div key={act.id} className="border-b border-gray-200 pb-8 last:border-b-0">
@@ -292,65 +306,91 @@ export function StoryboardGenerator({ onNavigate }: StoryboardGeneratorProps) {
                             {act.notes && <p className="text-sm text-blue-700 mt-1">{act.notes}</p>}
                           </div>
 
-                          <div className="space-y-8">
-                            {act.scenes.map((scene) => {
-                              const scenePlaceholders = Array.from({ length: shotsPerScene }, (_, i) => ({
-                                shotNumber: shotCounter + i + 1,
-                                type: i === 0 ? 'establishing' : i === shotsPerScene - 1 ? 'closing' : 'action'
-                              }));
-                              shotCounter += shotsPerScene;
+                          {hasScenes ? (
+                            <div className="space-y-8">
+                              {act.scenes.map((scene) => {
+                                const scenePlaceholders = Array.from({ length: shotsPerScene }, (_, i) => ({
+                                  shotNumber: shotCounter + i + 1,
+                                  type: i === 0 ? 'establishing' : i === shotsPerScene - 1 ? 'closing' : 'action'
+                                }));
+                                shotCounter += shotsPerScene;
 
-                              return (
-                                <div key={scene.id} className="bg-gray-50 rounded-lg p-6">
-                                  <div className="mb-4">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <div className="bg-blue-600 text-white px-3 py-1 rounded-md text-sm font-semibold">
-                                        Scene {scene.scene_number}
+                                return (
+                                  <div key={scene.id} className="bg-gray-50 rounded-lg p-6">
+                                    <div className="mb-4">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <div className="bg-blue-600 text-white px-3 py-1 rounded-md text-sm font-semibold">
+                                          Scene {scene.scene_number}
+                                        </div>
+                                        {scene.setting && (
+                                          <div className="text-gray-700 font-medium">{scene.setting}</div>
+                                        )}
                                       </div>
-                                      {scene.setting && (
-                                        <div className="text-gray-700 font-medium">{scene.setting}</div>
+                                      {scene.description && (
+                                        <p className="text-gray-700 mb-3">{scene.description}</p>
                                       )}
                                     </div>
-                                    {scene.description && (
-                                      <p className="text-gray-700 mb-3">{scene.description}</p>
-                                    )}
-                                  </div>
 
-                                  <div className="grid grid-cols-2 gap-3 mb-4">
-                                    {scenePlaceholders.map((placeholder) => (
-                                      <div
-                                        key={placeholder.shotNumber}
-                                        className="aspect-video bg-gradient-to-br from-gray-100 to-gray-200 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center hover:border-blue-400 transition-colors"
-                                      >
-                                        <Camera className="w-8 h-8 text-gray-400 mb-2" />
-                                        <span className="text-sm font-semibold text-gray-600">Shot {placeholder.shotNumber}</span>
-                                        <span className="text-xs text-gray-500 capitalize">{placeholder.type}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-
-                                  {scene.dialogue && Array.isArray(scene.dialogue) && (scene.dialogue as any[]).length > 0 && (
-                                    <div className="space-y-3 pl-4 border-l-2 border-blue-200">
-                                      {(scene.dialogue as any[]).map((line: any, lineIndex: number) => (
-                                        <div key={lineIndex} className="space-y-1">
-                                          <div className="font-bold text-gray-900 uppercase text-sm tracking-wide">
-                                            {line.character}
-                                          </div>
-                                          <div className="text-gray-700 pl-8">{line.text}</div>
+                                    <div className="grid grid-cols-2 gap-3 mb-4">
+                                      {scenePlaceholders.map((placeholder) => (
+                                        <div
+                                          key={placeholder.shotNumber}
+                                          className="aspect-video bg-gradient-to-br from-gray-100 to-gray-200 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center hover:border-blue-400 transition-colors"
+                                        >
+                                          <Camera className="w-8 h-8 text-gray-400 mb-2" />
+                                          <span className="text-sm font-semibold text-gray-600">Shot {placeholder.shotNumber}</span>
+                                          <span className="text-xs text-gray-500 capitalize">{placeholder.type}</span>
                                         </div>
                                       ))}
                                     </div>
-                                  )}
 
-                                  {scene.stage_directions && (
-                                    <div className="mt-3 text-gray-600 italic text-sm bg-yellow-50 p-3 rounded border-l-2 border-yellow-400">
-                                      {scene.stage_directions}
+                                    {scene.dialogue && Array.isArray(scene.dialogue) && (scene.dialogue as any[]).length > 0 && (
+                                      <div className="space-y-3 pl-4 border-l-2 border-blue-200">
+                                        {(scene.dialogue as any[]).map((line: any, lineIndex: number) => (
+                                          <div key={lineIndex} className="space-y-1">
+                                            <div className="font-bold text-gray-900 uppercase text-sm tracking-wide">
+                                              {line.character}
+                                            </div>
+                                            <div className="text-gray-700 pl-8">{line.text}</div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+
+                                    {scene.stage_directions && (
+                                      <div className="mt-3 text-gray-600 italic text-sm bg-yellow-50 p-3 rounded border-l-2 border-yellow-400">
+                                        {scene.stage_directions}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="space-y-6">
+                              <div className="bg-gray-50 rounded-lg p-6">
+                                <div className="grid grid-cols-3 gap-3 mb-6">
+                                  {actPlaceholders.map((placeholder) => (
+                                    <div
+                                      key={placeholder.shotNumber}
+                                      className="aspect-video bg-gradient-to-br from-gray-100 to-gray-200 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center hover:border-blue-400 transition-colors"
+                                    >
+                                      <Camera className="w-6 h-6 text-gray-400 mb-1" />
+                                      <span className="text-xs font-semibold text-gray-600">Shot {placeholder.shotNumber}</span>
                                     </div>
-                                  )}
+                                  ))}
                                 </div>
-                              );
-                            })}
-                          </div>
+
+                                {act.content && (
+                                  <div className="prose prose-sm max-w-none">
+                                    <pre className="whitespace-pre-wrap font-sans text-sm text-gray-800 leading-relaxed">
+                                      {act.content}
+                                    </pre>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
