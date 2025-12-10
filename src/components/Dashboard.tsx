@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, TrendingUp, Clock, CheckCircle, AlertCircle, Award, Globe, Sparkles, DollarSign, Languages, Tv, X, FileText, Film, ArrowRight } from 'lucide-react';
+import { Plus, TrendingUp, Clock, CheckCircle, AlertCircle, Award, Globe, Sparkles, DollarSign, Languages, Tv, X, FileText, Film, ArrowRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Logo } from './Logo';
 import { SystemHealthWidget } from './SystemHealthWidget';
@@ -43,6 +43,7 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
   const [recentScripts, setRecentScripts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [fullscreenCard, setFullscreenCard] = useState<FullscreenCard>(null);
+  const [ipSectionCollapsed, setIpSectionCollapsed] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
@@ -222,30 +223,42 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
 
         <CastFilmStrip seriesId={seriesId} onNavigate={onNavigate} />
 
-        <div
-          className="mb-6 sm:mb-8 bg-gradient-to-br from-scripps-navy via-scripps-blue to-scripps-light-blue rounded-xl sm:rounded-2xl shadow-2xl overflow-hidden border border-scripps-blue cursor-pointer hover:shadow-3xl transition-all"
-          onClick={() => setFullscreenCard('main')}
-        >
+        <div className="mb-6 sm:mb-8 bg-gradient-to-br from-scripps-navy via-scripps-blue to-scripps-light-blue rounded-xl sm:rounded-2xl shadow-2xl overflow-hidden border border-scripps-blue transition-all">
           <div className="p-6 sm:p-8 lg:p-10">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
-                <Award className="w-6 h-6 sm:w-8 sm:h-8 text-scripps-yellow" />
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 flex-1">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Award className="w-6 h-6 sm:w-8 sm:h-8 text-scripps-yellow" />
+                </div>
+                <div>
+                  <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white">Leveraging Iconic IP for Global Entertainment</h2>
+                </div>
               </div>
-              <div>
-                <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white">Leveraging Iconic IP for Global Entertainment</h2>
-              </div>
+              <button
+                onClick={() => setIpSectionCollapsed(!ipSectionCollapsed)}
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors ml-4"
+                aria-label={ipSectionCollapsed ? "Expand section" : "Collapse section"}
+              >
+                {ipSectionCollapsed ? (
+                  <ChevronDown className="w-6 h-6 text-white" />
+                ) : (
+                  <ChevronUp className="w-6 h-6 text-white" />
+                )}
+              </button>
             </div>
 
-            <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 sm:p-6 mb-4 sm:mb-6 border border-white/20">
-              <p className="text-sm sm:text-base lg:text-lg text-white/95 leading-relaxed mb-3 sm:mb-4">
-                Leveraging the iconic <span className="font-semibold text-scripps-yellow">Scripps National Spelling Bee</span> brand, this animated series transforms historic winning words into hilarious, educational adventures.
-              </p>
-              <p className="text-xs sm:text-sm lg:text-base text-white/90 leading-relaxed">
-                This groundbreaking format blends new fictional characters with real-life Bee champions (secured via perpetual NIL) to expand our IP universe. Each 22-minute episode is thematically anchored by a specific winning word and designed for global scale across Scripps linear assets and streaming platforms.
-              </p>
-            </div>
+            {!ipSectionCollapsed && (
+              <>
+                <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 sm:p-6 mb-4 sm:mb-6 border border-white/20">
+                  <p className="text-sm sm:text-base lg:text-lg text-white/95 leading-relaxed mb-3 sm:mb-4">
+                    Leveraging the iconic <span className="font-semibold text-scripps-yellow">Scripps National Spelling Bee</span> brand, this animated series transforms historic winning words into hilarious, educational adventures.
+                  </p>
+                  <p className="text-xs sm:text-sm lg:text-base text-white/90 leading-relaxed">
+                    This groundbreaking format blends new fictional characters with real-life Bee champions (secured via perpetual NIL) to expand our IP universe. Each 22-minute episode is thematically anchored by a specific winning word and designed for global scale across Scripps linear assets and streaming platforms.
+                  </p>
+                </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               <div
                 className="bg-white/10 backdrop-blur-md rounded-xl p-4 sm:p-6 border border-white/20 hover:bg-white/15 transition-all cursor-pointer active:bg-white/20"
                 onClick={(e) => {
@@ -351,6 +364,8 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
                 </div>
               </div>
             </div>
+              </>
+            )}
           </div>
         </div>
 
