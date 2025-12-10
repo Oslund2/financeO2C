@@ -22,6 +22,7 @@ import type { Database } from '../lib/database.types';
 import { CostComparison } from './CostComparison';
 import { ShowRevenueEstimator, type RevenueCalculations } from './ShowRevenueEstimator';
 import type { CostComparison as CostComparisonType } from '../services/costCalculationService';
+import { LTVCalculationService } from '../services/ltvCalculationService';
 
 type Episode = Database['public']['Tables']['episodes']['Row'];
 type Character = Database['public']['Tables']['characters']['Row'];
@@ -614,23 +615,24 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
   };
 
   const getEpisodeMetrics = (episode: Episode) => {
-    if (!revenueCalculations) {
-      return {
-        annualRevenue: 0,
-        profit: 0,
-        margin: 0
-      };
-    }
+    const productionCost = episode.actual_cost || episode.estimated_cost || 0;
+    const annualRevenue = productionCost * 4;
+    const yearsInService = episode.projected_service_years || 5;
+    const decayRate = episode.decay_rate_percent || 10;
+    const minRetention = episode.minimum_retention_percent || 20;
 
-    const episodeCost = episode.actual_cost || episode.estimated_cost || 0;
-    const annualRevenue = revenueCalculations.revenuePerEpisode;
-    const profit = annualRevenue - episodeCost;
-    const margin = annualRevenue > 0 ? (profit / annualRevenue) * 100 : 0;
+    const ltvData = LTVCalculationService.calculateLifetimeValue(
+      annualRevenue,
+      productionCost,
+      yearsInService,
+      decayRate,
+      minRetention
+    );
 
     return {
-      annualRevenue,
-      profit,
-      margin
+      annualRevenue: ltvData.annualRevenue,
+      profit: ltvData.lifetimeProfit,
+      margin: ltvData.lifetimeMargin
     };
   };
 
@@ -890,7 +892,7 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-gray-600">Annual Revenue</span>
                         <span className="text-sm font-bold text-blue-700">
-                          {revenueCalculations ? formatCurrency(metrics.annualRevenue) : 'N/A'}
+                          {formatCurrency(metrics.annualRevenue)}
                         </span>
                       </div>
 
@@ -899,7 +901,7 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
                         <span className={`text-sm font-bold ${
                           metrics.profit >= 0 ? 'text-green-700' : 'text-red-700'
                         }`}>
-                          {revenueCalculations ? formatCurrency(metrics.profit) : 'N/A'}
+                          {formatCurrency(metrics.profit)}
                         </span>
                       </div>
 
@@ -908,14 +910,14 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
                         <span className={`text-sm font-bold ${
                           metrics.margin >= 0 ? 'text-green-700' : 'text-red-700'
                         }`}>
-                          {revenueCalculations ? `${metrics.margin.toFixed(1)}%` : 'N/A'}
+                          {metrics.margin.toFixed(1)}%
                         </span>
                       </div>
                     </div>
 
                     <div className="mt-3 pt-3 border-t border-gray-200">
                       <div className="text-xs text-gray-500">
-                        {episode.progress_percentage}% Complete
+                        LTV: {formatCurrency(metrics.profit)} over {episode.projected_service_years || 5} years
                       </div>
                     </div>
                   </button>
