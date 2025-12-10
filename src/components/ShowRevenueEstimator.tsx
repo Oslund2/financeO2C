@@ -669,8 +669,8 @@ export function ShowRevenueEstimator({ initialProductionCost = 0 }: ShowRevenueE
                                     <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
                                     <input
                                       type="number"
-                                      value={channel.cpmRate}
-                                      onChange={(e) => updateChannelCPM(channel.id, Number(e.target.value))}
+                                      value={channel.cpmRate === 0 ? '' : channel.cpmRate}
+                                      onChange={(e) => updateChannelCPM(channel.id, e.target.value === '' ? 0 : Number(e.target.value))}
                                       min="0"
                                       step="0.05"
                                       className="w-full pl-7 pr-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -684,8 +684,8 @@ export function ShowRevenueEstimator({ initialProductionCost = 0 }: ShowRevenueE
                                   <label className="text-xs font-medium text-gray-600 mb-1 block">Impressions/Run</label>
                                   <input
                                     type="number"
-                                    value={channel.impressionsPerRun}
-                                    onChange={(e) => updateChannelImpressions(channel.id, Number(e.target.value))}
+                                    value={channel.impressionsPerRun === 0 ? '' : channel.impressionsPerRun}
+                                    onChange={(e) => updateChannelImpressions(channel.id, e.target.value === '' ? 0 : Number(e.target.value))}
                                     min="0"
                                     step="1000"
                                     className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -720,8 +720,8 @@ export function ShowRevenueEstimator({ initialProductionCost = 0 }: ShowRevenueE
                                     <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
                                     <input
                                       type="number"
-                                      value={channel.rate}
-                                      onChange={(e) => updateChannelRate(channel.id, Number(e.target.value))}
+                                      value={channel.rate === 0 ? '' : channel.rate}
+                                      onChange={(e) => updateChannelRate(channel.id, e.target.value === '' ? 0 : Number(e.target.value))}
                                       min="0"
                                       step="50"
                                       className="w-full pl-7 pr-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -732,8 +732,8 @@ export function ShowRevenueEstimator({ initialProductionCost = 0 }: ShowRevenueE
                                   <label className="text-xs font-medium text-gray-600 mb-1 block">Est. Impressions/Airing</label>
                                   <input
                                     type="number"
-                                    value={channel.impressionsPerRun}
-                                    onChange={(e) => updateChannelImpressions(channel.id, Number(e.target.value))}
+                                    value={channel.impressionsPerRun === 0 ? '' : channel.impressionsPerRun}
+                                    onChange={(e) => updateChannelImpressions(channel.id, e.target.value === '' ? 0 : Number(e.target.value))}
                                     min="0"
                                     step="1000"
                                     className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
