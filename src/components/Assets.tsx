@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Image, Search, Filter, Sparkles, Plus, Trash2, FileVideo, FileAudio, Play, FileText } from 'lucide-react';
+import { Image, Search, Filter, Sparkles, Plus, Trash2, FileVideo, FileAudio, Play, FileText, ChevronDown, ChevronUp, HelpCircle, Package, Palette, Type, Camera as CameraIcon } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
@@ -20,6 +20,7 @@ export function Assets({ seriesId }: AssetsProps) {
   const [loading, setLoading] = useState(true);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
+  const [showGlossary, setShowGlossary] = useState(false);
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
     asset: Asset | null;
@@ -143,6 +144,151 @@ export function Assets({ seriesId }: AssetsProps) {
             <Plus className="w-5 h-5" />
             <span>Upload Asset</span>
           </button>
+        </div>
+
+        <div className="bg-gradient-to-r from-blue-50 to-sky-50 rounded-xl border border-blue-200 mb-4 md:mb-6 overflow-hidden">
+          <button
+            onClick={() => setShowGlossary(!showGlossary)}
+            className="w-full px-4 py-3 flex items-center justify-between hover:bg-blue-100 transition-colors min-h-[44px]"
+          >
+            <div className="flex items-center gap-2">
+              <HelpCircle className="w-5 h-5 text-scripps-blue" />
+              <span className="font-semibold text-gray-900">Asset Categories Glossary</span>
+            </div>
+            {showGlossary ? (
+              <ChevronUp className="w-5 h-5 text-gray-600" />
+            ) : (
+              <ChevronDown className="w-5 h-5 text-gray-600" />
+            )}
+          </button>
+
+          {showGlossary && (
+            <div className="px-4 pb-4 pt-2 bg-white border-t border-blue-200">
+              <p className="text-sm text-gray-600 mb-4">
+                Understanding how different asset types work together in your production workflow:
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex gap-3 p-3 bg-gradient-to-br from-gray-50 to-white rounded-lg border border-gray-200">
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <Image className="w-5 h-5 text-scripps-blue" />
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-1">Backgrounds</h4>
+                    <p className="text-sm text-gray-600">
+                      Static environment images that establish the location. Examples: gymnasium stage, classroom, outdoor park. These are the foundational layer for scenes.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 p-3 bg-gradient-to-br from-gray-50 to-white rounded-lg border border-gray-200">
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                      <Package className="w-5 h-5 text-orange-600" />
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-1">Props</h4>
+                    <p className="text-sm text-gray-600">
+                      Reusable objects that can be placed within scenes. Examples: podium, microphone, trophy, desk. These add detail and can be repositioned across shots.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 p-3 bg-gradient-to-br from-gray-50 to-white rounded-lg border border-gray-200">
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <Type className="w-5 h-5 text-purple-600" />
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-1">Word Art</h4>
+                    <p className="text-sm text-gray-600">
+                      Visual representations of spelling vocabulary words. These are word manifestations that appear in creative ways during spelling bee moments.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 p-3 bg-gradient-to-br from-gray-50 to-white rounded-lg border border-gray-200">
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                      <CameraIcon className="w-5 h-5 text-green-600" />
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-1">Scenes</h4>
+                    <p className="text-sm text-gray-600">
+                      Fully composed shots combining characters, backgrounds, and props. These are production-ready images with all elements positioned together.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 p-3 bg-gradient-to-br from-gray-50 to-white rounded-lg border border-gray-200">
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 bg-teal-100 rounded-lg flex items-center justify-center">
+                      <Image className="w-5 h-5 text-teal-600" />
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-1">Characters</h4>
+                    <p className="text-sm text-gray-600">
+                      Character reference images showing appearance, expressions, and poses. Used to maintain visual consistency across all scenes.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 p-3 bg-gradient-to-br from-gray-50 to-white rounded-lg border border-gray-200">
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                      <FileVideo className="w-5 h-5 text-red-600" />
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-1">Videos</h4>
+                    <p className="text-sm text-gray-600">
+                      Animated video clips generated from static images. These bring your claymation scenes to life with movement and expressions.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 p-3 bg-gradient-to-br from-gray-50 to-white rounded-lg border border-gray-200">
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                      <FileAudio className="w-5 h-5 text-indigo-600" />
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-1">Audio</h4>
+                    <p className="text-sm text-gray-600">
+                      Voice recordings and sound effects. Character dialogue generated through voice synthesis and ambient sounds for scenes.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 p-3 bg-gradient-to-br from-gray-50 to-white rounded-lg border border-gray-200">
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                      <FileText className="w-5 h-5 text-amber-600" />
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-1">Documents</h4>
+                    <p className="text-sm text-gray-600">
+                      Scripts, production notes, and reference materials. Supporting documentation for your animation production workflow.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <p className="text-sm text-gray-700">
+                  <span className="font-semibold">Production Tip:</span> Assets work together in layers. Start with a background, add props for detail, position characters, then generate the final scene composition. Reuse assets across multiple shots for consistency and efficiency.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="bg-white rounded-xl shadow-md p-3 md:p-4 mb-4 md:mb-6 border border-gray-200">

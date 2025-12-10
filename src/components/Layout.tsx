@@ -32,6 +32,7 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
     { id: 'ai-studio', label: 'AI Studio', icon: Sparkles },
     { id: 'scripts', label: 'Scripts', icon: FileText },
     { id: 'storyboard-generator', label: 'Storyboards', icon: Camera },
+    { id: 'assets', label: 'Asset Library', icon: Image },
     { id: 'episodes', label: 'Episodes', icon: Film },
     { id: 'profit-per-episode', label: 'Profit Per Episode', icon: TrendingUp },
     { id: 'production', label: 'Production', icon: PlayCircle },
