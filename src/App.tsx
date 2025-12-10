@@ -11,6 +11,7 @@ import { Settings } from './components/Settings';
 import { StoryboardGenerator } from './components/StoryboardGenerator';
 import { StoryboardViewer } from './components/StoryboardViewer';
 import BackupRecovery from './components/BackupRecovery';
+import { EpisodeProfitAnalytics } from './components/EpisodeProfitAnalytics';
 import { supabase } from './lib/supabase';
 import { initializeSampleData } from './utils/sampleData';
 
@@ -85,6 +86,7 @@ function App() {
       {currentView === 'scripts' && <Scripts seriesId={seriesId} onNavigate={handleNavigate} />}
       {currentView === 'assets' && <Assets seriesId={seriesId} />}
       {currentView === 'episodes' && <Episodes seriesId={seriesId} onNavigate={handleNavigate} />}
+      {currentView === 'profit-per-episode' && <EpisodeProfitAnalytics seriesId={seriesId} />}
       {currentView === 'production' && <Production seriesId={seriesId} />}
       {currentView === 'ai-studio' && <AIStudio seriesId={seriesId} onNavigate={handleNavigate} />}
       {currentView === 'storyboard-generator' && <StoryboardGenerator onNavigate={handleNavigate} />}

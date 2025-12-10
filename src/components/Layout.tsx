@@ -11,7 +11,9 @@ import {
   Camera,
   Shield,
   Menu,
-  X
+  X,
+  TrendingUp,
+  DollarSign
 } from 'lucide-react';
 import { Logo } from './Logo';
 
@@ -31,6 +33,7 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
     { id: 'storyboard-generator', label: 'Storyboards', icon: Camera },
     { id: 'assets', label: 'Asset Library', icon: Image },
     { id: 'episodes', label: 'Episodes', icon: Film },
+    { id: 'profit-per-episode', label: 'Profit Per Episode', icon: TrendingUp },
     { id: 'production', label: 'Production', icon: PlayCircle },
     { id: 'ai-studio', label: 'AI Studio', icon: Sparkles },
     { id: 'backup-recovery', label: 'Backup & Recovery', icon: Shield },

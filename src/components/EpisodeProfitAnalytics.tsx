@@ -1,0 +1,790 @@
+import { useState, useEffect } from 'react';
+import {
+  Download,
+  FileText,
+  DollarSign,
+  TrendingUp,
+  Film,
+  User,
+  ChevronRight,
+  ChevronLeft,
+  Search,
+  CheckCircle,
+  Clock,
+  BarChart3,
+  FileSpreadsheet
+} from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import type { Database } from '../lib/database.types';
+import { CostComparison } from './CostComparison';
+import { ShowRevenueEstimator } from './ShowRevenueEstimator';
+import type { CostComparison as CostComparisonType } from '../services/costCalculationService';
+
+type Episode = Database['public']['Tables']['episodes']['Row'];
+type Character = Database['public']['Tables']['characters']['Row'];
+
+interface EpisodeProfitAnalyticsProps {
+  seriesId: string | null;
+}
+
+export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps) {
+  const [episodes, setEpisodes] = useState<Episode[]>([]);
+  const [selectedEpisode, setSelectedEpisode] = useState<Episode | null>(null);
+  const [primaryCharacter, setPrimaryCharacter] = useState<Character | null>(null);
+  const [characters, setCharacters] = useState<Character[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null);
+
+  useEffect(() => {
+    loadEpisodes();
+    loadCharacters();
+  }, [seriesId]);
+
+  useEffect(() => {
+    if (selectedEpisode && characters.length > 0) {
+      determinePrimaryCharacter(selectedEpisode);
+    }
+  }, [selectedEpisode, characters]);
+
+  const loadEpisodes = async () => {
+    try {
+      let query = supabase
+        .from('episodes')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (seriesId) {
+        query = query.eq('series_id', seriesId);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      setEpisodes(data || []);
+
+      if (data && data.length > 0 && !selectedEpisode) {
+        setSelectedEpisode(data[0]);
+      }
+    } catch (error) {
+      console.error('Error loading episodes:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadCharacters = async () => {
+    try {
+      let query = supabase
+        .from('characters')
+        .select('*')
+        .eq('role', 'primary');
+
+      if (seriesId) {
+        query = query.eq('series_id', seriesId);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      setCharacters(data || []);
+    } catch (error) {
+      console.error('Error loading characters:', error);
+    }
+  };
+
+  const determinePrimaryCharacter = async (episode: Episode) => {
+    if (characters.length === 0) {
+      setPrimaryCharacter(null);
+      return;
+    }
+
+    if (episode.script_id) {
+      try {
+        const { data: script } = await supabase
+          .from('scripts')
+          .select('*, script_acts(*)')
+          .eq('id', episode.script_id)
+          .maybeSingle();
+
+        if (script && script.script_acts) {
+          const characterDialogueCounts = new Map<string, number>();
+
+          for (const act of script.script_acts as any[]) {
+            const { data: scenes } = await supabase
+              .from('script_scenes')
+              .select('dialogue')
+              .eq('act_id', act.id);
+
+            if (scenes) {
+              scenes.forEach((scene) => {
+                if (scene.dialogue && Array.isArray(scene.dialogue)) {
+                  (scene.dialogue as any[]).forEach((line) => {
+                    const charName = line.character;
+                    if (charName) {
+                      characterDialogueCounts.set(
+                        charName,
+                        (characterDialogueCounts.get(charName) || 0) + 1
+                      );
+                    }
+                  });
+                }
+              });
+            }
+          }
+
+          let maxDialogue = 0;
+          let primaryCharName = '';
+          characterDialogueCounts.forEach((count, name) => {
+            if (count > maxDialogue) {
+              maxDialogue = count;
+              primaryCharName = name;
+            }
+          });
+
+          const matchedChar = characters.find(
+            (c) => c.name.toLowerCase() === primaryCharName.toLowerCase()
+          );
+
+          setPrimaryCharacter(matchedChar || characters[0]);
+        } else {
+          setPrimaryCharacter(characters[0]);
+        }
+      } catch (error) {
+        console.error('Error determining primary character:', error);
+        setPrimaryCharacter(characters[0]);
+      }
+    } else {
+      setPrimaryCharacter(characters[0]);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'bg-green-500';
+      case 'review':
+        return 'bg-blue-500';
+      default:
+        return 'bg-yellow-500';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return <CheckCircle className="w-4 h-4 text-green-600" />;
+      default:
+        return <Clock className="w-4 h-4 text-gray-600" />;
+    }
+  };
+
+  const exportToCSV = () => {
+    if (!selectedEpisode) return;
+
+    setExporting('csv');
+
+    try {
+      const snapshot = selectedEpisode.source_script_snapshot as any;
+      const costComparison: CostComparisonType | null = snapshot?.cost_comparison || null;
+
+      const headers = [
+        'Episode Title',
+        'Status',
+        'Progress %',
+        'Estimated Cost (AI)',
+        'Actual Cost',
+        'AI Base Cost',
+        'AI Acts Cost',
+        'AI Scenes Cost',
+        'AI Characters Cost',
+        'AI Voice Lines Cost',
+        'AI Complexity Adjustment',
+        'Traditional Base Cost',
+        'Traditional Acts Cost',
+        'Traditional Scenes Cost',
+        'Traditional Characters Cost',
+        'Traditional Complexity Adjustment',
+        'Total Savings',
+        'Savings %',
+        'Created Date',
+        'Completed Date'
+      ];
+
+      const row = [
+        selectedEpisode.title,
+        selectedEpisode.status,
+        selectedEpisode.progress_percentage,
+        selectedEpisode.estimated_cost || 0,
+        selectedEpisode.actual_cost || 0,
+        costComparison?.aiCost.baseCost || 0,
+        costComparison?.aiCost.actsCost || 0,
+        costComparison?.aiCost.scenesCost || 0,
+        costComparison?.aiCost.charactersCost || 0,
+        costComparison?.aiCost.voicesCost || 0,
+        costComparison?.aiCost.complexityAdjustment || 0,
+        costComparison?.traditionalCost.baseCost || 0,
+        costComparison?.traditionalCost.actsCost || 0,
+        costComparison?.traditionalCost.scenesCost || 0,
+        costComparison?.traditionalCost.charactersCost || 0,
+        costComparison?.traditionalCost.complexityAdjustment || 0,
+        costComparison?.savings || 0,
+        costComparison?.savingsPercentage || 0,
+        new Date(selectedEpisode.created_at).toLocaleDateString(),
+        selectedEpisode.completed_at ? new Date(selectedEpisode.completed_at).toLocaleDateString() : 'In Progress'
+      ];
+
+      const csvContent = [
+        headers.join(','),
+        row.map(field => `"${field}"`).join(',')
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+
+      link.setAttribute('href', url);
+      link.setAttribute('download', `episode-profit-analysis-${selectedEpisode.title.replace(/\s+/g, '-')}.csv`);
+      link.style.visibility = 'hidden';
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      alert('Failed to export CSV');
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const exportToPDF = () => {
+    if (!selectedEpisode) return;
+
+    setExporting('pdf');
+
+    try {
+      const printWindow = window.open('', '', 'width=800,height=600');
+      if (!printWindow) {
+        alert('Please allow popups for this site to generate PDF');
+        setExporting(null);
+        return;
+      }
+
+      const snapshot = selectedEpisode.source_script_snapshot as any;
+      const costComparison: CostComparisonType | null = snapshot?.cost_comparison || null;
+
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Episode Profit Analysis - ${selectedEpisode.title}</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              margin: 40px;
+              color: #333;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 30px;
+              border-bottom: 3px solid #2563eb;
+              padding-bottom: 20px;
+            }
+            .header h1 {
+              color: #1e40af;
+              margin-bottom: 10px;
+            }
+            .section {
+              margin-bottom: 30px;
+              page-break-inside: avoid;
+            }
+            .section h2 {
+              background: #f3f4f6;
+              padding: 10px;
+              border-left: 4px solid #2563eb;
+              margin-bottom: 15px;
+            }
+            .info-grid {
+              display: grid;
+              grid-template-columns: repeat(2, 1fr);
+              gap: 15px;
+              margin-bottom: 20px;
+            }
+            .info-item {
+              padding: 10px;
+              border: 1px solid #e5e7eb;
+              border-radius: 4px;
+            }
+            .info-label {
+              font-size: 12px;
+              color: #6b7280;
+              margin-bottom: 4px;
+            }
+            .info-value {
+              font-size: 18px;
+              font-weight: bold;
+              color: #1f2937;
+            }
+            .cost-breakdown {
+              border: 2px solid #e5e7eb;
+              border-radius: 8px;
+              padding: 15px;
+              margin-bottom: 15px;
+            }
+            .cost-row {
+              display: flex;
+              justify-content: space-between;
+              padding: 8px 0;
+              border-bottom: 1px solid #f3f4f6;
+            }
+            .cost-row:last-child {
+              border-bottom: none;
+              font-weight: bold;
+              font-size: 18px;
+            }
+            .green { color: #059669; }
+            .red { color: #dc2626; }
+            .footer {
+              margin-top: 50px;
+              padding-top: 20px;
+              border-top: 2px solid #e5e7eb;
+              text-align: center;
+              font-size: 12px;
+              color: #6b7280;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Episode Profit Analysis Report</h1>
+            <p><strong>${selectedEpisode.title}</strong></p>
+            <p>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+          </div>
+
+          <div class="section">
+            <h2>Episode Information</h2>
+            <div class="info-grid">
+              <div class="info-item">
+                <div class="info-label">Status</div>
+                <div class="info-value">${selectedEpisode.status}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Progress</div>
+                <div class="info-value">${selectedEpisode.progress_percentage}%</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Created Date</div>
+                <div class="info-value">${new Date(selectedEpisode.created_at).toLocaleDateString()}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Completion Date</div>
+                <div class="info-value">${selectedEpisode.completed_at ? new Date(selectedEpisode.completed_at).toLocaleDateString() : 'In Progress'}</div>
+              </div>
+            </div>
+          </div>
+
+          ${costComparison ? `
+          <div class="section">
+            <h2>Cost Analysis</h2>
+
+            <div class="cost-breakdown">
+              <h3 style="margin-top: 0;">AI-Assisted Production</h3>
+              <div class="cost-row">
+                <span>Base Cost:</span>
+                <span>$${costComparison.aiCost.baseCost.toFixed(2)}</span>
+              </div>
+              <div class="cost-row">
+                <span>Acts:</span>
+                <span>$${costComparison.aiCost.actsCost.toFixed(2)}</span>
+              </div>
+              <div class="cost-row">
+                <span>Scenes:</span>
+                <span>$${costComparison.aiCost.scenesCost.toFixed(2)}</span>
+              </div>
+              <div class="cost-row">
+                <span>Characters:</span>
+                <span>$${costComparison.aiCost.charactersCost.toFixed(2)}</span>
+              </div>
+              <div class="cost-row">
+                <span>Voice Lines:</span>
+                <span>$${costComparison.aiCost.voicesCost.toFixed(2)}</span>
+              </div>
+              <div class="cost-row">
+                <span>Complexity Adjustment:</span>
+                <span>$${costComparison.aiCost.complexityAdjustment.toFixed(2)}</span>
+              </div>
+              <div class="cost-row">
+                <span>Total AI Cost:</span>
+                <span class="green">$${costComparison.aiCost.totalCost.toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div class="cost-breakdown">
+              <h3 style="margin-top: 0;">Traditional Production</h3>
+              <div class="cost-row">
+                <span>Base Cost:</span>
+                <span>$${costComparison.traditionalCost.baseCost.toFixed(2)}</span>
+              </div>
+              <div class="cost-row">
+                <span>Acts:</span>
+                <span>$${costComparison.traditionalCost.actsCost.toFixed(2)}</span>
+              </div>
+              <div class="cost-row">
+                <span>Scenes:</span>
+                <span>$${costComparison.traditionalCost.scenesCost.toFixed(2)}</span>
+              </div>
+              <div class="cost-row">
+                <span>Characters:</span>
+                <span>$${costComparison.traditionalCost.charactersCost.toFixed(2)}</span>
+              </div>
+              <div class="cost-row">
+                <span>Complexity Adjustment:</span>
+                <span>$${costComparison.traditionalCost.complexityAdjustment.toFixed(2)}</span>
+              </div>
+              <div class="cost-row">
+                <span>Total Traditional Cost:</span>
+                <span>$${costComparison.traditionalCost.totalCost.toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div class="cost-breakdown">
+              <h3 style="margin-top: 0;">Savings Summary</h3>
+              <div class="cost-row">
+                <span>Total Savings:</span>
+                <span class="green">$${costComparison.savings.toFixed(2)}</span>
+              </div>
+              <div class="cost-row">
+                <span>Savings Percentage:</span>
+                <span class="green">${costComparison.savingsPercentage.toFixed(1)}%</span>
+              </div>
+            </div>
+
+            ${selectedEpisode.actual_cost ? `
+            <div class="cost-breakdown">
+              <h3 style="margin-top: 0;">Actual vs Estimated</h3>
+              <div class="cost-row">
+                <span>Estimated Cost:</span>
+                <span>$${(selectedEpisode.estimated_cost || 0).toFixed(2)}</span>
+              </div>
+              <div class="cost-row">
+                <span>Actual Cost:</span>
+                <span>$${selectedEpisode.actual_cost.toFixed(2)}</span>
+              </div>
+              <div class="cost-row">
+                <span>Variance:</span>
+                <span class="${selectedEpisode.actual_cost <= (selectedEpisode.estimated_cost || 0) ? 'green' : 'red'}">
+                  ${selectedEpisode.actual_cost <= (selectedEpisode.estimated_cost || 0) ? '-' : '+'}$${Math.abs(selectedEpisode.actual_cost - (selectedEpisode.estimated_cost || 0)).toFixed(2)}
+                </span>
+              </div>
+            </div>
+            ` : ''}
+          </div>
+          ` : ''}
+
+          <div class="footer">
+            <p>This report was generated by the Animation Studio Profit Analytics System</p>
+            <p>Confidential Business Information - For Internal Use Only</p>
+          </div>
+        </body>
+        </html>
+      `;
+
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+
+      printWindow.onload = () => {
+        printWindow.print();
+        setExporting(null);
+      };
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      alert('Failed to export PDF');
+      setExporting(null);
+    }
+  };
+
+  const filteredEpisodes = episodes.filter(ep =>
+    ep.title.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading analytics...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (episodes.length === 0) {
+    return (
+      <div className="p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="bg-white rounded-xl shadow-md p-12 text-center border border-gray-200">
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <BarChart3 className="w-8 h-8 text-blue-600" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No Episodes Available</h3>
+            <p className="text-gray-600">Create and complete episodes to view profit analytics.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const snapshot = selectedEpisode?.source_script_snapshot as any;
+  const costComparison: CostComparisonType | null = snapshot?.cost_comparison || null;
+  const productionCost = selectedEpisode?.actual_cost || selectedEpisode?.estimated_cost || 0;
+
+  return (
+    <div className="p-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Profit Per Episode Analytics</h1>
+            <p className="text-gray-600">Comprehensive business analysis and profitability metrics</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={exportToCSV}
+              disabled={!selectedEpisode || exporting === 'csv'}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {exporting === 'csv' ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Exporting...
+                </>
+              ) : (
+                <>
+                  <FileSpreadsheet className="w-5 h-5" />
+                  Export CSV
+                </>
+              )}
+            </button>
+            <button
+              onClick={exportToPDF}
+              disabled={!selectedEpisode || exporting === 'pdf'}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {exporting === 'pdf' ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <FileText className="w-5 h-5" />
+                  Export PDF
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        <div className="mb-6">
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search episodes..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          <div className="bg-white rounded-xl shadow-md border-2 border-gray-200 p-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <Film className="w-4 h-4" />
+              Select Episode ({filteredEpisodes.length} available)
+            </h3>
+            <div className="flex gap-3 overflow-x-auto pb-2">
+              {filteredEpisodes.map((episode) => (
+                <button
+                  key={episode.id}
+                  onClick={() => setSelectedEpisode(episode)}
+                  className={`flex-shrink-0 w-64 p-4 rounded-lg border-2 transition-all text-left ${
+                    selectedEpisode?.id === episode.id
+                      ? 'border-blue-500 bg-blue-50 shadow-md'
+                      : 'border-gray-200 bg-white hover:border-blue-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      {getStatusIcon(episode.status)}
+                      <span className="text-xs font-medium text-gray-600 capitalize">
+                        {episode.status}
+                      </span>
+                    </div>
+                    <div className={`w-2 h-2 rounded-full ${getStatusColor(episode.status)}`}></div>
+                  </div>
+                  <h4 className="font-semibold text-gray-900 mb-1 line-clamp-2">{episode.title}</h4>
+                  <div className="flex items-center justify-between text-xs text-gray-600">
+                    <span>{episode.progress_percentage}% Complete</span>
+                    {episode.estimated_cost && (
+                      <span className="font-semibold text-green-700">
+                        {formatCurrency(episode.estimated_cost)}
+                      </span>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {selectedEpisode && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl shadow-md border-2 border-blue-200 p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">{selectedEpisode.title}</h2>
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        {getStatusIcon(selectedEpisode.status)}
+                        <span className="text-sm font-medium text-gray-700 capitalize">
+                          {selectedEpisode.status}
+                        </span>
+                      </div>
+                      <span className="text-sm text-gray-600">
+                        Created: {new Date(selectedEpisode.created_at).toLocaleDateString()}
+                      </span>
+                      {selectedEpisode.completed_at && (
+                        <span className="text-sm text-green-700 font-medium">
+                          Completed: {new Date(selectedEpisode.completed_at).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-white rounded-lg p-4 border border-blue-200">
+                    <div className="text-xs text-gray-600 mb-1">Progress</div>
+                    <div className="text-2xl font-bold text-blue-700">{selectedEpisode.progress_percentage}%</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 border border-blue-200">
+                    <div className="text-xs text-gray-600 mb-1">Est. Cost (AI)</div>
+                    <div className="text-2xl font-bold text-green-700">
+                      {selectedEpisode.estimated_cost ? formatCurrency(selectedEpisode.estimated_cost) : 'N/A'}
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 border border-blue-200">
+                    <div className="text-xs text-gray-600 mb-1">Actual Cost</div>
+                    <div className="text-2xl font-bold text-gray-900">
+                      {selectedEpisode.actual_cost ? formatCurrency(selectedEpisode.actual_cost) : 'TBD'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {primaryCharacter && (
+                <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl shadow-md border-2 border-purple-200 p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <User className="w-5 h-5 text-purple-700" />
+                    <h3 className="text-lg font-bold text-gray-900">Featured Character</h3>
+                  </div>
+                  {primaryCharacter.reference_image_url ? (
+                    <div className="mb-3">
+                      <img
+                        src={primaryCharacter.reference_image_url}
+                        alt={primaryCharacter.name}
+                        className="w-full h-40 object-cover rounded-lg border-2 border-purple-300"
+                      />
+                    </div>
+                  ) : (
+                    <div className="mb-3 w-full h-40 bg-purple-100 rounded-lg border-2 border-purple-300 flex items-center justify-center">
+                      <User className="w-16 h-16 text-purple-400" />
+                    </div>
+                  )}
+                  <h4 className="font-bold text-gray-900 text-lg mb-1">{primaryCharacter.name}</h4>
+                  {primaryCharacter.age && (
+                    <p className="text-sm text-gray-600 mb-2">Age: {primaryCharacter.age}</p>
+                  )}
+                  {primaryCharacter.description && (
+                    <p className="text-sm text-gray-700 line-clamp-3">{primaryCharacter.description}</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {costComparison && (
+              <div className="bg-white rounded-xl shadow-md border-2 border-gray-200 p-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                    <DollarSign className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold text-gray-900">Production Cost Analysis</h3>
+                    <p className="text-sm text-gray-600">AI-Assisted vs Traditional Animation Comparison</p>
+                  </div>
+                </div>
+
+                <CostComparison comparison={costComparison} showDetailed={true} />
+
+                {selectedEpisode.actual_cost && (
+                  <div className="mt-6 bg-gray-50 border-2 border-gray-200 rounded-lg p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Actual vs Estimated Cost</h3>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <div className="text-sm text-gray-600 mb-1">Estimated Cost</div>
+                        <div className="text-2xl font-bold text-green-700">
+                          {formatCurrency(selectedEpisode.estimated_cost || 0)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-gray-600 mb-1">Actual Cost</div>
+                        <div className="text-2xl font-bold text-gray-900">
+                          {formatCurrency(selectedEpisode.actual_cost)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-gray-600 mb-1">Variance</div>
+                        <div className={`text-2xl font-bold ${
+                          selectedEpisode.actual_cost <= (selectedEpisode.estimated_cost || 0)
+                            ? 'text-green-700'
+                            : 'text-red-700'
+                        }`}>
+                          {selectedEpisode.actual_cost <= (selectedEpisode.estimated_cost || 0) ? '-' : '+'}
+                          {formatCurrency(Math.abs(selectedEpisode.actual_cost - (selectedEpisode.estimated_cost || 0)))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="bg-white rounded-xl shadow-md border-2 border-gray-200 p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
+                  <TrendingUp className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900">Revenue & Profit Projections</h3>
+                  <p className="text-sm text-gray-600">Multi-channel revenue estimator and profitability calculator</p>
+                </div>
+              </div>
+
+              <ShowRevenueEstimator initialProductionCost={productionCost} />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
