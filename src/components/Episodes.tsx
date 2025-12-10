@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Play, Plus, Clock, CheckCircle, AlertCircle, TrendingUp, Trash2, RefreshCw, FileText, DollarSign, Film, ArrowRight, Sparkles, X } from 'lucide-react';
+import { Play, Plus, Clock, CheckCircle, AlertCircle, TrendingUp, Trash2, RefreshCw, FileText, DollarSign, Film, ArrowRight, Sparkles, X, Calendar } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
@@ -7,6 +7,7 @@ import { syncEpisodeFromScript, createEpisodeFromScript } from '../services/epis
 import { CostComparison } from './CostComparison';
 import { ShowRevenueEstimator } from './ShowRevenueEstimator';
 import type { CostComparison as CostComparisonType } from '../services/costCalculationService';
+import { LTVCalculationService } from '../services/ltvCalculationService';
 
 type Episode = Database['public']['Tables']['episodes']['Row'];
 type Script = Database['public']['Tables']['scripts']['Row'];
@@ -166,6 +167,35 @@ export function Episodes({ seriesId, onNavigate }: EpisodesProps) {
       default:
         return <TrendingUp className="w-5 h-5 text-scripps-blue" />;
     }
+  };
+
+  const calculateEpisodeLTV = (episode: Episode) => {
+    const productionCost = episode.actual_cost || episode.estimated_cost || 0;
+    const annualRevenue = productionCost * 4;
+    const yearsInService = episode.projected_service_years || 5;
+    const decayRate = episode.decay_rate_percent || 10;
+    const minRetention = episode.minimum_retention_percent || 20;
+
+    const ltvData = LTVCalculationService.calculateLifetimeValue(
+      annualRevenue,
+      productionCost,
+      yearsInService,
+      decayRate,
+      minRetention
+    );
+
+    const episodeLTVData = LTVCalculationService.calculateEpisodeLTVData(
+      episode.date_put_in_service,
+      yearsInService,
+      decayRate,
+      minRetention
+    );
+
+    return {
+      ...ltvData,
+      ...episodeLTVData,
+      isInService: !!episode.date_put_in_service,
+    };
   };
 
   const handleDeleteClick = async (episode: Episode) => {
@@ -357,19 +387,29 @@ export function Episodes({ seriesId, onNavigate }: EpisodesProps) {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-6">
-            {episodes.map((episode) => (
+            {episodes.map((episode) => {
+              const ltvMetrics = calculateEpisodeLTV(episode);
+              const isProfit = ltvMetrics.lifetimeProfit >= 0;
+
+              return (
               <div
                 key={episode.id}
                 className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all border border-gray-200 p-6"
               >
                 <div className="flex items-start gap-6">
-                  <div className="w-40 h-24 bg-gradient-to-br from-scripps-blue to-scripps-light-blue rounded-lg flex items-center justify-center flex-shrink-0">
+                  <div className={`w-40 h-24 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                    episode.final_video_url
+                      ? 'bg-gradient-to-br from-scripps-blue to-scripps-light-blue'
+                      : isProfit
+                        ? 'bg-gradient-to-br from-green-500 to-emerald-600'
+                        : 'bg-gradient-to-br from-red-500 to-orange-600'
+                  }`}>
                     {episode.final_video_url ? (
                       <Play className="w-12 h-12 text-white" />
                     ) : (
-                      <div className="text-white text-center">
-                        <div className="text-2xl font-bold">{episode.progress_percentage}%</div>
-                        <div className="text-xs">In Progress</div>
+                      <div className="text-white text-center px-2">
+                        <div className="text-lg font-bold">{LTVCalculationService.formatCurrency(ltvMetrics.lifetimeProfit)}</div>
+                        <div className="text-xs">LTV</div>
                       </div>
                     )}
                   </div>
@@ -390,6 +430,11 @@ export function Episodes({ seriesId, onNavigate }: EpisodesProps) {
                           <span className="text-sm font-medium text-gray-700 capitalize">
                             {episode.status.replace('_', ' ')}
                           </span>
+                          {episode.status !== 'completed' && (
+                            <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded border border-gray-200">
+                              Production: {episode.progress_percentage}%
+                            </span>
+                          )}
                           {scriptTitles.get(episode.id) && (
                             <div className="flex items-center gap-1 text-sm text-gray-600">
                               <FileText className="w-3 h-3" />
@@ -438,17 +483,65 @@ export function Episodes({ seriesId, onNavigate }: EpisodesProps) {
                       </div>
                     </div>
 
-                    <div className="mb-4">
-                      <div className="flex items-center justify-between text-sm mb-2">
-                        <span className="text-gray-600">Production Progress</span>
-                        <span className="font-medium text-gray-900">{episode.progress_percentage}%</span>
+                    <div className={`mb-4 rounded-lg p-4 border-2 ${
+                      isProfit
+                        ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200'
+                        : 'bg-gradient-to-r from-red-50 to-orange-50 border-red-200'
+                    }`}>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <DollarSign className={`w-5 h-5 ${isProfit ? 'text-green-600' : 'text-red-600'}`} />
+                          <span className="text-sm font-semibold text-gray-700">
+                            {ltvMetrics.isInService ? 'Lifetime Value' : 'Projected LTV'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-gray-600">
+                          <Calendar className="w-3 h-3" />
+                          <span>{ltvMetrics.yearsInService} years</span>
+                        </div>
                       </div>
-                      <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full ${getStatusColor(episode.status)} transition-all rounded-full`}
-                          style={{ width: `${episode.progress_percentage}%` }}
-                        />
+
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <div className="text-xs text-gray-600 mb-1">Annual Revenue</div>
+                          <div className="text-lg font-bold text-gray-900">
+                            {LTVCalculationService.formatCurrency(ltvMetrics.annualRevenue)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-600 mb-1">Lifetime Profit</div>
+                          <div className={`text-lg font-bold ${isProfit ? 'text-green-700' : 'text-red-700'}`}>
+                            {LTVCalculationService.formatCurrency(ltvMetrics.lifetimeProfit)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-600 mb-1">Margin</div>
+                          <div className={`text-lg font-bold ${isProfit ? 'text-green-700' : 'text-red-700'}`}>
+                            {ltvMetrics.lifetimeMargin.toFixed(1)}%
+                          </div>
+                        </div>
                       </div>
+
+                      {ltvMetrics.isInService && ltvMetrics.datePutInService && (
+                        <div className="mt-3 pt-3 border-t border-gray-300 flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-2 text-gray-600">
+                            <CheckCircle className="w-3 h-3" />
+                            <span>In service since {new Date(ltvMetrics.datePutInService).toLocaleDateString()}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-1 rounded ${LTVCalculationService.getPhaseColor(ltvMetrics.currentRetentionPercent, ltvMetrics.minimumRetentionPercent)} bg-opacity-10 font-medium`}>
+                              {LTVCalculationService.getRetentionPhaseLabel(ltvMetrics.currentRetentionPercent, ltvMetrics.minimumRetentionPercent)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {!ltvMetrics.isInService && (
+                        <div className="mt-3 pt-3 border-t border-gray-300 flex items-center gap-2 text-xs text-gray-600">
+                          <AlertCircle className="w-3 h-3" />
+                          <span>Episode not yet in service - showing projected values</span>
+                        </div>
+                      )}
                     </div>
 
                     {episode.production_notes && (
@@ -492,7 +585,8 @@ export function Episodes({ seriesId, onNavigate }: EpisodesProps) {
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
