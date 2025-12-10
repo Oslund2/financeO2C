@@ -624,9 +624,9 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
     let perEpisodeProductionCost = productionCost;
 
     if (revenueCalculations) {
-      const numberOfEpisodes = episodes.length || 1;
-      annualRevenue = revenueCalculations.totalRevenue / numberOfEpisodes;
-      perEpisodeProductionCost = revenueCalculations.adjustedProductionCost / numberOfEpisodes;
+      annualRevenue = revenueCalculations.revenuePerEpisode;
+      const episodesInEstimator = revenueCalculations.totalRevenue / revenueCalculations.revenuePerEpisode;
+      perEpisodeProductionCost = revenueCalculations.adjustedProductionCost / episodesInEstimator;
     } else {
       annualRevenue = productionCost * 4;
     }
