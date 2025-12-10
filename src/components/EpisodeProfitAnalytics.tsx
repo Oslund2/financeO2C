@@ -23,6 +23,7 @@ import { CostComparison } from './CostComparison';
 import { ShowRevenueEstimator, type RevenueCalculations } from './ShowRevenueEstimator';
 import type { CostComparison as CostComparisonType } from '../services/costCalculationService';
 import { LTVCalculationService } from '../services/ltvCalculationService';
+import jsPDF from 'jspdf';
 
 type Episode = Database['public']['Tables']['episodes']['Row'];
 type Character = Database['public']['Tables']['characters']['Row'];
@@ -303,293 +304,238 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
     setExporting('pdf');
 
     try {
-      const printWindow = window.open('', '', 'width=800,height=600');
-      if (!printWindow) {
-        alert('Please allow popups for this site to generate PDF');
-        setExporting(null);
-        return;
-      }
-
+      const doc = new jsPDF();
       const snapshot = selectedEpisode.source_script_snapshot as any;
       const costComparison: CostComparisonType | null = snapshot?.cost_comparison || null;
 
-      const htmlContent = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>Episode Profit Analysis - ${selectedEpisode.title}</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              margin: 40px;
-              color: #333;
-            }
-            .header {
-              text-align: center;
-              margin-bottom: 30px;
-              border-bottom: 3px solid #2563eb;
-              padding-bottom: 20px;
-            }
-            .header h1 {
-              color: #1e40af;
-              margin-bottom: 10px;
-            }
-            .section {
-              margin-bottom: 30px;
-              page-break-inside: avoid;
-            }
-            .section h2 {
-              background: #f3f4f6;
-              padding: 10px;
-              border-left: 4px solid #2563eb;
-              margin-bottom: 15px;
-            }
-            .info-grid {
-              display: grid;
-              grid-template-columns: repeat(2, 1fr);
-              gap: 15px;
-              margin-bottom: 20px;
-            }
-            .info-item {
-              padding: 10px;
-              border: 1px solid #e5e7eb;
-              border-radius: 4px;
-            }
-            .info-label {
-              font-size: 12px;
-              color: #6b7280;
-              margin-bottom: 4px;
-            }
-            .info-value {
-              font-size: 18px;
-              font-weight: bold;
-              color: #1f2937;
-            }
-            .cost-breakdown {
-              border: 2px solid #e5e7eb;
-              border-radius: 8px;
-              padding: 15px;
-              margin-bottom: 15px;
-            }
-            .cost-row {
-              display: flex;
-              justify-content: space-between;
-              padding: 8px 0;
-              border-bottom: 1px solid #f3f4f6;
-            }
-            .cost-row:last-child {
-              border-bottom: none;
-              font-weight: bold;
-              font-size: 18px;
-            }
-            .green { color: #059669; }
-            .red { color: #dc2626; }
-            .footer {
-              margin-top: 50px;
-              padding-top: 20px;
-              border-top: 2px solid #e5e7eb;
-              text-align: center;
-              font-size: 12px;
-              color: #6b7280;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>Episode Profit Analysis Report</h1>
-            <p><strong>${selectedEpisode.title}</strong></p>
-            <p>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
-          </div>
+      let yPos = 20;
+      const leftMargin = 15;
+      const rightMargin = 195;
+      const lineHeight = 7;
+      const sectionSpacing = 10;
 
-          <div class="section">
-            <h2>Episode Information</h2>
-            <div class="info-grid">
-              <div class="info-item">
-                <div class="info-label">Status</div>
-                <div class="info-value">${selectedEpisode.status}</div>
-              </div>
-              <div class="info-item">
-                <div class="info-label">Progress</div>
-                <div class="info-value">${selectedEpisode.progress_percentage}%</div>
-              </div>
-              <div class="info-item">
-                <div class="info-label">Created Date</div>
-                <div class="info-value">${new Date(selectedEpisode.created_at).toLocaleDateString()}</div>
-              </div>
-              <div class="info-item">
-                <div class="info-label">Completion Date</div>
-                <div class="info-value">${selectedEpisode.completed_at ? new Date(selectedEpisode.completed_at).toLocaleDateString() : 'In Progress'}</div>
-              </div>
-            </div>
-          </div>
+      doc.setFontSize(20);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Episode Profit Analysis Report', 105, yPos, { align: 'center' });
 
-          ${costComparison ? `
-          <div class="section">
-            <h2>Cost Analysis</h2>
+      yPos += 10;
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'normal');
+      doc.text(selectedEpisode.title, 105, yPos, { align: 'center' });
 
-            <div class="cost-breakdown">
-              <h3 style="margin-top: 0;">AI-Assisted Production</h3>
-              <div class="cost-row">
-                <span>Base Cost:</span>
-                <span>$${costComparison.aiCost.baseCost.toFixed(2)}</span>
-              </div>
-              <div class="cost-row">
-                <span>Acts:</span>
-                <span>$${costComparison.aiCost.actsCost.toFixed(2)}</span>
-              </div>
-              <div class="cost-row">
-                <span>Scenes:</span>
-                <span>$${costComparison.aiCost.scenesCost.toFixed(2)}</span>
-              </div>
-              <div class="cost-row">
-                <span>Characters:</span>
-                <span>$${costComparison.aiCost.charactersCost.toFixed(2)}</span>
-              </div>
-              <div class="cost-row">
-                <span>Voice Lines:</span>
-                <span>$${costComparison.aiCost.voicesCost.toFixed(2)}</span>
-              </div>
-              <div class="cost-row">
-                <span>Complexity Adjustment:</span>
-                <span>$${costComparison.aiCost.complexityAdjustment.toFixed(2)}</span>
-              </div>
-              <div class="cost-row">
-                <span>Total AI Cost:</span>
-                <span class="green">$${costComparison.aiCost.totalCost.toFixed(2)}</span>
-              </div>
-            </div>
+      yPos += 7;
+      doc.setFontSize(10);
+      doc.text(`Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, 105, yPos, { align: 'center' });
 
-            <div class="cost-breakdown">
-              <h3 style="margin-top: 0;">Traditional Production</h3>
-              <div class="cost-row">
-                <span>Base Cost:</span>
-                <span>$${costComparison.traditionalCost.baseCost.toFixed(2)}</span>
-              </div>
-              <div class="cost-row">
-                <span>Acts:</span>
-                <span>$${costComparison.traditionalCost.actsCost.toFixed(2)}</span>
-              </div>
-              <div class="cost-row">
-                <span>Scenes:</span>
-                <span>$${costComparison.traditionalCost.scenesCost.toFixed(2)}</span>
-              </div>
-              <div class="cost-row">
-                <span>Characters:</span>
-                <span>$${costComparison.traditionalCost.charactersCost.toFixed(2)}</span>
-              </div>
-              <div class="cost-row">
-                <span>Complexity Adjustment:</span>
-                <span>$${costComparison.traditionalCost.complexityAdjustment.toFixed(2)}</span>
-              </div>
-              <div class="cost-row">
-                <span>Total Traditional Cost:</span>
-                <span>$${costComparison.traditionalCost.totalCost.toFixed(2)}</span>
-              </div>
-            </div>
+      doc.setDrawColor(37, 99, 235);
+      doc.setLineWidth(0.5);
+      doc.line(leftMargin, yPos + 3, rightMargin, yPos + 3);
 
-            <div class="cost-breakdown">
-              <h3 style="margin-top: 0;">Savings Summary</h3>
-              <div class="cost-row">
-                <span>Total Savings:</span>
-                <span class="green">$${costComparison.savings.toFixed(2)}</span>
-              </div>
-              <div class="cost-row">
-                <span>Savings Percentage:</span>
-                <span class="green">${costComparison.savingsPercentage.toFixed(1)}%</span>
-              </div>
-            </div>
+      yPos += sectionSpacing + 5;
 
-            ${selectedEpisode.actual_cost ? `
-            <div class="cost-breakdown">
-              <h3 style="margin-top: 0;">Actual vs Estimated</h3>
-              <div class="cost-row">
-                <span>Estimated Cost:</span>
-                <span>$${(selectedEpisode.estimated_cost || 0).toFixed(2)}</span>
-              </div>
-              <div class="cost-row">
-                <span>Actual Cost:</span>
-                <span>$${selectedEpisode.actual_cost.toFixed(2)}</span>
-              </div>
-              <div class="cost-row">
-                <span>Variance:</span>
-                <span class="${selectedEpisode.actual_cost <= (selectedEpisode.estimated_cost || 0) ? 'green' : 'red'}">
-                  ${selectedEpisode.actual_cost <= (selectedEpisode.estimated_cost || 0) ? '-' : '+'}$${Math.abs(selectedEpisode.actual_cost - (selectedEpisode.estimated_cost || 0)).toFixed(2)}
-                </span>
-              </div>
-            </div>
-            ` : ''}
-          </div>
-          ` : ''}
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Episode Information', leftMargin, yPos);
+      yPos += lineHeight;
 
-          ${revenueCalculations ? `
-          <div class="section">
-            <h2>Lifetime Value Analysis</h2>
-            <div class="info-grid">
-              <div class="info-item">
-                <div class="info-label">Annual Revenue (Year 1)</div>
-                <div class="info-value">$${revenueCalculations.totalRevenue.toFixed(2)}</div>
-              </div>
-              <div class="info-item">
-                <div class="info-label">Years in Service</div>
-                <div class="info-value">${revenueCalculations.yearsInService} years</div>
-              </div>
-              <div class="info-item">
-                <div class="info-label">Decay Rate</div>
-                <div class="info-value">${revenueCalculations.decayRatePercent}% per year</div>
-              </div>
-              <div class="info-item">
-                <div class="info-label">Minimum Retention Floor</div>
-                <div class="info-value">${revenueCalculations.minimumRetentionPercent}%</div>
-              </div>
-              <div class="info-item">
-                <div class="info-label">Lifetime Revenue</div>
-                <div class="info-value green">$${revenueCalculations.lifetimeRevenue.toFixed(2)}</div>
-              </div>
-              <div class="info-item">
-                <div class="info-label">Lifetime Profit</div>
-                <div class="info-value ${revenueCalculations.lifetimeProfit >= 0 ? 'green' : 'red'}">$${revenueCalculations.lifetimeProfit.toFixed(2)}</div>
-              </div>
-              <div class="info-item">
-                <div class="info-label">Payback Period</div>
-                <div class="info-value">${revenueCalculations.paybackPeriodYears ? revenueCalculations.paybackPeriodYears.toFixed(2) + ' years' : 'Not reached'}</div>
-              </div>
-              <div class="info-item">
-                <div class="info-label">Average Annual Profit</div>
-                <div class="info-value">$${revenueCalculations.averageAnnualProfit.toFixed(2)}</div>
-              </div>
-            </div>
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Status: ${selectedEpisode.status}`, leftMargin, yPos);
+      doc.text(`Progress: ${selectedEpisode.progress_percentage}%`, 110, yPos);
+      yPos += lineHeight;
 
-            <div class="cost-breakdown">
-              <h3 style="margin-top: 0;">Year-by-Year Revenue Projection</h3>
-              ${revenueCalculations.ltvCalculation.yearlyBreakdown.map((yearData, index) => `
-              <div class="cost-row" style="font-size: 14px;">
-                <span>Year ${yearData.year} (${yearData.retentionPercent.toFixed(0)}% retention):</span>
-                <span>$${yearData.revenue.toFixed(2)}</span>
-              </div>
-              `).join('')}
-              <div class="cost-row">
-                <span>Total Lifetime Revenue:</span>
-                <span class="green">$${revenueCalculations.lifetimeRevenue.toFixed(2)}</span>
-              </div>
-            </div>
-          </div>
-          ` : ''}
+      doc.text(`Created: ${new Date(selectedEpisode.created_at).toLocaleDateString()}`, leftMargin, yPos);
+      doc.text(`Completed: ${selectedEpisode.completed_at ? new Date(selectedEpisode.completed_at).toLocaleDateString() : 'In Progress'}`, 110, yPos);
+      yPos += sectionSpacing;
 
-          <div class="footer">
-            <p>This report was generated by the Animation Studio Profit Analytics System</p>
-            <p>Confidential Business Information - For Internal Use Only</p>
-          </div>
-        </body>
-        </html>
-      `;
+      if (costComparison) {
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Cost Analysis', leftMargin, yPos);
+        yPos += lineHeight;
 
-      printWindow.document.write(htmlContent);
-      printWindow.document.close();
+        doc.setFontSize(12);
+        doc.text('AI-Assisted Production', leftMargin, yPos);
+        yPos += lineHeight - 1;
 
-      printWindow.onload = () => {
-        printWindow.print();
-        setExporting(null);
-      };
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Base Cost: $${costComparison.aiCost.baseCost.toFixed(2)}`, leftMargin + 5, yPos);
+        yPos += lineHeight - 1;
+        doc.text(`Acts: $${costComparison.aiCost.actsCost.toFixed(2)}`, leftMargin + 5, yPos);
+        yPos += lineHeight - 1;
+        doc.text(`Scenes: $${costComparison.aiCost.scenesCost.toFixed(2)}`, leftMargin + 5, yPos);
+        yPos += lineHeight - 1;
+        doc.text(`Characters: $${costComparison.aiCost.charactersCost.toFixed(2)}`, leftMargin + 5, yPos);
+        yPos += lineHeight - 1;
+        doc.text(`Voice Lines: $${costComparison.aiCost.voicesCost.toFixed(2)}`, leftMargin + 5, yPos);
+        yPos += lineHeight - 1;
+        doc.text(`Complexity Adjustment: $${costComparison.aiCost.complexityAdjustment.toFixed(2)}`, leftMargin + 5, yPos);
+        yPos += lineHeight - 1;
+
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(5, 150, 105);
+        doc.text(`Total AI Cost: $${costComparison.aiCost.totalCost.toFixed(2)}`, leftMargin + 5, yPos);
+        doc.setTextColor(0, 0, 0);
+        yPos += sectionSpacing;
+
+        if (yPos > 250) {
+          doc.addPage();
+          yPos = 20;
+        }
+
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Traditional Production', leftMargin, yPos);
+        yPos += lineHeight - 1;
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Base Cost: $${costComparison.traditionalCost.baseCost.toFixed(2)}`, leftMargin + 5, yPos);
+        yPos += lineHeight - 1;
+        doc.text(`Acts: $${costComparison.traditionalCost.actsCost.toFixed(2)}`, leftMargin + 5, yPos);
+        yPos += lineHeight - 1;
+        doc.text(`Scenes: $${costComparison.traditionalCost.scenesCost.toFixed(2)}`, leftMargin + 5, yPos);
+        yPos += lineHeight - 1;
+        doc.text(`Characters: $${costComparison.traditionalCost.charactersCost.toFixed(2)}`, leftMargin + 5, yPos);
+        yPos += lineHeight - 1;
+        doc.text(`Complexity Adjustment: $${costComparison.traditionalCost.complexityAdjustment.toFixed(2)}`, leftMargin + 5, yPos);
+        yPos += lineHeight - 1;
+
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Total Traditional Cost: $${costComparison.traditionalCost.totalCost.toFixed(2)}`, leftMargin + 5, yPos);
+        yPos += sectionSpacing;
+
+        doc.setFontSize(12);
+        doc.text('Savings Summary', leftMargin, yPos);
+        yPos += lineHeight - 1;
+
+        doc.setFontSize(10);
+        doc.setTextColor(5, 150, 105);
+        doc.text(`Total Savings: $${costComparison.savings.toFixed(2)}`, leftMargin + 5, yPos);
+        yPos += lineHeight - 1;
+        doc.text(`Savings Percentage: ${costComparison.savingsPercentage.toFixed(1)}%`, leftMargin + 5, yPos);
+        doc.setTextColor(0, 0, 0);
+        yPos += sectionSpacing;
+
+        if (selectedEpisode.actual_cost) {
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'bold');
+          doc.text('Actual vs Estimated', leftMargin, yPos);
+          yPos += lineHeight - 1;
+
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'normal');
+          doc.text(`Estimated Cost: $${(selectedEpisode.estimated_cost || 0).toFixed(2)}`, leftMargin + 5, yPos);
+          yPos += lineHeight - 1;
+          doc.text(`Actual Cost: $${selectedEpisode.actual_cost.toFixed(2)}`, leftMargin + 5, yPos);
+          yPos += lineHeight - 1;
+
+          const variance = selectedEpisode.actual_cost - (selectedEpisode.estimated_cost || 0);
+          if (variance <= 0) {
+            doc.setTextColor(5, 150, 105);
+          } else {
+            doc.setTextColor(220, 38, 38);
+          }
+          doc.text(`Variance: ${variance <= 0 ? '-' : '+'}$${Math.abs(variance).toFixed(2)}`, leftMargin + 5, yPos);
+          doc.setTextColor(0, 0, 0);
+          yPos += sectionSpacing;
+        }
+      }
+
+      if (revenueCalculations) {
+        if (yPos > 200) {
+          doc.addPage();
+          yPos = 20;
+        }
+
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Lifetime Value Analysis', leftMargin, yPos);
+        yPos += lineHeight;
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Annual Revenue (Year 1): $${revenueCalculations.totalRevenue.toFixed(2)}`, leftMargin, yPos);
+        yPos += lineHeight - 1;
+        doc.text(`Years in Service: ${revenueCalculations.yearsInService} years`, leftMargin, yPos);
+        yPos += lineHeight - 1;
+        doc.text(`Decay Rate: ${revenueCalculations.decayRatePercent}% per year`, leftMargin, yPos);
+        yPos += lineHeight - 1;
+        doc.text(`Minimum Retention Floor: ${revenueCalculations.minimumRetentionPercent}%`, leftMargin, yPos);
+        yPos += lineHeight - 1;
+
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(5, 150, 105);
+        doc.text(`Lifetime Revenue: $${revenueCalculations.lifetimeRevenue.toFixed(2)}`, leftMargin, yPos);
+        yPos += lineHeight - 1;
+
+        if (revenueCalculations.lifetimeProfit >= 0) {
+          doc.setTextColor(5, 150, 105);
+        } else {
+          doc.setTextColor(220, 38, 38);
+        }
+        doc.text(`Lifetime Profit: $${revenueCalculations.lifetimeProfit.toFixed(2)}`, leftMargin, yPos);
+        doc.setTextColor(0, 0, 0);
+        yPos += lineHeight - 1;
+
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Payback Period: ${revenueCalculations.paybackPeriodYears ? revenueCalculations.paybackPeriodYears.toFixed(2) + ' years' : 'Not reached'}`, leftMargin, yPos);
+        yPos += lineHeight - 1;
+        doc.text(`Average Annual Profit: $${revenueCalculations.averageAnnualProfit.toFixed(2)}`, leftMargin, yPos);
+        yPos += sectionSpacing;
+
+        if (yPos > 200) {
+          doc.addPage();
+          yPos = 20;
+        }
+
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Year-by-Year Revenue Projection', leftMargin, yPos);
+        yPos += lineHeight - 1;
+
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        revenueCalculations.ltvCalculation.yearlyBreakdown.forEach((yearData) => {
+          if (yPos > 270) {
+            doc.addPage();
+            yPos = 20;
+          }
+          doc.text(`Year ${yearData.year} (${yearData.retentionPercent.toFixed(0)}% retention): $${yearData.revenue.toFixed(2)}`, leftMargin + 5, yPos);
+          yPos += lineHeight - 2;
+        });
+
+        yPos += 2;
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(5, 150, 105);
+        doc.text(`Total Lifetime Revenue: $${revenueCalculations.lifetimeRevenue.toFixed(2)}`, leftMargin + 5, yPos);
+        doc.setTextColor(0, 0, 0);
+      }
+
+      if (yPos > 260) {
+        doc.addPage();
+        yPos = 20;
+      } else {
+        yPos = 270;
+      }
+
+      doc.setDrawColor(229, 231, 235);
+      doc.line(leftMargin, yPos, rightMargin, yPos);
+      yPos += 5;
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(107, 114, 128);
+      doc.text('This report was generated by the Animation Studio Profit Analytics System', 105, yPos, { align: 'center' });
+      yPos += 5;
+      doc.text('Confidential Business Information - For Internal Use Only', 105, yPos, { align: 'center' });
+
+      const fileName = `Episode_Analysis_${selectedEpisode.title.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+      doc.save(fileName);
+
+      setExporting(null);
     } catch (error) {
       console.error('Error exporting PDF:', error);
       alert('Failed to export PDF');
