@@ -1,9 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight, Film, Camera, Clock, MessageSquare, Lightbulb, Download, Grid3x3, List, Upload, Wand2, RefreshCw, ZoomIn } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Film, Camera, Clock, MessageSquare, Lightbulb, Download, Grid3x3, List, Upload, Wand2, RefreshCw, ZoomIn, Layers, Sparkles, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { uploadManualImage } from '../services/nanoBananaService';
 import { generateImagesForStoryboard } from '../services/storyboardService';
+import { BulkUploadModal } from './BulkUploadModal';
+import { SelectiveGenerationModal } from './SelectiveGenerationModal';
+import { ImageActionsMenu } from './ImageActionsMenu';
+import { ShotStatusBadge, getCompletionStats } from './ShotStatusBadge';
 
 type Storyboard = Database['public']['Tables']['storyboards']['Row'];
 type StoryboardShot = Database['public']['Tables']['storyboard_shots']['Row'];
@@ -24,7 +28,11 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
   const [generationProgress, setGenerationProgress] = useState(0);
   const [generationStatus, setGenerationStatus] = useState('');
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
+  const [showSelectiveGeneration, setShowSelectiveGeneration] = useState(false);
+  const [currentActionShotId, setCurrentActionShotId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const singleUploadInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadStoryboard();
@@ -161,6 +169,71 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
     return 1;
   };
 
+  const handleDeleteImage = async (shotId: string) => {
+    if (!confirm('Are you sure you want to delete this image? This action cannot be undone.')) return;
+
+    try {
+      await supabase
+        .from('storyboard_shots')
+        .update({
+          image_url: null,
+          thumbnail_url: null,
+          generation_status: 'pending',
+          generation_metadata: {
+            deletedAt: new Date().toISOString()
+          }
+        })
+        .eq('id', shotId);
+
+      await loadStoryboard();
+    } catch (error) {
+      console.error('Delete error:', error);
+      alert(error instanceof Error ? error.message : 'Failed to delete image');
+    }
+  };
+
+  const handleRegenerateImage = async (shotId: string) => {
+    if (!confirm('Generate a new AI image for this shot?')) return;
+
+    setGenerating(true);
+    try {
+      await generateImagesForStoryboard(
+        storyboardId,
+        [shotId],
+        (progress, status) => {
+          setGenerationProgress(progress);
+          setGenerationStatus(status);
+        }
+      );
+
+      await loadStoryboard();
+    } catch (error) {
+      console.error('Regeneration error:', error);
+      alert(error instanceof Error ? error.message : 'Failed to regenerate image');
+    } finally {
+      setGenerating(false);
+      setGenerationProgress(0);
+      setGenerationStatus('');
+    }
+  };
+
+  const handleSingleUpload = (shotId: string) => {
+    setCurrentActionShotId(shotId);
+    singleUploadInputRef.current?.click();
+  };
+
+  const handleSingleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !currentActionShotId) return;
+
+    const shot = shots.find(s => s.id === currentActionShotId);
+    if (!shot) return;
+
+    await handleUploadImage(file, shot.id, getActNumberForShot(shot), shot.shot_number);
+    setCurrentActionShotId(null);
+    e.target.value = '';
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -192,6 +265,8 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
     );
   }
 
+  const completionStats = getCompletionStats(shots);
+
   if (viewMode === 'grid') {
     return (
       <div className="p-8">
@@ -206,6 +281,20 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
             </button>
 
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowBulkUpload(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <Layers className="w-4 h-4" />
+                Bulk Upload
+              </button>
+              <button
+                onClick={() => setShowSelectiveGeneration(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Sparkles className="w-4 h-4" />
+                Generate Images
+              </button>
               <button
                 onClick={handleExport}
                 className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
@@ -224,49 +313,126 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
           </div>
 
           <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-6">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">{storyboard.title}</h1>
-            <div className="flex items-center gap-4 text-sm text-gray-600">
-              <span>{shots.length} shots</span>
-              <span>•</span>
-              <span>~{Math.round(shots.reduce((sum, shot) => sum + (shot.duration_seconds || 0), 0) / 60)} minutes</span>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">{storyboard.title}</h1>
+                <div className="flex items-center gap-4 text-sm text-gray-600">
+                  <span>{shots.length} shots</span>
+                  <span>•</span>
+                  <span>~{Math.round(shots.reduce((sum, shot) => sum + (shot.duration_seconds || 0), 0) / 60)} minutes</span>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-3xl font-bold text-blue-600 mb-1">{completionStats.percentage}%</div>
+                <div className="text-sm text-gray-600">Complete</div>
+              </div>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-3 mb-3">
+              <div
+                className="h-full bg-gradient-to-r from-blue-500 to-cyan-600 rounded-full transition-all duration-500"
+                style={{ width: `${completionStats.percentage}%` }}
+              />
+            </div>
+            <div className="flex items-center gap-4 text-xs text-gray-600">
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                {completionStats.uploaded} Uploaded
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
+                {completionStats.aiGenerated} AI Generated
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
+                {completionStats.empty} Empty
+              </span>
+              {completionStats.failed > 0 && (
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                  {completionStats.failed} Failed
+                </span>
+              )}
             </div>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {shots.map((shot, index) => (
-              <button
+              <div
                 key={shot.id}
-                onClick={() => {
-                  setCurrentShotIndex(index);
-                  setViewMode('detailed');
-                }}
-                className="bg-white rounded-lg shadow-md hover:shadow-lg transition-all border border-gray-200 overflow-hidden group"
+                className="bg-white rounded-lg shadow-md hover:shadow-lg transition-all border border-gray-200 overflow-hidden group relative"
               >
-                <div className="aspect-video bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center relative overflow-hidden">
-                  {shot.image_url ? (
-                    <img src={shot.image_url} alt={`Shot ${shot.shot_number}`} className="w-full h-full object-cover" />
-                  ) : (
-                    <Camera className="w-8 h-8 text-gray-400" />
-                  )}
-                  <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
-                    #{shot.shot_number}
-                  </div>
-                  <div className="absolute top-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
-                    {shot.duration_seconds}s
-                  </div>
-                  {shot.generation_status === 'generating' && (
-                    <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                      <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <div
+                  onClick={() => {
+                    setCurrentShotIndex(index);
+                    setViewMode('detailed');
+                  }}
+                  className="cursor-pointer"
+                >
+                  <div className="aspect-video bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center relative overflow-hidden">
+                    {shot.image_url ? (
+                      <img src={shot.image_url} alt={`Shot ${shot.shot_number}`} className="w-full h-full object-cover" />
+                    ) : (
+                      <Camera className="w-8 h-8 text-gray-400" />
+                    )}
+                    <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
+                      #{shot.shot_number}
                     </div>
-                  )}
-                </div>
-                <div className="p-3">
-                  <div className="text-xs font-semibold text-gray-500 mb-1 uppercase">{shot.shot_type}</div>
-                  <div className="text-sm font-medium text-gray-900 line-clamp-2">
-                    {shot.shot_description || 'No description'}
+                    <div className="absolute top-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
+                      {shot.duration_seconds}s
+                    </div>
+                    {shot.generation_status === 'generating' && (
+                      <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                        <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      </div>
+                    )}
+                    {!shot.image_url && shot.generation_status !== 'generating' && (
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSingleUpload(shot.id);
+                            }}
+                            className="p-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                            title="Upload image"
+                          >
+                            <Upload className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleGenerateSingleImage(shot.id);
+                            }}
+                            className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            title="Generate with AI"
+                          >
+                            <Wand2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-xs font-semibold text-gray-500 uppercase">{shot.shot_type}</div>
+                      <ShotStatusBadge shot={shot} size="sm" />
+                    </div>
+                    <div className="text-sm font-medium text-gray-900 line-clamp-2">
+                      {shot.shot_description || 'No description'}
+                    </div>
                   </div>
                 </div>
-              </button>
+                <div className="absolute top-2 right-2" onClick={(e) => e.stopPropagation()}>
+                  <ImageActionsMenu
+                    hasImage={!!shot.image_url}
+                    onUpload={() => handleSingleUpload(shot.id)}
+                    onDelete={() => handleDeleteImage(shot.id)}
+                    onRegenerate={() => handleRegenerateImage(shot.id)}
+                    onGenerateAI={() => handleGenerateSingleImage(shot.id)}
+                    disabled={generating || uploading}
+                  />
+                </div>
+              </div>
             ))}
           </div>
         </div>
@@ -288,12 +454,19 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
 
           <div className="flex items-center gap-3">
             <button
-              onClick={handleGenerateAllImages}
+              onClick={() => setShowBulkUpload(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              <Layers className="w-4 h-4" />
+              Bulk Upload
+            </button>
+            <button
+              onClick={() => setShowSelectiveGeneration(true)}
               disabled={generating}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Wand2 className="w-4 h-4" />
-              {generating ? 'Generating...' : 'Generate All Images'}
+              <Sparkles className="w-4 h-4" />
+              {generating ? 'Generating...' : 'Generate Images'}
             </button>
             <button
               onClick={handleExport}
@@ -314,13 +487,25 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
 
         <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
           <div className="bg-gradient-to-r from-blue-500 to-cyan-600 p-6 text-white">
-            <h1 className="text-2xl font-bold mb-2">{storyboard.title}</h1>
+            <div className="flex items-center justify-between mb-2">
+              <h1 className="text-2xl font-bold">{storyboard.title}</h1>
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <div className="text-2xl font-bold">{completionStats.percentage}%</div>
+                  <div className="text-xs text-blue-100">Complete</div>
+                </div>
+              </div>
+            </div>
             <div className="flex items-center gap-4 text-blue-100">
               <span>Shot {currentShot.shot_number} of {shots.length}</span>
               <span>•</span>
               <span>{currentShot.shot_type}</span>
               <span>•</span>
               <span>{currentShot.duration_seconds}s</span>
+              <span>•</span>
+              <span className="inline-block">
+                <ShotStatusBadge shot={currentShot} size="sm" />
+              </span>
             </div>
           </div>
 
@@ -356,22 +541,52 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 mb-4">
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading}
-                    className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Upload className="w-4 h-4" />
-                    {uploading ? 'Uploading...' : 'Upload Image'}
-                  </button>
-                  <button
-                    onClick={() => handleGenerateSingleImage(currentShot.id)}
-                    disabled={generating}
-                    className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Wand2 className="w-4 h-4" />
-                    {generating ? 'Generating...' : 'Generate AI'}
-                  </button>
+                  {currentShot.image_url ? (
+                    <>
+                      <button
+                        onClick={() => handleSingleUpload(currentShot.id)}
+                        disabled={uploading}
+                        className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Upload className="w-4 h-4" />
+                        {uploading ? 'Uploading...' : 'Replace Image'}
+                      </button>
+                      <button
+                        onClick={() => handleRegenerateImage(currentShot.id)}
+                        disabled={generating}
+                        className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        {generating ? 'Regenerating...' : 'Regenerate AI'}
+                      </button>
+                      <button
+                        onClick={() => handleDeleteImage(currentShot.id)}
+                        className="col-span-2 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Delete Image
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => handleSingleUpload(currentShot.id)}
+                        disabled={uploading}
+                        className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Upload className="w-4 h-4" />
+                        {uploading ? 'Uploading...' : 'Upload Image'}
+                      </button>
+                      <button
+                        onClick={() => handleGenerateSingleImage(currentShot.id)}
+                        disabled={generating}
+                        className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Wand2 className="w-4 h-4" />
+                        {generating ? 'Generating...' : 'Generate AI'}
+                      </button>
+                    </>
+                  )}
                 </div>
 
                 <input
@@ -555,6 +770,38 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
           </div>
         </div>
       )}
+
+      {showBulkUpload && (
+        <BulkUploadModal
+          storyboardId={storyboardId}
+          shots={shots}
+          onClose={() => setShowBulkUpload(false)}
+          onUploadComplete={() => {
+            loadStoryboard();
+            setShowBulkUpload(false);
+          }}
+        />
+      )}
+
+      {showSelectiveGeneration && (
+        <SelectiveGenerationModal
+          storyboardId={storyboardId}
+          shots={shots}
+          onClose={() => setShowSelectiveGeneration(false)}
+          onGenerationComplete={() => {
+            loadStoryboard();
+            setShowSelectiveGeneration(false);
+          }}
+        />
+      )}
+
+      <input
+        ref={singleUploadInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/jpg,image/webp"
+        className="hidden"
+        onChange={handleSingleFileSelect}
+      />
     </div>
   );
 }
