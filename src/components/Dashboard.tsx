@@ -43,7 +43,7 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
   const [recentScripts, setRecentScripts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [fullscreenCard, setFullscreenCard] = useState<FullscreenCard>(null);
-  const [ipSectionCollapsed, setIpSectionCollapsed] = useState(false);
+  const [ipSectionCollapsed, setIpSectionCollapsed] = useState(true);
 
   useEffect(() => {
     loadDashboardData();
