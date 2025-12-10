@@ -325,10 +325,15 @@ export function StoryboardGenerator({ onNavigate }: StoryboardGeneratorProps) {
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none" />
           </div>
-          {(selectedScript as any)?.storyboard?.id && (
+          {(selectedScript as any)?.storyboard?.id ? (
             <div className="mt-3 bg-green-500 bg-opacity-20 border border-green-300 border-opacity-30 rounded-lg px-4 py-2 flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-green-200" />
               <span className="text-sm text-green-100">This script has a storyboard. Click "View Storyboard" below to manage images.</span>
+            </div>
+          ) : (
+            <div className="mt-3 bg-blue-500 bg-opacity-20 border border-blue-300 border-opacity-30 rounded-lg px-4 py-2 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-blue-200" />
+              <span className="text-sm text-blue-100">No storyboard yet. Scroll down and click "Generate Storyboard" to create one, then you can upload images.</span>
             </div>
           )}
         </div>
