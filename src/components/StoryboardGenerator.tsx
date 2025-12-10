@@ -316,14 +316,21 @@ export function StoryboardGenerator({ onNavigate }: StoryboardGeneratorProps) {
             >
               {scripts.map((script: any) => (
                 <option key={script.id} value={script.id} className="text-gray-900">
+                  {script.storyboard?.id ? '✓ ' : ''}
                   {script.title}
                   {script.episode_number && ` - S${script.season_number}E${script.episode_number}`}
-                  {script.storyboard?.status === 'completed' && ' (Storyboard Complete)'}
+                  {script.storyboard?.id && ' (Has Storyboard)'}
                 </option>
               ))}
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none" />
           </div>
+          {(selectedScript as any)?.storyboard?.id && (
+            <div className="mt-3 bg-green-500 bg-opacity-20 border border-green-300 border-opacity-30 rounded-lg px-4 py-2 flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-green-200" />
+              <span className="text-sm text-green-100">This script has a storyboard. Click "View Storyboard" below to manage images.</span>
+            </div>
+          )}
         </div>
 
         <div className="px-6 py-6">
@@ -562,14 +569,36 @@ export function StoryboardGenerator({ onNavigate }: StoryboardGeneratorProps) {
           Settings
         </button>
 
-        <button
-          onClick={handleGenerate}
-          disabled={!configStatus?.configured || !scriptDetails}
-          className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Wand2 className="w-4 h-4" />
-          Generate Storyboard
-        </button>
+        <div className="flex gap-3">
+          {(selectedScript as any)?.storyboard?.id && (
+            <button
+              onClick={async () => {
+                const { data: storyboard } = await supabase
+                  .from('storyboards')
+                  .select('id')
+                  .eq('script_id', selectedScript!.id)
+                  .maybeSingle();
+
+                if (storyboard) {
+                  onNavigate('storyboard-viewer', { storyboardId: storyboard.id });
+                }
+              }}
+              className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-medium"
+            >
+              <Film className="w-4 h-4" />
+              View Storyboard
+            </button>
+          )}
+
+          <button
+            onClick={handleGenerate}
+            disabled={!configStatus?.configured || !scriptDetails}
+            className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Wand2 className="w-4 h-4" />
+            {(selectedScript as any)?.storyboard?.id ? 'Regenerate Storyboard' : 'Generate Storyboard'}
+          </button>
+        </div>
       </div>
 
       {showSettings && (
