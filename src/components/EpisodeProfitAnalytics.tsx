@@ -12,7 +12,10 @@ import {
   CheckCircle,
   Clock,
   BarChart3,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Info,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
@@ -35,6 +38,7 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null);
+  const [showCostHelp, setShowCostHelp] = useState(false);
 
   useEffect(() => {
     loadEpisodes();
@@ -551,12 +555,13 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
   return (
     <div className="p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Profit Per Episode Analytics</h1>
-            <p className="text-gray-600">Comprehensive business analysis and profitability metrics</p>
-          </div>
-          <div className="flex items-center gap-3">
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Profit Per Episode Analytics</h1>
+              <p className="text-gray-600">Comprehensive business analysis and profitability metrics</p>
+            </div>
+            <div className="flex items-center gap-3">
             <button
               onClick={exportToCSV}
               disabled={!selectedEpisode || exporting === 'csv'}
@@ -591,6 +596,139 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
                 </>
               )}
             </button>
+          </div>
+          </div>
+
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl overflow-hidden">
+            <button
+              onClick={() => setShowCostHelp(!showCostHelp)}
+              className="w-full px-6 py-4 flex items-center justify-between hover:bg-blue-100/50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                  <Info className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <h3 className="font-semibold text-gray-900">How Production Costs Are Calculated</h3>
+                  <p className="text-sm text-gray-600">Learn how your script structure impacts costs</p>
+                </div>
+              </div>
+              {showCostHelp ? (
+                <ChevronUp className="w-5 h-5 text-gray-400" />
+              ) : (
+                <ChevronDown className="w-5 h-5 text-gray-400" />
+              )}
+            </button>
+
+            {showCostHelp && (
+              <div className="px-6 pb-6 border-t border-blue-200">
+                <div className="grid md:grid-cols-2 gap-6 mt-4">
+                  <div className="space-y-4">
+                    <h4 className="font-semibold text-gray-900">Cost Components from Script</h4>
+
+                    <div className="bg-white rounded-lg p-4 border border-blue-200">
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
+                          <span className="text-blue-700 font-bold text-sm">1</span>
+                        </div>
+                        <div>
+                          <h5 className="font-medium text-gray-900 mb-1">Runtime Minutes</h5>
+                          <p className="text-sm text-gray-600">
+                            Your base cost starts with the episode runtime. More dialogue and scenes = longer runtime = higher base cost.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-lg p-4 border border-blue-200">
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
+                          <span className="text-blue-700 font-bold text-sm">2</span>
+                        </div>
+                        <div>
+                          <h5 className="font-medium text-gray-900 mb-1">Acts & Scenes</h5>
+                          <p className="text-sm text-gray-600">
+                            Each act and scene in your script requires setup. More acts and scenes = more AI generation cycles and processing.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-lg p-4 border border-blue-200">
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
+                          <span className="text-blue-700 font-bold text-sm">3</span>
+                        </div>
+                        <div>
+                          <h5 className="font-medium text-gray-900 mb-1">Unique Characters</h5>
+                          <p className="text-sm text-gray-600">
+                            Each new character requires initial model generation and consistency management across scenes. Limit characters to reduce costs.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h4 className="font-semibold text-gray-900">Cost-Saving Tips</h4>
+
+                    <div className="bg-white rounded-lg p-4 border border-green-200">
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
+                          <DollarSign className="w-4 h-4 text-green-700" />
+                        </div>
+                        <div>
+                          <h5 className="font-medium text-gray-900 mb-1">Voice Lines Matter</h5>
+                          <p className="text-sm text-gray-600">
+                            Each dialogue line costs money. Write concise dialogue that moves the story forward efficiently.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-lg p-4 border border-green-200">
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
+                          <DollarSign className="w-4 h-4 text-green-700" />
+                        </div>
+                        <div>
+                          <h5 className="font-medium text-gray-900 mb-1">Scene Complexity</h5>
+                          <p className="text-sm text-gray-600">
+                            Avoid keywords like "elaborate" or "complex" in scene descriptions unless necessary. Simple scenes cost less.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-lg p-4 border border-green-200">
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
+                          <DollarSign className="w-4 h-4 text-green-700" />
+                        </div>
+                        <div>
+                          <h5 className="font-medium text-gray-900 mb-1">Reuse Characters</h5>
+                          <p className="text-sm text-gray-600">
+                            Focus on your core cast. Each new character adds setup costs. Reusing existing characters is more cost-effective.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-blue-200 bg-white rounded-lg p-4">
+                  <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5 text-blue-600" />
+                    The Bottom Line
+                  </h4>
+                  <p className="text-sm text-gray-700">
+                    Even with all cost components, AI-assisted production typically costs <strong>85-90% less</strong> than
+                    traditional animation. Traditional methods require physical materials, manual labor, and extensive studio
+                    time, while AI automates character creation, scene generation, and voice acting in minutes instead of months.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
