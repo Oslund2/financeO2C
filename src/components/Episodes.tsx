@@ -171,7 +171,7 @@ export function Episodes({ seriesId, onNavigate }: EpisodesProps) {
 
   const calculateEpisodeLTV = (episode: Episode) => {
     const productionCost = episode.actual_cost || episode.estimated_cost || 0;
-    const annualRevenue = productionCost * 4;
+    const annualRevenue = productionCost * 13.4;
     const yearsInService = episode.projected_service_years || 5;
     const decayRate = episode.decay_rate_percent || 0;
     const minRetention = episode.minimum_retention_percent || 100;

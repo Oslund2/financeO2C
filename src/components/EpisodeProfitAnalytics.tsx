@@ -582,7 +582,7 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
       const episodesInEstimator = revenueCalculations.totalRevenue / revenueCalculations.revenuePerEpisode;
       perEpisodeProductionCost = revenueCalculations.adjustedProductionCost / episodesInEstimator;
     } else {
-      annualRevenue = productionCost * 4;
+      annualRevenue = productionCost * 13.4;
     }
 
     const ltvData = LTVCalculationService.calculateLifetimeValue(
