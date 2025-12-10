@@ -1,4 +1,4 @@
-import { DollarSign, TrendingDown, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { DollarSign, TrendingDown, Sparkles, ChevronDown, ChevronUp, Info } from 'lucide-react';
 import { useState } from 'react';
 import type { CostComparison as CostComparisonType } from '../services/costCalculationService';
 import { InfoTooltip } from './InfoTooltip';
