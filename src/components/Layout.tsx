@@ -47,9 +47,9 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-white flex">
       <aside className="hidden lg:flex w-64 bg-white border-r border-blue-200 flex-col shadow-lg">
-        <div className="p-6 border-b border-blue-200">
-          <div className="flex flex-col gap-2">
-            <Logo size="large" className="mx-auto" />
+        <div className="p-8 border-b border-blue-200">
+          <div className="flex flex-col gap-3">
+            <Logo size="xlarge" className="mx-auto" />
             <div className="text-center">
               <p className="text-xs font-medium text-scripps-navy">Animation Studio</p>
             </div>
@@ -100,7 +100,7 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
             >
               <Menu className="w-6 h-6 text-scripps-navy" />
             </button>
-            <Logo size="small" />
+            <Logo size="medium" />
             <div className="w-10" />
           </div>
         </header>
@@ -118,9 +118,9 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
                 paddingTop: 'env(safe-area-inset-top)'
               }}
             >
-              <div className="p-4 border-b border-blue-200 flex items-center justify-between">
-                <div className="flex flex-col gap-1">
-                  <Logo size="large" />
+              <div className="p-6 border-b border-blue-200 flex items-center justify-between">
+                <div className="flex flex-col gap-2">
+                  <Logo size="xlarge" />
                   <p className="text-xs font-medium text-scripps-navy">Animation Studio</p>
                 </div>
                 <button

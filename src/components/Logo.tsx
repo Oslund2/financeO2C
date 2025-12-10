@@ -1,6 +1,6 @@
 interface LogoProps {
   className?: string;
-  size?: 'small' | 'medium' | 'large';
+  size?: 'small' | 'medium' | 'large' | 'xlarge';
 }
 
 export function Logo({ className = '', size = 'medium' }: LogoProps) {
@@ -8,6 +8,7 @@ export function Logo({ className = '', size = 'medium' }: LogoProps) {
     small: 'h-8',
     medium: 'h-12',
     large: 'h-16',
+    xlarge: 'h-24',
   };
 
   return (
