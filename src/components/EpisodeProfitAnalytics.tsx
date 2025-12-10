@@ -616,14 +616,24 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
 
   const getEpisodeMetrics = (episode: Episode) => {
     const productionCost = episode.actual_cost || episode.estimated_cost || 0;
-    const annualRevenue = productionCost * 4;
-    const yearsInService = episode.projected_service_years || 5;
-    const decayRate = episode.decay_rate_percent || 10;
-    const minRetention = episode.minimum_retention_percent || 20;
+    const yearsInService = revenueCalculations?.yearsInService || episode.projected_service_years || 5;
+    const decayRate = revenueCalculations?.decayRatePercent || episode.decay_rate_percent || 10;
+    const minRetention = revenueCalculations?.minimumRetentionPercent || episode.minimum_retention_percent || 20;
+
+    let annualRevenue: number;
+    let perEpisodeProductionCost = productionCost;
+
+    if (revenueCalculations) {
+      const numberOfEpisodes = episodes.length || 1;
+      annualRevenue = revenueCalculations.totalRevenue / numberOfEpisodes;
+      perEpisodeProductionCost = revenueCalculations.adjustedProductionCost / numberOfEpisodes;
+    } else {
+      annualRevenue = productionCost * 4;
+    }
 
     const ltvData = LTVCalculationService.calculateLifetimeValue(
       annualRevenue,
-      productionCost,
+      perEpisodeProductionCost,
       yearsInService,
       decayRate,
       minRetention
@@ -890,14 +900,14 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-600">Annual Revenue</span>
+                        <span className="text-xs text-gray-600">Year 1 Revenue</span>
                         <span className="text-sm font-bold text-blue-700">
                           {formatCurrency(metrics.annualRevenue)}
                         </span>
                       </div>
 
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-600">Profit (USD)</span>
+                        <span className="text-xs text-gray-600">Lifetime Profit</span>
                         <span className={`text-sm font-bold ${
                           metrics.profit >= 0 ? 'text-green-700' : 'text-red-700'
                         }`}>
@@ -906,7 +916,7 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
                       </div>
 
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-600">Margin</span>
+                        <span className="text-xs text-gray-600">Lifetime Margin</span>
                         <span className={`text-sm font-bold ${
                           metrics.margin >= 0 ? 'text-green-700' : 'text-red-700'
                         }`}>
@@ -917,7 +927,7 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
 
                     <div className="mt-3 pt-3 border-t border-gray-200">
                       <div className="text-xs text-gray-500">
-                        LTV: {formatCurrency(metrics.profit)} over {episode.projected_service_years || 5} years
+                        LTV: {formatCurrency(metrics.profit)} over {revenueCalculations?.yearsInService || episode.projected_service_years || 5} years
                       </div>
                     </div>
                   </button>
