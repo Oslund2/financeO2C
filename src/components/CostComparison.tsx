@@ -76,6 +76,13 @@ export function CostComparison({ comparison, showDetailed = false }: CostCompari
                 </span>
                 <span className="font-medium">{formatCurrency(aiCost.voicesCost)}</span>
               </div>
+              <div className="flex justify-between text-gray-700">
+                <span className="flex items-center">
+                  Video Generation:
+                  <InfoTooltip content="AI video generation cost per minute of finished animation. Converts storyboard images into fully animated video sequences." />
+                </span>
+                <span className="font-medium">{formatCurrency(aiCost.videoGenerationCost)}</span>
+              </div>
               {aiCost.complexityAdjustment !== 0 && (
                 <div className="flex justify-between text-gray-700">
                   <span className="flex items-center">
@@ -252,6 +259,14 @@ export function CostComparison({ comparison, showDetailed = false }: CostCompari
                   <p className="text-sm text-gray-600">
                     Each dialogue line uses AI voice synthesis (ElevenLabs). Cost is per line
                     generated, making longer conversations more expensive.
+                  </p>
+                </div>
+
+                <div>
+                  <div className="font-medium text-sm text-gray-800">Video Generation</div>
+                  <p className="text-sm text-gray-600">
+                    AI video generation cost per minute of finished animation. Transforms storyboard
+                    images into smooth, fully animated video sequences with character movement and scene transitions.
                   </p>
                 </div>
 

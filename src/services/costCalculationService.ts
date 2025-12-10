@@ -13,6 +13,9 @@ export interface CostConfig {
   complexity_multiplier_simple: number;
   complexity_multiplier_medium: number;
   complexity_multiplier_complex: number;
+  video_generation_cost_per_minute?: number;
+  video_generation_provider?: string;
+  video_generation_quality_tier?: string;
 }
 
 export interface ScriptData {
@@ -32,6 +35,7 @@ export interface CostBreakdown {
   scenesCost: number;
   charactersCost: number;
   voicesCost: number;
+  videoGenerationCost: number;
   complexityAdjustment: number;
   totalCost: number;
 }
@@ -105,6 +109,7 @@ function calculateAICost(scriptData: ScriptData, config: CostConfig): CostBreakd
   const scenesCost = sceneCount * config.cost_per_scene;
   const charactersCost = scriptData.unique_characters.length * config.cost_per_character;
   const voicesCost = dialogueCount * config.cost_per_voice_line;
+  const videoGenerationCost = scriptData.runtime_minutes * (config.video_generation_cost_per_minute || 120);
 
   let complexityAdjustment = 0;
   scriptData.acts.forEach(act => {
@@ -115,7 +120,7 @@ function calculateAICost(scriptData: ScriptData, config: CostConfig): CostBreakd
     });
   });
 
-  const totalCost = baseCost + actsCost + scenesCost + charactersCost + voicesCost + complexityAdjustment;
+  const totalCost = baseCost + actsCost + scenesCost + charactersCost + voicesCost + videoGenerationCost + complexityAdjustment;
 
   return {
     baseCost,
@@ -123,6 +128,7 @@ function calculateAICost(scriptData: ScriptData, config: CostConfig): CostBreakd
     scenesCost,
     charactersCost,
     voicesCost,
+    videoGenerationCost,
     complexityAdjustment,
     totalCost,
   };
@@ -137,10 +143,11 @@ function calculateTraditionalCost(scriptData: ScriptData, config: CostConfig): C
   const scenesCost = sceneCount * config.cost_per_scene * 4;
   const charactersCost = scriptData.unique_characters.length * config.cost_per_character * 5;
   const voicesCost = 0;
+  const videoGenerationCost = 0;
 
   const complexityAdjustment = scenesCost * 0.5;
 
-  const totalCost = baseCost + actsCost + scenesCost + charactersCost + voicesCost + complexityAdjustment;
+  const totalCost = baseCost + actsCost + scenesCost + charactersCost + voicesCost + videoGenerationCost + complexityAdjustment;
 
   return {
     baseCost,
@@ -148,6 +155,7 @@ function calculateTraditionalCost(scriptData: ScriptData, config: CostConfig): C
     scenesCost,
     charactersCost,
     voicesCost,
+    videoGenerationCost,
     complexityAdjustment,
     totalCost,
   };

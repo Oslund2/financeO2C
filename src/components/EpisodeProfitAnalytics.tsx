@@ -206,11 +206,13 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
         'AI Scenes Cost',
         'AI Characters Cost',
         'AI Voice Lines Cost',
+        'AI Video Generation Cost',
         'AI Complexity Adjustment',
         'Traditional Base Cost',
         'Traditional Acts Cost',
         'Traditional Scenes Cost',
         'Traditional Characters Cost',
+        'Traditional Video Generation Cost',
         'Traditional Complexity Adjustment',
         'Total Savings',
         'Savings %',
@@ -229,11 +231,13 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
         costComparison?.aiCost.scenesCost || 0,
         costComparison?.aiCost.charactersCost || 0,
         costComparison?.aiCost.voicesCost || 0,
+        costComparison?.aiCost.videoGenerationCost || 0,
         costComparison?.aiCost.complexityAdjustment || 0,
         costComparison?.traditionalCost.baseCost || 0,
         costComparison?.traditionalCost.actsCost || 0,
         costComparison?.traditionalCost.scenesCost || 0,
         costComparison?.traditionalCost.charactersCost || 0,
+        costComparison?.traditionalCost.videoGenerationCost || 0,
         costComparison?.traditionalCost.complexityAdjustment || 0,
         costComparison?.savings || 0,
         costComparison?.savingsPercentage || 0,
@@ -370,6 +374,8 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
         yPos += lineHeight - 1;
         doc.text(`Voice Lines: $${costComparison.aiCost.voicesCost.toFixed(2)}`, leftMargin + 5, yPos);
         yPos += lineHeight - 1;
+        doc.text(`Video Generation: $${costComparison.aiCost.videoGenerationCost.toFixed(2)}`, leftMargin + 5, yPos);
+        yPos += lineHeight - 1;
         doc.text(`Complexity Adjustment: $${costComparison.aiCost.complexityAdjustment.toFixed(2)}`, leftMargin + 5, yPos);
         yPos += lineHeight - 1;
 
@@ -398,6 +404,8 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
         doc.text(`Scenes: $${costComparison.traditionalCost.scenesCost.toFixed(2)}`, leftMargin + 5, yPos);
         yPos += lineHeight - 1;
         doc.text(`Characters: $${costComparison.traditionalCost.charactersCost.toFixed(2)}`, leftMargin + 5, yPos);
+        yPos += lineHeight - 1;
+        doc.text(`Video Generation: $${costComparison.traditionalCost.videoGenerationCost.toFixed(2)}`, leftMargin + 5, yPos);
         yPos += lineHeight - 1;
         doc.text(`Complexity Adjustment: $${costComparison.traditionalCost.complexityAdjustment.toFixed(2)}`, leftMargin + 5, yPos);
         yPos += lineHeight - 1;
