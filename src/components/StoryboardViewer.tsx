@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight, Film, Camera, Clock, MessageSquare, Lightbulb, Download, Grid3x3, List, Upload, Wand2, RefreshCw, ZoomIn, Layers, Sparkles, Trash2 } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Film, Camera, Clock, MessageSquare, Lightbulb, Download, Grid3x3, List, Upload, Wand2, RefreshCw, ZoomIn, Layers, Sparkles, Trash2, Edit3, FileEdit, Filter, CheckCircle, History } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { uploadManualImage } from '../services/nanoBananaService';
@@ -8,6 +8,10 @@ import { BulkUploadModal } from './BulkUploadModal';
 import { SelectiveGenerationModal } from './SelectiveGenerationModal';
 import { ImageActionsMenu } from './ImageActionsMenu';
 import { ShotStatusBadge, getCompletionStats } from './ShotStatusBadge';
+import { ShotMetadataEditor } from './ShotMetadataEditor';
+import { PromptEditor } from './PromptEditor';
+import { ImageVersionHistory } from './ImageVersionHistory';
+import { ApprovalWorkflow } from './ApprovalWorkflow';
 
 type Storyboard = Database['public']['Tables']['storyboards']['Row'];
 type StoryboardShot = Database['public']['Tables']['storyboard_shots']['Row'];
@@ -31,6 +35,12 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
   const [showBulkUpload, setShowBulkUpload] = useState(false);
   const [showSelectiveGeneration, setShowSelectiveGeneration] = useState(false);
   const [currentActionShotId, setCurrentActionShotId] = useState<string | null>(null);
+  const [showMetadataEditor, setShowMetadataEditor] = useState(false);
+  const [showPromptEditor, setShowPromptEditor] = useState(false);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [showApprovalWorkflow, setShowApprovalWorkflow] = useState(false);
+  const [filterApprovalStatus, setFilterApprovalStatus] = useState<string>('all');
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const singleUploadInputRef = useRef<HTMLInputElement>(null);
 
@@ -64,7 +74,11 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
     }
   };
 
-  const currentShot = shots[currentShotIndex];
+  const filteredShots = filterApprovalStatus === 'all'
+    ? shots
+    : shots.filter(shot => shot.approval_status === filterApprovalStatus);
+
+  const currentShot = filteredShots[currentShotIndex];
 
   const handlePrevious = () => {
     if (currentShotIndex > 0) {
@@ -73,8 +87,53 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
   };
 
   const handleNext = () => {
-    if (currentShotIndex < shots.length - 1) {
+    if (currentShotIndex < filteredShots.length - 1) {
       setCurrentShotIndex(currentShotIndex + 1);
+    }
+  };
+
+  const handleEditMetadata = (shotId: string) => {
+    setCurrentActionShotId(shotId);
+    setShowMetadataEditor(true);
+  };
+
+  const handleEditPrompt = (shotId: string) => {
+    setCurrentActionShotId(shotId);
+    setShowPromptEditor(true);
+  };
+
+  const handleViewVersionHistory = (shotId: string) => {
+    setCurrentActionShotId(shotId);
+    setShowVersionHistory(true);
+  };
+
+  const handleManageApproval = (shotId: string) => {
+    setCurrentActionShotId(shotId);
+    setShowApprovalWorkflow(true);
+  };
+
+  const handleRegenerateWithNewPrompt = async (newPrompt: string) => {
+    if (!currentActionShotId) return;
+
+    setGenerating(true);
+    try {
+      await generateImagesForStoryboard(
+        storyboardId,
+        [currentActionShotId],
+        (progress, status) => {
+          setGenerationProgress(progress);
+          setGenerationStatus(status);
+        }
+      );
+
+      await loadStoryboard();
+    } catch (error) {
+      console.error('Regeneration error:', error);
+      alert(error instanceof Error ? error.message : 'Failed to regenerate image');
+    } finally {
+      setGenerating(false);
+      setGenerationProgress(0);
+      setGenerationStatus('');
     }
   };
 
@@ -453,6 +512,49 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
           </button>
 
           <div className="flex items-center gap-3">
+            <div className="relative">
+              <button
+                onClick={() => setShowFilterMenu(!showFilterMenu)}
+                className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <Filter className="w-4 h-4" />
+                Filter {filterApprovalStatus !== 'all' && `(${filterApprovalStatus})`}
+              </button>
+              {showFilterMenu && (
+                <div className="absolute top-full mt-1 right-0 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10 min-w-[160px]">
+                  <button
+                    onClick={() => { setFilterApprovalStatus('all'); setShowFilterMenu(false); setCurrentShotIndex(0); }}
+                    className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 ${filterApprovalStatus === 'all' ? 'bg-blue-50 text-blue-700' : 'text-gray-700'}`}
+                  >
+                    All Shots
+                  </button>
+                  <button
+                    onClick={() => { setFilterApprovalStatus('draft'); setShowFilterMenu(false); setCurrentShotIndex(0); }}
+                    className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 ${filterApprovalStatus === 'draft' ? 'bg-blue-50 text-blue-700' : 'text-gray-700'}`}
+                  >
+                    Draft
+                  </button>
+                  <button
+                    onClick={() => { setFilterApprovalStatus('pending_review'); setShowFilterMenu(false); setCurrentShotIndex(0); }}
+                    className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 ${filterApprovalStatus === 'pending_review' ? 'bg-blue-50 text-blue-700' : 'text-gray-700'}`}
+                  >
+                    Pending Review
+                  </button>
+                  <button
+                    onClick={() => { setFilterApprovalStatus('approved'); setShowFilterMenu(false); setCurrentShotIndex(0); }}
+                    className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 ${filterApprovalStatus === 'approved' ? 'bg-blue-50 text-blue-700' : 'text-gray-700'}`}
+                  >
+                    Approved
+                  </button>
+                  <button
+                    onClick={() => { setFilterApprovalStatus('rejected'); setShowFilterMenu(false); setCurrentShotIndex(0); }}
+                    className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 ${filterApprovalStatus === 'rejected' ? 'bg-blue-50 text-blue-700' : 'text-gray-700'}`}
+                  >
+                    Rejected
+                  </button>
+                </div>
+              )}
+            </div>
             <button
               onClick={() => setShowBulkUpload(true)}
               className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
@@ -589,6 +691,38 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
                   )}
                 </div>
 
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  <button
+                    onClick={() => handleEditMetadata(currentShot.id)}
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                    Edit Details
+                  </button>
+                  <button
+                    onClick={() => handleEditPrompt(currentShot.id)}
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                  >
+                    <FileEdit className="w-4 h-4" />
+                    Edit Prompt
+                  </button>
+                  <button
+                    onClick={() => handleViewVersionHistory(currentShot.id)}
+                    disabled={!currentShot.image_url}
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <History className="w-4 h-4" />
+                    Versions
+                  </button>
+                  <button
+                    onClick={() => handleManageApproval(currentShot.id)}
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    Approval
+                  </button>
+                </div>
+
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -614,12 +748,12 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
                   </button>
 
                   <span className="text-sm text-gray-600">
-                    {currentShotIndex + 1} / {shots.length}
+                    {currentShotIndex + 1} / {filteredShots.length}
                   </span>
 
                   <button
                     onClick={handleNext}
-                    disabled={currentShotIndex === shots.length - 1}
+                    disabled={currentShotIndex === filteredShots.length - 1}
                     className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Next
@@ -717,7 +851,7 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
         </div>
 
         <div className="mt-6 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
-          {shots.map((shot, index) => (
+          {filteredShots.map((shot, index) => (
             <button
               key={shot.id}
               onClick={() => setCurrentShotIndex(index)}
@@ -793,6 +927,63 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
             setShowSelectiveGeneration(false);
           }}
         />
+      )}
+
+      {showMetadataEditor && currentActionShotId && (
+        <ShotMetadataEditor
+          shot={shots.find(s => s.id === currentActionShotId)!}
+          onClose={() => {
+            setShowMetadataEditor(false);
+            setCurrentActionShotId(null);
+          }}
+          onSave={() => {
+            loadStoryboard();
+          }}
+        />
+      )}
+
+      {showPromptEditor && currentActionShotId && (
+        <PromptEditor
+          shot={shots.find(s => s.id === currentActionShotId)!}
+          onClose={() => {
+            setShowPromptEditor(false);
+            setCurrentActionShotId(null);
+          }}
+          onSave={() => {
+            loadStoryboard();
+          }}
+          onRegenerateWithPrompt={handleRegenerateWithNewPrompt}
+        />
+      )}
+
+      {showVersionHistory && currentActionShotId && (
+        <ImageVersionHistory
+          shot={shots.find(s => s.id === currentActionShotId)!}
+          onClose={() => {
+            setShowVersionHistory(false);
+            setCurrentActionShotId(null);
+          }}
+          onVersionSelected={() => {
+            loadStoryboard();
+          }}
+        />
+      )}
+
+      {showApprovalWorkflow && currentActionShotId && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full">
+            <ApprovalWorkflow
+              shot={shots.find(s => s.id === currentActionShotId)!}
+              onClose={() => {
+                setShowApprovalWorkflow(false);
+                setCurrentActionShotId(null);
+              }}
+              onApprovalChanged={() => {
+                loadStoryboard();
+              }}
+            />
+          </div>
+        </div>
       )}
 
       <input
