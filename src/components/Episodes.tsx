@@ -522,26 +522,22 @@ export function Episodes({ seriesId, onNavigate }: EpisodesProps) {
                         </div>
                       </div>
 
-                      {ltvMetrics.isInService && ltvMetrics.datePutInService && (
-                        <div className="mt-3 pt-3 border-t border-gray-300 flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-2 text-gray-600">
-                            <CheckCircle className="w-3 h-3" />
-                            <span>In service since {new Date(ltvMetrics.datePutInService).toLocaleDateString()}</span>
-                          </div>
+                      <div className="mt-3 pt-3 border-t border-gray-300 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2 text-gray-700">
+                          <TrendingUp className="w-4 h-4 text-green-600" />
+                          <span className="font-medium">Payback Period:</span>
+                          <span className="text-base font-bold text-green-700">
+                            {LTVCalculationService.formatYearsMonths(ltvMetrics.paybackPeriodYears)}
+                          </span>
+                        </div>
+                        {ltvMetrics.isInService && (
                           <div className="flex items-center gap-2">
                             <span className={`px-2 py-1 rounded ${LTVCalculationService.getPhaseColor(ltvMetrics.currentRetentionPercent, ltvMetrics.minimumRetentionPercent)} bg-opacity-10 font-medium`}>
                               {LTVCalculationService.getRetentionPhaseLabel(ltvMetrics.currentRetentionPercent, ltvMetrics.minimumRetentionPercent)}
                             </span>
                           </div>
-                        </div>
-                      )}
-
-                      {!ltvMetrics.isInService && (
-                        <div className="mt-3 pt-3 border-t border-gray-300 flex items-center gap-2 text-xs text-gray-600">
-                          <AlertCircle className="w-3 h-3" />
-                          <span>Episode not yet in service - showing projected values</span>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
 
                     {episode.production_notes && (
