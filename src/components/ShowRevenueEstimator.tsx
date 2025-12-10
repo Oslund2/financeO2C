@@ -76,8 +76,8 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, onCalculations
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [enableMultiLanguage, setEnableMultiLanguage] = useState(false);
   const [yearsInService, setYearsInService] = useState(5);
-  const [decayRatePercent, setDecayRatePercent] = useState(10);
-  const [minimumRetentionPercent, setMinimumRetentionPercent] = useState(20);
+  const [decayRatePercent, setDecayRatePercent] = useState(0);
+  const [minimumRetentionPercent, setMinimumRetentionPercent] = useState(100);
 
   const [calculationMode, setCalculationMode] = useState<'impression' | 'spot'>('impression');
 

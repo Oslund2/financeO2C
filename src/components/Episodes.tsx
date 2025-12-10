@@ -173,8 +173,8 @@ export function Episodes({ seriesId, onNavigate }: EpisodesProps) {
     const productionCost = episode.actual_cost || episode.estimated_cost || 0;
     const annualRevenue = productionCost * 4;
     const yearsInService = episode.projected_service_years || 5;
-    const decayRate = episode.decay_rate_percent || 10;
-    const minRetention = episode.minimum_retention_percent || 20;
+    const decayRate = episode.decay_rate_percent || 0;
+    const minRetention = episode.minimum_retention_percent || 100;
 
     const ltvData = LTVCalculationService.calculateLifetimeValue(
       annualRevenue,
