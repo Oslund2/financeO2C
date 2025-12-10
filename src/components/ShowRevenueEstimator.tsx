@@ -1,8 +1,27 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { DollarSign, Users, TrendingUp, BarChart3, Info, Plus, X, Globe, Tv, Monitor, Youtube, Baby, AlertTriangle, Eye } from 'lucide-react';
+
+export interface RevenueCalculations {
+  revenuePerEpisodePerRun: number;
+  revenuePerEpisode: number;
+  totalAdRevenue: number;
+  productPlacementRevenue: number;
+  totalRevenue: number;
+  adjustedProductionCost: number;
+  languageDubbingCost: number;
+  grossProfit: number;
+  margin: number;
+  requiredAudience: number;
+  totalSpotsPerEpisode: number;
+  totalImpressions: number;
+  avgCPM: number;
+  costPerImpression: number;
+  breakEvenImpressions: number;
+}
 
 interface ShowRevenueEstimatorProps {
   initialProductionCost?: number;
+  onCalculationsChange?: (calculations: RevenueCalculations) => void;
 }
 
 interface Sponsor {
@@ -34,7 +53,7 @@ interface Language {
   isDefault: boolean;
 }
 
-export function ShowRevenueEstimator({ initialProductionCost = 0 }: ShowRevenueEstimatorProps) {
+export function ShowRevenueEstimator({ initialProductionCost = 0, onCalculationsChange }: ShowRevenueEstimatorProps) {
   const [numberOfEpisodes, setNumberOfEpisodes] = useState(1);
   const [programLength, setProgramLength] = useState(30);
   const [breaksPerEpisode, setBreaksPerEpisode] = useState(4);
@@ -292,6 +311,28 @@ export function ShowRevenueEstimator({ initialProductionCost = 0 }: ShowRevenueE
     languages,
     enableMultiLanguage
   ]);
+
+  useEffect(() => {
+    if (onCalculationsChange) {
+      onCalculationsChange({
+        revenuePerEpisodePerRun: calculations.revenuePerEpisodePerRun,
+        revenuePerEpisode: calculations.revenuePerEpisode,
+        totalAdRevenue: calculations.totalAdRevenue,
+        productPlacementRevenue: calculations.productPlacementRevenue,
+        totalRevenue: calculations.totalRevenue,
+        adjustedProductionCost: calculations.adjustedProductionCost,
+        languageDubbingCost: calculations.languageDubbingCost,
+        grossProfit: calculations.grossProfit,
+        margin: calculations.margin,
+        requiredAudience: calculations.requiredAudience,
+        totalSpotsPerEpisode: calculations.totalSpotsPerEpisode,
+        totalImpressions: calculations.totalImpressions,
+        avgCPM: calculations.avgCPM,
+        costPerImpression: calculations.costPerImpression,
+        breakEvenImpressions: calculations.breakEvenImpressions
+      });
+    }
+  }, [calculations, onCalculationsChange]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {

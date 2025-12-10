@@ -20,7 +20,7 @@ import {
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { CostComparison } from './CostComparison';
-import { ShowRevenueEstimator } from './ShowRevenueEstimator';
+import { ShowRevenueEstimator, type RevenueCalculations } from './ShowRevenueEstimator';
 import type { CostComparison as CostComparisonType } from '../services/costCalculationService';
 
 type Episode = Database['public']['Tables']['episodes']['Row'];
@@ -39,6 +39,7 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
   const [searchTerm, setSearchTerm] = useState('');
   const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null);
   const [showCostHelp, setShowCostHelp] = useState(false);
+  const [revenueCalculations, setRevenueCalculations] = useState<RevenueCalculations | null>(null);
 
   useEffect(() => {
     loadEpisodes();
@@ -521,6 +522,31 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
     }).format(value);
   };
 
+  const handleRevenueCalculationsChange = (calculations: RevenueCalculations) => {
+    setRevenueCalculations(calculations);
+  };
+
+  const getEpisodeMetrics = (episode: Episode) => {
+    if (!revenueCalculations) {
+      return {
+        annualRevenue: 0,
+        profit: 0,
+        margin: 0
+      };
+    }
+
+    const episodeCost = episode.actual_cost || episode.estimated_cost || 0;
+    const annualRevenue = revenueCalculations.revenuePerEpisode;
+    const profit = annualRevenue - episodeCost;
+    const margin = annualRevenue > 0 ? (profit / annualRevenue) * 100 : 0;
+
+    return {
+      annualRevenue,
+      profit,
+      margin
+    };
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen p-8">
@@ -750,36 +776,64 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
               Select Episode ({filteredEpisodes.length} available)
             </h3>
             <div className="flex gap-3 overflow-x-auto pb-2">
-              {filteredEpisodes.map((episode) => (
-                <button
-                  key={episode.id}
-                  onClick={() => setSelectedEpisode(episode)}
-                  className={`flex-shrink-0 w-64 p-4 rounded-lg border-2 transition-all text-left ${
-                    selectedEpisode?.id === episode.id
-                      ? 'border-blue-500 bg-blue-50 shadow-md'
-                      : 'border-gray-200 bg-white hover:border-blue-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      {getStatusIcon(episode.status)}
-                      <span className="text-xs font-medium text-gray-600 capitalize">
-                        {episode.status}
-                      </span>
+              {filteredEpisodes.map((episode) => {
+                const metrics = getEpisodeMetrics(episode);
+                return (
+                  <button
+                    key={episode.id}
+                    onClick={() => setSelectedEpisode(episode)}
+                    className={`flex-shrink-0 w-72 p-4 rounded-lg border-2 transition-all text-left ${
+                      selectedEpisode?.id === episode.id
+                        ? 'border-blue-500 bg-blue-50 shadow-md'
+                        : 'border-gray-200 bg-white hover:border-blue-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        {getStatusIcon(episode.status)}
+                        <span className="text-xs font-medium text-gray-600 capitalize">
+                          {episode.status}
+                        </span>
+                      </div>
+                      <div className={`w-2 h-2 rounded-full ${getStatusColor(episode.status)}`}></div>
                     </div>
-                    <div className={`w-2 h-2 rounded-full ${getStatusColor(episode.status)}`}></div>
-                  </div>
-                  <h4 className="font-semibold text-gray-900 mb-1 line-clamp-2">{episode.title}</h4>
-                  <div className="flex items-center justify-between text-xs text-gray-600">
-                    <span>{episode.progress_percentage}% Complete</span>
-                    {episode.estimated_cost && (
-                      <span className="font-semibold text-green-700">
-                        {formatCurrency(episode.estimated_cost)}
-                      </span>
-                    )}
-                  </div>
-                </button>
-              ))}
+                    <h4 className="font-semibold text-gray-900 mb-3 line-clamp-2">{episode.title}</h4>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-600">Annual Revenue</span>
+                        <span className="text-sm font-bold text-blue-700">
+                          {revenueCalculations ? formatCurrency(metrics.annualRevenue) : 'N/A'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-600">Profit (USD)</span>
+                        <span className={`text-sm font-bold ${
+                          metrics.profit >= 0 ? 'text-green-700' : 'text-red-700'
+                        }`}>
+                          {revenueCalculations ? formatCurrency(metrics.profit) : 'N/A'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-600">Margin</span>
+                        <span className={`text-sm font-bold ${
+                          metrics.margin >= 0 ? 'text-green-700' : 'text-red-700'
+                        }`}>
+                          {revenueCalculations ? `${metrics.margin.toFixed(1)}%` : 'N/A'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <div className="text-xs text-gray-500">
+                        {episode.progress_percentage}% Complete
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -918,7 +972,10 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
                 </div>
               </div>
 
-              <ShowRevenueEstimator initialProductionCost={productionCost} />
+              <ShowRevenueEstimator
+                initialProductionCost={productionCost}
+                onCalculationsChange={handleRevenueCalculationsChange}
+              />
             </div>
           </div>
         )}
