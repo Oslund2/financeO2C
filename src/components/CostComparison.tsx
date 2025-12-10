@@ -9,6 +9,15 @@ interface CostComparisonProps {
 export function CostComparison({ comparison, showDetailed = false }: CostComparisonProps) {
   const { aiCost, traditionalCost, savings, savingsPercentage } = comparison;
 
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -24,37 +33,37 @@ export function CostComparison({ comparison, showDetailed = false }: CostCompari
           </div>
 
           <div className="text-3xl font-bold text-green-700 mb-4">
-            ${aiCost.totalCost.toFixed(2)}
+            {formatCurrency(aiCost.totalCost)}
           </div>
 
           {showDetailed && (
             <div className="space-y-2 text-sm">
               <div className="flex justify-between text-gray-700">
                 <span>Base Cost:</span>
-                <span className="font-medium">${aiCost.baseCost.toFixed(2)}</span>
+                <span className="font-medium">{formatCurrency(aiCost.baseCost)}</span>
               </div>
               <div className="flex justify-between text-gray-700">
                 <span>Acts:</span>
-                <span className="font-medium">${aiCost.actsCost.toFixed(2)}</span>
+                <span className="font-medium">{formatCurrency(aiCost.actsCost)}</span>
               </div>
               <div className="flex justify-between text-gray-700">
                 <span>Scenes:</span>
-                <span className="font-medium">${aiCost.scenesCost.toFixed(2)}</span>
+                <span className="font-medium">{formatCurrency(aiCost.scenesCost)}</span>
               </div>
               <div className="flex justify-between text-gray-700">
                 <span>Characters:</span>
-                <span className="font-medium">${aiCost.charactersCost.toFixed(2)}</span>
+                <span className="font-medium">{formatCurrency(aiCost.charactersCost)}</span>
               </div>
               <div className="flex justify-between text-gray-700">
                 <span>Voice Lines:</span>
-                <span className="font-medium">${aiCost.voicesCost.toFixed(2)}</span>
+                <span className="font-medium">{formatCurrency(aiCost.voicesCost)}</span>
               </div>
               {aiCost.complexityAdjustment !== 0 && (
                 <div className="flex justify-between text-gray-700">
                   <span>Complexity Adjustment:</span>
                   <span className="font-medium">
                     {aiCost.complexityAdjustment > 0 ? '+' : ''}
-                    ${aiCost.complexityAdjustment.toFixed(2)}
+                    {formatCurrency(aiCost.complexityAdjustment)}
                   </span>
                 </div>
               )}
@@ -74,32 +83,32 @@ export function CostComparison({ comparison, showDetailed = false }: CostCompari
           </div>
 
           <div className="text-3xl font-bold text-gray-700 mb-4">
-            ${traditionalCost.totalCost.toFixed(2)}
+            {formatCurrency(traditionalCost.totalCost)}
           </div>
 
           {showDetailed && (
             <div className="space-y-2 text-sm">
               <div className="flex justify-between text-gray-700">
                 <span>Base Cost:</span>
-                <span className="font-medium">${traditionalCost.baseCost.toFixed(2)}</span>
+                <span className="font-medium">{formatCurrency(traditionalCost.baseCost)}</span>
               </div>
               <div className="flex justify-between text-gray-700">
                 <span>Acts:</span>
-                <span className="font-medium">${traditionalCost.actsCost.toFixed(2)}</span>
+                <span className="font-medium">{formatCurrency(traditionalCost.actsCost)}</span>
               </div>
               <div className="flex justify-between text-gray-700">
                 <span>Scenes:</span>
-                <span className="font-medium">${traditionalCost.scenesCost.toFixed(2)}</span>
+                <span className="font-medium">{formatCurrency(traditionalCost.scenesCost)}</span>
               </div>
               <div className="flex justify-between text-gray-700">
                 <span>Characters:</span>
-                <span className="font-medium">${traditionalCost.charactersCost.toFixed(2)}</span>
+                <span className="font-medium">{formatCurrency(traditionalCost.charactersCost)}</span>
               </div>
               {traditionalCost.complexityAdjustment !== 0 && (
                 <div className="flex justify-between text-gray-700">
                   <span>Complexity Adjustment:</span>
                   <span className="font-medium">
-                    ${traditionalCost.complexityAdjustment.toFixed(2)}
+                    {formatCurrency(traditionalCost.complexityAdjustment)}
                   </span>
                 </div>
               )}
@@ -121,7 +130,7 @@ export function CostComparison({ comparison, showDetailed = false }: CostCompari
 
         <div className="flex items-baseline gap-3">
           <div className="text-4xl font-bold text-blue-700">
-            ${savings.toFixed(2)}
+            {formatCurrency(savings)}
           </div>
           <div className="text-2xl font-semibold text-blue-600">
             ({savingsPercentage.toFixed(1)}% savings)

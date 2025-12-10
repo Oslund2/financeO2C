@@ -37,7 +37,8 @@ export function ShowRevenueEstimator({ initialProductionCost = 0 }: ShowRevenueE
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-      minimumFractionDigits: 2,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(value);
   };
 
