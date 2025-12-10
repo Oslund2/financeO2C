@@ -318,26 +318,26 @@ export function ShowRevenueEstimator({ initialProductionCost = 0 }: ShowRevenueE
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
-        <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border-2 border-blue-200 rounded-xl p-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
+        <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border-2 border-blue-200 rounded-xl p-4 sm:p-6 overflow-hidden min-h-[140px] flex flex-col">
           <div className="flex items-center gap-2 mb-2">
-            <DollarSign className="w-5 h-5 text-blue-600" />
+            <DollarSign className="w-5 h-5 text-blue-600 flex-shrink-0" />
             <div className="text-sm font-medium text-gray-600">Total Revenue</div>
           </div>
-          <div className="text-3xl font-bold text-blue-700">{formatCurrency(calculations.totalRevenue)}</div>
-          <div className="text-xs text-gray-600 mt-1">
+          <div className="text-xl lg:text-2xl font-bold text-blue-700 break-words">{formatCurrency(calculations.totalRevenue)}</div>
+          <div className="text-xs text-gray-600 mt-1 whitespace-normal">
             Ad: {formatCurrency(calculations.totalAdRevenue)} | Sponsor: {formatCurrency(calculations.productPlacementRevenue)}
           </div>
         </div>
 
         <div className={`bg-gradient-to-br ${
           calculations.grossProfit >= 0 ? 'from-green-50 to-emerald-50 border-green-200' : 'from-red-50 to-pink-50 border-red-200'
-        } border-2 rounded-xl p-6`}>
+        } border-2 rounded-xl p-4 sm:p-6 overflow-hidden min-h-[140px] flex flex-col`}>
           <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-5 h-5 text-gray-600" />
+            <TrendingUp className="w-5 h-5 text-gray-600 flex-shrink-0" />
             <div className="text-sm font-medium text-gray-600">Gross Profit</div>
           </div>
-          <div className={`text-3xl font-bold ${calculations.grossProfit >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+          <div className={`text-xl lg:text-2xl font-bold break-words ${calculations.grossProfit >= 0 ? 'text-green-700' : 'text-red-700'}`}>
             {formatCurrency(calculations.grossProfit)}
           </div>
           <div className={`text-sm font-semibold mt-1 ${calculations.margin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -345,31 +345,31 @@ export function ShowRevenueEstimator({ initialProductionCost = 0 }: ShowRevenueE
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-orange-200 rounded-xl p-6">
+        <div className="bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-orange-200 rounded-xl p-4 sm:p-6 overflow-hidden min-h-[140px] flex flex-col">
           <div className="flex items-center gap-2 mb-2">
-            <Eye className="w-5 h-5 text-orange-600" />
+            <Eye className="w-5 h-5 text-orange-600 flex-shrink-0" />
             <div className="text-sm font-medium text-gray-600">Total Impressions</div>
           </div>
-          <div className="text-3xl font-bold text-orange-700">{formatNumber(calculations.totalImpressions)}</div>
-          <div className="text-xs text-gray-600 mt-1">across all channels annually</div>
+          <div className="text-xl lg:text-2xl font-bold text-orange-700 break-words">{formatNumber(calculations.totalImpressions)}</div>
+          <div className="text-xs text-gray-600 mt-1 whitespace-normal">across all channels annually</div>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl p-6">
+        <div className="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl p-4 sm:p-6 overflow-hidden min-h-[140px] flex flex-col">
           <div className="flex items-center gap-2 mb-2">
-            <BarChart3 className="w-5 h-5 text-purple-600" />
+            <BarChart3 className="w-5 h-5 text-purple-600 flex-shrink-0" />
             <div className="text-sm font-medium text-gray-600">Average CPM</div>
           </div>
-          <div className="text-3xl font-bold text-purple-700">{formatCurrency(calculations.avgCPM)}</div>
-          <div className="text-xs text-gray-600 mt-1">portfolio-wide effective rate</div>
+          <div className="text-xl lg:text-2xl font-bold text-purple-700 break-words">{formatCurrency(calculations.avgCPM)}</div>
+          <div className="text-xs text-gray-600 mt-1 whitespace-normal">portfolio-wide effective rate</div>
         </div>
 
-        <div className="bg-gradient-to-br from-teal-50 to-cyan-50 border-2 border-teal-200 rounded-xl p-6">
+        <div className="bg-gradient-to-br from-teal-50 to-cyan-50 border-2 border-teal-200 rounded-xl p-4 sm:p-6 overflow-hidden min-h-[140px] flex flex-col">
           <div className="flex items-center gap-2 mb-2">
-            <Globe className="w-5 h-5 text-teal-600" />
+            <Globe className="w-5 h-5 text-teal-600 flex-shrink-0" />
             <div className="text-sm font-medium text-gray-600">Break-Even Views</div>
           </div>
-          <div className="text-3xl font-bold text-teal-700">{formatNumber(calculations.breakEvenImpressions)}</div>
-          <div className="text-xs text-gray-600 mt-1">impressions needed to break even</div>
+          <div className="text-xl lg:text-2xl font-bold text-teal-700 break-words">{formatNumber(calculations.breakEvenImpressions)}</div>
+          <div className="text-xs text-gray-600 mt-1 whitespace-normal">impressions needed to break even</div>
         </div>
       </div>
 
