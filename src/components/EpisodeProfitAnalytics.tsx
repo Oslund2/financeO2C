@@ -21,6 +21,7 @@ import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { CostComparison } from './CostComparison';
 import { ShowRevenueEstimator, type RevenueCalculations } from './ShowRevenueEstimator';
+import { CreatorCostCalculator } from './CreatorCostCalculator';
 import type { CostComparison as CostComparisonType } from '../services/costCalculationService';
 import { LTVCalculationService } from '../services/ltvCalculationService';
 import jsPDF from 'jspdf';
@@ -1038,6 +1039,20 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
                 initialProductionCost={productionCost}
                 onCalculationsChange={handleRevenueCalculationsChange}
               />
+
+              <div className="mt-8 bg-white border-2 border-gray-200 rounded-xl p-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-amber-600 rounded-lg flex items-center justify-center">
+                    <User className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold text-gray-900">Creator Labor Costs</h3>
+                    <p className="text-sm text-gray-600">Labor-based production cost modeling</p>
+                  </div>
+                </div>
+
+                <CreatorCostCalculator seriesId={seriesId} />
+              </div>
             </div>
           </div>
         )}

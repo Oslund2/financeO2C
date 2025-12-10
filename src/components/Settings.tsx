@@ -184,6 +184,58 @@ export function Settings() {
             </div>
           </div>
 
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-600 rounded-lg flex items-center justify-center">
+                <DollarSign className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Creator Cost Configuration</h2>
+                <p className="text-sm text-gray-600">Labor-based production cost settings and presets</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-blue-800">
+                    <p className="font-medium mb-1">Available Cost Presets</p>
+                    <p>Three preconfigured creator cost models are available globally:</p>
+                    <ul className="mt-2 space-y-1 list-disc list-inside">
+                      <li><strong>Global Default:</strong> 165 scenes, 4 artists/scene, 10 production days</li>
+                      <li><strong>Small Studio:</strong> 2 artists/scene, 15 production days, optimized for smaller teams</li>
+                      <li><strong>Large Studio:</strong> 5 artists/scene, 7 production days, faster production timelines</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <p className="text-sm text-gray-700 mb-3">
+                  Use the <strong>Episode Profit Analytics</strong> page to configure creator costs with real-time calculations
+                  and detailed breakdowns. The Creator Cost Calculator allows you to:
+                </p>
+                <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside ml-4">
+                  <li>Adjust scenes per episode, artists per scene, and time per scene</li>
+                  <li>Configure production schedules and working hours</li>
+                  <li>Set artist salaries and overhead percentages</li>
+                  <li>Define preproduction, postproduction, and revision time allocations</li>
+                  <li>Specify facility costs including software, equipment, and studio space</li>
+                  <li>View detailed phase-by-phase cost breakdowns</li>
+                </ul>
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg">
+                <div>
+                  <div className="font-medium text-gray-900">Creator Cost Presets Configured</div>
+                  <div className="text-sm text-gray-600">3 global presets available</div>
+                </div>
+                <CheckCircle className="w-6 h-6 text-green-600" />
+              </div>
+            </div>
+          </div>
+
           <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
             <button
               onClick={() => setTechDocsExpanded(!techDocsExpanded)}

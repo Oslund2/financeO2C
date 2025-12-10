@@ -1,7 +1,8 @@
-import { DollarSign, TrendingDown, Sparkles, ChevronDown, ChevronUp, Info } from 'lucide-react';
+import { DollarSign, TrendingDown, Sparkles, ChevronDown, ChevronUp, Info, Users } from 'lucide-react';
 import { useState } from 'react';
 import type { CostComparison as CostComparisonType } from '../services/costCalculationService';
 import { InfoTooltip } from './InfoTooltip';
+import { formatCurrency } from '../services/creatorCostCalculationService';
 
 interface CostComparisonProps {
   comparison: CostComparisonType;
@@ -9,21 +10,12 @@ interface CostComparisonProps {
 }
 
 export function CostComparison({ comparison, showDetailed = false }: CostComparisonProps) {
-  const { aiCost, traditionalCost, savings, savingsPercentage } = comparison;
+  const { aiCost, traditionalCost, creatorCost, savings, savingsPercentage, savingsVsCreator, savingsVsCreatorPercentage } = comparison;
   const [showGlossary, setShowGlossary] = useState(false);
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className={`grid grid-cols-1 gap-4 ${creatorCost ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
         <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-6">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
@@ -167,6 +159,68 @@ export function CostComparison({ comparison, showDetailed = false }: CostCompari
             </div>
           )}
         </div>
+
+        {creatorCost && (
+          <div className="bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-orange-200 rounded-xl p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
+                <Users className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">Creator Labor</h3>
+                <p className="text-sm text-gray-600">Traditional studio production</p>
+              </div>
+            </div>
+
+            <div className="text-3xl font-bold text-orange-700 mb-4">
+              {formatCurrency(creatorCost.metrics.totalCreatorCost)}
+            </div>
+
+            {showDetailed && (
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between text-gray-700">
+                  <span className="flex items-center">
+                    Base Labor:
+                    <InfoTooltip content="Core production labor cost based on artist hours and hourly rates." />
+                  </span>
+                  <span className="font-medium">{formatCurrency(creatorCost.metrics.baseLaborCost)}</span>
+                </div>
+                <div className="flex justify-between text-gray-700">
+                  <span className="flex items-center">
+                    Pre/Post Production:
+                    <InfoTooltip content="Storyboarding, planning, editing, compositing, and final polish." />
+                  </span>
+                  <span className="font-medium">
+                    {formatCurrency(creatorCost.metrics.preproductionCost + creatorCost.metrics.postproductionCost)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-gray-700">
+                  <span className="flex items-center">
+                    Revisions & PM:
+                    <InfoTooltip content="Feedback cycles, revisions, and project management overhead." />
+                  </span>
+                  <span className="font-medium">
+                    {formatCurrency(creatorCost.metrics.revisionCost + creatorCost.metrics.projectManagementCost)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-gray-700">
+                  <span className="flex items-center">
+                    Overhead:
+                    <InfoTooltip content="Benefits, insurance, payroll taxes, and general overhead costs." />
+                  </span>
+                  <span className="font-medium">{formatCurrency(creatorCost.metrics.overheadCost)}</span>
+                </div>
+                <div className="flex justify-between text-gray-700">
+                  <span className="flex items-center">
+                    Facility & Equipment:
+                    <InfoTooltip content="Software licenses, equipment, and studio space costs for all artists." />
+                  </span>
+                  <span className="font-medium">{formatCurrency(creatorCost.metrics.totalFacilityCost)}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-200 rounded-xl p-6">
@@ -195,6 +249,18 @@ export function CostComparison({ comparison, showDetailed = false }: CostCompari
             and image/video generation while maintaining professional quality standards.
           </p>
         </div>
+
+        {creatorCost && savingsVsCreator !== undefined && savingsVsCreatorPercentage !== undefined && (
+          <div className="mt-4 pt-4 border-t border-blue-200">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">Savings vs Creator Labor:</span>
+              <div className="text-right">
+                <div className="text-xl font-bold text-blue-700">{formatCurrency(savingsVsCreator)}</div>
+                <div className="text-sm text-blue-600">({savingsVsCreatorPercentage.toFixed(1)}% savings)</div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="bg-white border-2 border-gray-200 rounded-xl overflow-hidden">

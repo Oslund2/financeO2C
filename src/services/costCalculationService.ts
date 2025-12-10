@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { calculateCreatorCosts, type CreatorCostBreakdown } from './creatorCostCalculationService';
 
 export interface CostConfig {
   id: string;
@@ -43,8 +44,11 @@ export interface CostBreakdown {
 export interface CostComparison {
   aiCost: CostBreakdown;
   traditionalCost: CostBreakdown;
+  creatorCost?: CreatorCostBreakdown;
   savings: number;
   savingsPercentage: number;
+  savingsVsCreator?: number;
+  savingsVsCreatorPercentage?: number;
 }
 
 async function getCostConfig(seriesId: string | null): Promise<CostConfig> {
@@ -163,7 +167,8 @@ function calculateTraditionalCost(scriptData: ScriptData, config: CostConfig): C
 
 export async function calculateProductionCosts(
   scriptData: ScriptData,
-  seriesId: string | null
+  seriesId: string | null,
+  includeCreatorCosts: boolean = false
 ): Promise<CostComparison> {
   const config = await getCostConfig(seriesId);
 
@@ -173,11 +178,28 @@ export async function calculateProductionCosts(
   const savings = traditionalCost.totalCost - aiCost.totalCost;
   const savingsPercentage = (savings / traditionalCost.totalCost) * 100;
 
+  let creatorCost: CreatorCostBreakdown | undefined;
+  let savingsVsCreator: number | undefined;
+  let savingsVsCreatorPercentage: number | undefined;
+
+  if (includeCreatorCosts) {
+    try {
+      creatorCost = await calculateCreatorCosts(seriesId);
+      savingsVsCreator = creatorCost.metrics.totalCreatorCost - aiCost.totalCost;
+      savingsVsCreatorPercentage = (savingsVsCreator / creatorCost.metrics.totalCreatorCost) * 100;
+    } catch (error) {
+      console.error('Error calculating creator costs:', error);
+    }
+  }
+
   return {
     aiCost,
     traditionalCost,
+    creatorCost,
     savings,
     savingsPercentage,
+    savingsVsCreator,
+    savingsVsCreatorPercentage,
   };
 }
 
