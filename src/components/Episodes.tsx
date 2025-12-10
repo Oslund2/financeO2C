@@ -5,6 +5,7 @@ import type { Database } from '../lib/database.types';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
 import { syncEpisodeFromScript, createEpisodeFromScript } from '../services/episodeCreationService';
 import { CostComparison } from './CostComparison';
+import { ShowRevenueEstimator } from './ShowRevenueEstimator';
 import type { CostComparison as CostComparisonType } from '../services/costCalculationService';
 
 type Episode = Database['public']['Tables']['episodes']['Row'];
@@ -598,6 +599,12 @@ function CostViewModal({ episode, onClose }: CostViewModalProps) {
                   Actual costs may vary based on production complexity and service usage.
                 </p>
               </div>
+
+              <div className="border-t-4 border-gray-300 my-8"></div>
+
+              <ShowRevenueEstimator
+                initialProductionCost={episode.actual_cost || episode.estimated_cost || 0}
+              />
             </div>
           ) : (
             <div className="text-center py-12">
