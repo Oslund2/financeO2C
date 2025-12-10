@@ -926,8 +926,17 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
                     </div>
 
                     <div className="mt-3 pt-3 border-t border-gray-200">
-                      <div className="text-xs text-gray-500">
-                        LTV: {formatCurrency(metrics.profit)} over {revenueCalculations?.yearsInService || episode.projected_service_years || 5} years
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-600 font-medium">Return on Investment</span>
+                        <span className="text-sm font-bold text-blue-700">
+                          {(() => {
+                            const cost = episode.actual_cost || episode.estimated_cost || 0;
+                            if (cost === 0) return 'N/A';
+                            const totalReturn = metrics.profit + cost;
+                            const roiMultiple = totalReturn / cost;
+                            return `${roiMultiple.toFixed(0)}x`;
+                          })()}
+                        </span>
                       </div>
                     </div>
                   </button>
