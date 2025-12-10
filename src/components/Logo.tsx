@@ -12,7 +12,7 @@ export function Logo({ className = '', size = 'medium' }: LogoProps) {
 
   return (
     <img
-      src="/snsb_logo.jpg"
+      src="/images.png"
       alt="Scripps National Spelling Bee"
       className={`${sizeClasses[size]} w-auto object-contain ${className}`}
     />
