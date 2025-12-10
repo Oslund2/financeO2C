@@ -523,7 +523,7 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex items-center justify-center min-h-screen p-8">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">Loading analytics...</p>
@@ -599,7 +599,7 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
           </div>
           </div>
 
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl overflow-hidden">
+          <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-200 rounded-xl overflow-hidden">
             <button
               onClick={() => setShowCostHelp(!showCostHelp)}
               className="w-full px-6 py-4 flex items-center justify-between hover:bg-blue-100/50 transition-colors"
@@ -831,9 +831,9 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
               </div>
 
               {primaryCharacter && (
-                <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl shadow-md border-2 border-purple-200 p-6">
+                <div className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-xl shadow-md border-2 border-pink-200 p-6">
                   <div className="flex items-center gap-2 mb-4">
-                    <User className="w-5 h-5 text-purple-700" />
+                    <User className="w-5 h-5 text-pink-700" />
                     <h3 className="text-lg font-bold text-gray-900">Featured Character</h3>
                   </div>
                   {primaryCharacter.reference_image_url ? (
@@ -841,12 +841,12 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
                       <img
                         src={primaryCharacter.reference_image_url}
                         alt={primaryCharacter.name}
-                        className="w-full h-40 object-cover rounded-lg border-2 border-purple-300"
+                        className="w-full h-40 object-cover rounded-lg border-2 border-pink-300"
                       />
                     </div>
                   ) : (
-                    <div className="mb-3 w-full h-40 bg-purple-100 rounded-lg border-2 border-purple-300 flex items-center justify-center">
-                      <User className="w-16 h-16 text-purple-400" />
+                    <div className="mb-3 w-full h-40 bg-pink-100 rounded-lg border-2 border-pink-300 flex items-center justify-center">
+                      <User className="w-16 h-16 text-pink-400" />
                     </div>
                   )}
                   <h4 className="font-bold text-gray-900 text-lg mb-1">{primaryCharacter.name}</h4>
@@ -863,7 +863,7 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
             {costComparison && (
               <div className="bg-white rounded-xl shadow-md border-2 border-gray-200 p-6">
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg flex items-center justify-center">
                     <DollarSign className="w-6 h-6 text-white" />
                   </div>
                   <div>
