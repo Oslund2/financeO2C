@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { DollarSign, Users, TrendingUp, BarChart3, Info, Plus, X, Globe, Tv, Monitor, Youtube, Baby } from 'lucide-react';
+import { DollarSign, Users, TrendingUp, BarChart3, Info, Plus, X, Globe, Tv, Monitor, Youtube, Baby, AlertTriangle, Eye } from 'lucide-react';
 
 interface ShowRevenueEstimatorProps {
   initialProductionCost?: number;
@@ -11,12 +11,19 @@ interface Sponsor {
   cost: number;
 }
 
+type BuyingModel = 'cpm' | 'spot';
+
 interface DistributionChannel {
   id: string;
   name: string;
   icon: typeof Tv;
+  buyingModel: BuyingModel;
   rate: number;
+  cpmRate: number;
+  impressionsPerRun: number;
   enabled: boolean;
+  recommendedCPMRange: { min: number; max: number };
+  description: string;
 }
 
 interface Language {
@@ -39,11 +46,57 @@ export function ShowRevenueEstimator({ initialProductionCost = 0 }: ShowRevenueE
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [enableMultiLanguage, setEnableMultiLanguage] = useState(false);
 
+  const [calculationMode, setCalculationMode] = useState<'impression' | 'spot'>('impression');
+
   const [distributionChannels, setDistributionChannels] = useState<DistributionChannel[]>([
-    { id: '1', name: 'O&O TV', icon: Tv, rate: 500, enabled: true },
-    { id: '2', name: 'O&O Streaming', icon: Monitor, rate: 400, enabled: true },
-    { id: '3', name: 'Social (YouTube)', icon: Youtube, rate: 300, enabled: true },
-    { id: '4', name: 'Tablo Kids', icon: Baby, rate: 350, enabled: true }
+    {
+      id: '1',
+      name: 'O&O TV',
+      icon: Tv,
+      buyingModel: 'spot',
+      rate: 350,
+      cpmRate: 7,
+      impressionsPerRun: 50000,
+      enabled: true,
+      recommendedCPMRange: { min: 16, max: 47 },
+      description: 'Traditional broadcast TV - typically sold per spot'
+    },
+    {
+      id: '2',
+      name: 'O&O Streaming',
+      icon: Monitor,
+      buyingModel: 'cpm',
+      rate: 750,
+      cpmRate: 25,
+      impressionsPerRun: 30000,
+      enabled: true,
+      recommendedCPMRange: { min: 20, max: 65 },
+      description: 'CTV/OTT platform - impression-based buying'
+    },
+    {
+      id: '3',
+      name: 'Social (YouTube)',
+      icon: Youtube,
+      buyingModel: 'cpm',
+      rate: 35,
+      cpmRate: 0.35,
+      impressionsPerRun: 100000,
+      enabled: true,
+      recommendedCPMRange: { min: 0.25, max: 0.50 },
+      description: 'Kids content has restricted ads (COPPA)'
+    },
+    {
+      id: '4',
+      name: 'Tablo Kids',
+      icon: Baby,
+      buyingModel: 'cpm',
+      rate: 300,
+      cpmRate: 15,
+      impressionsPerRun: 20000,
+      enabled: true,
+      recommendedCPMRange: { min: 10, max: 25 },
+      description: 'Kids streaming platform - lower rates due to restrictions'
+    }
   ]);
 
   const [languages, setLanguages] = useState<Language[]>([
@@ -88,6 +141,37 @@ export function ShowRevenueEstimator({ initialProductionCost = 0 }: ShowRevenueE
     );
   };
 
+  const updateChannelCPM = (id: string, cpmRate: number) => {
+    setDistributionChannels(channels =>
+      channels.map(c => c.id === id ? { ...c, cpmRate } : c)
+    );
+  };
+
+  const updateChannelImpressions = (id: string, impressionsPerRun: number) => {
+    setDistributionChannels(channels =>
+      channels.map(c => c.id === id ? { ...c, impressionsPerRun } : c)
+    );
+  };
+
+  const toggleChannelBuyingModel = (id: string) => {
+    setDistributionChannels(channels =>
+      channels.map(c =>
+        c.id === id
+          ? { ...c, buyingModel: c.buyingModel === 'cpm' ? 'spot' : 'cpm' }
+          : c
+      )
+    );
+  };
+
+  const setChannelEstimationLevel = (id: string, level: 'small' | 'medium' | 'large') => {
+    const impressionLevels = {
+      small: 10000,
+      medium: 100000,
+      large: 1000000
+    };
+    updateChannelImpressions(id, impressionLevels[level]);
+  };
+
   const toggleLanguage = (code: string) => {
     if (code === 'en') return;
     setLanguages(langs =>
@@ -98,12 +182,58 @@ export function ShowRevenueEstimator({ initialProductionCost = 0 }: ShowRevenueE
   const calculations = useMemo(() => {
     const enabledChannels = distributionChannels.filter(c => c.enabled);
     const enabledLanguages = enableMultiLanguage ? languages.filter(l => l.enabled) : [languages[0]];
-
-    const revenuePerSpotPerChannel = enabledChannels.reduce((sum, channel) => sum + channel.rate, 0);
     const totalSpotsPerEpisode = spotsPerBreak * breaksPerEpisode;
-    const revenuePerEpisodePerRun = revenuePerSpotPerChannel * totalSpotsPerEpisode;
-    const revenuePerEpisode = revenuePerEpisodePerRun * annualRunsPerEpisode;
-    const totalAdRevenue = revenuePerEpisode * numberOfEpisodes * enabledLanguages.length;
+
+    let totalAdRevenue = 0;
+    let totalImpressions = 0;
+    const channelBreakdown: Array<{
+      name: string;
+      revenue: number;
+      impressions: number;
+      effectiveCPM: number;
+      warning?: string;
+    }> = [];
+
+    enabledChannels.forEach((channel) => {
+      let revenuePerRun = 0;
+      let impressionsPerRun = 0;
+
+      if (channel.buyingModel === 'cpm') {
+        impressionsPerRun = channel.impressionsPerRun;
+        revenuePerRun = (channel.cpmRate * impressionsPerRun) / 1000;
+      } else {
+        revenuePerRun = channel.rate * totalSpotsPerEpisode;
+        impressionsPerRun = channel.impressionsPerRun;
+      }
+
+      const annualRevenue =
+        revenuePerRun * annualRunsPerEpisode * numberOfEpisodes * enabledLanguages.length;
+      const annualImpressions =
+        impressionsPerRun * annualRunsPerEpisode * numberOfEpisodes * enabledLanguages.length;
+
+      totalAdRevenue += annualRevenue;
+      totalImpressions += annualImpressions;
+
+      const effectiveCPM = annualImpressions > 0 ? (annualRevenue / annualImpressions) * 1000 : 0;
+
+      let warning: string | undefined;
+      if (channel.buyingModel === 'cpm') {
+        if (
+          channel.cpmRate < channel.recommendedCPMRange.min ||
+          channel.cpmRate > channel.recommendedCPMRange.max
+        ) {
+          warning = `CPM outside typical range ($${channel.recommendedCPMRange.min}-$${channel.recommendedCPMRange.max})`;
+        }
+      }
+
+      channelBreakdown.push({
+        name: channel.name,
+        revenue: annualRevenue,
+        impressions: annualImpressions,
+        effectiveCPM,
+        warning
+      });
+    });
 
     const totalSponsorCost = sponsors.reduce((sum, s) => sum + s.cost, 0);
     const productPlacementRevenue = totalSponsorCost * annualRunsPerEpisode * numberOfEpisodes;
@@ -119,10 +249,16 @@ export function ShowRevenueEstimator({ initialProductionCost = 0 }: ShowRevenueE
     const grossProfit = totalRevenue - adjustedProductionCost;
     const margin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
 
-    const avgRatePerSpot = enabledChannels.length > 0
-      ? revenuePerSpotPerChannel / enabledChannels.length
+    const avgCPM = totalImpressions > 0 ? (totalAdRevenue / totalImpressions) * 1000 : 0;
+    const costPerImpression = totalImpressions > 0 ? adjustedProductionCost / totalImpressions : 0;
+    const breakEvenImpressions = avgCPM > 0 ? (adjustedProductionCost / avgCPM) * 1000 : 0;
+
+    const requiredAudience = targetCPM > 0 && enabledChannels.length > 0
+      ? (enabledChannels.reduce((sum, c) => sum + (c.buyingModel === 'spot' ? c.rate : (c.cpmRate * c.impressionsPerRun / 1000)), 0) / targetCPM) * 1000 / enabledChannels.length
       : 0;
-    const requiredAudience = targetCPM > 0 ? (avgRatePerSpot / targetCPM) * 1000 : 0;
+
+    const revenuePerEpisodePerRun = totalAdRevenue / (annualRunsPerEpisode * numberOfEpisodes * enabledLanguages.length || 1);
+    const revenuePerEpisode = revenuePerEpisodePerRun * annualRunsPerEpisode;
 
     return {
       revenuePerEpisodePerRun,
@@ -137,7 +273,12 @@ export function ShowRevenueEstimator({ initialProductionCost = 0 }: ShowRevenueE
       requiredAudience,
       totalSpotsPerEpisode,
       enabledChannels,
-      enabledLanguages
+      enabledLanguages,
+      totalImpressions,
+      avgCPM,
+      costPerImpression,
+      breakEvenImpressions,
+      channelBreakdown
     };
   }, [
     numberOfEpisodes,
@@ -177,7 +318,7 @@ export function ShowRevenueEstimator({ initialProductionCost = 0 }: ShowRevenueE
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
         <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border-2 border-blue-200 rounded-xl p-6">
           <div className="flex items-center gap-2 mb-2">
             <DollarSign className="w-5 h-5 text-blue-600" />
@@ -206,20 +347,29 @@ export function ShowRevenueEstimator({ initialProductionCost = 0 }: ShowRevenueE
 
         <div className="bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-orange-200 rounded-xl p-6">
           <div className="flex items-center gap-2 mb-2">
-            <Users className="w-5 h-5 text-orange-600" />
-            <div className="text-sm font-medium text-gray-600">Required Viewers</div>
+            <Eye className="w-5 h-5 text-orange-600" />
+            <div className="text-sm font-medium text-gray-600">Total Impressions</div>
           </div>
-          <div className="text-3xl font-bold text-orange-700">{formatNumber(calculations.requiredAudience)}</div>
-          <div className="text-xs text-gray-600 mt-1">per episode to justify rate</div>
+          <div className="text-3xl font-bold text-orange-700">{formatNumber(calculations.totalImpressions)}</div>
+          <div className="text-xs text-gray-600 mt-1">across all channels annually</div>
         </div>
 
         <div className="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl p-6">
           <div className="flex items-center gap-2 mb-2">
-            <Globe className="w-5 h-5 text-purple-600" />
-            <div className="text-sm font-medium text-gray-600">Total Reach</div>
+            <BarChart3 className="w-5 h-5 text-purple-600" />
+            <div className="text-sm font-medium text-gray-600">Average CPM</div>
           </div>
-          <div className="text-3xl font-bold text-purple-700">{calculations.enabledLanguages.length}</div>
-          <div className="text-xs text-gray-600 mt-1">language version{calculations.enabledLanguages.length !== 1 ? 's' : ''}</div>
+          <div className="text-3xl font-bold text-purple-700">{formatCurrency(calculations.avgCPM)}</div>
+          <div className="text-xs text-gray-600 mt-1">portfolio-wide effective rate</div>
+        </div>
+
+        <div className="bg-gradient-to-br from-teal-50 to-cyan-50 border-2 border-teal-200 rounded-xl p-6">
+          <div className="flex items-center gap-2 mb-2">
+            <Globe className="w-5 h-5 text-teal-600" />
+            <div className="text-sm font-medium text-gray-600">Break-Even Views</div>
+          </div>
+          <div className="text-3xl font-bold text-teal-700">{formatNumber(calculations.breakEvenImpressions)}</div>
+          <div className="text-xs text-gray-600 mt-1">impressions needed to break even</div>
         </div>
       </div>
 
@@ -465,15 +615,17 @@ export function ShowRevenueEstimator({ initialProductionCost = 0 }: ShowRevenueE
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white border-2 border-gray-200 rounded-xl p-6">
+        <div className="bg-white border-2 border-gray-200 rounded-xl p-6 lg:col-span-2">
           <div className="flex items-center gap-2 mb-4">
             <Tv className="w-5 h-5 text-gray-700" />
             <h4 className="text-lg font-bold text-gray-900">Distribution Channels</h4>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-4">
             {distributionChannels.map((channel) => {
               const IconComponent = channel.icon;
+              const breakdown = calculations.channelBreakdown.find(b => b.name === channel.name);
+
               return (
                 <div
                   key={channel.id}
@@ -483,35 +635,148 @@ export function ShowRevenueEstimator({ initialProductionCost = 0 }: ShowRevenueE
                       : 'border-gray-200 bg-gray-50 opacity-50'
                   }`}
                 >
-                  <div className="flex items-center gap-3 mb-3">
+                  <div className="flex items-start gap-3">
                     <input
                       type="checkbox"
                       checked={channel.enabled}
                       onChange={() => toggleChannel(channel.id)}
-                      className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mt-1"
                     />
-                    <IconComponent className="w-5 h-5 text-gray-700" />
-                    <span className="font-medium text-gray-900 flex-1">{channel.name}</span>
-                  </div>
-                  {channel.enabled && (
-                    <div className="ml-7">
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">Rate per Spot</label>
-                      <div className="relative">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
-                        <input
-                          type="number"
-                          value={channel.rate}
-                          onChange={(e) => updateChannelRate(channel.id, Number(e.target.value))}
-                          min="0"
-                          step="50"
-                          className="w-full pl-7 pr-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <IconComponent className="w-5 h-5 text-gray-700" />
+                        <span className="font-medium text-gray-900">{channel.name}</span>
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full ${
+                            channel.buyingModel === 'cpm'
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-blue-100 text-blue-700'
+                          }`}
+                        >
+                          {channel.buyingModel === 'cpm' ? 'CPM' : 'Spot'}
+                        </span>
                       </div>
-                      <p className="text-xs text-gray-600 mt-2">
-                        Annual revenue: {formatCurrency(channel.rate * calculations.totalSpotsPerEpisode * annualRunsPerEpisode * numberOfEpisodes * calculations.enabledLanguages.length)}
-                      </p>
+                      <p className="text-xs text-gray-600 mb-3">{channel.description}</p>
+
+                      {channel.enabled && (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            {channel.buyingModel === 'cpm' ? (
+                              <>
+                                <div>
+                                  <label className="text-xs font-medium text-gray-600 mb-1 block">CPM Rate</label>
+                                  <div className="relative">
+                                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
+                                    <input
+                                      type="number"
+                                      value={channel.cpmRate}
+                                      onChange={(e) => updateChannelCPM(channel.id, Number(e.target.value))}
+                                      min="0"
+                                      step="0.05"
+                                      className="w-full pl-7 pr-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    />
+                                  </div>
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    Range: ${channel.recommendedCPMRange.min}-${channel.recommendedCPMRange.max}
+                                  </p>
+                                </div>
+                                <div>
+                                  <label className="text-xs font-medium text-gray-600 mb-1 block">Impressions/Run</label>
+                                  <input
+                                    type="number"
+                                    value={channel.impressionsPerRun}
+                                    onChange={(e) => updateChannelImpressions(channel.id, Number(e.target.value))}
+                                    min="0"
+                                    step="1000"
+                                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  />
+                                  <div className="flex gap-1 mt-1">
+                                    <button
+                                      onClick={() => setChannelEstimationLevel(channel.id, 'small')}
+                                      className="text-xs px-2 py-0.5 bg-gray-200 hover:bg-gray-300 rounded"
+                                    >
+                                      10K
+                                    </button>
+                                    <button
+                                      onClick={() => setChannelEstimationLevel(channel.id, 'medium')}
+                                      className="text-xs px-2 py-0.5 bg-gray-200 hover:bg-gray-300 rounded"
+                                    >
+                                      100K
+                                    </button>
+                                    <button
+                                      onClick={() => setChannelEstimationLevel(channel.id, 'large')}
+                                      className="text-xs px-2 py-0.5 bg-gray-200 hover:bg-gray-300 rounded"
+                                    >
+                                      1M
+                                    </button>
+                                  </div>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div>
+                                  <label className="text-xs font-medium text-gray-600 mb-1 block">Rate per Spot</label>
+                                  <div className="relative">
+                                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
+                                    <input
+                                      type="number"
+                                      value={channel.rate}
+                                      onChange={(e) => updateChannelRate(channel.id, Number(e.target.value))}
+                                      min="0"
+                                      step="50"
+                                      className="w-full pl-7 pr-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    />
+                                  </div>
+                                </div>
+                                <div>
+                                  <label className="text-xs font-medium text-gray-600 mb-1 block">Est. Impressions/Airing</label>
+                                  <input
+                                    type="number"
+                                    value={channel.impressionsPerRun}
+                                    onChange={(e) => updateChannelImpressions(channel.id, Number(e.target.value))}
+                                    min="0"
+                                    step="1000"
+                                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  />
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    Implied CPM: ${breakdown ? breakdown.effectiveCPM.toFixed(2) : '0'}
+                                  </p>
+                                </div>
+                              </>
+                            )}
+                          </div>
+
+                          {breakdown && (
+                            <div className="bg-white border border-gray-200 rounded p-2">
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div>
+                                  <span className="text-gray-600">Annual Revenue:</span>
+                                  <span className="font-bold text-green-600 ml-1">{formatCurrency(breakdown.revenue)}</span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-600">Total Impressions:</span>
+                                  <span className="font-bold text-blue-600 ml-1">{formatNumber(breakdown.impressions)}</span>
+                                </div>
+                              </div>
+                              {breakdown.warning && (
+                                <div className="flex items-start gap-1 mt-2 text-xs text-orange-700">
+                                  <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                                  <span>{breakdown.warning}</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          <button
+                            onClick={() => toggleChannelBuyingModel(channel.id)}
+                            className="text-xs text-blue-600 hover:text-blue-700 underline"
+                          >
+                            Switch to {channel.buyingModel === 'cpm' ? 'Spot' : 'CPM'} mode
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
               );
             })}
@@ -594,6 +859,54 @@ export function ShowRevenueEstimator({ initialProductionCost = 0 }: ShowRevenueE
               </div>
             </div>
           )}
+        </div>
+      </div>
+
+      <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-200 rounded-xl p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Info className="w-5 h-5 text-blue-600" />
+          <h4 className="text-lg font-bold text-gray-900">Channel Breakdown & Insights</h4>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {calculations.channelBreakdown.map((breakdown) => (
+            <div key={breakdown.name} className="bg-white border border-blue-200 rounded-lg p-4">
+              <div className="font-medium text-gray-900 mb-2 text-sm">{breakdown.name}</div>
+              <div className="space-y-1 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Revenue:</span>
+                  <span className="font-bold text-green-600">{formatCurrency(breakdown.revenue)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Impressions:</span>
+                  <span className="font-bold text-blue-600">{formatNumber(breakdown.impressions)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Effective CPM:</span>
+                  <span className="font-bold text-purple-600">${breakdown.effectiveCPM.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-blue-300">
+          <div className="bg-white border border-blue-200 rounded-lg p-4">
+            <h5 className="font-semibold text-gray-900 mb-2 text-sm">About This Calculator</h5>
+            <div className="space-y-2 text-xs text-gray-700">
+              <p>
+                <strong>CPM Mode:</strong> Most streaming and social platforms sell advertising based on impressions (CPM = Cost Per Thousand views). This is the standard for YouTube, OTT, and CTV platforms.
+              </p>
+              <p>
+                <strong>Spot Mode:</strong> Traditional broadcast TV typically sells per-spot with rates based on time slot and audience size. You can toggle between modes for each channel.
+              </p>
+              <p>
+                <strong>Kids Content Note:</strong> Children's content has significantly lower CPMs ($0.25-$0.50) due to COPPA restrictions preventing personalized advertising. Industry research shows kids YouTube channels earn 85-95% less than general content.
+              </p>
+              <p>
+                <strong>Realistic Defaults:</strong> Defaults are based on 2024 industry averages: Broadcast TV ($16-$47 CPM), CTV/OTT ($20-$65 CPM), Kids YouTube ($0.25-$0.50 CPM), Kids Streaming ($10-$25 CPM).
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
