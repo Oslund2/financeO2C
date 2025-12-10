@@ -230,6 +230,55 @@ function validateGeneratedScript(script: GeneratedScript): void {
   });
 }
 
+export async function generateText(prompt: string): Promise<string> {
+  try {
+    const apiKey = getGeminiAPIKey();
+
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
+
+    const requestBody = {
+      contents: [{
+        role: 'user',
+        parts: [{ text: prompt }]
+      }],
+      generationConfig: {
+        temperature: 0.3,
+        maxOutputTokens: 2000,
+        topP: 0.95,
+        topK: 40
+      }
+    };
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`Gemini API error: ${response.status} ${response.statusText}. ${JSON.stringify(errorData)}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.candidates || data.candidates.length === 0) {
+      throw new Error('No response generated from Gemini');
+    }
+
+    const textContent = data.candidates[0].content.parts[0].text;
+    return textContent;
+
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error(`Text generation failed: ${error.message}`);
+    }
+    throw new Error('Text generation failed with unknown error');
+  }
+}
+
 export function checkGeminiConfiguration(): { configured: boolean; missing: string[] } {
   const missing: string[] = [];
 

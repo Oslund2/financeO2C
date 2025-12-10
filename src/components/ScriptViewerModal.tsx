@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { X, FileText, Clock, Sparkles, Calendar, Tag } from 'lucide-react';
+import { X, FileText, Clock, Sparkles, Calendar, Tag, Globe } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
+import { ScriptTranslationManager } from './ScriptTranslationManager';
 
 type Script = Database['public']['Tables']['scripts']['Row'];
 
@@ -35,6 +36,7 @@ export function ScriptViewerModal({ script, onClose, onEdit }: ScriptViewerModal
   const [acts, setActs] = useState<Act[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeAct, setActiveAct] = useState<number>(0);
+  const [viewMode, setViewMode] = useState<'script' | 'translations'>('script');
 
   useEffect(() => {
     loadScriptContent();
@@ -217,96 +219,132 @@ export function ScriptViewerModal({ script, onClose, onEdit }: ScriptViewerModal
           </div>
         ) : (
           <>
-            <div className="flex border-b border-gray-200 overflow-x-auto flex-shrink-0">
-              {acts.map((act, index) => (
+            <div className="border-b border-gray-200 flex-shrink-0">
+              <div className="flex items-center gap-2 px-6 pt-3">
                 <button
-                  key={act.id}
-                  onClick={() => setActiveAct(index)}
-                  className={`flex-1 px-6 py-3 font-medium transition-all whitespace-nowrap ${
-                    activeAct === index
-                      ? 'text-scripps-blue border-b-2 border-scripps-blue bg-blue-50'
+                  onClick={() => setViewMode('script')}
+                  className={`flex items-center gap-2 px-4 py-2 font-medium transition-all rounded-t-lg ${
+                    viewMode === 'script'
+                      ? 'text-scripps-blue bg-blue-50 border-t-2 border-x-2 border-scripps-blue'
                       : 'text-gray-600 hover:bg-gray-50'
                   }`}
                 >
-                  Act {act.act_number}
-                  {act.notes && ` • ${act.notes}`}
+                  <FileText className="w-4 h-4" />
+                  Script Content
                 </button>
-              ))}
+                <button
+                  onClick={() => setViewMode('translations')}
+                  className={`flex items-center gap-2 px-4 py-2 font-medium transition-all rounded-t-lg ${
+                    viewMode === 'translations'
+                      ? 'text-scripps-blue bg-blue-50 border-t-2 border-x-2 border-scripps-blue'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <Globe className="w-4 h-4" />
+                  Translations
+                </button>
+              </div>
+
+              {viewMode === 'script' && (
+                <div className="flex overflow-x-auto">
+                  {acts.map((act, index) => (
+                    <button
+                      key={act.id}
+                      onClick={() => setActiveAct(index)}
+                      className={`flex-1 px-6 py-3 font-medium transition-all whitespace-nowrap ${
+                        activeAct === index
+                          ? 'text-scripps-blue border-b-2 border-scripps-blue bg-blue-50'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      Act {act.act_number}
+                      {act.notes && ` • ${act.notes}`}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="flex-1 overflow-y-auto p-6">
-              {acts[activeAct] && (
-                <div className="space-y-6">
-                  {acts[activeAct].content && (
-                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                      <h3 className="font-semibold text-gray-900 mb-2">Act Overview</h3>
-                      <p className="text-gray-700 whitespace-pre-wrap">{acts[activeAct].content}</p>
-                    </div>
-                  )}
+              {viewMode === 'script' ? (
+                acts[activeAct] && (
+                  <div className="space-y-6">
+                    {acts[activeAct].content && (
+                      <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <h3 className="font-semibold text-gray-900 mb-2">Act Overview</h3>
+                        <p className="text-gray-700 whitespace-pre-wrap">{acts[activeAct].content}</p>
+                      </div>
+                    )}
 
-                  <div className="space-y-4">
-                    <h3 className="font-semibold text-gray-900 text-lg">
-                      Scenes ({acts[activeAct].scenes.length})
-                    </h3>
-                    {acts[activeAct].scenes.map((scene) => (
-                      <div
-                        key={scene.id}
-                        className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow"
-                      >
-                        <div className="flex items-start justify-between mb-3">
-                          <h4 className="font-semibold text-gray-900 text-lg">
-                            Scene {scene.scene_number}
-                          </h4>
-                          {scene.duration_estimate > 0 && (
-                            <span className="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
-                              {formatDuration(scene.duration_estimate)}
-                            </span>
+                    <div className="space-y-4">
+                      <h3 className="font-semibold text-gray-900 text-lg">
+                        Scenes ({acts[activeAct].scenes.length})
+                      </h3>
+                      {acts[activeAct].scenes.map((scene) => (
+                        <div
+                          key={scene.id}
+                          className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow"
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <h4 className="font-semibold text-gray-900 text-lg">
+                              Scene {scene.scene_number}
+                            </h4>
+                            {scene.duration_estimate > 0 && (
+                              <span className="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
+                                {formatDuration(scene.duration_estimate)}
+                              </span>
+                            )}
+                          </div>
+
+                          {scene.setting && (
+                            <div className="mb-3">
+                              <span className="text-sm font-semibold text-gray-700">Setting:</span>
+                              <span className="text-sm text-gray-600 ml-2">{scene.setting}</span>
+                            </div>
+                          )}
+
+                          {scene.description && (
+                            <div className="mb-4">
+                              <p className="text-gray-700 italic">{scene.description}</p>
+                            </div>
+                          )}
+
+                          {scene.dialogue && Array.isArray(scene.dialogue) && scene.dialogue.length > 0 && (
+                            <div className="space-y-3 mb-4">
+                              {scene.dialogue.map((line: any, lineIndex: number) => (
+                                <div key={lineIndex} className="pl-4 border-l-2 border-blue-200">
+                                  <div className="font-semibold text-gray-900 mb-1">
+                                    {line.character}
+                                  </div>
+                                  <div className="text-gray-700">{line.line}</div>
+                                  {line.stage_direction && (
+                                    <div className="text-sm text-gray-500 italic mt-1">
+                                      ({line.stage_direction})
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {scene.stage_directions && (
+                            <div className="mt-4 pt-4 border-t border-gray-200">
+                              <p className="text-sm text-gray-600">
+                                <span className="font-semibold">Production Notes:</span>{' '}
+                                {scene.stage_directions}
+                              </p>
+                            </div>
                           )}
                         </div>
-
-                        {scene.setting && (
-                          <div className="mb-3">
-                            <span className="text-sm font-semibold text-gray-700">Setting:</span>
-                            <span className="text-sm text-gray-600 ml-2">{scene.setting}</span>
-                          </div>
-                        )}
-
-                        {scene.description && (
-                          <div className="mb-4">
-                            <p className="text-gray-700 italic">{scene.description}</p>
-                          </div>
-                        )}
-
-                        {scene.dialogue && Array.isArray(scene.dialogue) && scene.dialogue.length > 0 && (
-                          <div className="space-y-3 mb-4">
-                            {scene.dialogue.map((line: any, lineIndex: number) => (
-                              <div key={lineIndex} className="pl-4 border-l-2 border-blue-200">
-                                <div className="font-semibold text-gray-900 mb-1">
-                                  {line.character}
-                                </div>
-                                <div className="text-gray-700">{line.line}</div>
-                                {line.stage_direction && (
-                                  <div className="text-sm text-gray-500 italic mt-1">
-                                    ({line.stage_direction})
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {scene.stage_directions && (
-                          <div className="mt-4 pt-4 border-t border-gray-200">
-                            <p className="text-sm text-gray-600">
-                              <span className="font-semibold">Production Notes:</span>{' '}
-                              {scene.stage_directions}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )
+              ) : (
+                <ScriptTranslationManager
+                  scriptId={script.id}
+                  scriptTitle={script.title}
+                />
               )}
             </div>
           </>
