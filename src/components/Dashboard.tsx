@@ -383,10 +383,6 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
           ))}
         </div>
 
-        <div className="mb-6 sm:mb-8">
-          <SystemHealthWidget onNavigateToBackup={() => onNavigate('backup-recovery')} />
-        </div>
-
         <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-xl shadow-md p-4 sm:p-6 border-2 border-blue-200 mb-6 sm:mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 sm:mb-6">
             <div className="flex items-center gap-3">
@@ -674,6 +670,10 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
               })}
             </div>
           )}
+        </div>
+
+        <div className="mt-6 sm:mt-8">
+          <SystemHealthWidget onNavigateToBackup={() => onNavigate('backup-recovery')} />
         </div>
       </div>
 
