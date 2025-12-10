@@ -374,7 +374,7 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
         yPos += lineHeight - 1;
         doc.text(`Voice Lines: $${costComparison.aiCost.voicesCost.toFixed(2)}`, leftMargin + 5, yPos);
         yPos += lineHeight - 1;
-        doc.text(`Video Generation: $${costComparison.aiCost.videoGenerationCost.toFixed(2)}`, leftMargin + 5, yPos);
+        doc.text(`Video Generation: $${(costComparison.aiCost.videoGenerationCost || 0).toFixed(2)}`, leftMargin + 5, yPos);
         yPos += lineHeight - 1;
         doc.text(`Complexity Adjustment: $${costComparison.aiCost.complexityAdjustment.toFixed(2)}`, leftMargin + 5, yPos);
         yPos += lineHeight - 1;
@@ -405,7 +405,7 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
         yPos += lineHeight - 1;
         doc.text(`Characters: $${costComparison.traditionalCost.charactersCost.toFixed(2)}`, leftMargin + 5, yPos);
         yPos += lineHeight - 1;
-        doc.text(`Video Generation: $${costComparison.traditionalCost.videoGenerationCost.toFixed(2)}`, leftMargin + 5, yPos);
+        doc.text(`Video Generation: $${(costComparison.traditionalCost.videoGenerationCost || 0).toFixed(2)}`, leftMargin + 5, yPos);
         yPos += lineHeight - 1;
         doc.text(`Complexity Adjustment: $${costComparison.traditionalCost.complexityAdjustment.toFixed(2)}`, leftMargin + 5, yPos);
         yPos += lineHeight - 1;

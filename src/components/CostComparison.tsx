@@ -81,7 +81,7 @@ export function CostComparison({ comparison, showDetailed = false }: CostCompari
                   Video Generation:
                   <InfoTooltip content="AI video generation cost per minute of finished animation. Converts storyboard images into fully animated video sequences." />
                 </span>
-                <span className="font-medium">{formatCurrency(aiCost.videoGenerationCost)}</span>
+                <span className="font-medium">{formatCurrency(aiCost.videoGenerationCost || 0)}</span>
               </div>
               {aiCost.complexityAdjustment !== 0 && (
                 <div className="flex justify-between text-gray-700">
