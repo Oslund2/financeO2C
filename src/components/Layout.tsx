@@ -49,7 +49,7 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
       <aside className="hidden lg:flex w-64 bg-white border-r border-blue-200 flex-col shadow-lg">
         <div className="p-6 border-b border-blue-200">
           <div className="flex flex-col gap-2">
-            <Logo size="medium" className="mx-auto" />
+            <Logo size="large" className="mx-auto" />
             <div className="text-center">
               <p className="text-xs font-medium text-scripps-navy">Animation Studio</p>
             </div>
@@ -120,7 +120,7 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
             >
               <div className="p-4 border-b border-blue-200 flex items-center justify-between">
                 <div className="flex flex-col gap-1">
-                  <Logo size="medium" />
+                  <Logo size="large" />
                   <p className="text-xs font-medium text-scripps-navy">Animation Studio</p>
                 </div>
                 <button

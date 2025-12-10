@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, TrendingUp, Clock, CheckCircle, AlertCircle, Award, Globe, Sparkles, DollarSign, Languages, Tv, X, FileText, Film, ArrowRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { Logo } from './Logo';
 import { SystemHealthWidget } from './SystemHealthWidget';
 import { CastFilmStrip } from './CastFilmStrip';
 
@@ -212,13 +211,9 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
-          <Logo size="medium" className="hidden sm:block" />
-          <Logo size="small" className="sm:hidden" />
-          <div>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-scripps-navy mb-1 sm:mb-2">Spelling Bee Animation Studio</h1>
-            <p className="text-sm sm:text-base lg:text-lg text-gray-600">AI-Powered Animation Production</p>
-          </div>
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-scripps-navy mb-1 sm:mb-2">Spelling Bee Animation Studio</h1>
+          <p className="text-sm sm:text-base lg:text-lg text-gray-600">AI-Powered Animation Production</p>
         </div>
 
         <CastFilmStrip seriesId={seriesId} onNavigate={onNavigate} />
