@@ -216,7 +216,7 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
         'Completed Date'
       ];
 
-      const row = [
+      const row: any[] = [
         selectedEpisode.title,
         selectedEpisode.status,
         selectedEpisode.progress_percentage,
@@ -238,6 +238,39 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
         new Date(selectedEpisode.created_at).toLocaleDateString(),
         selectedEpisode.completed_at ? new Date(selectedEpisode.completed_at).toLocaleDateString() : 'In Progress'
       ];
+
+      if (revenueCalculations) {
+        headers.push(
+          'Annual Revenue (Year 1)',
+          'Years in Service',
+          'Decay Rate %',
+          'Minimum Retention %',
+          'Lifetime Revenue',
+          'Lifetime Profit',
+          'Lifetime Margin %',
+          'Payback Period (Years)',
+          'Average Annual Profit'
+        );
+        row.push(
+          revenueCalculations.totalRevenue,
+          revenueCalculations.yearsInService,
+          revenueCalculations.decayRatePercent,
+          revenueCalculations.minimumRetentionPercent,
+          revenueCalculations.lifetimeRevenue,
+          revenueCalculations.lifetimeProfit,
+          revenueCalculations.lifetimeMargin.toFixed(2),
+          revenueCalculations.paybackPeriodYears?.toFixed(2) || 'N/A',
+          revenueCalculations.averageAnnualProfit
+        );
+
+        for (let i = 1; i <= revenueCalculations.yearsInService; i++) {
+          const yearData = revenueCalculations.ltvCalculation.yearlyBreakdown[i - 1];
+          if (yearData) {
+            headers.push(`Year ${i} Revenue`);
+            row.push(yearData.revenue.toFixed(2));
+          }
+        }
+      }
 
       const csvContent = [
         headers.join(','),
@@ -484,6 +517,60 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
               </div>
             </div>
             ` : ''}
+          </div>
+          ` : ''}
+
+          ${revenueCalculations ? `
+          <div class="section">
+            <h2>Lifetime Value Analysis</h2>
+            <div class="info-grid">
+              <div class="info-item">
+                <div class="info-label">Annual Revenue (Year 1)</div>
+                <div class="info-value">$${revenueCalculations.totalRevenue.toFixed(2)}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Years in Service</div>
+                <div class="info-value">${revenueCalculations.yearsInService} years</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Decay Rate</div>
+                <div class="info-value">${revenueCalculations.decayRatePercent}% per year</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Minimum Retention Floor</div>
+                <div class="info-value">${revenueCalculations.minimumRetentionPercent}%</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Lifetime Revenue</div>
+                <div class="info-value green">$${revenueCalculations.lifetimeRevenue.toFixed(2)}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Lifetime Profit</div>
+                <div class="info-value ${revenueCalculations.lifetimeProfit >= 0 ? 'green' : 'red'}">$${revenueCalculations.lifetimeProfit.toFixed(2)}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Payback Period</div>
+                <div class="info-value">${revenueCalculations.paybackPeriodYears ? revenueCalculations.paybackPeriodYears.toFixed(2) + ' years' : 'Not reached'}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Average Annual Profit</div>
+                <div class="info-value">$${revenueCalculations.averageAnnualProfit.toFixed(2)}</div>
+              </div>
+            </div>
+
+            <div class="cost-breakdown">
+              <h3 style="margin-top: 0;">Year-by-Year Revenue Projection</h3>
+              ${revenueCalculations.ltvCalculation.yearlyBreakdown.map((yearData, index) => `
+              <div class="cost-row" style="font-size: 14px;">
+                <span>Year ${yearData.year} (${yearData.retentionPercent.toFixed(0)}% retention):</span>
+                <span>$${yearData.revenue.toFixed(2)}</span>
+              </div>
+              `).join('')}
+              <div class="cost-row">
+                <span>Total Lifetime Revenue:</span>
+                <span class="green">$${revenueCalculations.lifetimeRevenue.toFixed(2)}</span>
+              </div>
+            </div>
           </div>
           ` : ''}
 

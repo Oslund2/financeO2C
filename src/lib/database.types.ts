@@ -279,6 +279,10 @@ export interface Database {
           created_at: string
           updated_at: string
           completed_at: string | null
+          date_put_in_service: string | null
+          projected_service_years: number
+          decay_rate_percent: number
+          minimum_retention_percent: number
         }
         Insert: {
           id?: string
@@ -294,6 +298,10 @@ export interface Database {
           created_at?: string
           updated_at?: string
           completed_at?: string | null
+          date_put_in_service?: string | null
+          projected_service_years?: number
+          decay_rate_percent?: number
+          minimum_retention_percent?: number
         }
         Update: {
           id?: string
@@ -309,6 +317,10 @@ export interface Database {
           created_at?: string
           updated_at?: string
           completed_at?: string | null
+          date_put_in_service?: string | null
+          projected_service_years?: number
+          decay_rate_percent?: number
+          minimum_retention_percent?: number
         }
       }
       scene_shots: {

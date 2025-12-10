@@ -1,5 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
-import { DollarSign, Users, TrendingUp, BarChart3, Info, Plus, X, Globe, Tv, Monitor, Youtube, Baby, AlertTriangle, Eye } from 'lucide-react';
+import { DollarSign, Users, TrendingUp, BarChart3, Info, Plus, X, Globe, Tv, Monitor, Youtube, Baby, AlertTriangle, Eye, Clock, TrendingDown } from 'lucide-react';
+import { LTVCalculationService, type LTVCalculation } from '../services/ltvCalculationService';
+import { YearByYearBreakdown } from './YearByYearBreakdown';
 
 export interface RevenueCalculations {
   revenuePerEpisodePerRun: number;
@@ -17,6 +19,15 @@ export interface RevenueCalculations {
   avgCPM: number;
   costPerImpression: number;
   breakEvenImpressions: number;
+  yearsInService: number;
+  decayRatePercent: number;
+  minimumRetentionPercent: number;
+  lifetimeRevenue: number;
+  lifetimeProfit: number;
+  lifetimeMargin: number;
+  paybackPeriodYears: number | null;
+  averageAnnualProfit: number;
+  ltvCalculation: LTVCalculation;
 }
 
 interface ShowRevenueEstimatorProps {
@@ -64,6 +75,9 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, onCalculations
   const [annualRunsPerEpisode, setAnnualRunsPerEpisode] = useState(4);
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [enableMultiLanguage, setEnableMultiLanguage] = useState(false);
+  const [yearsInService, setYearsInService] = useState(5);
+  const [decayRatePercent, setDecayRatePercent] = useState(10);
+  const [minimumRetentionPercent, setMinimumRetentionPercent] = useState(20);
 
   const [calculationMode, setCalculationMode] = useState<'impression' | 'spot'>('impression');
 
@@ -279,6 +293,14 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, onCalculations
     const revenuePerEpisodePerRun = totalAdRevenue / (annualRunsPerEpisode * numberOfEpisodes * enabledLanguages.length || 1);
     const revenuePerEpisode = revenuePerEpisodePerRun * annualRunsPerEpisode;
 
+    const ltvCalculation = LTVCalculationService.calculateLifetimeValue(
+      totalRevenue,
+      adjustedProductionCost,
+      yearsInService,
+      decayRatePercent,
+      minimumRetentionPercent
+    );
+
     return {
       revenuePerEpisodePerRun,
       revenuePerEpisode,
@@ -297,7 +319,16 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, onCalculations
       avgCPM,
       costPerImpression,
       breakEvenImpressions,
-      channelBreakdown
+      channelBreakdown,
+      yearsInService,
+      decayRatePercent,
+      minimumRetentionPercent,
+      lifetimeRevenue: ltvCalculation.lifetimeRevenue,
+      lifetimeProfit: ltvCalculation.lifetimeProfit,
+      lifetimeMargin: ltvCalculation.lifetimeMargin,
+      paybackPeriodYears: ltvCalculation.paybackPeriodYears,
+      averageAnnualProfit: ltvCalculation.averageAnnualProfit,
+      ltvCalculation
     };
   }, [
     numberOfEpisodes,
@@ -309,7 +340,10 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, onCalculations
     sponsors,
     distributionChannels,
     languages,
-    enableMultiLanguage
+    enableMultiLanguage,
+    yearsInService,
+    decayRatePercent,
+    minimumRetentionPercent
   ]);
 
   useEffect(() => {
@@ -329,7 +363,16 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, onCalculations
         totalImpressions: calculations.totalImpressions,
         avgCPM: calculations.avgCPM,
         costPerImpression: calculations.costPerImpression,
-        breakEvenImpressions: calculations.breakEvenImpressions
+        breakEvenImpressions: calculations.breakEvenImpressions,
+        yearsInService: calculations.yearsInService,
+        decayRatePercent: calculations.decayRatePercent,
+        minimumRetentionPercent: calculations.minimumRetentionPercent,
+        lifetimeRevenue: calculations.lifetimeRevenue,
+        lifetimeProfit: calculations.lifetimeProfit,
+        lifetimeMargin: calculations.lifetimeMargin,
+        paybackPeriodYears: calculations.paybackPeriodYears,
+        averageAnnualProfit: calculations.averageAnnualProfit,
+        ltvCalculation: calculations.ltvCalculation
       });
     }
   }, [calculations, onCalculationsChange]);
@@ -414,7 +457,130 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, onCalculations
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-300 rounded-xl p-6">
+        <div className="flex items-start gap-3">
+          <Info className="w-5 h-5 text-yellow-700 flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-yellow-900">
+            <strong>Important:</strong> Annual revenue figures represent <strong>Year 1</strong> at full viewership (100%). The Lifetime Value calculations below project revenue over multiple years with viewership decay.
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-200 rounded-xl p-4 sm:p-6 overflow-hidden min-h-[140px] flex flex-col">
+          <div className="flex items-center gap-2 mb-2">
+            <Clock className="w-5 h-5 text-yellow-600 flex-shrink-0" />
+            <div className="text-sm font-medium text-gray-600">Lifetime Revenue</div>
+          </div>
+          <div className="text-xl lg:text-2xl font-bold text-yellow-700 break-words">{formatCurrency(calculations.lifetimeRevenue)}</div>
+          <div className="text-xs text-gray-600 mt-1 whitespace-normal">over {calculations.yearsInService} years</div>
+        </div>
+
+        <div className={`bg-gradient-to-br ${
+          calculations.lifetimeProfit >= 0 ? 'from-emerald-50 to-green-50 border-emerald-200' : 'from-red-50 to-rose-50 border-red-200'
+        } border-2 rounded-xl p-4 sm:p-6 overflow-hidden min-h-[140px] flex flex-col`}>
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingUp className="w-5 h-5 text-gray-600 flex-shrink-0" />
+            <div className="text-sm font-medium text-gray-600">Lifetime Profit</div>
+          </div>
+          <div className={`text-xl lg:text-2xl font-bold break-words ${calculations.lifetimeProfit >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+            {formatCurrency(calculations.lifetimeProfit)}
+          </div>
+          <div className={`text-sm font-semibold mt-1 ${calculations.lifetimeMargin >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+            {calculations.lifetimeMargin.toFixed(1)}% LTV Margin
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-cyan-50 to-blue-50 border-2 border-cyan-200 rounded-xl p-4 sm:p-6 overflow-hidden min-h-[140px] flex flex-col">
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingDown className="w-5 h-5 text-cyan-600 flex-shrink-0" />
+            <div className="text-sm font-medium text-gray-600">Payback Period</div>
+          </div>
+          <div className="text-xl lg:text-2xl font-bold text-cyan-700 break-words">
+            {LTVCalculationService.formatYearsMonths(calculations.paybackPeriodYears)}
+          </div>
+          <div className="text-xs text-gray-600 mt-1 whitespace-normal">time to break even</div>
+        </div>
+
+        <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-xl p-4 sm:p-6 overflow-hidden min-h-[140px] flex flex-col">
+          <div className="flex items-center gap-2 mb-2">
+            <BarChart3 className="w-5 h-5 text-indigo-600 flex-shrink-0" />
+            <div className="text-sm font-medium text-gray-600">Avg Annual Profit</div>
+          </div>
+          <div className="text-xl lg:text-2xl font-bold text-indigo-700 break-words">{formatCurrency(calculations.averageAnnualProfit)}</div>
+          <div className="text-xs text-gray-600 mt-1 whitespace-normal">per year over lifetime</div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="bg-white border-2 border-gray-200 rounded-xl p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Clock className="w-5 h-5 text-gray-700" />
+            <h4 className="text-lg font-bold text-gray-900">Lifetime Value Settings</h4>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium text-gray-700">Years in Service</label>
+                <span className="text-sm font-bold text-gray-900">{yearsInService}</span>
+              </div>
+              <input
+                type="range"
+                min="1"
+                max="10"
+                value={yearsInService}
+                onChange={(e) => setYearsInService(Number(e.target.value))}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-yellow-600"
+              />
+              <p className="text-xs text-gray-500 mt-1">Expected years content generates revenue</p>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium text-gray-700">Annual Decay Rate</label>
+                <span className="text-sm font-bold text-gray-900">{decayRatePercent}%</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="25"
+                step="1"
+                value={decayRatePercent}
+                onChange={(e) => setDecayRatePercent(Number(e.target.value))}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-600"
+              />
+              <p className="text-xs text-gray-500 mt-1">Viewership decline per year (0-25%)</p>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium text-gray-700">Minimum Retention Floor</label>
+                <span className="text-sm font-bold text-gray-900">{minimumRetentionPercent}%</span>
+              </div>
+              <input
+                type="range"
+                min="5"
+                max="50"
+                step="5"
+                value={minimumRetentionPercent}
+                onChange={(e) => setMinimumRetentionPercent(Number(e.target.value))}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600"
+              />
+              <p className="text-xs text-gray-500 mt-1">Stable long-tail revenue baseline</p>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="text-xs text-blue-900 space-y-1">
+                <div><strong>Current Model:</strong></div>
+                <div>Year 1: 100% viewership</div>
+                <div>Decline: -{decayRatePercent}% per year</div>
+                <div>Floor: {minimumRetentionPercent}% stable</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="bg-white border-2 border-gray-200 rounded-xl p-6">
           <div className="flex items-center gap-2 mb-4">
             <BarChart3 className="w-5 h-5 text-gray-700" />
@@ -989,6 +1155,12 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, onCalculations
           </div>
         </div>
       </div>
+
+      <YearByYearBreakdown
+        yearlyBreakdown={calculations.ltvCalculation.yearlyBreakdown}
+        minimumRetentionPercent={calculations.minimumRetentionPercent}
+        productionCost={calculations.adjustedProductionCost}
+      />
     </div>
   );
 }
