@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Plus, TrendingUp, Clock, CheckCircle, AlertCircle, Award, Globe, Sparkles, DollarSign, Languages, Tv, X, FileText, Film, ArrowRight, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, TrendingUp, Clock, CheckCircle, AlertCircle, Award, Globe, Sparkles, DollarSign, Languages, Tv, X, FileText, Film, ArrowRight, ChevronDown, ChevronUp, Edit2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { SystemHealthWidget } from './SystemHealthWidget';
 import { CastFilmStrip } from './CastFilmStrip';
+import { DashboardIPSectionEditor } from './DashboardIPSectionEditor';
+import { useOrganization } from '../contexts/OrganizationContext';
+import { useAuth } from '../contexts/AuthContext';
 
 interface DashboardProps {
   seriesId: string | null;
@@ -23,9 +26,65 @@ interface PipelineStats {
   completedEpisodes: number;
 }
 
+interface CardItem {
+  icon: string;
+  text: string;
+}
+
+interface Card {
+  title: string;
+  icon: string;
+  items: CardItem[];
+}
+
+interface IPSectionData {
+  section_title: string;
+  section_description_1: string;
+  section_description_2: string;
+  card_1: Card;
+  card_2: Card;
+  card_3: Card;
+}
+
 type FullscreenCard = 'main' | 'production' | 'monetization' | 'global' | null;
 
+const DEFAULT_IP_SECTION: IPSectionData = {
+  section_title: 'Leveraging Iconic IP for Global Entertainment',
+  section_description_1: 'Leveraging the iconic Scripps National Spelling Bee brand, this animated series transforms historic winning words into hilarious, educational adventures all steeped in pop culture and Zeitgeist. The Bee and its animated series creates virtuous year-round brand and marketing opportunities.',
+  section_description_2: 'This groundbreaking format blends new fictional characters with real-life Bee champions (secured via perpetual NIL) to expand our IP universe. Each 22-minute episode is thematically anchored by a specific winning word and designed for global scale across Scripps linear assets and streaming platforms.',
+  card_1: {
+    title: 'Production Format',
+    icon: 'Tv',
+    items: [
+      { icon: 'CheckCircle', text: '22-minute runtime with optimized break structure' },
+      { icon: 'CheckCircle', text: '3 internal 2-minute breaks plus 1 end 2-minute break' },
+      { icon: 'CheckCircle', text: 'Thematically anchored by historic Spelling Bee winning words' },
+    ],
+  },
+  card_2: {
+    title: 'Dynamic Monetization',
+    icon: 'DollarSign',
+    items: [
+      { icon: 'Sparkles', text: 'AI-driven product placement technology' },
+      { icon: 'Sparkles', text: 'Swappable sponsors per market or airing' },
+      { icon: 'Sparkles', text: 'Interchangeable branding opportunities for maximum revenue' },
+    ],
+  },
+  card_3: {
+    title: 'Global Scale',
+    icon: 'Globe',
+    items: [
+      { icon: 'Languages', text: 'Automated localization for all languages' },
+      { icon: 'Languages', text: 'Distribution across Scripps linear and streaming platforms' },
+      { icon: 'Languages', text: 'Built for worldwide accessibility and cultural adaptation' },
+    ],
+  },
+};
+
 export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
+  const { currentOrganization } = useOrganization();
+  const { user } = useAuth();
+
   const [stats, setStats] = useState<Stats>({
     charactersCount: 0,
     scriptsCount: 0,
@@ -43,10 +102,14 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
   const [loading, setLoading] = useState(true);
   const [fullscreenCard, setFullscreenCard] = useState<FullscreenCard>(null);
   const [ipSectionCollapsed, setIpSectionCollapsed] = useState(true);
+  const [ipSectionData, setIpSectionData] = useState<IPSectionData>(DEFAULT_IP_SECTION);
+  const [ipSectionSource, setIpSectionSource] = useState<'series' | 'organization' | 'default'>('default');
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
-  }, [seriesId]);
+    loadIPSectionData();
+  }, [seriesId, currentOrganization]);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -142,6 +205,80 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
     }
   };
 
+  const loadIPSectionData = async () => {
+    if (!currentOrganization) {
+      setIpSectionData(DEFAULT_IP_SECTION);
+      setIpSectionSource('default');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('get_dashboard_ip_section', {
+        org_uuid: currentOrganization.id,
+        series_uuid: seriesId,
+      });
+
+      if (error) throw error;
+
+      if (data) {
+        setIpSectionData(data);
+        setIpSectionSource(data.source);
+      } else {
+        setIpSectionData(DEFAULT_IP_SECTION);
+        setIpSectionSource('default');
+      }
+    } catch (error) {
+      console.error('Error loading IP section data:', error);
+      setIpSectionData(DEFAULT_IP_SECTION);
+      setIpSectionSource('default');
+    }
+  };
+
+  const handleSaveIPSection = async (data: IPSectionData, applyToAllSeries: boolean) => {
+    if (!currentOrganization || !user) {
+      throw new Error('Organization or user not found');
+    }
+
+    try {
+      const targetSeriesId = applyToAllSeries ? null : seriesId;
+
+      const sectionData = {
+        section_title: data.section_title,
+        section_description_1: data.section_description_1,
+        section_description_2: data.section_description_2,
+        card_1: {
+          title: data.card_1.title,
+          icon: data.card_1.icon,
+          items: data.card_1.items,
+        },
+        card_2: {
+          title: data.card_2.title,
+          icon: data.card_2.icon,
+          items: data.card_2.items,
+        },
+        card_3: {
+          title: data.card_3.title,
+          icon: data.card_3.icon,
+          items: data.card_3.items,
+        },
+      };
+
+      const { error } = await supabase.rpc('upsert_dashboard_ip_section', {
+        org_uuid: currentOrganization.id,
+        series_uuid: targetSeriesId,
+        section_data: sectionData,
+        user_uuid: user.id,
+      });
+
+      if (error) throw error;
+
+      await loadIPSectionData();
+    } catch (error) {
+      console.error('Error saving IP section:', error);
+      throw error;
+    }
+  };
+
   const statCards = [
     {
       label: 'Characters',
@@ -197,6 +334,25 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
     }
   };
 
+  const getIconComponent = (iconName: string) => {
+    switch (iconName) {
+      case 'CheckCircle':
+        return CheckCircle;
+      case 'Sparkles':
+        return Sparkles;
+      case 'Languages':
+        return Languages;
+      case 'Tv':
+        return Tv;
+      case 'DollarSign':
+        return DollarSign;
+      case 'Globe':
+        return Globe;
+      default:
+        return CheckCircle;
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -226,139 +382,78 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
                   <Award className="w-6 h-6 sm:w-8 sm:h-8 text-scripps-yellow" />
                 </div>
                 <div>
-                  <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white">Leveraging Iconic IP for Global Entertainment</h2>
+                  <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white">{ipSectionData.section_title}</h2>
                 </div>
               </div>
-              <button
-                onClick={() => setIpSectionCollapsed(!ipSectionCollapsed)}
-                className="p-2 hover:bg-white/10 rounded-lg transition-colors ml-4"
-                aria-label={ipSectionCollapsed ? "Expand section" : "Collapse section"}
-              >
-                {ipSectionCollapsed ? (
-                  <ChevronDown className="w-6 h-6 text-white" />
-                ) : (
-                  <ChevronUp className="w-6 h-6 text-white" />
+              <div className="flex items-center gap-2">
+                {!ipSectionCollapsed && (
+                  <button
+                    onClick={() => setIsEditorOpen(true)}
+                    className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                    aria-label="Edit section"
+                  >
+                    <Edit2 className="w-5 h-5 text-white" />
+                  </button>
                 )}
-              </button>
+                <button
+                  onClick={() => setIpSectionCollapsed(!ipSectionCollapsed)}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                  aria-label={ipSectionCollapsed ? "Expand section" : "Collapse section"}
+                >
+                  {ipSectionCollapsed ? (
+                    <ChevronDown className="w-6 h-6 text-white" />
+                  ) : (
+                    <ChevronUp className="w-6 h-6 text-white" />
+                  )}
+                </button>
+              </div>
             </div>
 
             {!ipSectionCollapsed && (
               <>
                 <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 sm:p-6 mb-4 sm:mb-6 border border-white/20">
                   <p className="text-sm sm:text-base lg:text-lg text-white/95 leading-relaxed mb-3 sm:mb-4">
-                    Leveraging the iconic <span className="font-semibold text-scripps-yellow">Scripps National Spelling Bee</span> brand, this animated series transforms historic winning words into hilarious, educational adventures all steeped in pop culture and Zeitgeist. The Bee and its animated series creates virtuous year-round brand and marketing opportunities.
+                    {ipSectionData.section_description_1}
                   </p>
                   <p className="text-xs sm:text-sm lg:text-base text-white/90 leading-relaxed">
-                    This groundbreaking format blends new fictional characters with real-life Bee champions (secured via perpetual NIL) to expand our IP universe. Each 22-minute episode is thematically anchored by a specific winning word and designed for global scale across Scripps linear assets and streaming platforms.
+                    {ipSectionData.section_description_2}
                   </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              <div
-                className="bg-white/10 backdrop-blur-md rounded-xl p-4 sm:p-6 border border-white/20 hover:bg-white/15 transition-all cursor-pointer active:bg-white/20"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setFullscreenCard('production');
-                }}
-              >
-                <div className="flex items-center gap-3 mb-3 sm:mb-4">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-scripps-yellow/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Tv className="w-5 h-5 sm:w-6 sm:h-6 text-scripps-yellow" />
-                  </div>
-                  <h3 className="text-base sm:text-lg lg:text-xl font-bold text-white">Production Format</h3>
+                  {[ipSectionData.card_1, ipSectionData.card_2, ipSectionData.card_3].map((card, cardIndex) => {
+                    const CardIcon = getIconComponent(card.icon);
+                    return (
+                      <div
+                        key={cardIndex}
+                        className="bg-white/10 backdrop-blur-md rounded-xl p-4 sm:p-6 border border-white/20 hover:bg-white/15 transition-all cursor-pointer active:bg-white/20"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const cardNames = ['production', 'monetization', 'global'] as const;
+                          setFullscreenCard(cardNames[cardIndex]);
+                        }}
+                      >
+                        <div className="flex items-center gap-3 mb-3 sm:mb-4">
+                          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-scripps-yellow/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <CardIcon className="w-5 h-5 sm:w-6 sm:h-6 text-scripps-yellow" />
+                          </div>
+                          <h3 className="text-base sm:text-lg lg:text-xl font-bold text-white">{card.title}</h3>
+                        </div>
+                        <div className="space-y-3 text-white/90">
+                          {card.items.map((item, itemIndex) => {
+                            const ItemIcon = getIconComponent(item.icon);
+                            return (
+                              <div key={itemIndex} className="flex items-start gap-2">
+                                <ItemIcon className="w-5 h-5 text-scripps-yellow mt-0.5 flex-shrink-0" />
+                                <p className="text-sm leading-relaxed">{item.text}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-                <div className="space-y-3 text-white/90">
-                  <div className="flex items-start gap-2">
-                    <CheckCircle className="w-5 h-5 text-scripps-yellow mt-0.5 flex-shrink-0" />
-                    <p className="text-sm leading-relaxed">
-                      <span className="font-semibold">22-minute runtime</span> with optimized break structure
-                    </p>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <CheckCircle className="w-5 h-5 text-scripps-yellow mt-0.5 flex-shrink-0" />
-                    <p className="text-sm leading-relaxed">
-                      3 internal 2-minute breaks plus 1 end 2-minute break
-                    </p>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <CheckCircle className="w-5 h-5 text-scripps-yellow mt-0.5 flex-shrink-0" />
-                    <p className="text-sm leading-relaxed">
-                      Thematically anchored by historic Spelling Bee winning words
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div
-                className="bg-white/10 backdrop-blur-md rounded-xl p-4 sm:p-6 border border-white/20 hover:bg-white/15 transition-all cursor-pointer active:bg-white/20"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setFullscreenCard('monetization');
-                }}
-              >
-                <div className="flex items-center gap-3 mb-3 sm:mb-4">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-scripps-yellow/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-scripps-yellow" />
-                  </div>
-                  <h3 className="text-base sm:text-lg lg:text-xl font-bold text-white">Dynamic Monetization</h3>
-                </div>
-                <div className="space-y-3 text-white/90">
-                  <div className="flex items-start gap-2">
-                    <Sparkles className="w-5 h-5 text-scripps-yellow mt-0.5 flex-shrink-0" />
-                    <p className="text-sm leading-relaxed">
-                      <span className="font-semibold">AI-driven product placement</span> technology
-                    </p>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <Sparkles className="w-5 h-5 text-scripps-yellow mt-0.5 flex-shrink-0" />
-                    <p className="text-sm leading-relaxed">
-                      Swappable sponsors per market or airing
-                    </p>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <Sparkles className="w-5 h-5 text-scripps-yellow mt-0.5 flex-shrink-0" />
-                    <p className="text-sm leading-relaxed">
-                      Interchangeable branding opportunities for maximum revenue
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div
-                className="bg-white/10 backdrop-blur-md rounded-xl p-4 sm:p-6 border border-white/20 hover:bg-white/15 transition-all cursor-pointer active:bg-white/20"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setFullscreenCard('global');
-                }}
-              >
-                <div className="flex items-center gap-3 mb-3 sm:mb-4">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-scripps-yellow/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Globe className="w-5 h-5 sm:w-6 sm:h-6 text-scripps-yellow" />
-                  </div>
-                  <h3 className="text-base sm:text-lg lg:text-xl font-bold text-white">Global Scale</h3>
-                </div>
-                <div className="space-y-3 text-white/90">
-                  <div className="flex items-start gap-2">
-                    <Languages className="w-5 h-5 text-scripps-yellow mt-0.5 flex-shrink-0" />
-                    <p className="text-sm leading-relaxed">
-                      <span className="font-semibold">Automated localization</span> for all languages
-                    </p>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <Languages className="w-5 h-5 text-scripps-yellow mt-0.5 flex-shrink-0" />
-                    <p className="text-sm leading-relaxed">
-                      Distribution across Scripps linear and streaming platforms
-                    </p>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <Languages className="w-5 h-5 text-scripps-yellow mt-0.5 flex-shrink-0" />
-                    <p className="text-sm leading-relaxed">
-                      Built for worldwide accessibility and cultural adaptation
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
               </>
             )}
           </div>
@@ -701,126 +796,117 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
                   <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
                     <Award className="w-12 h-12 text-scripps-yellow" />
                   </div>
-                  <h2 className="text-5xl font-bold text-white">Leveraging Iconic IP for Global Entertainment</h2>
+                  <h2 className="text-5xl font-bold text-white">{ipSectionData.section_title}</h2>
                 </div>
 
                 <div className="space-y-6">
                   <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20">
                     <p className="text-2xl text-white/95 leading-relaxed mb-6">
-                      Leveraging the iconic <span className="font-semibold text-scripps-yellow">Scripps National Spelling Bee</span> brand, this animated series transforms historic winning words into hilarious, educational adventures all steeped in pop culture and Zeitgeist. The Bee and its animated series creates virtuous year-round brand and marketing opportunities.
+                      {ipSectionData.section_description_1}
                     </p>
                     <p className="text-xl text-white/90 leading-relaxed">
-                      This groundbreaking format blends new fictional characters with real-life Bee champions (secured via perpetual NIL) to expand our IP universe. Each 22-minute episode is thematically anchored by a specific winning word and designed for global scale across Scripps linear assets and streaming platforms.
+                      {ipSectionData.section_description_2}
                     </p>
                   </div>
                 </div>
               </div>
             )}
 
-            {fullscreenCard === 'production' && (
+            {fullscreenCard === 'production' && (() => {
+              const CardIcon = getIconComponent(ipSectionData.card_1.icon);
+              return (
               <div className="bg-gradient-to-br from-scripps-navy via-scripps-blue to-scripps-light-blue rounded-3xl shadow-2xl p-12 border border-scripps-blue">
                 <div className="flex items-center gap-4 mb-8">
                   <div className="w-20 h-20 bg-scripps-yellow/20 rounded-2xl flex items-center justify-center">
-                    <Tv className="w-12 h-12 text-scripps-yellow" />
+                    <CardIcon className="w-12 h-12 text-scripps-yellow" />
                   </div>
-                  <h2 className="text-5xl font-bold text-white">Production Format</h2>
+                  <h2 className="text-5xl font-bold text-white">{ipSectionData.card_1.title}</h2>
                 </div>
 
                 <div className="space-y-6">
                   <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20">
-                    <div className="flex items-start gap-4 mb-6">
-                      <CheckCircle className="w-8 h-8 text-scripps-yellow mt-1 flex-shrink-0" />
-                      <p className="text-2xl text-white/90 leading-relaxed">
-                        <span className="font-semibold">22-minute runtime</span> with optimized break structure
-                      </p>
-                    </div>
-                    <div className="flex items-start gap-4 mb-6">
-                      <CheckCircle className="w-8 h-8 text-scripps-yellow mt-1 flex-shrink-0" />
-                      <p className="text-2xl text-white/90 leading-relaxed">
-                        3 internal 2-minute breaks plus 1 end 2-minute break
-                      </p>
-                    </div>
-                    <div className="flex items-start gap-4">
-                      <CheckCircle className="w-8 h-8 text-scripps-yellow mt-1 flex-shrink-0" />
-                      <p className="text-2xl text-white/90 leading-relaxed">
-                        Thematically anchored by historic Spelling Bee winning words
-                      </p>
-                    </div>
+                    {ipSectionData.card_1.items.map((item, index) => {
+                      const ItemIcon = getIconComponent(item.icon);
+                      return (
+                        <div key={index} className={`flex items-start gap-4 ${index < ipSectionData.card_1.items.length - 1 ? 'mb-6' : ''}`}>
+                          <ItemIcon className="w-8 h-8 text-scripps-yellow mt-1 flex-shrink-0" />
+                          <p className="text-2xl text-white/90 leading-relaxed">{item.text}</p>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
-            )}
+            );
+            })()}
 
-            {fullscreenCard === 'monetization' && (
+            {fullscreenCard === 'monetization' && (() => {
+              const CardIcon = getIconComponent(ipSectionData.card_2.icon);
+              return (
               <div className="bg-gradient-to-br from-scripps-navy via-scripps-blue to-scripps-light-blue rounded-3xl shadow-2xl p-12 border border-scripps-blue">
                 <div className="flex items-center gap-4 mb-8">
                   <div className="w-20 h-20 bg-scripps-yellow/20 rounded-2xl flex items-center justify-center">
-                    <DollarSign className="w-12 h-12 text-scripps-yellow" />
+                    <CardIcon className="w-12 h-12 text-scripps-yellow" />
                   </div>
-                  <h2 className="text-5xl font-bold text-white">Dynamic Monetization</h2>
+                  <h2 className="text-5xl font-bold text-white">{ipSectionData.card_2.title}</h2>
                 </div>
 
                 <div className="space-y-6">
                   <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20">
-                    <div className="flex items-start gap-4 mb-6">
-                      <Sparkles className="w-8 h-8 text-scripps-yellow mt-1 flex-shrink-0" />
-                      <p className="text-2xl text-white/90 leading-relaxed">
-                        <span className="font-semibold">AI-driven product placement</span> technology
-                      </p>
-                    </div>
-                    <div className="flex items-start gap-4 mb-6">
-                      <Sparkles className="w-8 h-8 text-scripps-yellow mt-1 flex-shrink-0" />
-                      <p className="text-2xl text-white/90 leading-relaxed">
-                        Swappable sponsors per market or airing
-                      </p>
-                    </div>
-                    <div className="flex items-start gap-4">
-                      <Sparkles className="w-8 h-8 text-scripps-yellow mt-1 flex-shrink-0" />
-                      <p className="text-2xl text-white/90 leading-relaxed">
-                        Interchangeable branding opportunities for maximum revenue
-                      </p>
-                    </div>
+                    {ipSectionData.card_2.items.map((item, index) => {
+                      const ItemIcon = getIconComponent(item.icon);
+                      return (
+                        <div key={index} className={`flex items-start gap-4 ${index < ipSectionData.card_2.items.length - 1 ? 'mb-6' : ''}`}>
+                          <ItemIcon className="w-8 h-8 text-scripps-yellow mt-1 flex-shrink-0" />
+                          <p className="text-2xl text-white/90 leading-relaxed">{item.text}</p>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
-            )}
+            );
+            })()}
 
-            {fullscreenCard === 'global' && (
+            {fullscreenCard === 'global' && (() => {
+              const CardIcon = getIconComponent(ipSectionData.card_3.icon);
+              return (
               <div className="bg-gradient-to-br from-scripps-navy via-scripps-blue to-scripps-light-blue rounded-3xl shadow-2xl p-12 border border-scripps-blue">
                 <div className="flex items-center gap-4 mb-8">
                   <div className="w-20 h-20 bg-scripps-yellow/20 rounded-2xl flex items-center justify-center">
-                    <Globe className="w-12 h-12 text-scripps-yellow" />
+                    <CardIcon className="w-12 h-12 text-scripps-yellow" />
                   </div>
-                  <h2 className="text-5xl font-bold text-white">Global Scale</h2>
+                  <h2 className="text-5xl font-bold text-white">{ipSectionData.card_3.title}</h2>
                 </div>
 
                 <div className="space-y-6">
                   <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20">
-                    <div className="flex items-start gap-4 mb-6">
-                      <Languages className="w-8 h-8 text-scripps-yellow mt-1 flex-shrink-0" />
-                      <p className="text-2xl text-white/90 leading-relaxed">
-                        <span className="font-semibold">Automated localization</span> for all languages
-                      </p>
-                    </div>
-                    <div className="flex items-start gap-4 mb-6">
-                      <Languages className="w-8 h-8 text-scripps-yellow mt-1 flex-shrink-0" />
-                      <p className="text-2xl text-white/90 leading-relaxed">
-                        Distribution across Scripps linear and streaming platforms
-                      </p>
-                    </div>
-                    <div className="flex items-start gap-4">
-                      <Languages className="w-8 h-8 text-scripps-yellow mt-1 flex-shrink-0" />
-                      <p className="text-2xl text-white/90 leading-relaxed">
-                        Built for worldwide accessibility and cultural adaptation
-                      </p>
-                    </div>
+                    {ipSectionData.card_3.items.map((item, index) => {
+                      const ItemIcon = getIconComponent(item.icon);
+                      return (
+                        <div key={index} className={`flex items-start gap-4 ${index < ipSectionData.card_3.items.length - 1 ? 'mb-6' : ''}`}>
+                          <ItemIcon className="w-8 h-8 text-scripps-yellow mt-1 flex-shrink-0" />
+                          <p className="text-2xl text-white/90 leading-relaxed">{item.text}</p>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
-            )}
+            );
+            })()}
           </div>
         </div>
       )}
+
+      <DashboardIPSectionEditor
+        isOpen={isEditorOpen}
+        onClose={() => setIsEditorOpen(false)}
+        onSave={handleSaveIPSection}
+        initialData={ipSectionData}
+        currentSource={ipSectionSource}
+        seriesId={seriesId}
+      />
     </div>
   );
 }
