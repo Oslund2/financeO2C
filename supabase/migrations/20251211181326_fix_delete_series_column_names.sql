@@ -1,32 +1,23 @@
 /*
-  # Fix delete_series Function - Handle Workflow System Dependencies
-  
+  # Fix delete_series Function - Column Name Corrections
+
   ## Problem
-  The `delete_series` function fails when trying to delete series that have workflow data
-  because it doesn't properly handle the complex foreign key dependencies in the workflow system.
-  
-  Specifically:
-  - `approval_requests` references `approval_chains` with ON DELETE RESTRICT
-  - `workflow_escalations` references `approval_requests`
-  - Must delete in correct order to avoid foreign key violations
-  
+  The `delete_series` function was using incorrect column names causing foreign key violations:
+  - `template_installations` uses `installed_series_id` not `series_id`
+  - `shared_asset_pools` uses array column `series_ids`, not `source_series_id`/`target_series_id`
+
   ## Solution
-  Update the `delete_series` function to delete workflow-related tables in the correct order:
-  1. workflow_notifications
-  2. workflow_escalations  
-  3. approval_requests
-  4. workflow_stages
-  5. workflow_instances
-  6. approval_chains
-  7. workflow_templates
-  
+  1. Fix template_installations deletion to use correct column name `installed_series_id`
+  2. Change shared_asset_pools to UPDATE (remove from array) instead of DELETE to preserve shared pools
+  3. Template_assets deletion already exists with correct column name
+
   ## Changes
-  - Recreate the `delete_series` function with proper workflow deletion order
-  - Delete all workflow dependencies before attempting to delete approval chains
-  - Maintain proper cascade order for all other tables
+  - Update template_installations DELETE to use `installed_series_id` column
+  - Replace shared_asset_pools DELETE with UPDATE to remove series from `series_ids` array
+  - This preserves shared asset pools while removing the series reference
 */
 
--- Drop and recreate the delete_series function with correct workflow deletion order
+-- Drop and recreate the delete_series function with correct column names
 CREATE OR REPLACE FUNCTION delete_series(
   series_uuid uuid,
   user_uuid uuid
@@ -251,9 +242,10 @@ BEGIN
   DELETE FROM watermark_configurations WHERE series_id = series_uuid;
 
   -- Delete template and marketplace data
+  -- FIXED: Use correct column name 'installed_series_id' instead of 'series_id'
   DELETE FROM template_installations WHERE installed_series_id = series_uuid;
 
-  -- Remove series from shared asset pools (don't delete the pools themselves)
+  -- FIXED: Update shared_asset_pools to remove series from array instead of deleting the pool
   UPDATE shared_asset_pools
   SET series_ids = array_remove(series_ids, series_uuid)
   WHERE series_uuid = ANY(series_ids);
