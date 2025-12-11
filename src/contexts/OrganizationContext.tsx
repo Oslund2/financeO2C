@@ -20,8 +20,10 @@ interface OrganizationContextType {
   currentOrganization: Organization | null;
   organizations: OrganizationMembership[];
   loading: boolean;
+  error: string | null;
   switchOrganization: (organizationId: string) => void;
   refreshOrganizations: () => Promise<void>;
+  retryInitialization: () => Promise<void>;
 }
 
 const OrganizationContext = createContext<OrganizationContextType | undefined>(undefined);
@@ -33,16 +35,21 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
   const [currentOrganization, setCurrentOrganization] = useState<Organization | null>(null);
   const [organizations, setOrganizations] = useState<OrganizationMembership[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   const fetchOrganizations = async () => {
     if (!user) {
       setOrganizations([]);
       setCurrentOrganization(null);
+      setError(null);
       setLoading(false);
       return;
     }
 
     try {
+      setError(null);
+
       const { data, error } = await supabase
         .from('organization_members')
         .select(`
@@ -58,7 +65,9 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         `)
         .eq('user_id', user.id);
 
-      if (error) throw error;
+      if (error) {
+        throw new Error(`Failed to fetch organizations: ${error.message}`);
+      }
 
       let memberships = (data || [])
         .filter(item => item.organization)
@@ -68,12 +77,16 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         }));
 
       if (memberships.length === 0) {
+        const timestamp = Date.now();
+        const randomSuffix = Math.random().toString(36).substring(2, 6);
+        const slug = `studio-${timestamp}-${randomSuffix}`;
+
         const { data: newOrg, error: orgError } = await supabase
           .from('organizations')
           .insert([
             {
-              name: 'Animation Studio',
-              slug: 'animation-studio',
+              name: 'My Animation Studio',
+              slug: slug,
               billing_tier: 'professional',
               created_by: user.id,
             },
@@ -81,7 +94,9 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
           .select()
           .single();
 
-        if (orgError) throw orgError;
+        if (orgError) {
+          throw new Error(`Failed to create organization: ${orgError.message}`);
+        }
 
         const { error: memberError } = await supabase
           .from('organization_members')
@@ -93,7 +108,9 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
             },
           ]);
 
-        if (memberError) throw memberError;
+        if (memberError) {
+          throw new Error(`Failed to create membership: ${memberError.message}`);
+        }
 
         memberships = [{
           organization: newOrg,
@@ -102,6 +119,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       }
 
       setOrganizations(memberships);
+      setError(null);
 
       if (memberships.length > 0) {
         const savedOrgId = localStorage.getItem(STORAGE_KEY);
@@ -116,9 +134,8 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error('Error fetching organizations:', error);
-      if (error instanceof Error) {
-        console.error('Error details:', error.message);
-      }
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setError(errorMessage);
       setOrganizations([]);
       setCurrentOrganization(null);
     } finally {
@@ -131,6 +148,18 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       fetchOrganizations();
     }
   }, [user, authLoading]);
+
+  useEffect(() => {
+    if (error && retryCount < 3 && !loading) {
+      const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 10000);
+      const timer = setTimeout(() => {
+        console.log(`Auto-retry attempt ${retryCount + 1} after ${retryDelay}ms`);
+        retryInitialization();
+      }, retryDelay);
+
+      return () => clearTimeout(timer);
+    }
+  }, [error, retryCount, loading]);
 
   const switchOrganization = (organizationId: string) => {
     const membership = organizations.find(m => m.organization.id === organizationId);
@@ -145,14 +174,23 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     await fetchOrganizations();
   };
 
+  const retryInitialization = async () => {
+    setRetryCount(prev => prev + 1);
+    setLoading(true);
+    setError(null);
+    await fetchOrganizations();
+  };
+
   return (
     <OrganizationContext.Provider
       value={{
         currentOrganization,
         organizations,
         loading,
+        error,
         switchOrganization,
         refreshOrganizations,
+        retryInitialization,
       }}
     >
       {children}
