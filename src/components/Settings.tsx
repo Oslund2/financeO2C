@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Key, Database, Sparkles, ExternalLink, CheckCircle, XCircle, Info, BookOpen, ChevronDown, ChevronUp, Copy, Code, Layers, FileCode, Palette, Rocket, DollarSign, FolderTree } from 'lucide-react';
+import { Key, Database, Sparkles, ExternalLink, CheckCircle, XCircle, Info, BookOpen, ChevronDown, ChevronUp, Copy, Code, Layers, FileCode, Palette, Rocket, DollarSign, FolderTree, Building2, Film } from 'lucide-react';
 import { getAPIKeyStatus, getConfigurationInstructions } from '../services/settingsService';
+import { useOrganization } from '../contexts/OrganizationContext';
 
 export function Settings() {
+  const { currentOrganization } = useOrganization();
   const [apiStatus, setApiStatus] = useState<any>(null);
   const [techDocsExpanded, setTechDocsExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
@@ -55,6 +57,56 @@ export function Settings() {
         </div>
 
         <div className="space-y-6">
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
+                <Building2 className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-xl font-bold text-gray-900">Workspace & Series Management</h2>
+                <p className="text-sm text-gray-600">Manage your workspaces and series settings</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                <div className="flex items-center gap-3 mb-2">
+                  <Building2 className="w-5 h-5 text-blue-600" />
+                  <h3 className="font-semibold text-gray-900">Current Workspace</h3>
+                </div>
+                <p className="text-sm text-gray-600 mb-3">
+                  {currentOrganization?.name || 'Loading...'}
+                </p>
+                <p className="text-xs text-gray-500">
+                  Access workspace settings from the organization switcher in the sidebar. You can
+                  manage team members, billing, and archive your workspace.
+                </p>
+              </div>
+
+              <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                <div className="flex items-center gap-3 mb-2">
+                  <Film className="w-5 h-5 text-blue-600" />
+                  <h3 className="font-semibold text-gray-900">Series Management</h3>
+                </div>
+                <p className="text-sm text-gray-600 mb-3">Edit, duplicate, or archive series</p>
+                <p className="text-xs text-gray-500">
+                  Click the settings icon next to any series in the series switcher to edit details,
+                  duplicate, or archive. Archived series can be restored within 30 days.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start gap-2">
+                <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-blue-900">
+                  <strong>Quick Access:</strong> Use the switchers in the left sidebar to quickly
+                  access workspace and series management options.
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg flex items-center justify-center">

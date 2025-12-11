@@ -1,11 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
-import { Building2, ChevronDown, Check } from 'lucide-react';
+import { Building2, ChevronDown, Check, Settings, Plus } from 'lucide-react';
 import { useOrganization } from '../contexts/OrganizationContext';
+import { OrganizationSettingsModal } from './OrganizationSettingsModal';
 
 export function OrganizationSwitcher() {
-  const { currentOrganization, organizations, switchOrganization, loading } = useOrganization();
+  const { currentOrganization, organizations, switchOrganization, loading, refreshOrganizations } = useOrganization();
   const [isOpen, setIsOpen] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const currentMembership = organizations.find(m => m.organization.id === currentOrganization?.id);
+  const userRole = currentMembership?.role || 'viewer';
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -145,6 +151,64 @@ export function OrganizationSwitcher() {
               );
             })
           )}
+
+          <div className="border-t border-gray-200 mt-2">
+            <button
+              onClick={() => {
+                setShowSettings(true);
+                setIsOpen(false);
+              }}
+              className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors text-left"
+            >
+              <Settings className="w-5 h-5 text-gray-600" />
+              <div>
+                <div className="font-medium text-gray-900 text-sm">Workspace Settings</div>
+                <div className="text-xs text-gray-600">Manage team, billing, and settings</div>
+              </div>
+            </button>
+            <button
+              onClick={() => {
+                setShowCreateModal(true);
+                setIsOpen(false);
+              }}
+              className="w-full px-4 py-3 flex items-center gap-3 hover:bg-blue-50 transition-colors text-left border-t border-gray-100"
+            >
+              <Plus className="w-5 h-5 text-blue-600" />
+              <div>
+                <div className="font-medium text-blue-600 text-sm">Create New Workspace</div>
+                <div className="text-xs text-gray-600">Start a new organization</div>
+              </div>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showSettings && currentOrganization && (
+        <OrganizationSettingsModal
+          organization={currentOrganization}
+          userRole={userRole}
+          onClose={() => setShowSettings(false)}
+          onUpdate={() => {
+            refreshOrganizations();
+          }}
+        />
+      )}
+
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Create New Workspace</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Creating additional workspaces will be available soon. For now, you can manage your
+              existing workspaces and switch between them.
+            </p>
+            <button
+              onClick={() => setShowCreateModal(false)}
+              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Got it
+            </button>
+          </div>
         </div>
       )}
     </div>
