@@ -305,7 +305,7 @@ export function Settings() {
                               <h4 className="font-semibold text-gray-700 mb-2">Backend & Services</h4>
                               <ul className="text-sm text-gray-600 space-y-1">
                                 <li>Supabase (Database & Storage)</li>
-                                <li>Google Vertex AI (Gemini 2.0 Flash & Veo 3)</li>
+                                <li>Google Vertex AI (Gemini 2.5 Flash & Veo 3)</li>
                                 <li>ElevenLabs (Voice Synthesis)</li>
                                 <li>Chatterbox (Voice Cloning & TTS)</li>
                                 <li>Supabase Edge Functions</li>

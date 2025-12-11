@@ -316,7 +316,7 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
           <div className="flex items-start gap-3">
             <CheckCircle className="w-6 h-6 text-green-600 mt-1" />
             <div>
-              <h3 className="font-semibold text-green-900 mb-1">Gemini 2.0 Flash Connected</h3>
+              <h3 className="font-semibold text-green-900 mb-1">Gemini 2.5 Flash Connected</h3>
               <p className="text-sm text-green-800">
                 Your Gemini API key is configured and ready to generate scripts.
               </p>
@@ -343,7 +343,7 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
           <div>
             <h3 className="font-semibold text-blue-900 mb-1">AI-Powered Script Generation</h3>
             <p className="text-sm text-blue-800">
-              Generate complete episode scripts using Gemini 2.0 Flash. Provide details about your episode, select characters, and let AI create a full script structure with acts, scenes, and dialogue.
+              Generate complete episode scripts using Gemini 2.5 Flash. Provide details about your episode, select characters, and let AI create a full script structure with acts, scenes, and dialogue.
             </p>
           </div>
         </div>
@@ -494,7 +494,7 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
         </button>
         {configStatus?.configured && (
           <p className="text-xs text-gray-600 text-center mt-2">
-            Using Gemini 2.0 Flash to generate a complete 3-act script with dialogue
+            Using Gemini 2.5 Flash to generate a complete 3-act script with dialogue
           </p>
         )}
       </div>
