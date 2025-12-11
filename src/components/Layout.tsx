@@ -13,11 +13,13 @@ import {
   Menu,
   X,
   TrendingUp,
-  DollarSign
+  DollarSign,
+  HelpCircle
 } from 'lucide-react';
 import { Logo } from './Logo';
 import { OrganizationSwitcher } from './OrganizationSwitcher';
 import { SeriesSwitcher } from './SeriesSwitcher';
+import { InfoTooltip } from './InfoTooltip';
 
 interface LayoutProps {
   children: ReactNode;
@@ -61,10 +63,18 @@ export function Layout({ children, currentView, onNavigate, currentSeriesId, onS
         </div>
 
         <div className="p-4 border-b border-blue-200">
+          <div className="mb-2 flex items-center gap-1.5 px-1">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Workspace</p>
+            <InfoTooltip content="Your workspace can contain multiple animated shows. Think of it as your studio or company." />
+          </div>
           <OrganizationSwitcher />
         </div>
 
         <div className="p-4 border-b border-blue-200">
+          <div className="mb-2 flex items-center gap-1.5 px-1">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Active Show</p>
+            <InfoTooltip content="Select which animated series you want to work on. Each show has its own characters, scripts, and assets." />
+          </div>
           <SeriesSwitcher currentSeriesId={currentSeriesId} onSeriesChange={onSeriesChange} />
         </div>
 
@@ -145,10 +155,18 @@ export function Layout({ children, currentView, onNavigate, currentSeriesId, onS
               </div>
 
               <div className="p-4 border-b border-blue-200">
+                <div className="mb-2 flex items-center gap-1.5 px-1">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Workspace</p>
+                  <InfoTooltip content="Your workspace can contain multiple animated shows. Think of it as your studio or company." />
+                </div>
                 <OrganizationSwitcher />
               </div>
 
               <div className="p-4 border-b border-blue-200">
+                <div className="mb-2 flex items-center gap-1.5 px-1">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Active Show</p>
+                  <InfoTooltip content="Select which animated series you want to work on. Each show has its own characters, scripts, and assets." />
+                </div>
                 <SeriesSwitcher currentSeriesId={currentSeriesId} onSeriesChange={onSeriesChange} />
               </div>
 
