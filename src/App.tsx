@@ -92,7 +92,7 @@ function App() {
         <div className="text-center">
           <div className="w-20 h-20 border-4 border-scripps-blue border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-xl text-gray-700 font-medium">
-            {authLoading ? 'Authenticating...' : orgLoading ? 'Setting up workspace...' : 'Loading Animation Studio...'}
+            {authLoading ? 'Authenticating...' : orgLoading ? 'Setting up workspace...' : 'Loading Scripps AI Studio...'}
           </p>
           <p className="text-sm text-gray-500 mt-2">This usually takes just a few seconds</p>
         </div>

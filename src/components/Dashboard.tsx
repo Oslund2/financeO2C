@@ -368,8 +368,8 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-scripps-navy mb-1 sm:mb-2">Spelling Bee Animation Studio</h1>
-          <p className="text-sm sm:text-base lg:text-lg text-gray-600">AI-Powered Animation Production</p>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-scripps-navy mb-1 sm:mb-2">Scripps AI Studio</h1>
+          <p className="text-sm sm:text-base lg:text-lg text-gray-600">AI-Powered Storytelling Assistant</p>
         </div>
 
         <CastFilmStrip seriesId={seriesId} onNavigate={onNavigate} />
@@ -679,9 +679,9 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
             </div>
 
             <div className="mt-6 pt-6 border-t border-gray-200">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">Scripps Spelling Bee Series</h3>
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">AI-Powered Content Creation</h3>
               <p className="text-sm text-gray-600 leading-relaxed">
-                Create engaging claymation episodes featuring spelling bee adventures. Use AI to generate scripts, characters, and animations.
+                Create engaging animated series with AI assistance. Generate scripts, develop characters, and produce high-quality animations efficiently.
               </p>
             </div>
           </div>

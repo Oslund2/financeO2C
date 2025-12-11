@@ -84,7 +84,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         // Try using the helper function first (bypasses RLS)
         const { data: newOrg, error: orgError } = await supabase
           .rpc('create_organization_with_membership', {
-            org_name: 'My Animation Studio',
+            org_name: 'My Studio',
             org_slug: slug,
             org_billing_tier: 'professional',
             user_uuid: user.id
@@ -99,7 +99,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
               .from('organizations')
               .insert([
                 {
-                  name: 'My Animation Studio',
+                  name: 'My Studio',
                   slug: slug,
                   billing_tier: 'professional',
                   created_by: user.id,
