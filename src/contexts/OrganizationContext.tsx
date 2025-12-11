@@ -75,6 +75,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
               name: 'Animation Studio',
               slug: 'animation-studio',
               billing_tier: 'professional',
+              created_by: user.id,
             },
           ])
           .select()

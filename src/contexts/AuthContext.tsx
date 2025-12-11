@@ -19,26 +19,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const initAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+
       if (session) {
         setSession(session);
         setUser(session.user);
+        setLoading(false);
       } else {
-        const mockUser = {
-          id: 'dev-user-00000000-0000-0000-0000-000000000000',
-          aud: 'authenticated',
-          role: 'authenticated',
-          email: 'dev@example.com',
-          app_metadata: {},
-          user_metadata: {},
-          created_at: new Date().toISOString(),
-        } as User;
+        try {
+          const devEmail = 'demo@animationstudio.dev';
+          const devPassword = 'demo-password-123456';
 
-        setUser(mockUser);
-        setSession(null);
+          let { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email: devEmail,
+            password: devPassword,
+          });
+
+          if (signInError) {
+            const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+              email: devEmail,
+              password: devPassword,
+            });
+
+            if (signUpError) {
+              console.error('Error creating dev user:', signUpError);
+              setLoading(false);
+              return;
+            }
+
+            signInData = signUpData;
+          }
+
+          if (signInData?.session) {
+            setSession(signInData.session);
+            setUser(signInData.session.user);
+          } else if (signInData?.user) {
+            setUser(signInData.user);
+          }
+        } catch (error) {
+          console.error('Auth initialization error:', error);
+        } finally {
+          setLoading(false);
+        }
       }
-      setLoading(false);
-    });
+    };
+
+    initAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       (async () => {
