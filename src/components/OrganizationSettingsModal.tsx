@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   X,
   Building2,
@@ -58,8 +58,10 @@ export function OrganizationSettingsModal({
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'general' | 'team' | 'usage' | 'danger'>('general');
   const [loading, setLoading] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [contentCount, setContentCount] = useState<ContentCount | null>(null);
   const [members, setMembers] = useState<OrganizationMember[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [editForm, setEditForm] = useState({
     name: organization.name,
@@ -108,6 +110,104 @@ export function OrganizationSettingsModal({
       setMembers(data || []);
     } catch (error) {
       console.error('Error fetching members:', error);
+    }
+  };
+
+  const handleLogoUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleLogoFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      alert('File size must be less than 5MB');
+      return;
+    }
+
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('Please upload a PNG, JPG, SVG, or WebP image');
+      return;
+    }
+
+    setUploadingLogo(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${organization.id}-${Date.now()}.${fileExt}`;
+      const filePath = `organization-logos/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('production-assets')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (uploadError) throw uploadError;
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from('production-assets').getPublicUrl(filePath);
+
+      if (organization.logo_url) {
+        const oldPath = organization.logo_url.split('/').slice(-2).join('/');
+        await supabase.storage.from('production-assets').remove([oldPath]);
+      }
+
+      const { error: updateError } = await supabase
+        .from('organizations')
+        .update({
+          logo_url: publicUrl,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', organization.id);
+
+      if (updateError) throw updateError;
+
+      onUpdate();
+      alert('Logo uploaded successfully');
+    } catch (error) {
+      console.error('Error uploading logo:', error);
+      alert('Failed to upload logo. Please try again.');
+    } finally {
+      setUploadingLogo(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveLogo = async () => {
+    if (!organization.logo_url) return;
+
+    const confirmed = confirm('Are you sure you want to remove the organization logo?');
+    if (!confirmed) return;
+
+    setUploadingLogo(true);
+    try {
+      const oldPath = organization.logo_url.split('/').slice(-2).join('/');
+      await supabase.storage.from('production-assets').remove([oldPath]);
+
+      const { error } = await supabase
+        .from('organizations')
+        .update({
+          logo_url: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', organization.id);
+
+      if (error) throw error;
+
+      onUpdate();
+      alert('Logo removed successfully');
+    } catch (error) {
+      console.error('Error removing logo:', error);
+      alert('Failed to remove logo. Please try again.');
+    } finally {
+      setUploadingLogo(false);
     }
   };
 
@@ -285,14 +385,46 @@ export function OrganizationSettingsModal({
                       <Building2 className="w-10 h-10 text-white" />
                     </div>
                   )}
-                  <button
-                    disabled={!canEdit}
-                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  >
-                    <Upload className="w-4 h-4" />
-                    Upload Logo
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp"
+                      onChange={handleLogoFileChange}
+                      className="hidden"
+                    />
+                    <button
+                      onClick={handleLogoUploadClick}
+                      disabled={!canEdit || uploadingLogo}
+                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      {uploadingLogo ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4" />
+                          Upload Logo
+                        </>
+                      )}
+                    </button>
+                    {organization.logo_url && canEdit && (
+                      <button
+                        onClick={handleRemoveLogo}
+                        disabled={uploadingLogo}
+                        className="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Remove
+                      </button>
+                    )}
+                  </div>
                 </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Supported formats: PNG, JPG, SVG, WebP. Max size: 5MB
+                </p>
               </div>
             </div>
           )}
