@@ -147,6 +147,20 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      // Sort memberships: "Spelling Bee" organizations first, then alphabetically
+      memberships.sort((a, b) => {
+        const aName = a.organization.name.toLowerCase();
+        const bName = b.organization.name.toLowerCase();
+
+        const aIsSpellingBee = aName.includes('spelling bee') || aName.includes('claymation');
+        const bIsSpellingBee = bName.includes('spelling bee') || bName.includes('claymation');
+
+        if (aIsSpellingBee && !bIsSpellingBee) return -1;
+        if (!aIsSpellingBee && bIsSpellingBee) return 1;
+
+        return aName.localeCompare(bName);
+      });
+
       setOrganizations(memberships);
       setError(null);
 
@@ -157,9 +171,11 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         if (savedOrg) {
           setCurrentOrganization(savedOrg.organization);
         } else {
-          const defaultOrg = memberships.find(m =>
-            m.organization.name === 'Workspace Spelling Bee Claymation'
-          );
+          // Find Spelling Bee workspace with flexible matching
+          const defaultOrg = memberships.find(m => {
+            const name = m.organization.name.toLowerCase();
+            return name.includes('spelling bee') || name.includes('claymation');
+          });
 
           const selectedOrg = defaultOrg || memberships[0];
           setCurrentOrganization(selectedOrg.organization);
