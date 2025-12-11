@@ -157,8 +157,13 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         if (savedOrg) {
           setCurrentOrganization(savedOrg.organization);
         } else {
-          setCurrentOrganization(memberships[0].organization);
-          localStorage.setItem(STORAGE_KEY, memberships[0].organization.id);
+          const defaultOrg = memberships.find(m =>
+            m.organization.name === 'Workspace Spelling Bee Claymation'
+          );
+
+          const selectedOrg = defaultOrg || memberships[0];
+          setCurrentOrganization(selectedOrg.organization);
+          localStorage.setItem(STORAGE_KEY, selectedOrg.organization.id);
         }
       }
     } catch (error) {

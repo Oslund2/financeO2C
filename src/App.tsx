@@ -40,18 +40,21 @@ function App() {
     }
 
     try {
-      const { data: existingSeries, error: fetchError } = await supabase
+      const { data: allSeries, error: fetchError } = await supabase
         .from('series')
         .select('*')
         .eq('organization_id', currentOrganization.id)
-        .limit(1)
-        .maybeSingle();
+        .eq('archived', false);
 
       if (fetchError) throw fetchError;
 
-      if (existingSeries) {
-        setSeriesId(existingSeries.id);
-        await initializeSampleData(existingSeries.id);
+      let selectedSeries = null;
+
+      if (allSeries && allSeries.length > 0) {
+        const defaultSeries = allSeries.find((s: any) => s.name === 'Schwawsome');
+        selectedSeries = defaultSeries || allSeries[0];
+        setSeriesId(selectedSeries.id);
+        await initializeSampleData(selectedSeries.id);
       } else {
         const { data: newSeries, error: insertError } = await supabase
           .from('series')
