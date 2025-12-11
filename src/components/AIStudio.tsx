@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { generateScriptWithGemini, checkVertexAIConfiguration } from '../services/geminiService';
 import { getUserSettings } from '../services/settingsService';
+import { VoiceGenerationTab } from './VoiceGenerationTab';
 
 type Character = Database['public']['Tables']['characters']['Row'];
 
@@ -66,7 +67,7 @@ export function AIStudio({ seriesId, onNavigate }: AIStudioProps) {
             {activeTab === 'storyboard' && <StoryboardGeneration onNavigate={onNavigate} />}
             {activeTab === 'image' && <ImageGeneration seriesId={seriesId} />}
             {activeTab === 'video' && <VideoGeneration />}
-            {activeTab === 'voice' && <VoiceGeneration seriesId={seriesId} />}
+            {activeTab === 'voice' && <VoiceGeneration seriesId={seriesId} onNavigate={onNavigate} />}
           </div>
         </div>
       </div>
@@ -695,17 +696,6 @@ function StoryboardGeneration({ onNavigate }: { onNavigate: (view: string) => vo
   );
 }
 
-function VoiceGeneration({ seriesId }: { seriesId: string | null }) {
-  return (
-    <div className="text-center py-12">
-      <div className="w-16 h-16 bg-gradient-to-br from-scripps-yellow to-yellow-400 rounded-full flex items-center justify-center mx-auto mb-4">
-        <Mic className="w-8 h-8 text-white" />
-      </div>
-      <h3 className="text-xl font-semibold text-gray-900 mb-2">Voice Generation</h3>
-      <p className="text-gray-600 mb-4">
-        Generate character voices and dialogue using Eleven Labs
-      </p>
-      <p className="text-sm text-scripps-blue">Coming soon...</p>
-    </div>
-  );
+function VoiceGeneration({ seriesId, onNavigate }: { seriesId: string | null; onNavigate: (view: string) => void }) {
+  return <VoiceGenerationTab seriesId={seriesId} onNavigate={onNavigate} />;
 }
