@@ -28,14 +28,15 @@ export function DevLoginBypass() {
       if (orgError) throw orgError;
 
       const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id || 'dev-user-00000000-0000-0000-0000-000000000000';
 
-      if (user && org) {
+      if (org) {
         const { error: memberError } = await supabase
           .from('organization_members')
           .insert([
             {
               organization_id: org.id,
-              user_id: user.id,
+              user_id: userId,
               role: 'owner',
             },
           ]);

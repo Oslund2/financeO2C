@@ -20,8 +20,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+      if (session) {
+        setSession(session);
+        setUser(session.user);
+      } else {
+        const mockUser = {
+          id: 'dev-user-00000000-0000-0000-0000-000000000000',
+          aud: 'authenticated',
+          role: 'authenticated',
+          email: 'dev@example.com',
+          app_metadata: {},
+          user_metadata: {},
+          created_at: new Date().toISOString(),
+        } as User;
+
+        setUser(mockUser);
+        setSession(null);
+      }
       setLoading(false);
     });
 
