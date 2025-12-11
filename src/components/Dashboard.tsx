@@ -246,7 +246,7 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
               <>
                 <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 sm:p-6 mb-4 sm:mb-6 border border-white/20">
                   <p className="text-sm sm:text-base lg:text-lg text-white/95 leading-relaxed mb-3 sm:mb-4">
-                    Leveraging the iconic <span className="font-semibold text-scripps-yellow">Scripps National Spelling Bee</span> brand, this animated series transforms historic winning words into hilarious, educational adventures.
+                    Leveraging the iconic <span className="font-semibold text-scripps-yellow">Scripps National Spelling Bee</span> brand, this animated series transforms historic winning words into hilarious, educational adventures all steeped in pop culture and Zeitgeist. The Bee and its animated series creates virtuous year-round brand and marketing opportunities.
                   </p>
                   <p className="text-xs sm:text-sm lg:text-base text-white/90 leading-relaxed">
                     This groundbreaking format blends new fictional characters with real-life Bee champions (secured via perpetual NIL) to expand our IP universe. Each 22-minute episode is thematically anchored by a specific winning word and designed for global scale across Scripps linear assets and streaming platforms.
@@ -707,7 +707,7 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
                 <div className="space-y-6">
                   <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20">
                     <p className="text-2xl text-white/95 leading-relaxed mb-6">
-                      Leveraging the iconic <span className="font-semibold text-scripps-yellow">Scripps National Spelling Bee</span> brand, this animated series transforms historic winning words into hilarious, educational adventures.
+                      Leveraging the iconic <span className="font-semibold text-scripps-yellow">Scripps National Spelling Bee</span> brand, this animated series transforms historic winning words into hilarious, educational adventures all steeped in pop culture and Zeitgeist. The Bee and its animated series creates virtuous year-round brand and marketing opportunities.
                     </p>
                     <p className="text-xl text-white/90 leading-relaxed">
                       This groundbreaking format blends new fictional characters with real-life Bee champions (secured via perpetual NIL) to expand our IP universe. Each 22-minute episode is thematically anchored by a specific winning word and designed for global scale across Scripps linear assets and streaming platforms.
