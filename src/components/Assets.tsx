@@ -5,6 +5,7 @@ import type { Database } from '../lib/database.types';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
 import { AssetUploadModal } from './AssetUploadModal';
 import AssetPreviewModal from './AssetPreviewModal';
+import { useOrganization } from '../contexts/OrganizationContext';
 
 type Asset = Database['public']['Tables']['assets']['Row'];
 
@@ -13,6 +14,7 @@ interface AssetsProps {
 }
 
 export function Assets({ seriesId }: AssetsProps) {
+  const { currentOrganization } = useOrganization();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [filteredAssets, setFilteredAssets] = useState<Asset[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -45,7 +47,7 @@ export function Assets({ seriesId }: AssetsProps) {
 
   useEffect(() => {
     loadAssets();
-  }, [seriesId]);
+  }, [seriesId, currentOrganization]);
 
   useEffect(() => {
     let filtered = assets;
@@ -67,8 +69,17 @@ export function Assets({ seriesId }: AssetsProps) {
   }, [searchQuery, selectedType, assets]);
 
   const loadAssets = async () => {
+    if (!currentOrganization) {
+      setLoading(false);
+      return;
+    }
+
     try {
-      let query = supabase.from('assets').select('*').order('created_at', { ascending: false });
+      let query = supabase
+        .from('assets')
+        .select('*')
+        .eq('organization_id', currentOrganization.id)
+        .order('created_at', { ascending: false });
 
       if (seriesId) {
         query = query.eq('series_id', seriesId);
@@ -135,7 +146,13 @@ export function Assets({ seriesId }: AssetsProps) {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 md:mb-8">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Asset Library</h1>
-            <p className="text-sm md:text-base text-gray-600">Browse and manage your production assets</p>
+            <p className="text-sm md:text-base text-gray-600">
+              {currentOrganization ? (
+                seriesId ?
+                  `Assets for current series in ${currentOrganization.name}` :
+                  `All assets in ${currentOrganization.name}`
+              ) : 'Browse and manage your production assets'}
+            </p>
           </div>
           <button
             onClick={() => setShowUploadModal(true)}

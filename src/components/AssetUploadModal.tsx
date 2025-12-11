@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Upload, FileVideo, FileAudio, Image as ImageIcon, FileText } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
+import { useOrganization } from '../contexts/OrganizationContext';
 
 type AssetInsert = Database['public']['Tables']['assets']['Insert'];
 
@@ -13,11 +14,13 @@ interface AssetUploadModalProps {
 }
 
 export function AssetUploadModal({ isOpen, onClose, onUploadComplete, seriesId }: AssetUploadModalProps) {
+  const { currentOrganization } = useOrganization();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -35,6 +38,30 @@ export function AssetUploadModal({ isOpen, onClose, onUploadComplete, seriesId }
     { id: 'audio', label: 'Audio' },
     { id: 'document', label: 'Document' },
   ];
+
+  useEffect(() => {
+    const fetchOrganizationId = async () => {
+      if (seriesId) {
+        const { data: series, error } = await supabase
+          .from('series')
+          .select('organization_id')
+          .eq('id', seriesId)
+          .maybeSingle();
+
+        if (!error && series) {
+          setOrganizationId(series.organization_id);
+        } else if (currentOrganization) {
+          setOrganizationId(currentOrganization.id);
+        }
+      } else if (currentOrganization) {
+        setOrganizationId(currentOrganization.id);
+      }
+    };
+
+    if (isOpen) {
+      fetchOrganizationId();
+    }
+  }, [seriesId, currentOrganization, isOpen]);
 
   const getFileIcon = (fileType: string) => {
     if (fileType.startsWith('video/')) return <FileVideo className="w-12 h-12 text-purple-500" />;
@@ -151,6 +178,7 @@ export function AssetUploadModal({ isOpen, onClose, onUploadComplete, seriesId }
 
       const assetData: AssetInsert = {
         series_id: seriesId,
+        organization_id: organizationId,
         asset_type: formData.asset_type,
         name: formData.name,
         description: formData.description || null,
