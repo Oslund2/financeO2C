@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
 import { VoiceSelector } from './VoiceSelector';
+import { VoiceCloningModal } from './VoiceCloningModal';
+import type { VoiceProvider } from '../services/voiceService';
 
 type Character = Database['public']['Tables']['characters']['Row'];
 
@@ -528,8 +530,12 @@ function CharacterForm({ character, seriesId, onClose, onSave }: CharacterFormPr
     tags: character?.tags.join(', ') || '',
   });
   const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(
-    character?.eleven_labs_voice_id || null
+    character?.chatterbox_voice_id || character?.eleven_labs_voice_id || null
   );
+  const [selectedProvider, setSelectedProvider] = useState<VoiceProvider | null>(
+    character?.voice_provider as VoiceProvider || 'elevenlabs'
+  );
+  const [showVoiceCloning, setShowVoiceCloning] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(
     character?.reference_image_url || null
@@ -592,7 +598,9 @@ function CharacterForm({ character, seriesId, onClose, onSave }: CharacterFormPr
         personality: formData.personality || null,
         clay_features: formData.clay_features || null,
         voice_characteristics: formData.voice_characteristics || null,
-        eleven_labs_voice_id: selectedVoiceId,
+        voice_provider: selectedProvider,
+        eleven_labs_voice_id: selectedProvider === 'elevenlabs' ? selectedVoiceId : null,
+        chatterbox_voice_id: selectedProvider === 'chatterbox' ? selectedVoiceId : null,
         reference_image_url: imageUrl,
         tags: formData.tags.split(',').map((t) => t.trim()).filter(Boolean),
       };
@@ -777,8 +785,20 @@ function CharacterForm({ character, seriesId, onClose, onSave }: CharacterFormPr
           <div className="bg-gradient-to-br from-blue-50 to-sky-50 border-2 border-blue-200 rounded-lg p-4">
             <VoiceSelector
               selectedVoiceId={selectedVoiceId}
-              onVoiceSelect={setSelectedVoiceId}
+              selectedProvider={selectedProvider}
+              onVoiceSelect={(voiceId, provider) => {
+                setSelectedVoiceId(voiceId);
+                setSelectedProvider(provider);
+              }}
             />
+            <button
+              type="button"
+              onClick={() => setShowVoiceCloning(true)}
+              className="mt-3 w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center gap-2"
+            >
+              <Sparkles className="w-4 h-4" />
+              Clone Custom Voice
+            </button>
           </div>
 
           <div>
@@ -815,6 +835,16 @@ function CharacterForm({ character, seriesId, onClose, onSave }: CharacterFormPr
             </button>
           </div>
         </form>
+
+        <VoiceCloningModal
+          isOpen={showVoiceCloning}
+          onClose={() => setShowVoiceCloning(false)}
+          onSuccess={(voiceId) => {
+            setSelectedVoiceId(voiceId);
+            setSelectedProvider('chatterbox');
+            setShowVoiceCloning(false);
+          }}
+        />
       </div>
     </div>
   );
