@@ -60,12 +60,45 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
 
       if (error) throw error;
 
-      const memberships = (data || [])
+      let memberships = (data || [])
         .filter(item => item.organization)
         .map(item => ({
           organization: item.organization as unknown as Organization,
           role: item.role
         }));
+
+      if (memberships.length === 0) {
+        const { data: newOrg, error: orgError } = await supabase
+          .from('organizations')
+          .insert([
+            {
+              name: 'Animation Studio',
+              slug: 'animation-studio',
+              billing_tier: 'professional',
+            },
+          ])
+          .select()
+          .single();
+
+        if (orgError) throw orgError;
+
+        const { error: memberError } = await supabase
+          .from('organization_members')
+          .insert([
+            {
+              organization_id: newOrg.id,
+              user_id: user.id,
+              role: 'owner',
+            },
+          ]);
+
+        if (memberError) throw memberError;
+
+        memberships = [{
+          organization: newOrg,
+          role: 'owner'
+        }];
+      }
 
       setOrganizations(memberships);
 
@@ -79,8 +112,6 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
           setCurrentOrganization(memberships[0].organization);
           localStorage.setItem(STORAGE_KEY, memberships[0].organization.id);
         }
-      } else {
-        setCurrentOrganization(null);
       }
     } catch (error) {
       console.error('Error fetching organizations:', error);

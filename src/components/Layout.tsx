@@ -17,14 +17,17 @@ import {
 } from 'lucide-react';
 import { Logo } from './Logo';
 import { OrganizationSwitcher } from './OrganizationSwitcher';
+import { SeriesSwitcher } from './SeriesSwitcher';
 
 interface LayoutProps {
   children: ReactNode;
   currentView: string;
   onNavigate: (view: string) => void;
+  currentSeriesId: string | null;
+  onSeriesChange: (seriesId: string) => void;
 }
 
-export function Layout({ children, currentView, onNavigate }: LayoutProps) {
+export function Layout({ children, currentView, onNavigate, currentSeriesId, onSeriesChange }: LayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navItems = [
@@ -59,6 +62,10 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
 
         <div className="p-4 border-b border-blue-200">
           <OrganizationSwitcher />
+        </div>
+
+        <div className="p-4 border-b border-blue-200">
+          <SeriesSwitcher currentSeriesId={currentSeriesId} onSeriesChange={onSeriesChange} />
         </div>
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
@@ -139,6 +146,10 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
 
               <div className="p-4 border-b border-blue-200">
                 <OrganizationSwitcher />
+              </div>
+
+              <div className="p-4 border-b border-blue-200">
+                <SeriesSwitcher currentSeriesId={currentSeriesId} onSeriesChange={onSeriesChange} />
               </div>
 
               <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
