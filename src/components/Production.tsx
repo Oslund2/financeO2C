@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase';
 
 interface ProductionProps {
   seriesId: string | null;
+  episodeId?: string | null;
 }
 
 type TabType = 'overview' | 'shots' | 'batches' | 'review';
@@ -27,10 +28,11 @@ interface Shot {
   scene_number: number;
   shot_type: string;
   camera_angle: string;
-  description: string;
-  dialogue: string | null;
+  camera_movement: string;
+  narrative_description: string | null;
+  technical_description: string | null;
   characters: string[];
-  locations: string[];
+  location: string | null;
   duration_seconds: number;
   status: string;
 }
@@ -58,10 +60,10 @@ interface RenderingJob {
   shot?: Shot;
 }
 
-export function Production({ seriesId }: ProductionProps) {
+export function Production({ seriesId, episodeId }: ProductionProps) {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [episodes, setEpisodes] = useState<Episode[]>([]);
-  const [selectedEpisodeId, setSelectedEpisodeId] = useState<string | null>(null);
+  const [selectedEpisodeId, setSelectedEpisodeId] = useState<string | null>(episodeId || null);
   const [shots, setShots] = useState<Shot[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [renderingJobs, setRenderingJobs] = useState<RenderingJob[]>([]);
@@ -77,6 +79,12 @@ export function Production({ seriesId }: ProductionProps) {
       loadEpisodes();
     }
   }, [seriesId]);
+
+  useEffect(() => {
+    if (episodeId) {
+      setSelectedEpisodeId(episodeId);
+    }
+  }, [episodeId]);
 
   useEffect(() => {
     if (selectedEpisodeId) {
@@ -111,7 +119,7 @@ export function Production({ seriesId }: ProductionProps) {
     try {
       const [shotsResult, batchesResult, jobsResult] = await Promise.all([
         supabase
-          .from('shot_plans')
+          .from('production_shot_plans')
           .select('*')
           .eq('episode_id', selectedEpisodeId)
           .order('shot_number'),
@@ -124,9 +132,9 @@ export function Production({ seriesId }: ProductionProps) {
           .from('rendering_jobs')
           .select(`
             *,
-            shot:shot_plans(*)
+            shot:production_shot_plans(*)
           `)
-          .eq('shot_plans.episode_id', selectedEpisodeId)
+          .eq('production_shot_plans.episode_id', selectedEpisodeId)
           .order('created_at', { ascending: false })
       ]);
 
@@ -148,27 +156,28 @@ export function Production({ seriesId }: ProductionProps) {
     try {
       setGenerating(true);
 
-      const sampleShots = [
-        { shot_number: 1, act_number: 1, scene_number: 1, shot_type: 'establishing_shot', camera_angle: 'aerial', description: 'Opening shot establishing the setting', dialogue: null, characters: [], locations: ['Main Location'], duration_seconds: 8, status: 'pending' },
-        { shot_number: 2, act_number: 1, scene_number: 1, shot_type: 'wide_shot', camera_angle: 'eye_level', description: 'Introduction of main characters', dialogue: 'Welcome to the scene', characters: ['Character 1', 'Character 2'], locations: ['Main Location'], duration_seconds: 6, status: 'pending' },
-        { shot_number: 3, act_number: 1, scene_number: 1, shot_type: 'medium_shot', camera_angle: 'eye_level', description: 'Character interaction', dialogue: 'Let me show you around', characters: ['Character 1'], locations: ['Main Location'], duration_seconds: 6, status: 'pending' },
-        { shot_number: 4, act_number: 1, scene_number: 2, shot_type: 'close_up', camera_angle: 'eye_level', description: 'Emotional reaction shot', dialogue: null, characters: ['Character 2'], locations: ['Interior'], duration_seconds: 4, status: 'pending' },
-        { shot_number: 5, act_number: 2, scene_number: 3, shot_type: 'two_shot', camera_angle: 'eye_level', description: 'Conversation between two characters', dialogue: 'What happens next?', characters: ['Character 1', 'Character 2'], locations: ['Interior'], duration_seconds: 6, status: 'pending' },
-      ];
+      const { data: result, error: funcError } = await supabase.rpc(
+        'get_or_create_shot_plans_for_episode',
+        { p_episode_id: selectedEpisodeId }
+      );
 
-      const { error } = await supabase
-        .from('shot_plans')
-        .insert(
-          sampleShots.map(shot => ({
-            episode_id: selectedEpisodeId,
-            ...shot
-          }))
-        );
+      if (funcError) throw funcError;
 
-      if (error) throw error;
+      if (result && result.length > 0) {
+        const { shot_count, source } = result[0];
+
+        if (source === 'existing') {
+          alert(`Shot list already exists with ${shot_count} shots.`);
+        } else if (source === 'storyboard') {
+          alert(`Shot list generated from storyboard! ${shot_count} shots created.`);
+        } else if (source === 'no_script') {
+          alert('No script found for this episode. Please create a script first.');
+        } else if (source === 'no_storyboard') {
+          alert('No storyboard found. Please generate a storyboard from the script first.');
+        }
+      }
 
       await loadProductionData();
-      alert('Shot list generated successfully! This is a demo with 5 sample shots.');
     } catch (error) {
       console.error('Error generating shot list:', error);
       alert('Failed to generate shot list. Please try again.');
@@ -207,7 +216,7 @@ export function Production({ seriesId }: ProductionProps) {
 
       for (const shotId of shotIds) {
         await supabase
-          .from('shot_plans')
+          .from('production_shot_plans')
           .update({ status: 'rendering' })
           .eq('id', shotId);
 
@@ -518,7 +527,7 @@ export function Production({ seriesId }: ProductionProps) {
                                   Shot {job.shot?.shot_number} - Variation {job.variation_number}
                                 </div>
                                 <div className="text-sm text-gray-600">
-                                  {job.shot?.description?.substring(0, 60)}...
+                                  {(job.shot?.narrative_description || job.shot?.technical_description || '')?.substring(0, 60)}...
                                 </div>
                               </div>
                             </div>
@@ -637,18 +646,13 @@ export function Production({ seriesId }: ProductionProps) {
                                         {shot.duration_seconds}s
                                       </span>
                                     </div>
-                                    <p className="text-sm text-gray-700 mb-2">{shot.description}</p>
-                                    {shot.dialogue && (
-                                      <p className="text-sm text-gray-600 italic mb-2">
-                                        "{shot.dialogue}"
-                                      </p>
-                                    )}
+                                    <p className="text-sm text-gray-700 mb-2">{shot.narrative_description || shot.technical_description}</p>
                                     <div className="flex items-center gap-4 text-xs text-gray-600">
                                       {shot.characters.length > 0 && (
                                         <span>Characters: {shot.characters.join(', ')}</span>
                                       )}
-                                      {shot.locations.length > 0 && (
-                                        <span>Location: {shot.locations.join(', ')}</span>
+                                      {shot.location && (
+                                        <span>Location: {shot.location}</span>
                                       )}
                                     </div>
                                   </div>

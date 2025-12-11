@@ -231,7 +231,7 @@ function App() {
       {currentView === 'assets' && <Assets seriesId={seriesId} />}
       {currentView === 'episodes' && <Episodes seriesId={seriesId} onNavigate={handleNavigate} navigationData={navigationData} />}
       {currentView === 'profit-per-episode' && <EpisodeProfitAnalytics seriesId={seriesId} />}
-      {currentView === 'production' && <Production seriesId={seriesId} />}
+      {currentView === 'production' && <Production seriesId={seriesId} episodeId={navigationData?.episodeId} />}
       {currentView === 'ai-studio' && <AIStudio seriesId={seriesId} onNavigate={handleNavigate} />}
       {currentView === 'storyboard-generator' && <StoryboardGenerator onNavigate={handleNavigate} />}
       {currentView === 'storyboard-viewer' && navigationData?.storyboardId && (

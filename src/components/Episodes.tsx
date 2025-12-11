@@ -616,6 +616,14 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
                             Manual review required - episode in production stage
                           </div>
                         )}
+                        <button
+                          onClick={() => onNavigate('production', { episodeId: episode.id })}
+                          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium"
+                          title="View production and generate shot list"
+                        >
+                          <PlayCircle className="w-4 h-4" />
+                          View Production
+                        </button>
                       </div>
                       <button
                         onClick={() => handleDeleteClick(episode)}
