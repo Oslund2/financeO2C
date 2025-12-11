@@ -116,7 +116,16 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
         query = query.eq('series_id', seriesId);
       }
       const { data } = await query;
-      setCharacters(data || []);
+
+      const roleOrder = { 'Primary': 1, 'Ensemble': 2, 'Recurring': 3, 'Cameo': 4 };
+      const sortedData = (data || []).sort((a, b) => {
+        const roleA = roleOrder[a.role as keyof typeof roleOrder] || 999;
+        const roleB = roleOrder[b.role as keyof typeof roleOrder] || 999;
+        if (roleA !== roleB) return roleA - roleB;
+        return (a.name || '').localeCompare(b.name || '');
+      });
+
+      setCharacters(sortedData);
     } catch (error) {
       console.error('Error loading characters:', error);
     }
@@ -392,7 +401,7 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
 
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Main Characters
+          Characters
         </label>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
           {characters.map((character) => {
@@ -419,7 +428,19 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
-                <div className="font-medium text-gray-900">{character.name}</div>
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="font-medium text-gray-900">{character.name}</div>
+                  {character.role && (
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      character.role === 'Primary' ? 'bg-blue-100 text-blue-700 border border-blue-300' :
+                      character.role === 'Ensemble' ? 'bg-green-100 text-green-700 border border-green-300' :
+                      character.role === 'Recurring' ? 'bg-amber-100 text-amber-700 border border-amber-300' :
+                      'bg-gray-100 text-gray-700 border border-gray-300'
+                    }`}>
+                      {character.role}
+                    </span>
+                  )}
+                </div>
                 {character.age && <div className="text-xs text-gray-600">Age {character.age}</div>}
               </button>
             );
