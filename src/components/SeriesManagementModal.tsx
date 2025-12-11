@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { X, Film, BarChart3, Copy, Archive, AlertTriangle, Loader2, CheckCircle } from 'lucide-react';
+import { X, Film, BarChart3, Copy, Archive, AlertTriangle, Loader2, CheckCircle, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { DeleteConfirmationModal } from './DeleteConfirmationModal';
 
 interface Series {
   id: string;
@@ -28,9 +29,10 @@ interface SeriesManagementModalProps {
 
 export function SeriesManagementModal({ series, onClose, onUpdate }: SeriesManagementModalProps) {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'edit' | 'stats' | 'duplicate' | 'archive'>('edit');
+  const [activeTab, setActiveTab] = useState<'edit' | 'stats' | 'duplicate' | 'archive' | 'delete'>('edit');
   const [loading, setLoading] = useState(false);
   const [contentCount, setContentCount] = useState<ContentCount | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const [editForm, setEditForm] = useState({
     name: series.name,
@@ -148,21 +150,52 @@ export function SeriesManagementModal({ series, onClose, onUpdate }: SeriesManag
           user_uuid: user.id,
         });
 
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase error:', error);
+          alert(`Failed to archive series: ${error.message}`);
+          return;
+        }
 
         if (data.success) {
           alert('Series archived successfully');
           onUpdate();
           onClose();
         } else {
-          throw new Error(data.error);
+          alert(`Failed to archive series: ${data.error}`);
         }
       } catch (error) {
         console.error('Error archiving series:', error);
-        alert('Failed to archive series');
+        alert(`Failed to archive series: ${error instanceof Error ? error.message : 'Unknown error'}`);
       } finally {
         setLoading(false);
       }
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase.rpc('delete_series', {
+        series_uuid: series.id,
+        user_uuid: user.id,
+      });
+
+      if (error) {
+        console.error('Supabase error:', error);
+        throw new Error(error.message);
+      }
+
+      if (data.success) {
+        alert(`Series "${series.name}" has been permanently deleted`);
+        onUpdate();
+        onClose();
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error) {
+      console.error('Error deleting series:', error);
+      throw error;
     }
   };
 
@@ -171,6 +204,7 @@ export function SeriesManagementModal({ series, onClose, onUpdate }: SeriesManag
     { id: 'stats' as const, label: 'Statistics', icon: BarChart3 },
     { id: 'duplicate' as const, label: 'Duplicate', icon: Copy },
     { id: 'archive' as const, label: 'Archive', icon: Archive },
+    { id: 'delete' as const, label: 'Delete', icon: Trash2 },
   ];
 
   return (
@@ -192,7 +226,11 @@ export function SeriesManagementModal({ series, onClose, onUpdate }: SeriesManag
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
-                activeTab === tab.id
+                tab.id === 'delete'
+                  ? activeTab === tab.id
+                    ? 'text-red-600 border-b-2 border-red-600 bg-red-50'
+                    : 'text-red-600 hover:text-red-700 hover:bg-red-50'
+                  : activeTab === tab.id
                   ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
               }`}
@@ -482,6 +520,73 @@ export function SeriesManagementModal({ series, onClose, onUpdate }: SeriesManag
               )}
             </div>
           )}
+
+          {activeTab === 'delete' && (
+            <div className="space-y-6">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex gap-3">
+                <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-semibold text-red-900 mb-1">Permanent Deletion</h4>
+                  <p className="text-sm text-red-800">
+                    This will permanently delete the series and all related database records. This action
+                    cannot be undone. Storage files will remain but all data will be removed immediately.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p className="text-sm text-yellow-900 font-medium mb-2">
+                  Difference between Archive and Delete:
+                </p>
+                <ul className="space-y-1 text-sm text-yellow-800">
+                  <li className="flex items-start gap-2">
+                    <Archive className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <span><strong>Archive:</strong> Hides series, recoverable for 30 days</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Trash2 className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <span><strong>Delete:</strong> Immediate permanent removal, cannot be recovered</span>
+                  </li>
+                </ul>
+              </div>
+
+              {contentCount && (
+                <div className="bg-gray-50 rounded-lg p-4 border-2 border-red-200">
+                  <h4 className="font-semibold text-gray-900 mb-3">Content that will be permanently deleted:</h4>
+                  <ul className="space-y-2 text-sm text-gray-700">
+                    <li className="flex items-center gap-2">
+                      <Trash2 className="w-4 h-4 text-red-500" />
+                      {contentCount.characters} characters
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Trash2 className="w-4 h-4 text-red-500" />
+                      {contentCount.scripts} scripts
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Trash2 className="w-4 h-4 text-red-500" />
+                      {contentCount.episodes} episodes
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Trash2 className="w-4 h-4 text-red-500" />
+                      {contentCount.assets} assets
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Trash2 className="w-4 h-4 text-red-500" />
+                      {contentCount.storyboards} storyboards
+                    </li>
+                  </ul>
+                </div>
+              )}
+
+              <button
+                onClick={() => setShowDeleteModal(true)}
+                className="w-full px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center justify-center gap-2"
+              >
+                <Trash2 className="w-5 h-5" />
+                Proceed with Permanent Deletion
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
@@ -532,6 +637,23 @@ export function SeriesManagementModal({ series, onClose, onUpdate }: SeriesManag
           )}
         </div>
       </div>
+
+      <DeleteConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDelete}
+        entityType="Series"
+        entityName={series.name}
+        relatedItems={contentCount ? [
+          { label: 'Characters', count: contentCount.characters },
+          { label: 'Scripts', count: contentCount.scripts },
+          { label: 'Episodes', count: contentCount.episodes },
+          { label: 'Assets', count: contentCount.assets },
+          { label: 'Storyboards', count: contentCount.storyboards },
+        ] : []}
+        warningMessage="This will permanently delete all database records. Storage files will remain, but all data will be removed immediately and cannot be recovered."
+        requireTyping={true}
+      />
     </div>
   );
 }

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Film, Check, Plus, ChevronDown, Settings, Edit, Copy, Archive } from 'lucide-react';
+import { Film, Check, Plus, ChevronDown, Settings, Edit, Copy, Archive, ArchiveRestore, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { SeriesManagementModal } from './SeriesManagementModal';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Series {
   id: string;
@@ -11,6 +12,8 @@ interface Series {
   theme: string;
   style_guide: string;
   organization_id: string;
+  archived?: boolean;
+  archived_at?: string;
 }
 
 interface SeriesSwitcherProps {
@@ -19,17 +22,22 @@ interface SeriesSwitcherProps {
 }
 
 export function SeriesSwitcher({ currentSeriesId, onSeriesChange }: SeriesSwitcherProps) {
+  const { user } = useAuth();
   const { currentOrganization } = useOrganization();
   const [series, setSeries] = useState<Series[]>([]);
+  const [archivedSeries, setArchivedSeries] = useState<Series[]>([]);
+  const [showArchived, setShowArchived] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [newSeriesName, setNewSeriesName] = useState('');
   const [newSeriesTheme, setNewSeriesTheme] = useState('');
   const [managingSeries, setManagingSeries] = useState<Series | null>(null);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
 
   useEffect(() => {
     if (currentOrganization) {
       fetchSeries();
+      fetchArchivedSeries();
     }
   }, [currentOrganization]);
 
@@ -41,12 +49,62 @@ export function SeriesSwitcher({ currentSeriesId, onSeriesChange }: SeriesSwitch
         .from('series')
         .select('*')
         .eq('organization_id', currentOrganization.id)
+        .eq('archived', false)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       setSeries(data || []);
     } catch (error) {
       console.error('Error fetching series:', error);
+    }
+  };
+
+  const fetchArchivedSeries = async () => {
+    if (!currentOrganization) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('series')
+        .select('*')
+        .eq('organization_id', currentOrganization.id)
+        .eq('archived', true)
+        .order('archived_at', { ascending: false });
+
+      if (error) throw error;
+      setArchivedSeries(data || []);
+    } catch (error) {
+      console.error('Error fetching archived series:', error);
+    }
+  };
+
+  const handleRestoreSeries = async (seriesId: string) => {
+    if (!user) return;
+
+    setRestoringId(seriesId);
+    try {
+      const { data, error } = await supabase.rpc('restore_series', {
+        series_uuid: seriesId,
+        user_uuid: user.id,
+      });
+
+      if (error) {
+        console.error('Supabase error:', error);
+        alert(`Failed to restore series: ${error.message}`);
+        return;
+      }
+
+      if (data.success) {
+        alert('Series restored successfully');
+        fetchSeries();
+        fetchArchivedSeries();
+      } else {
+        alert(`Failed to restore series: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('Error restoring series:', error);
+      alert(`Failed to restore series: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setRestoringId(null);
     }
   };
 
@@ -167,6 +225,48 @@ export function SeriesSwitcher({ currentSeriesId, onSeriesChange }: SeriesSwitch
                 </div>
               ))}
 
+              {archivedSeries.length > 0 && (
+                <div className="border-t border-gray-200 mt-2">
+                  <button
+                    onClick={() => setShowArchived(!showArchived)}
+                    className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider hover:bg-gray-50 transition-colors"
+                  >
+                    <span>Archived Series ({archivedSeries.length})</span>
+                    <ChevronDown className={`w-3 h-3 transition-transform ${showArchived ? 'rotate-180' : ''}`} />
+                  </button>
+                  {showArchived && (
+                    <div className="px-2 pb-2">
+                      {archivedSeries.map((s) => (
+                        <div
+                          key={s.id}
+                          className="group relative flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                          <Archive className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                          <div className="flex-1 text-left min-w-0">
+                            <div className="font-medium truncate text-gray-500">{s.name}</div>
+                            <div className="text-xs text-gray-400 truncate">
+                              Archived {s.archived_at ? new Date(s.archived_at).toLocaleDateString() : ''}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleRestoreSeries(s.id)}
+                            disabled={restoringId === s.id}
+                            className="p-1.5 hover:bg-green-100 rounded transition-all disabled:opacity-50"
+                            title="Restore series"
+                          >
+                            {restoringId === s.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-green-600" />
+                            ) : (
+                              <ArchiveRestore className="w-3.5 h-3.5 text-green-600" />
+                            )}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {series.length > 0 && (
                 <div className="border-t border-gray-200 mt-2">
                   <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 py-2">
@@ -253,6 +353,7 @@ export function SeriesSwitcher({ currentSeriesId, onSeriesChange }: SeriesSwitch
           onClose={() => setManagingSeries(null)}
           onUpdate={() => {
             fetchSeries();
+            fetchArchivedSeries();
           }}
         />
       )}
