@@ -14,22 +14,38 @@ import BackupRecovery from './components/BackupRecovery';
 import { EpisodeProfitAnalytics } from './components/EpisodeProfitAnalytics';
 import { supabase } from './lib/supabase';
 import { initializeSampleData } from './utils/sampleData';
+import { useAuth } from './contexts/AuthContext';
+import { useOrganization } from './contexts/OrganizationContext';
+import { DevLoginBypass } from './components/DevLoginBypass';
+import { Building2, LogIn } from 'lucide-react';
 
 function App() {
+  const { user, loading: authLoading } = useAuth();
+  const { currentOrganization, loading: orgLoading } = useOrganization();
   const [currentView, setCurrentView] = useState('dashboard');
   const [navigationData, setNavigationData] = useState<any>(null);
   const [seriesId, setSeriesId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    initializeSeries();
-  }, []);
+    if (!authLoading && !orgLoading && currentOrganization) {
+      initializeSeries();
+    } else if (!authLoading && !orgLoading) {
+      setLoading(false);
+    }
+  }, [currentOrganization, authLoading, orgLoading]);
 
   const initializeSeries = async () => {
+    if (!currentOrganization) {
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data: existingSeries, error: fetchError } = await supabase
         .from('series')
         .select('*')
+        .eq('organization_id', currentOrganization.id)
         .limit(1)
         .maybeSingle();
 
@@ -47,6 +63,7 @@ function App() {
               description: 'An animated claymation series featuring spelling bee adventures',
               theme: 'Scripps National Spelling Bee',
               style_guide: 'Claymation with visible fingerprints and tactile, squash-and-stretch animation. Characters are made of clay with exaggerated emotional expressions.',
+              organization_id: currentOrganization.id,
             },
           ])
           .select()
@@ -68,12 +85,55 @@ function App() {
     setNavigationData(data || null);
   };
 
-  if (loading) {
+  if (authLoading || orgLoading || loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-white flex items-center justify-center">
         <div className="text-center">
           <div className="w-20 h-20 border-4 border-scripps-blue border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-xl text-gray-700 font-medium">Loading Spelling Bee Animation Studio...</p>
+          <p className="text-xl text-gray-700 font-medium">Loading Animation Studio...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-white flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-xl shadow-xl p-8 text-center">
+          <div className="w-16 h-16 bg-gradient-to-br from-scripps-blue to-scripps-light-blue rounded-full flex items-center justify-center mx-auto mb-6">
+            <LogIn className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome to Animation Studio</h1>
+          <p className="text-gray-600 mb-6">Please sign in to access your organizations and projects.</p>
+          <div className="text-sm text-gray-500">
+            Authentication will be added in the next update.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentOrganization) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-white flex items-center justify-center p-4">
+        <div className="max-w-2xl w-full">
+          <div className="bg-white rounded-xl shadow-xl p-8">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-gradient-to-br from-scripps-blue to-scripps-light-blue rounded-full flex items-center justify-center mx-auto mb-4">
+                <Building2 className="w-8 h-8 text-white" />
+              </div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">No Organization Found</h1>
+              <p className="text-gray-600">
+                You need to be part of an organization to use the Animation Studio.
+              </p>
+            </div>
+
+            <DevLoginBypass />
+
+            <div className="text-center text-sm text-gray-500 mt-6">
+              In production, you would be invited to an organization by an administrator.
+            </div>
+          </div>
         </div>
       </div>
     );

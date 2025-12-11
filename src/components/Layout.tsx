@@ -16,6 +16,7 @@ import {
   DollarSign
 } from 'lucide-react';
 import { Logo } from './Logo';
+import { OrganizationSwitcher } from './OrganizationSwitcher';
 
 interface LayoutProps {
   children: ReactNode;
@@ -54,6 +55,10 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
               <p className="text-xs font-medium text-scripps-navy">Animation Studio</p>
             </div>
           </div>
+        </div>
+
+        <div className="p-4 border-b border-blue-200">
+          <OrganizationSwitcher />
         </div>
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
@@ -130,6 +135,10 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
                 >
                   <X className="w-6 h-6 text-gray-600" />
                 </button>
+              </div>
+
+              <div className="p-4 border-b border-blue-200">
+                <OrganizationSwitcher />
               </div>
 
               <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
