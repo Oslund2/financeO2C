@@ -113,7 +113,7 @@ function calculateAICost(scriptData: ScriptData, config: CostConfig): CostBreakd
   const scenesCost = sceneCount * config.cost_per_scene;
   const charactersCost = scriptData.unique_characters.length * config.cost_per_character;
   const voicesCost = dialogueCount * config.cost_per_voice_line;
-  const videoGenerationCost = scriptData.runtime_minutes * (config.video_generation_cost_per_minute || 120);
+  const videoGenerationCost = scriptData.runtime_minutes * (config.video_generation_cost_per_minute || 45);
 
   let complexityAdjustment = 0;
   scriptData.acts.forEach(act => {

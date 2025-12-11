@@ -16,6 +16,12 @@ export interface UserSettings {
     pacing: string;
     [key: string]: any;
   };
+  vertex_ai_config?: {
+    project_id?: string;
+    location?: string;
+    cloud_storage_bucket?: string;
+    [key: string]: any;
+  };
   created_at?: string;
   updated_at?: string;
 }
@@ -30,6 +36,11 @@ const DEFAULT_SETTINGS: UserSettings = {
     max_tokens: 4000,
     tone: 'educational and entertaining',
     pacing: 'moderate'
+  },
+  vertex_ai_config: {
+    project_id: '',
+    location: 'us-central1',
+    cloud_storage_bucket: ''
   }
 };
 
@@ -69,6 +80,10 @@ export async function createUserSettings(settings: Partial<UserSettings>): Promi
       generation_preferences: {
         ...DEFAULT_SETTINGS.generation_preferences,
         ...(settings.generation_preferences || {})
+      },
+      vertex_ai_config: {
+        ...DEFAULT_SETTINGS.vertex_ai_config,
+        ...(settings.vertex_ai_config || {})
       }
     };
 
@@ -108,6 +123,10 @@ export async function updateUserSettings(settings: Partial<UserSettings>): Promi
       generation_preferences: {
         ...currentSettings.generation_preferences,
         ...(settings.generation_preferences || {})
+      },
+      vertex_ai_config: {
+        ...currentSettings.vertex_ai_config,
+        ...(settings.vertex_ai_config || {})
       }
     };
 
@@ -146,8 +165,8 @@ export function getAPIKeyStatus() {
 export function getConfigurationInstructions() {
   return {
     vertexAI: {
-      title: 'Vertex AI Configuration',
-      description: 'Set up Google Cloud Vertex AI for script generation',
+      title: 'Vertex AI Veo 3.1 Configuration',
+      description: 'Set up Google Cloud Vertex AI for video generation with Veo 3.1',
       secrets: [
         {
           name: 'VITE_VERTEX_AI_PROJECT_ID',
@@ -157,19 +176,26 @@ export function getConfigurationInstructions() {
         },
         {
           name: 'VITE_VERTEX_AI_LOCATION',
-          description: 'Google Cloud region for Vertex AI',
+          description: 'Google Cloud region for Vertex AI (must support Veo 3.1)',
           example: 'us-central1',
           required: false,
           default: 'us-central1'
         },
         {
           name: 'VITE_VERTEX_AI_API_KEY',
-          description: 'Google Cloud API key with Vertex AI access',
+          description: 'Google Cloud API key with Vertex AI and Cloud Storage access',
           example: 'AIzaSy...',
+          required: true
+        },
+        {
+          name: 'VITE_VERTEX_AI_CLOUD_STORAGE_BUCKET',
+          description: 'Cloud Storage bucket for video outputs (gs://bucket-name)',
+          example: 'gs://my-veo3-renders',
           required: true
         }
       ],
-      setupUrl: 'https://console.cloud.google.com/apis/credentials'
+      setupUrl: 'https://console.cloud.google.com/apis/credentials',
+      additionalInfo: 'Veo 3.1 pricing: $0.75/second for video with audio generation. Ensure your Cloud Storage bucket has proper IAM permissions for Vertex AI service account.'
     },
     elevenLabs: {
       title: 'ElevenLabs Configuration',
