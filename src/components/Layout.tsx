@@ -20,6 +20,7 @@ import { Logo } from './Logo';
 import { OrganizationSwitcher } from './OrganizationSwitcher';
 import { SeriesSwitcher } from './SeriesSwitcher';
 import { InfoTooltip } from './InfoTooltip';
+import { useOrganization } from '../contexts/OrganizationContext';
 
 interface LayoutProps {
   children: ReactNode;
@@ -31,6 +32,7 @@ interface LayoutProps {
 
 export function Layout({ children, currentView, onNavigate, currentSeriesId, onSeriesChange }: LayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { currentOrganization } = useOrganization();
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Clapperboard },
@@ -55,7 +57,7 @@ export function Layout({ children, currentView, onNavigate, currentSeriesId, onS
       <aside className="hidden lg:flex w-64 bg-white border-r border-blue-200 flex-col shadow-lg">
         <div className="p-8 border-b border-blue-200">
           <div className="flex flex-col gap-3">
-            <Logo size="xlarge" className="mx-auto" />
+            <Logo size="xlarge" className="mx-auto" logoUrl={currentOrganization?.logo_url} />
             <div className="text-center">
               <p className="text-xs font-medium text-scripps-navy">Animation Studio</p>
             </div>
@@ -122,7 +124,7 @@ export function Layout({ children, currentView, onNavigate, currentSeriesId, onS
             >
               <Menu className="w-6 h-6 text-scripps-navy" />
             </button>
-            <Logo size="medium" />
+            <Logo size="medium" logoUrl={currentOrganization?.logo_url} />
             <div className="w-10" />
           </div>
         </header>
@@ -142,7 +144,7 @@ export function Layout({ children, currentView, onNavigate, currentSeriesId, onS
             >
               <div className="p-6 border-b border-blue-200 flex items-center justify-between">
                 <div className="flex flex-col gap-2">
-                  <Logo size="xlarge" />
+                  <Logo size="xlarge" logoUrl={currentOrganization?.logo_url} />
                   <p className="text-xs font-medium text-scripps-navy">Animation Studio</p>
                 </div>
                 <button
