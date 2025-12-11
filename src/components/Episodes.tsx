@@ -15,12 +15,14 @@ type Script = Database['public']['Tables']['scripts']['Row'];
 interface EpisodesProps {
   seriesId: string | null;
   onNavigate: (view: string) => void;
+  navigationData?: { highlightScriptId?: string } | null;
 }
 
-export function Episodes({ seriesId, onNavigate }: EpisodesProps) {
+export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps) {
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [loading, setLoading] = useState(true);
   const [scriptTitles, setScriptTitles] = useState<Map<string, string>>(new Map());
+  const [shotListCounts, setShotListCounts] = useState<Map<string, { total: number; completed: number }>>(new Map());
   const [syncing, setSyncing] = useState<string | null>(null);
   const [costViewEpisode, setCostViewEpisode] = useState<Episode | null>(null);
   const [availableScripts, setAvailableScripts] = useState<Script[]>([]);
@@ -53,6 +55,8 @@ export function Episodes({ seriesId, onNavigate }: EpisodesProps) {
       setEpisodes(data || []);
 
       const titles = new Map<string, string>();
+      const shotLists = new Map<string, { total: number; completed: number }>();
+
       await Promise.all(
         (data || []).map(async (episode) => {
           if (episode.script_id) {
@@ -66,9 +70,37 @@ export function Episodes({ seriesId, onNavigate }: EpisodesProps) {
               titles.set(episode.id, script.title);
             }
           }
+
+          const { data: storyboards } = await supabase
+            .from('storyboards')
+            .select('id')
+            .eq('episode_id', episode.id);
+
+          if (storyboards && storyboards.length > 0) {
+            let totalShots = 0;
+            let completedShots = 0;
+
+            await Promise.all(
+              storyboards.map(async (storyboard) => {
+                const { data: shots } = await supabase
+                  .from('storyboard_shots')
+                  .select('id, status')
+                  .eq('storyboard_id', storyboard.id);
+
+                if (shots) {
+                  totalShots += shots.length;
+                  completedShots += shots.filter(s => s.status === 'approved').length;
+                }
+              })
+            );
+
+            shotLists.set(episode.id, { total: totalShots, completed: completedShots });
+          }
         })
       );
+
       setScriptTitles(titles);
+      setShotListCounts(shotLists);
 
       let scriptsQuery = supabase
         .from('scripts')
@@ -390,11 +422,17 @@ export function Episodes({ seriesId, onNavigate }: EpisodesProps) {
             {episodes.map((episode) => {
               const ltvMetrics = calculateEpisodeLTV(episode);
               const isProfit = ltvMetrics.lifetimeProfit >= 0;
+              const isHighlighted = navigationData?.highlightScriptId && episode.script_id === navigationData.highlightScriptId;
+              const shotListInfo = shotListCounts.get(episode.id);
 
               return (
               <div
                 key={episode.id}
-                className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all border border-gray-200 p-6"
+                className={`bg-white rounded-xl shadow-md hover:shadow-lg transition-all border p-6 ${
+                  isHighlighted
+                    ? 'border-4 border-scripps-blue ring-4 ring-scripps-blue ring-opacity-20'
+                    : 'border-gray-200'
+                }`}
               >
                 <div className="flex items-start gap-6">
                   <div className={`w-40 h-24 rounded-lg flex items-center justify-center flex-shrink-0 ${
@@ -434,6 +472,15 @@ export function Episodes({ seriesId, onNavigate }: EpisodesProps) {
                             <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded border border-gray-200">
                               Production: {episode.progress_percentage}%
                             </span>
+                          )}
+                          {shotListInfo && shotListInfo.total > 0 && (
+                            <div className="flex items-center gap-1 text-xs px-2 py-1 rounded border bg-blue-50 text-blue-800 border-blue-200">
+                              <Camera className="w-3 h-3" />
+                              <span className="font-medium">
+                                {shotListInfo.completed}/{shotListInfo.total} Shots
+                                {shotListInfo.completed === shotListInfo.total && ' ✓'}
+                              </span>
+                            </div>
                           )}
                           {scriptTitles.get(episode.id) && (
                             <div className="flex items-center gap-1 text-sm text-gray-600">

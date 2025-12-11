@@ -479,10 +479,15 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
                         </div>
                       )}
                       {episodeCounts.get(script.id)! > 0 && (
-                        <div className="flex items-center gap-1 text-blue-600">
+                        <button
+                          onClick={() => onNavigate('episodes', { highlightScriptId: script.id })}
+                          className="flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline transition-colors cursor-pointer"
+                          title="View episodes for this script"
+                        >
                           <Film className="w-3 h-3" />
                           <span className="font-medium">{episodeCounts.get(script.id)} Episode{episodeCounts.get(script.id)! > 1 ? 's' : ''}</span>
-                        </div>
+                          <ArrowRight className="w-3 h-3" />
+                        </button>
                       )}
                     </div>
                   </div>
@@ -516,6 +521,17 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
                       >
                         <Film className="w-4 h-4" />
                         Create Episode
+                      </button>
+                    )}
+                    {episodeCounts.get(script.id)! > 0 && (
+                      <button
+                        onClick={() => onNavigate('episodes', { highlightScriptId: script.id })}
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium"
+                        title="View episodes for this script"
+                      >
+                        <Film className="w-4 h-4" />
+                        View Episode{episodeCounts.get(script.id)! > 1 ? 's' : ''}
+                        <ArrowRight className="w-4 h-4" />
                       </button>
                     )}
                     <button
