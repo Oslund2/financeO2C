@@ -9,6 +9,8 @@ export const SAMPLE_CHARACTERS = [
     clay_features: 'Head literally inflates slightly when he knows a big word and deflates with a squeak when panicked. Sweats little clay droplets when nervous. Can shrink to grape size when terrified.',
     voice_characteristics: 'High pitched squeak when nervous, normal voice when confident',
     tags: ['protagonist', 'anxious', 'smart', 'determined', 'main-cast'],
+    reference_image_url: 'https://uajbsnklagqyjrqebppp.supabase.co/storage/v1/object/public/character-images/characters/barnaby_1765153324994.jpg',
+    role: 'Primary',
   },
   {
     name: 'Zora',
@@ -18,6 +20,8 @@ export const SAMPLE_CHARACTERS = [
     clay_features: 'Limbs are spring-like coils. Vibrates so hard her chair hops. Can bounce, stretch dramatically, and perform backflips and cartwheels.',
     voice_characteristics: 'Energetic, fast-paced, enthusiastic, loud and encouraging',
     tags: ['energetic', 'acrobatic', 'optimistic', 'athletic', 'main-cast'],
+    reference_image_url: 'https://uajbsnklagqyjrqebppp.supabase.co/storage/v1/object/public/character-images/characters/zora_1765153443205.jpg',
+    role: 'Ensemble',
   },
   {
     name: 'Kenji',
@@ -27,6 +31,8 @@ export const SAMPLE_CHARACTERS = [
     clay_features: 'Eyes are little glowing screens that display letters and data. Can project holographic letters. Taps on a clay tablet.',
     voice_characteristics: 'Calm, measured, tech-savvy tone, analytical',
     tags: ['tech', 'analytical', 'cool', 'logical', 'main-cast'],
+    reference_image_url: 'https://uajbsnklagqyjrqebppp.supabase.co/storage/v1/object/public/character-images/characters/kenji_1765153496097.jpg',
+    role: 'Ensemble',
   },
   {
     name: 'Maya',
@@ -36,6 +42,8 @@ export const SAMPLE_CHARACTERS = [
     clay_features: 'Hair changes color based on the vibe of the word. Surrounded by a colorful aura when spelling. Can float. Paintings come to life.',
     voice_characteristics: 'Soft, dreamy, artistic tone, ethereal',
     tags: ['artistic', 'creative', 'dreamy', 'colorful', 'main-cast'],
+    reference_image_url: 'https://uajbsnklagqyjrqebppp.supabase.co/storage/v1/object/public/character-images/characters/maya_1765153519672.jpg',
+    role: 'Ensemble',
   },
   {
     name: 'Mrs. Higginbottom',
@@ -45,6 +53,8 @@ export const SAMPLE_CHARACTERS = [
     clay_features: 'Moves on wheels like a library cart. Can roll at high speeds. Hair styled like a card catalog. Honks a horn.',
     voice_characteristics: 'Authoritative but warm, slightly theatrical, encouraging',
     tags: ['teacher', 'coach', 'eccentric', 'supportive', 'main-cast'],
+    reference_image_url: 'https://uajbsnklagqyjrqebppp.supabase.co/storage/v1/object/public/character-images/characters/mrs__higginbottom_1765153361901.jpg',
+    role: 'Primary',
   },
   {
     name: 'Chad',
@@ -54,6 +64,8 @@ export const SAMPLE_CHARACTERS = [
     clay_features: 'Hair is molded into a perfect, immovable plastic-looking wave that droops under pressure. Melts into a puddle when defeated.',
     voice_characteristics: 'Smug, condescending, confident bordering on arrogant',
     tags: ['antagonist', 'rival', 'competitive', 'recurring'],
+    reference_image_url: 'https://uajbsnklagqyjrqebppp.supabase.co/storage/v1/object/public/character-images/characters/chad_1765153387406.jpg',
+    role: 'Primary',
   },
   {
     name: 'Host',
@@ -63,6 +75,8 @@ export const SAMPLE_CHARACTERS = [
     clay_features: 'Styled as a clay representation of LeVar Burton. Professional appearance.',
     voice_characteristics: 'Warm, professional, encouraging, authoritative',
     tags: ['host', 'professional', 'supportive', 'cameo'],
+    reference_image_url: 'https://uajbsnklagqyjrqebppp.supabase.co/storage/v1/object/public/character-images/characters/host_1765153413505.jpg',
+    role: 'Recurring',
   },
 ];
 
