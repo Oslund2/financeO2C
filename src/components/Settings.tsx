@@ -339,6 +339,60 @@ export function Settings() {
                 <div className="p-6">
                   {activeTab === 'overview' && (
                     <div className="space-y-6">
+                      <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-lg p-5">
+                        <h3 className="text-lg font-bold text-gray-900 mb-3">Database & Code Repository</h3>
+                        <div className="space-y-4">
+                          <div>
+                            <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                              <Database className="w-4 h-4" />
+                              Database Location
+                            </h4>
+                            <div className="bg-white rounded-lg p-3 space-y-2">
+                              <div className="flex items-start gap-2">
+                                <span className="text-sm font-semibold text-gray-700 min-w-[100px]">Provider:</span>
+                                <span className="text-sm text-gray-900">Supabase (supabase.com)</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <span className="text-sm font-semibold text-gray-700 min-w-[100px]">Project Name:</span>
+                                <span className="text-sm text-gray-900">Check your .env file for VITE_SUPABASE_URL</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <span className="text-sm font-semibold text-gray-700 min-w-[100px]">Access:</span>
+                                <span className="text-sm text-gray-900">Login to your Supabase dashboard to view/manage the database</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <span className="text-sm font-semibold text-gray-700 min-w-[100px]">Migrations:</span>
+                                <code className="text-sm text-gray-900 bg-gray-100 px-2 py-1 rounded">supabase/migrations/*.sql</code>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div>
+                            <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                              <Code className="w-4 h-4" />
+                              Source Code
+                            </h4>
+                            <div className="bg-white rounded-lg p-3 space-y-2">
+                              <div className="flex items-start gap-2">
+                                <span className="text-sm font-semibold text-gray-700 min-w-[100px]">Repository:</span>
+                                <span className="text-sm text-gray-900">This codebase is available in your current project directory</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <span className="text-sm font-semibold text-gray-700 min-w-[100px]">GitHub:</span>
+                                <span className="text-sm text-gray-900">Push to your own GitHub repository to enable version control and collaboration</span>
+                              </div>
+                              <div className="mt-2 p-2 bg-gray-50 rounded">
+                                <code className="text-xs text-gray-700 block">git init</code>
+                                <code className="text-xs text-gray-700 block">git add .</code>
+                                <code className="text-xs text-gray-700 block">git commit -m "Initial commit"</code>
+                                <code className="text-xs text-gray-700 block">git remote add origin YOUR_REPO_URL</code>
+                                <code className="text-xs text-gray-700 block">git push -u origin main</code>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
                       <div>
                         <h3 className="text-lg font-bold text-gray-900 mb-3">Technology Stack</h3>
                         <div className="bg-gray-50 rounded-lg p-4 space-y-3">
@@ -371,18 +425,30 @@ export function Settings() {
                         <h3 className="text-lg font-bold text-gray-900 mb-3">Core Features</h3>
                         <div className="grid grid-cols-2 gap-3">
                           {[
-                            'Character Management',
-                            'Script Generation & Editing',
+                            'Multi-Tenant Organization Management',
+                            'Workspace & Team Collaboration',
+                            'Series Management & Archiving',
+                            'Character Management with Role Classification',
+                            'Character Roles: Primary, Ensemble, Recurring, Cameo',
+                            'AI-Powered Script Generation (Gemini 2.5 Flash)',
+                            'Script Locking & Version Control',
                             'Episode Production Tracking',
-                            'AI-Powered Storyboard Generation',
+                            'AI Storyboard Generation',
+                            'Storyboard Editing & Approval Workflow',
                             'Asset Library & Management',
-                            'Cost Tracking & Analytics',
-                            'Voice Generation Studio',
-                            'Custom Voice Cloning',
+                            'Smart Asset Tagging & Search',
                             'Multi-Provider Voice Synthesis',
+                            'Custom Voice Cloning (ElevenLabs & Chatterbox)',
+                            'Voice Studio with Preview',
                             'Script Translation System',
-                            'Approval Workflow System',
+                            'Episode Revenue & LTV Analytics',
+                            'Creator Cost Calculator',
+                            'AI Cost Tracking & Monitoring',
+                            'Dashboard IP Sections (Customizable)',
                             'Backup & Recovery System',
+                            'System Health Monitoring',
+                            'Approval Workflow System',
+                            'Production Job Queue',
                           ].map((feature) => (
                             <div key={feature} className="flex items-center gap-2 text-sm text-gray-700">
                               <CheckCircle className="w-4 h-4 text-green-600" />
@@ -518,14 +584,22 @@ export function Settings() {
                         <h3 className="text-lg font-bold text-gray-900 mb-3">Key Components</h3>
                         <div className="grid grid-cols-2 gap-3">
                           {[
-                            { name: 'Dashboard', path: 'src/components/Dashboard.tsx', desc: 'Main overview and analytics' },
-                            { name: 'Characters', path: 'src/components/Characters.tsx', desc: 'Character creation and management' },
+                            { name: 'Dashboard', path: 'src/components/Dashboard.tsx', desc: 'Main overview with IP sections' },
+                            { name: 'DashboardIPSectionEditor', path: 'src/components/DashboardIPSectionEditor.tsx', desc: 'Customizable IP showcase' },
+                            { name: 'OrganizationSwitcher', path: 'src/components/OrganizationSwitcher.tsx', desc: 'Workspace management' },
+                            { name: 'SeriesSwitcher', path: 'src/components/SeriesSwitcher.tsx', desc: 'Series navigation' },
+                            { name: 'Characters', path: 'src/components/Characters.tsx', desc: 'Character management with roles' },
                             { name: 'Scripts', path: 'src/components/Scripts.tsx', desc: 'Script browsing and viewing' },
-                            { name: 'Episodes', path: 'src/components/Episodes.tsx', desc: 'Episode production tracking' },
+                            { name: 'Episodes', path: 'src/components/Episodes.tsx', desc: 'Production tracking' },
+                            { name: 'EpisodeProfitAnalytics', path: 'src/components/EpisodeProfitAnalytics.tsx', desc: 'Revenue and LTV tracking' },
                             { name: 'AIStudio', path: 'src/components/AIStudio.tsx', desc: 'AI generation interface' },
                             { name: 'VoiceGenerationTab', path: 'src/components/VoiceGenerationTab.tsx', desc: 'Voice studio and cloning' },
+                            { name: 'VoiceCloningModal', path: 'src/components/VoiceCloningModal.tsx', desc: 'Custom voice cloning' },
                             { name: 'StoryboardGenerator', path: 'src/components/StoryboardGenerator.tsx', desc: 'Storyboard creation' },
-                            { name: 'Assets', path: 'src/components/Assets.tsx', desc: 'Asset library management' },
+                            { name: 'ScriptTranslationManager', path: 'src/components/ScriptTranslationManager.tsx', desc: 'Translation system' },
+                            { name: 'ApprovalWorkflow', path: 'src/components/ApprovalWorkflow.tsx', desc: 'Approval workflow' },
+                            { name: 'Assets', path: 'src/components/Assets.tsx', desc: 'Asset library with smart tags' },
+                            { name: 'CreatorCostCalculator', path: 'src/components/CreatorCostCalculator.tsx', desc: 'Labor cost calculator' },
                           ].map((comp) => (
                             <div key={comp.name} className="border border-gray-200 rounded-lg p-3">
                               <h4 className="font-semibold text-sm text-gray-900">{comp.name}</h4>
@@ -540,6 +614,31 @@ export function Settings() {
 
                   {activeTab === 'database' && (
                     <div className="space-y-6">
+                      <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-4 mb-4">
+                        <h4 className="font-semibold text-green-900 mb-2 flex items-center gap-2">
+                          <Database className="w-5 h-5" />
+                          How to Access Your Database
+                        </h4>
+                        <div className="space-y-3 text-sm text-green-900">
+                          <div className="flex items-start gap-2">
+                            <span className="font-semibold min-w-[80px]">Step 1:</span>
+                            <span>Visit <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer" className="underline hover:text-green-700">supabase.com/dashboard</a> and log in to your account</span>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <span className="font-semibold min-w-[80px]">Step 2:</span>
+                            <span>Find your project by checking the VITE_SUPABASE_URL in your .env file (the project ID is in the URL)</span>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <span className="font-semibold min-w-[80px]">Step 3:</span>
+                            <span>Navigate to Table Editor, SQL Editor, or Database sections to view and manage your data</span>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <span className="font-semibold min-w-[80px]">Step 4:</span>
+                            <span>All migrations are stored locally in <code className="bg-white px-2 py-0.5 rounded">supabase/migrations/</code> for version control</span>
+                          </div>
+                        </div>
+                      </div>
+
                       <div>
                         <h3 className="text-lg font-bold text-gray-900 mb-3">Database Schema</h3>
                         <p className="text-sm text-gray-600 mb-4">
@@ -548,69 +647,104 @@ export function Settings() {
                         <div className="space-y-3">
                           {[
                             {
+                              table: 'organizations',
+                              desc: 'Multi-tenant workspaces with team management and billing',
+                              cols: 'id, name, slug, owner_id, plan, status, created_at, archived_at',
+                            },
+                            {
+                              table: 'organization_members',
+                              desc: 'Team members and their roles within organizations',
+                              cols: 'id, organization_id, user_id, role, invited_by, joined_at',
+                            },
+                            {
+                              table: 'organization_invitations',
+                              desc: 'Pending team member invitations with expiry tracking',
+                              cols: 'id, organization_id, email, role, invited_by, expires_at, accepted_at',
+                            },
+                            {
                               table: 'series',
-                              desc: 'Series metadata, art style, and production guidelines',
-                              cols: 'id, title, description, art_style, target_audience, created_at',
+                              desc: 'Series metadata, art style, production guidelines, and organization association',
+                              cols: 'id, organization_id, title, description, art_style, target_audience, archived_at',
+                            },
+                            {
+                              table: 'dashboard_ip_sections',
+                              desc: 'Customizable dashboard sections for showcasing IP content',
+                              cols: 'id, series_id, title, description, background_color, display_order, is_visible',
                             },
                             {
                               table: 'characters',
-                              desc: 'Character profiles with physical traits, personality, voice settings, and provider info',
-                              cols: 'id, name, description, personality_traits, clay_features, voice_id, voice_provider, role',
+                              desc: 'Character profiles with role classification (Primary, Ensemble, Recurring, Cameo)',
+                              cols: 'id, series_id, name, description, role, voice_id, voice_provider, voice_settings',
                             },
                             {
                               table: 'scripts',
-                              desc: 'Episode scripts with metadata, vocabulary words, and lock status',
+                              desc: 'Episode scripts with lock status and version control',
                               cols: 'id, series_id, title, synopsis, vocabulary_words, status, locked_at, locked_by',
                             },
                             {
                               table: 'script_acts',
-                              desc: 'Three-act structure breakdown for each script',
-                              cols: 'id, script_id, act_number, title, content, duration_minutes',
+                              desc: 'Three-act structure breakdown for scripts',
+                              cols: 'id, script_id, act_number, title, content, duration_estimate',
                             },
                             {
                               table: 'script_scenes',
                               desc: 'Individual scenes with dialogue and stage directions',
-                              cols: 'id, act_id, scene_number, location, characters, dialogue',
+                              cols: 'id, act_id, scene_number, setting, description, dialogue, stage_directions',
                             },
                             {
                               table: 'episodes',
-                              desc: 'Production tracking for each episode',
+                              desc: 'Production tracking with revenue and cost metrics',
                               cols: 'id, series_id, season, episode_number, title, status, production_notes',
                             },
                             {
+                              table: 'episode_revenue_metrics',
+                              desc: 'Revenue tracking, LTV calculations, and profitability analysis',
+                              cols: 'id, episode_id, revenue_per_view, total_views, ltv_estimate, profit_margin',
+                            },
+                            {
                               table: 'assets',
-                              desc: 'All media assets (images, videos, audio)',
-                              cols: 'id, type, file_path, metadata, tags, usage_count',
+                              desc: 'Media assets with smart tagging and usage tracking',
+                              cols: 'id, series_id, asset_type, file_path, metadata, tags, usage_count',
+                            },
+                            {
+                              table: 'asset_versions',
+                              desc: 'Version history for asset changes and edits',
+                              cols: 'id, asset_id, version_number, file_path, changes_description, created_by',
                             },
                             {
                               table: 'storyboards',
-                              desc: 'Visual storyboards for episodes with approval workflow and editing history',
-                              cols: 'id, episode_id, scenes, shots, approval_status, version, edited_at',
+                              desc: 'Visual storyboards with approval workflow and editing',
+                              cols: 'id, episode_id, scenes, shots, approval_status, version, edited_at, approved_by',
                             },
                             {
                               table: 'translated_scripts',
-                              desc: 'Multilingual script translations with metadata',
+                              desc: 'Multilingual script translations',
                               cols: 'id, script_id, language_code, title, translated_content, status',
                             },
                             {
-                              table: 'episode_revenue_metrics',
-                              desc: 'Revenue tracking and LTV calculations per episode',
-                              cols: 'id, episode_id, revenue_per_view, total_views, ltv_estimate',
-                            },
-                            {
                               table: 'creator_cost_presets',
-                              desc: 'Preconfigured cost calculation templates for different production scales',
-                              cols: 'id, name, scenes_per_episode, artists_per_scene, production_days',
+                              desc: 'Labor-based cost calculation templates',
+                              cols: 'id, name, scenes_per_episode, artists_per_episode, production_days',
                             },
                             {
                               table: 'production_jobs',
-                              desc: 'AI generation job queue and tracking',
-                              cols: 'id, job_type, status, input_params, output_data, cost, error_message',
+                              desc: 'AI generation job queue with cost tracking',
+                              cols: 'id, job_type, status, service, request_payload, response_data, cost',
                             },
                             {
                               table: 'user_settings',
                               desc: 'User preferences and API configurations',
-                              cols: 'id, user_id, api_keys, preferences, created_at',
+                              cols: 'id, user_id, api_keys, generation_preferences, created_at',
+                            },
+                            {
+                              table: 'workflow_configs',
+                              desc: 'Customizable production workflow configurations',
+                              cols: 'id, organization_id, workflow_type, steps, automation_rules',
+                            },
+                            {
+                              table: 'brand_templates',
+                              desc: 'Reusable templates for series and production settings',
+                              cols: 'id, name, template_type, configuration, is_public, created_by',
                             },
                           ].map((table) => (
                             <div key={table.table} className="border border-gray-200 rounded-lg p-4">
