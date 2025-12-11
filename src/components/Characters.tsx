@@ -6,6 +6,7 @@ import { DeleteConfirmationModal } from './DeleteConfirmationModal';
 import { VoiceSelector } from './VoiceSelector';
 import { VoiceCloningModal } from './VoiceCloningModal';
 import type { VoiceProvider } from '../services/voiceService';
+import { useOrganization } from '../contexts/OrganizationContext';
 
 type Character = Database['public']['Tables']['characters']['Row'];
 
@@ -14,6 +15,7 @@ interface CharactersProps {
 }
 
 export function Characters({ seriesId }: CharactersProps) {
+  const { currentOrganization } = useOrganization();
   const [characters, setCharacters] = useState<Character[]>([]);
   const [filteredCharacters, setFilteredCharacters] = useState<Character[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -34,7 +36,7 @@ export function Characters({ seriesId }: CharactersProps) {
 
   useEffect(() => {
     loadCharacters();
-  }, [seriesId]);
+  }, [seriesId, currentOrganization]);
 
   useEffect(() => {
     let filtered = characters;
@@ -67,8 +69,16 @@ export function Characters({ seriesId }: CharactersProps) {
   }, [fullscreenCharacter]);
 
   const loadCharacters = async () => {
+    if (!currentOrganization) {
+      setLoading(false);
+      return;
+    }
+
     try {
-      let query = supabase.from('characters').select('*');
+      let query = supabase
+        .from('characters')
+        .select('*')
+        .or(`organization_id.eq.${currentOrganization.id},organization_id.is.null`);
 
       if (seriesId) {
         query = query.eq('series_id', seriesId);

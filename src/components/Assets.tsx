@@ -78,7 +78,7 @@ export function Assets({ seriesId }: AssetsProps) {
       let query = supabase
         .from('assets')
         .select('*')
-        .eq('organization_id', currentOrganization.id)
+        .or(`organization_id.eq.${currentOrganization.id},organization_id.is.null`)
         .order('created_at', { ascending: false });
 
       if (seriesId) {
