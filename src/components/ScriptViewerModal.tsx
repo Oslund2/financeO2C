@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, FileText, Clock, Sparkles, Calendar, Tag, Globe, Printer } from 'lucide-react';
+import { X, FileText, Clock, Sparkles, Calendar, Tag, Globe, Printer, ChevronDown, ChevronUp, Info } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { ScriptTranslationManager } from './ScriptTranslationManager';
@@ -37,6 +37,7 @@ export function ScriptViewerModal({ script, onClose, onEdit }: ScriptViewerModal
   const [loading, setLoading] = useState(true);
   const [activeAct, setActiveAct] = useState<number>(0);
   const [viewMode, setViewMode] = useState<'script' | 'translations'>('script');
+  const [metadataExpanded, setMetadataExpanded] = useState(false);
 
   useEffect(() => {
     loadScriptContent();
@@ -195,81 +196,95 @@ export function ScriptViewerModal({ script, onClose, onEdit }: ScriptViewerModal
                 </div>
               )}
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
-            >
-              <X className="w-6 h-6" />
-            </button>
-          </div>
-        </div>
-
-        <div className="bg-gray-50 border-b border-gray-200 px-6 py-4 flex-shrink-0 print:hidden">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-gray-500" />
-              <div>
-                <p className="text-gray-600">Runtime</p>
-                <p className="font-semibold text-gray-900">{script.runtime_minutes} min</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-gray-500" />
-              <div>
-                <p className="text-gray-600">Acts</p>
-                <p className="font-semibold text-gray-900">{acts.length}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-gray-500" />
-              <div>
-                <p className="text-gray-600">Scenes</p>
-                <p className="font-semibold text-gray-900">{totalScenes}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-gray-500" />
-              <div>
-                <p className="text-gray-600">Created</p>
-                <p className="font-semibold text-gray-900">
-                  {new Date(script.created_at).toLocaleDateString()}
-                </p>
-              </div>
+              <button
+                onClick={() => setMetadataExpanded(!metadataExpanded)}
+                className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors flex items-center gap-2"
+                title={metadataExpanded ? "Hide script info" : "Show script info"}
+              >
+                <Info className="w-5 h-5" />
+                {metadataExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
             </div>
           </div>
         </div>
 
-        {script.synopsis && (
-          <div className="px-6 py-4 bg-blue-50 border-b border-blue-200 flex-shrink-0 print:hidden">
-            <h3 className="text-sm font-semibold text-gray-700 mb-1">Synopsis</h3>
-            <p className="text-gray-700 text-sm">{script.synopsis}</p>
-          </div>
-        )}
-
-        {script.theme && (
-          <div className="px-6 py-3 bg-yellow-50 border-b border-yellow-200 flex-shrink-0 print:hidden">
-            <div className="flex items-center gap-2">
-              <Tag className="w-4 h-4 text-yellow-700" />
-              <span className="text-sm font-semibold text-gray-700">Theme:</span>
-              <span className="text-sm text-gray-700">{script.theme}</span>
-            </div>
-          </div>
-        )}
-
-        {script.vocabulary_words.length > 0 && (
-          <div className="px-6 py-3 bg-green-50 border-b border-green-200 flex-shrink-0 print:hidden">
-            <div className="flex items-start gap-2">
-              <span className="text-sm font-semibold text-gray-700">Vocabulary:</span>
-              <div className="flex flex-wrap gap-2">
-                {script.vocabulary_words.map((word, index) => (
-                  <span
-                    key={index}
-                    className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium"
-                  >
-                    {word}
-                  </span>
-                ))}
+        {metadataExpanded && (
+          <div className="bg-gray-50 border-b border-gray-200 print:hidden overflow-hidden transition-all duration-300">
+            <div className="px-6 py-4 space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-gray-500" />
+                  <div>
+                    <p className="text-gray-600">Runtime</p>
+                    <p className="font-semibold text-gray-900">{script.runtime_minutes} min</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-gray-500" />
+                  <div>
+                    <p className="text-gray-600">Acts</p>
+                    <p className="font-semibold text-gray-900">{acts.length}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-gray-500" />
+                  <div>
+                    <p className="text-gray-600">Scenes</p>
+                    <p className="font-semibold text-gray-900">{totalScenes}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-gray-500" />
+                  <div>
+                    <p className="text-gray-600">Created</p>
+                    <p className="font-semibold text-gray-900">
+                      {new Date(script.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
               </div>
+
+              {script.synopsis && (
+                <div className="pt-3 border-t border-gray-200">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-1">Synopsis</h3>
+                  <p className="text-gray-700 text-sm">{script.synopsis}</p>
+                </div>
+              )}
+
+              {script.theme && (
+                <div className="pt-3 border-t border-gray-200">
+                  <div className="flex items-center gap-2">
+                    <Tag className="w-4 h-4 text-gray-600" />
+                    <span className="text-sm font-semibold text-gray-700">Theme:</span>
+                    <span className="text-sm text-gray-700">{script.theme}</span>
+                  </div>
+                </div>
+              )}
+
+              {script.vocabulary_words.length > 0 && (
+                <div className="pt-3 border-t border-gray-200">
+                  <div className="flex items-start gap-2">
+                    <span className="text-sm font-semibold text-gray-700">Vocabulary:</span>
+                    <div className="flex flex-wrap gap-2">
+                      {script.vocabulary_words.map((word, index) => (
+                        <span
+                          key={index}
+                          className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium"
+                        >
+                          {word}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
