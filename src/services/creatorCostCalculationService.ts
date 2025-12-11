@@ -5,7 +5,7 @@ export interface CreatorCostConfig {
   series_id: string | null;
   config_name: string;
   scenes_per_episode: number;
-  artists_per_scene: number;
+  artists_per_episode: number;
   time_per_scene_hours: number;
   production_days: number;
   working_hours_per_day: number;
@@ -89,13 +89,17 @@ async function getCreatorCostConfig(seriesId: string | null): Promise<CreatorCos
 }
 
 function calculateCreatorCostMetrics(config: CreatorCostConfig): CreatorCostMetrics {
-  const totalSceneHours = config.scenes_per_episode * config.artists_per_scene * config.time_per_scene_hours;
+  const totalWorkHours = config.scenes_per_episode * config.time_per_scene_hours;
 
-  const totalProductionHoursAvailable = config.production_days * config.working_hours_per_day;
+  const hoursPerArtist = config.production_days * config.working_hours_per_day;
 
-  const artistsNeeded = Math.ceil(totalSceneHours / totalProductionHoursAvailable);
+  const minimumArtistsNeeded = Math.ceil(totalWorkHours / hoursPerArtist);
 
-  const totalProductionHours = artistsNeeded * totalProductionHoursAvailable;
+  const artistsNeeded = Math.max(config.artists_per_episode, minimumArtistsNeeded);
+
+  const totalProductionHours = artistsNeeded * hoursPerArtist;
+
+  const totalSceneHours = totalWorkHours;
 
   const artistHourlyRate = config.artist_annual_salary / 2080;
 
@@ -135,7 +139,8 @@ function calculateCreatorCostMetrics(config: CreatorCostConfig): CreatorCostMetr
 
   const totalCreatorCost = laborWithOverhead + totalFacilityCost;
 
-  const scenesPerDay = (config.working_hours_per_day / config.time_per_scene_hours) / config.artists_per_scene;
+  const teamHoursPerDay = config.artists_per_episode * config.working_hours_per_day;
+  const scenesPerDay = teamHoursPerDay / config.time_per_scene_hours;
 
   return {
     totalSceneHours,
@@ -171,25 +176,27 @@ export async function calculateCreatorCosts(
 
   const metrics = calculateCreatorCostMetrics(config);
 
+  const totalWorkHours = config.scenes_per_episode * config.time_per_scene_hours;
+
   const phaseBreakdown = {
     preproduction: {
-      hours: config.scenes_per_episode * config.artists_per_scene * config.time_per_scene_hours * (config.preproduction_percentage / 100),
+      hours: totalWorkHours * (config.preproduction_percentage / 100),
       cost: metrics.preproductionCost,
     },
     production: {
-      hours: config.scenes_per_episode * config.artists_per_scene * config.time_per_scene_hours,
+      hours: totalWorkHours,
       cost: metrics.baseLaborCost,
     },
     postproduction: {
-      hours: config.scenes_per_episode * config.artists_per_scene * config.time_per_scene_hours * (config.postproduction_percentage / 100),
+      hours: totalWorkHours * (config.postproduction_percentage / 100),
       cost: metrics.postproductionCost,
     },
     revision: {
-      hours: config.scenes_per_episode * config.artists_per_scene * config.time_per_scene_hours * (config.revision_buffer_percentage / 100),
+      hours: totalWorkHours * (config.revision_buffer_percentage / 100),
       cost: metrics.revisionCost,
     },
     projectManagement: {
-      hours: config.scenes_per_episode * config.artists_per_scene * config.time_per_scene_hours * (config.project_management_percentage / 100),
+      hours: totalWorkHours * (config.project_management_percentage / 100),
       cost: metrics.projectManagementCost,
     },
   };

@@ -17,7 +17,7 @@ interface CreatorCostCalculatorProps {
 
 export function CreatorCostCalculator({ seriesId, onCalculationsChange }: CreatorCostCalculatorProps) {
   const [scenesPerEpisode, setScenesPerEpisode] = useState(165);
-  const [artistsPerScene, setArtistsPerScene] = useState(4);
+  const [artistsPerEpisode, setArtistsPerEpisode] = useState(8);
   const [timePerSceneHours, setTimePerSceneHours] = useState(1.0);
   const [productionDays, setProductionDays] = useState(10);
   const [workingHoursPerDay, setWorkingHoursPerDay] = useState(8);
@@ -39,7 +39,7 @@ export function CreatorCostCalculator({ seriesId, onCalculationsChange }: Creato
     calculateCosts();
   }, [
     scenesPerEpisode,
-    artistsPerScene,
+    artistsPerEpisode,
     timePerSceneHours,
     productionDays,
     workingHoursPerDay,
@@ -60,7 +60,7 @@ export function CreatorCostCalculator({ seriesId, onCalculationsChange }: Creato
     try {
       const overrides: Partial<CreatorCostConfig> = {
         scenes_per_episode: scenesPerEpisode,
-        artists_per_scene: artistsPerScene,
+        artists_per_episode: artistsPerEpisode,
         time_per_scene_hours: timePerSceneHours,
         production_days: productionDays,
         working_hours_per_day: workingHoursPerDay,
@@ -163,18 +163,18 @@ export function CreatorCostCalculator({ seriesId, onCalculationsChange }: Creato
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                Artists per Scene
-                <InfoTooltip content="Average number of artists working on each scene simultaneously." />
+                Artists per Episode
+                <InfoTooltip content="Total team size working on this episode. The system calculates if this is sufficient for the workload." />
               </label>
-              <span className="text-sm font-bold text-gray-900">{artistsPerScene.toFixed(1)}</span>
+              <span className="text-sm font-bold text-gray-900">{artistsPerEpisode.toFixed(1)}</span>
             </div>
             <input
               type="range"
               min="1"
-              max="6"
+              max="20"
               step="0.5"
-              value={artistsPerScene}
-              onChange={(e) => setArtistsPerScene(Number(e.target.value))}
+              value={artistsPerEpisode}
+              onChange={(e) => setArtistsPerEpisode(Number(e.target.value))}
               className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-600"
             />
           </div>
