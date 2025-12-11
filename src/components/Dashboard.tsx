@@ -105,6 +105,7 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
   const [ipSectionData, setIpSectionData] = useState<IPSectionData>(DEFAULT_IP_SECTION);
   const [ipSectionSource, setIpSectionSource] = useState<'series' | 'organization' | 'default'>('default');
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [editorInitialTab, setEditorInitialTab] = useState<'main' | 'card1' | 'card2' | 'card3'>('main');
   const [seriesName, setSeriesName] = useState<string>('');
 
   useEffect(() => {
@@ -411,7 +412,10 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
               <div className="flex items-center gap-2">
                 {!ipSectionCollapsed && (
                   <button
-                    onClick={() => setIsEditorOpen(true)}
+                    onClick={() => {
+                      setEditorInitialTab('main');
+                      setIsEditorOpen(true);
+                    }}
                     className="p-2 hover:bg-white/10 rounded-lg transition-colors"
                     aria-label="Edit section"
                   >
@@ -449,13 +453,25 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
                     return (
                       <div
                         key={cardIndex}
-                        className="bg-white/10 backdrop-blur-md rounded-xl p-4 sm:p-6 border border-white/20 hover:bg-white/15 transition-all cursor-pointer active:bg-white/20"
+                        className="bg-white/10 backdrop-blur-md rounded-xl p-4 sm:p-6 border border-white/20 hover:bg-white/15 transition-all cursor-pointer active:bg-white/20 relative group"
                         onClick={(e) => {
                           e.stopPropagation();
                           const cardNames = ['production', 'monetization', 'global'] as const;
                           setFullscreenCard(cardNames[cardIndex]);
                         }}
                       >
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const tabNames = ['card1', 'card2', 'card3'] as const;
+                            setEditorInitialTab(tabNames[cardIndex]);
+                            setIsEditorOpen(true);
+                          }}
+                          className="absolute top-3 right-3 p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all opacity-0 group-hover:opacity-100 z-10"
+                          aria-label={`Edit ${card.title}`}
+                        >
+                          <Edit2 className="w-4 h-4 text-white" />
+                        </button>
                         <div className="flex items-center gap-3 mb-3 sm:mb-4">
                           <div className="w-10 h-10 sm:w-12 sm:h-12 bg-scripps-yellow/20 rounded-lg flex items-center justify-center flex-shrink-0">
                             <CardIcon className="w-5 h-5 sm:w-6 sm:h-6 text-scripps-yellow" />
@@ -929,6 +945,7 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
         initialData={ipSectionData}
         currentSource={ipSectionSource}
         seriesId={seriesId}
+        initialTab={editorInitialTab}
       />
     </div>
   );

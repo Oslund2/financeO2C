@@ -28,6 +28,7 @@ interface DashboardIPSectionEditorProps {
   initialData: IPSectionData | null;
   currentSource: 'series' | 'organization' | 'default';
   seriesId: string | null;
+  initialTab?: 'main' | 'card1' | 'card2' | 'card3';
 }
 
 const AVAILABLE_ICONS = [
@@ -79,6 +80,7 @@ export function DashboardIPSectionEditor({
   initialData,
   currentSource,
   seriesId,
+  initialTab = 'main',
 }: DashboardIPSectionEditorProps) {
   const [formData, setFormData] = useState<IPSectionData>(DEFAULT_DATA);
   const [applyToAllSeries, setApplyToAllSeries] = useState(false);
@@ -89,8 +91,9 @@ export function DashboardIPSectionEditor({
     if (isOpen) {
       setFormData(initialData || DEFAULT_DATA);
       setApplyToAllSeries(false);
+      setActiveTab(initialTab);
     }
-  }, [isOpen, initialData]);
+  }, [isOpen, initialData, initialTab]);
 
   const handleSave = async () => {
     setIsSaving(true);
