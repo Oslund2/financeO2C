@@ -94,6 +94,25 @@ function App() {
     );
   }
 
+  if (!currentOrganization && !authLoading && !orgLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-white flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-8">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Unable to Initialize Workspace</h2>
+          <p className="text-gray-600 mb-6">
+            There was an error creating your organization. Please check the browser console for details.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!currentOrganization) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-white flex items-center justify-center">

@@ -116,6 +116,9 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error('Error fetching organizations:', error);
+      if (error instanceof Error) {
+        console.error('Error details:', error.message);
+      }
       setOrganizations([]);
       setCurrentOrganization(null);
     } finally {
