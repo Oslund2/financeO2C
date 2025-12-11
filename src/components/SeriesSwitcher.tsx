@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Film, Check, Plus, ChevronDown, Settings } from 'lucide-react';
+import { Film, Check, Plus, ChevronDown, Settings, Edit, Copy, Archive } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { SeriesManagementModal } from './SeriesManagementModal';
@@ -118,7 +118,7 @@ export function SeriesSwitcher({ currentSeriesId, onSeriesChange }: SeriesSwitch
               {series.map((s) => (
                 <div
                   key={s.id}
-                  className={`group flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                  className={`group relative flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
                     s.id === currentSeriesId
                       ? 'bg-blue-50 text-scripps-blue'
                       : 'hover:bg-gray-50 text-gray-700'
@@ -140,21 +140,81 @@ export function SeriesSwitcher({ currentSeriesId, onSeriesChange }: SeriesSwitch
                       <Check className="w-4 h-4 flex-shrink-0" />
                     )}
                   </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setManagingSeries(s);
-                      setIsOpen(false);
-                    }}
-                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 rounded transition-all"
-                    title="Manage series"
-                  >
-                    <Settings className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setManagingSeries(s);
+                        setIsOpen(false);
+                      }}
+                      className="p-1.5 hover:bg-blue-100 rounded transition-all"
+                      title="Edit series"
+                    >
+                      <Edit className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setManagingSeries(s);
+                        setIsOpen(false);
+                      }}
+                      className="p-1.5 hover:bg-blue-100 rounded transition-all"
+                      title="More options"
+                    >
+                      <Settings className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               ))}
 
+              {series.length > 0 && (
+                <div className="border-t border-gray-200 mt-2">
+                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 py-2">
+                    Quick Actions
+                  </div>
+                  <div className="px-2 pb-2 space-y-1">
+                    {currentSeries && (
+                      <>
+                        <button
+                          onClick={() => {
+                            setManagingSeries(currentSeries);
+                            setIsOpen(false);
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 rounded-lg transition-colors text-left"
+                        >
+                          <Edit className="w-4 h-4 text-blue-600" />
+                          <span className="text-gray-700">Edit Current Series</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setManagingSeries(currentSeries);
+                            setIsOpen(false);
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 rounded-lg transition-colors text-left"
+                        >
+                          <Copy className="w-4 h-4 text-green-600" />
+                          <span className="text-gray-700">Duplicate Series</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setManagingSeries(currentSeries);
+                            setIsOpen(false);
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-red-50 rounded-lg transition-colors text-left"
+                        >
+                          <Archive className="w-4 h-4 text-red-600" />
+                          <span className="text-gray-700">Archive Series</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="border-t border-gray-200 mt-2 pt-2">
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 py-2">
+                  Create New Series
+                </div>
                 <div className="px-3 py-2">
                   <input
                     type="text"
