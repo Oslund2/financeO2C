@@ -81,41 +81,70 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         const randomSuffix = Math.random().toString(36).substring(2, 6);
         const slug = `studio-${timestamp}-${randomSuffix}`;
 
+        // Try using the helper function first (bypasses RLS)
         const { data: newOrg, error: orgError } = await supabase
-          .from('organizations')
-          .insert([
-            {
-              name: 'My Animation Studio',
-              slug: slug,
-              billing_tier: 'professional',
-              created_by: user.id,
-            },
-          ])
-          .select()
-          .single();
+          .rpc('create_organization_with_membership', {
+            org_name: 'My Animation Studio',
+            org_slug: slug,
+            org_billing_tier: 'professional',
+            user_uuid: user.id
+          });
 
         if (orgError) {
-          throw new Error(`Failed to create organization: ${orgError.message}`);
+          console.error('Failed to create organization via RPC:', orgError);
+
+          // Fallback: Try direct insert (should work with updated policy)
+          try {
+            const { data: directOrg, error: directError } = await supabase
+              .from('organizations')
+              .insert([
+                {
+                  name: 'My Animation Studio',
+                  slug: slug,
+                  billing_tier: 'professional',
+                  created_by: user.id,
+                },
+              ])
+              .select()
+              .single();
+
+            if (directError) {
+              throw new Error(`Direct insert failed: ${directError.message}`);
+            }
+
+            // Create membership separately
+            const { error: memberError } = await supabase
+              .from('organization_members')
+              .insert([
+                {
+                  organization_id: directOrg.id,
+                  user_id: user.id,
+                  role: 'owner',
+                },
+              ]);
+
+            if (memberError) {
+              console.error('Failed to create membership:', memberError);
+              throw new Error(`Failed to create membership: ${memberError.message}`);
+            }
+
+            memberships = [{
+              organization: directOrg,
+              role: 'owner'
+            }];
+          } catch (fallbackError) {
+            throw new Error(`Failed to create organization: ${orgError.message}. Fallback also failed: ${fallbackError instanceof Error ? fallbackError.message : 'Unknown error'}`);
+          }
+        } else {
+          if (!newOrg) {
+            throw new Error('Failed to create organization: No data returned');
+          }
+
+          memberships = [{
+            organization: newOrg as Organization,
+            role: 'owner'
+          }];
         }
-
-        const { error: memberError } = await supabase
-          .from('organization_members')
-          .insert([
-            {
-              organization_id: newOrg.id,
-              user_id: user.id,
-              role: 'owner',
-            },
-          ]);
-
-        if (memberError) {
-          throw new Error(`Failed to create membership: ${memberError.message}`);
-        }
-
-        memberships = [{
-          organization: newOrg,
-          role: 'owner'
-        }];
       }
 
       setOrganizations(memberships);
@@ -134,7 +163,21 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error('Error fetching organizations:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      let errorMessage = 'Unknown error occurred';
+
+      if (error instanceof Error) {
+        errorMessage = error.message;
+
+        // Add more helpful context for common errors
+        if (errorMessage.includes('row-level security')) {
+          errorMessage += '\n\nThis is a database permission issue. The system is trying to fix this automatically.';
+        } else if (errorMessage.includes('Failed to create organization')) {
+          errorMessage += '\n\nTip: Try refreshing the page or clearing your browser cache.';
+        } else if (errorMessage.includes('network')) {
+          errorMessage += '\n\nPlease check your internet connection and try again.';
+        }
+      }
+
       setError(errorMessage);
       setOrganizations([]);
       setCurrentOrganization(null);
