@@ -104,7 +104,7 @@ export function ScriptViewerModal({ script, onClose, onEdit }: ScriptViewerModal
             left: 0;
             top: 0;
             width: 100%;
-            padding: 0.5in;
+            padding: 0.25in;
           }
 
           .print-title-page {
@@ -141,28 +141,28 @@ export function ScriptViewerModal({ script, onClose, onEdit }: ScriptViewerModal
           }
 
           .print-dialogue {
-            margin-left: 2.5in;
-            margin-right: 2in;
+            margin-left: 1.5in;
+            margin-right: 1in;
             margin-bottom: 0.5em;
           }
 
           .print-stage-direction {
             font-style: italic;
-            margin-left: 2in;
-            margin-right: 2in;
+            margin-left: 1.25in;
+            margin-right: 1.25in;
             margin-bottom: 0.5em;
           }
 
           .print-scene-description {
-            margin-left: 1.5in;
-            margin-right: 1.5in;
+            margin-left: 1in;
+            margin-right: 1in;
             margin-bottom: 1em;
             font-style: italic;
           }
 
           @page {
             size: letter;
-            margin: 1in;
+            margin: 0.75in;
           }
         }
       `}</style>
