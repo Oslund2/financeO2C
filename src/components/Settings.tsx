@@ -305,8 +305,9 @@ export function Settings() {
                               <h4 className="font-semibold text-gray-700 mb-2">Backend & Services</h4>
                               <ul className="text-sm text-gray-600 space-y-1">
                                 <li>Supabase (Database & Storage)</li>
-                                <li>Google Vertex AI (Gemini 3 & Veo 3)</li>
-                                <li>Eleven Labs (Voice Synthesis)</li>
+                                <li>Google Vertex AI (Gemini 2.0 Flash & Veo 3)</li>
+                                <li>ElevenLabs (Voice Synthesis)</li>
+                                <li>Chatterbox (Voice Cloning & TTS)</li>
                                 <li>Supabase Edge Functions</li>
                               </ul>
                             </div>
@@ -324,7 +325,11 @@ export function Settings() {
                             'AI-Powered Storyboard Generation',
                             'Asset Library & Management',
                             'Cost Tracking & Analytics',
-                            'Voice Profile Management',
+                            'Voice Generation Studio',
+                            'Custom Voice Cloning',
+                            'Multi-Provider Voice Synthesis',
+                            'Script Translation System',
+                            'Approval Workflow System',
                             'Backup & Recovery System',
                           ].map((feature) => (
                             <div key={feature} className="flex items-center gap-2 text-sm text-gray-700">
@@ -438,7 +443,7 @@ export function Settings() {
                             <li className="flex gap-3">
                               <span className="font-bold text-scripps-blue">5.</span>
                               <div>
-                                <span className="font-semibold">Voice Recordings:</span> Generate dialogue audio using Eleven Labs with character-specific voices
+                                <span className="font-semibold">Voice Recordings:</span> Generate dialogue audio using ElevenLabs or Chatterbox with character-specific voices, including custom cloned voices
                               </div>
                             </li>
                             <li className="flex gap-3">
@@ -466,6 +471,8 @@ export function Settings() {
                             { name: 'Scripts', path: 'src/components/Scripts.tsx', desc: 'Script browsing and viewing' },
                             { name: 'Episodes', path: 'src/components/Episodes.tsx', desc: 'Episode production tracking' },
                             { name: 'AIStudio', path: 'src/components/AIStudio.tsx', desc: 'AI generation interface' },
+                            { name: 'VoiceGenerationTab', path: 'src/components/VoiceGenerationTab.tsx', desc: 'Voice studio and cloning' },
+                            { name: 'StoryboardGenerator', path: 'src/components/StoryboardGenerator.tsx', desc: 'Storyboard creation' },
                             { name: 'Assets', path: 'src/components/Assets.tsx', desc: 'Asset library management' },
                           ].map((comp) => (
                             <div key={comp.name} className="border border-gray-200 rounded-lg p-3">
@@ -495,13 +502,13 @@ export function Settings() {
                             },
                             {
                               table: 'characters',
-                              desc: 'Character profiles with physical traits, personality, and voice settings',
-                              cols: 'id, name, description, personality_traits, clay_features, voice_profile, role',
+                              desc: 'Character profiles with physical traits, personality, voice settings, and provider info',
+                              cols: 'id, name, description, personality_traits, clay_features, voice_id, voice_provider, role',
                             },
                             {
                               table: 'scripts',
-                              desc: 'Episode scripts with metadata and vocabulary words',
-                              cols: 'id, episode_id, title, content, vocabulary_words, status, runtime_minutes',
+                              desc: 'Episode scripts with metadata, vocabulary words, and lock status',
+                              cols: 'id, series_id, title, synopsis, vocabulary_words, status, locked_at, locked_by',
                             },
                             {
                               table: 'script_acts',
@@ -525,8 +532,23 @@ export function Settings() {
                             },
                             {
                               table: 'storyboards',
-                              desc: 'Visual storyboards for episodes with approval workflow',
-                              cols: 'id, episode_id, scenes, approval_status, version',
+                              desc: 'Visual storyboards for episodes with approval workflow and editing history',
+                              cols: 'id, episode_id, scenes, shots, approval_status, version, edited_at',
+                            },
+                            {
+                              table: 'translated_scripts',
+                              desc: 'Multilingual script translations with metadata',
+                              cols: 'id, script_id, language_code, title, translated_content, status',
+                            },
+                            {
+                              table: 'episode_revenue_metrics',
+                              desc: 'Revenue tracking and LTV calculations per episode',
+                              cols: 'id, episode_id, revenue_per_view, total_views, ltv_estimate',
+                            },
+                            {
+                              table: 'creator_cost_presets',
+                              desc: 'Preconfigured cost calculation templates for different production scales',
+                              cols: 'id, name, scenes_per_episode, artists_per_scene, production_days',
                             },
                             {
                               table: 'production_jobs',
@@ -613,8 +635,9 @@ colors: {
                             <p className="text-sm text-gray-600 mb-2">Update prompt templates in service files:</p>
                             <div className="bg-gray-50 rounded-lg p-4">
                               <ul className="text-sm text-gray-700 space-y-2">
-                                <li><code className="text-xs bg-gray-200 px-2 py-1 rounded">src/services/geminiService.ts</code> - Script and image generation</li>
-                                <li><code className="text-xs bg-gray-200 px-2 py-1 rounded">src/services/storyboardService.ts</code> - Storyboard prompts</li>
+                                <li><code className="text-xs bg-gray-200 px-2 py-1 rounded">src/services/geminiService.ts</code> - Script generation prompts</li>
+                                <li><code className="text-xs bg-gray-200 px-2 py-1 rounded">src/services/storyboardService.ts</code> - Storyboard and image prompts</li>
+                                <li><code className="text-xs bg-gray-200 px-2 py-1 rounded">src/services/nanoBananaService.ts</code> - Image generation prompts</li>
                                 <li><code className="text-xs bg-gray-200 px-2 py-1 rounded">src/components/AIStudio.tsx</code> - User-facing prompt templates</li>
                               </ul>
                             </div>
@@ -637,8 +660,12 @@ colors: {
                                   prompt: 'cartoon illustration, bold outlines, simplified shapes, bright colors, exaggerated expressions',
                                 },
                                 {
-                                  style: 'Claymation (Current)',
+                                  style: 'Claymation (Default)',
                                   prompt: 'claymation style, clay texture, stop-motion aesthetic, fingerprint details, warm lighting',
+                                },
+                                {
+                                  style: '3D Animation',
+                                  prompt: '3D rendered, smooth animation, detailed textures, professional lighting, Pixar style quality',
                                 },
                               ].map((ex) => (
                                 <div key={ex.style} className="border border-gray-200 rounded-lg p-3">
@@ -770,6 +797,7 @@ colors: {
                               'VITE_VERTEX_AI_LOCATION',
                               'VITE_VERTEX_AI_API_KEY',
                               'VITE_ELEVENLABS_API_KEY',
+                              'VITE_CHATTERBOX_SERVER_URL',
                             ].map((envVar) => (
                               <div key={envVar} className="bg-white border border-gray-200 rounded p-2 flex items-center justify-between">
                                 <code className="text-gray-700">{envVar}</code>
@@ -859,7 +887,7 @@ colors: {
                           </div>
 
                           <div className="border border-gray-200 rounded-lg p-4">
-                            <h4 className="font-semibold text-gray-900 mb-3">Eleven Labs</h4>
+                            <h4 className="font-semibold text-gray-900 mb-3">ElevenLabs</h4>
                             <div className="space-y-2 text-sm">
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Voice Synthesis (per 1K characters):</span>
@@ -868,6 +896,24 @@ colors: {
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Voice Cloning:</span>
                                 <span className="font-mono">~$11/month</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="border border-gray-200 rounded-lg p-4">
+                            <h4 className="font-semibold text-gray-900 mb-3">Chatterbox</h4>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Voice Synthesis (per 1K characters):</span>
+                                <span className="font-mono">Varies by provider</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Voice Cloning:</span>
+                                <span className="font-mono">Provider-dependent</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Python TTS Server:</span>
+                                <span className="font-mono">Self-hosted (free)</span>
                               </div>
                             </div>
                           </div>
@@ -953,43 +999,60 @@ colors: {
                           <pre>{`project-root/
 ├── src/
 │   ├── components/
-│   │   ├── Dashboard.tsx           # Main dashboard with analytics
-│   │   ├── Characters.tsx          # Character management
-│   │   ├── Scripts.tsx             # Script browser
-│   │   ├── Episodes.tsx            # Episode production tracking
-│   │   ├── AIStudio.tsx            # AI generation interface
-│   │   ├── Assets.tsx              # Asset library
-│   │   ├── Production.tsx          # Production queue
-│   │   ├── Settings.tsx            # This settings page
-│   │   ├── StoryboardGenerator.tsx # Storyboard creation
-│   │   ├── StoryboardViewer.tsx    # Storyboard display
-│   │   ├── ApprovalWorkflow.tsx    # Approval system
-│   │   └── Layout.tsx              # Main app layout
+│   │   ├── Dashboard.tsx               # Main dashboard with analytics
+│   │   ├── Characters.tsx              # Character management
+│   │   ├── Scripts.tsx                 # Script browser
+│   │   ├── Episodes.tsx                # Episode production tracking
+│   │   ├── AIStudio.tsx                # AI generation interface
+│   │   ├── VoiceGenerationTab.tsx      # Voice studio and cloning
+│   │   ├── VoiceSelector.tsx           # Voice selection UI
+│   │   ├── VoiceCloningModal.tsx       # Voice cloning interface
+│   │   ├── Assets.tsx                  # Asset library
+│   │   ├── Production.tsx              # Production queue
+│   │   ├── Settings.tsx                # This settings page
+│   │   ├── StoryboardGenerator.tsx     # Storyboard creation
+│   │   ├── StoryboardViewer.tsx        # Storyboard display
+│   │   ├── ScriptTranslationManager.tsx # Translation system
+│   │   ├── ApprovalWorkflow.tsx        # Approval system
+│   │   ├── EpisodeProfitAnalytics.tsx  # Revenue tracking
+│   │   ├── CreatorCostCalculator.tsx   # Labor cost calculator
+│   │   └── Layout.tsx                  # Main app layout
 │   ├── services/
-│   │   ├── geminiService.ts        # Vertex AI integration
-│   │   ├── elevenLabsService.ts    # Voice synthesis
-│   │   ├── storyboardService.ts    # Storyboard logic
-│   │   ├── episodeCreationService.ts # Episode workflow
-│   │   ├── costCalculationService.ts # Cost tracking
-│   │   ├── backupService.ts        # Backup system
-│   │   └── settingsService.ts      # Settings management
+│   │   ├── geminiService.ts            # Vertex AI integration
+│   │   ├── elevenLabsService.ts        # ElevenLabs voice synthesis
+│   │   ├── chatterboxService.ts        # Chatterbox voice cloning
+│   │   ├── voiceService.ts             # Unified voice service
+│   │   ├── nanoBananaService.ts        # Image generation
+│   │   ├── storyboardService.ts        # Storyboard logic
+│   │   ├── scriptTranslationService.ts # Translation logic
+│   │   ├── episodeCreationService.ts   # Episode workflow
+│   │   ├── costCalculationService.ts   # AI cost tracking
+│   │   ├── creatorCostCalculationService.ts # Labor cost tracking
+│   │   ├── ltvCalculationService.ts    # LTV estimation
+│   │   ├── backupService.ts            # Backup system
+│   │   ├── monitoringService.ts        # Health monitoring
+│   │   └── settingsService.ts          # Settings management
 │   ├── lib/
-│   │   ├── supabase.ts             # Supabase client
-│   │   └── database.types.ts       # TypeScript types
+│   │   ├── supabase.ts                 # Supabase client
+│   │   └── database.types.ts           # TypeScript types
 │   └── utils/
-│       └── sampleData.ts           # Sample data
+│       └── sampleData.ts               # Sample data
 ├── supabase/
-│   ├── migrations/                 # Database migrations
-│   └── functions/                  # Edge functions
-│       └── elevenlabs-proxy/
-├── public/                         # Static assets
-│   ├── characters/                 # Character images
-│   └── storyboards/                # Storyboard images
+│   ├── migrations/                     # Database migrations (19 files)
+│   └── functions/                      # Edge functions
+│       └── elevenlabs-proxy/           # ElevenLabs API proxy
+├── python-tts-server/                  # Chatterbox TTS server
+│   ├── main.py                         # FastAPI server
+│   ├── requirements.txt                # Python dependencies
+│   └── README.md                       # Setup guide
+├── public/                             # Static assets
+│   ├── characters/                     # Character images
+│   └── storyboards/                    # Storyboard images
 ├── package.json
 ├── tsconfig.json
 ├── tailwind.config.js
 ├── vite.config.ts
-└── .env                            # Environment variables`}</pre>
+└── .env                                # Environment variables`}</pre>
                         </div>
                       </div>
 
@@ -1045,12 +1108,14 @@ colors: {
                         <div className="space-y-2 text-sm">
                           {[
                             { what: 'Add new character types', where: 'src/utils/sampleData.ts' },
-                            { what: 'Modify AI prompts', where: 'src/services/geminiService.ts' },
+                            { what: 'Modify AI prompts', where: 'src/services/geminiService.ts & storyboardService.ts' },
                             { what: 'Change color scheme', where: 'tailwind.config.js' },
                             { what: 'Update database schema', where: 'supabase/migrations/*.sql' },
                             { what: 'Add new page/route', where: 'src/components/ + src/App.tsx' },
                             { what: 'Configure API integrations', where: 'src/services/*.ts' },
                             { what: 'Modify production workflow', where: 'src/services/episodeCreationService.ts' },
+                            { what: 'Setup voice providers', where: 'src/services/voiceService.ts & chatterboxService.ts' },
+                            { what: 'Configure cost tracking', where: 'src/services/costCalculationService.ts' },
                             { what: 'Change app logo', where: 'src/components/Logo.tsx' },
                           ].map((item) => (
                             <div key={item.what} className="flex items-start gap-3 bg-gray-50 rounded p-3">
