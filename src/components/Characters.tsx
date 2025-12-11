@@ -68,7 +68,7 @@ export function Characters({ seriesId }: CharactersProps) {
 
   const loadCharacters = async () => {
     try {
-      let query = supabase.from('characters').select('*').order('created_at', { ascending: false });
+      let query = supabase.from('characters').select('*');
 
       if (seriesId) {
         query = query.eq('series_id', seriesId);
@@ -77,7 +77,18 @@ export function Characters({ seriesId }: CharactersProps) {
       const { data, error } = await query;
 
       if (error) throw error;
-      setCharacters(data || []);
+
+      const roleOrder = { 'Primary': 1, 'Ensemble': 2, 'Recurring': 3, 'Cameo': 4 };
+      const sortedData = (data || []).sort((a, b) => {
+        const roleA = roleOrder[a.role as keyof typeof roleOrder] || 999;
+        const roleB = roleOrder[b.role as keyof typeof roleOrder] || 999;
+        if (roleA !== roleB) {
+          return roleA - roleB;
+        }
+        return a.name.localeCompare(b.name);
+      });
+
+      setCharacters(sortedData);
     } catch (error) {
       console.error('Error loading characters:', error);
     } finally {
