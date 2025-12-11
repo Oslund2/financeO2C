@@ -94,16 +94,12 @@ export function ScriptViewerModal({ script, onClose, onEdit }: ScriptViewerModal
     <>
       <style>{`
         @media print {
-          body * {
-            visibility: hidden;
-          }
-
-          #script-print-area,
-          #script-print-area * {
-            visibility: visible;
+          .script-modal-container {
+            display: none !important;
           }
 
           #script-print-area {
+            display: block !important;
             position: absolute;
             left: 0;
             top: 0;
@@ -171,7 +167,7 @@ export function ScriptViewerModal({ script, onClose, onEdit }: ScriptViewerModal
         }
       `}</style>
       <div
-        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        className="script-modal-container fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
         onClick={onClose}
       >
         <div
@@ -460,9 +456,10 @@ export function ScriptViewerModal({ script, onClose, onEdit }: ScriptViewerModal
           </div>
         </div>
       </div>
+      </div>
 
       {/* Hidden print-only area with Table Read format */}
-      <div id="script-print-area" className="hidden print:block">
+      <div id="script-print-area" style={{ display: 'none' }} className="print:block">
         {/* Title Page */}
         <div className="print-title-page">
           <h1 style={{ fontSize: '24pt', marginBottom: '2em' }}>{script.title}</h1>
@@ -577,7 +574,6 @@ export function ScriptViewerModal({ script, onClose, onEdit }: ScriptViewerModal
           </p>
         </div>
       </div>
-    </div>
     </>
   );
 }
