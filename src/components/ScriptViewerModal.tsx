@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, FileText, Clock, Sparkles, Calendar, Tag, Globe } from 'lucide-react';
+import { X, FileText, Clock, Sparkles, Calendar, Tag, Globe, Printer } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { ScriptTranslationManager } from './ScriptTranslationManager';
@@ -86,16 +86,99 @@ export function ScriptViewerModal({ script, onClose, onEdit }: ScriptViewerModal
   const totalScenes = acts.reduce((sum, act) => sum + act.scenes.length, 0);
   const totalDuration = acts.reduce((sum, act) => sum + (act.duration_estimate || 0), 0);
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
-    <div
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-      onClick={onClose}
-    >
+    <>
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+
+          #script-print-area,
+          #script-print-area * {
+            visibility: visible;
+          }
+
+          #script-print-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            padding: 0.5in;
+          }
+
+          .print-title-page {
+            page-break-after: always;
+            text-align: center;
+            padding-top: 3in;
+          }
+
+          .print-act {
+            page-break-before: always;
+          }
+
+          .print-scene {
+            page-break-inside: avoid;
+            margin-bottom: 2em;
+          }
+
+          .print-scene-heading {
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 1em;
+            margin-top: 1.5em;
+          }
+
+          .print-dialogue-block {
+            margin-bottom: 1em;
+          }
+
+          .print-character-name {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 0.25em;
+            text-transform: uppercase;
+          }
+
+          .print-dialogue {
+            margin-left: 2.5in;
+            margin-right: 2in;
+            margin-bottom: 0.5em;
+          }
+
+          .print-stage-direction {
+            font-style: italic;
+            margin-left: 2in;
+            margin-right: 2in;
+            margin-bottom: 0.5em;
+          }
+
+          .print-scene-description {
+            margin-left: 1.5in;
+            margin-right: 1.5in;
+            margin-bottom: 1em;
+            font-style: italic;
+          }
+
+          @page {
+            size: letter;
+            margin: 1in;
+          }
+        }
+      `}</style>
       <div
-        className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col"
-        onClick={(e) => e.stopPropagation()}
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        onClick={onClose}
       >
-        <div className="bg-gradient-to-r from-scripps-blue to-scripps-light-blue p-6 text-white flex-shrink-0">
+        <div
+          className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+          onClick={(e) => e.stopPropagation()}
+        >
+        <div className="bg-gradient-to-r from-scripps-blue to-scripps-light-blue p-6 text-white flex-shrink-0 print:hidden">
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
@@ -125,7 +208,7 @@ export function ScriptViewerModal({ script, onClose, onEdit }: ScriptViewerModal
           </div>
         </div>
 
-        <div className="bg-gray-50 border-b border-gray-200 px-6 py-4 flex-shrink-0">
+        <div className="bg-gray-50 border-b border-gray-200 px-6 py-4 flex-shrink-0 print:hidden">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-gray-500" />
@@ -161,14 +244,14 @@ export function ScriptViewerModal({ script, onClose, onEdit }: ScriptViewerModal
         </div>
 
         {script.synopsis && (
-          <div className="px-6 py-4 bg-blue-50 border-b border-blue-200 flex-shrink-0">
+          <div className="px-6 py-4 bg-blue-50 border-b border-blue-200 flex-shrink-0 print:hidden">
             <h3 className="text-sm font-semibold text-gray-700 mb-1">Synopsis</h3>
             <p className="text-gray-700 text-sm">{script.synopsis}</p>
           </div>
         )}
 
         {script.theme && (
-          <div className="px-6 py-3 bg-yellow-50 border-b border-yellow-200 flex-shrink-0">
+          <div className="px-6 py-3 bg-yellow-50 border-b border-yellow-200 flex-shrink-0 print:hidden">
             <div className="flex items-center gap-2">
               <Tag className="w-4 h-4 text-yellow-700" />
               <span className="text-sm font-semibold text-gray-700">Theme:</span>
@@ -178,7 +261,7 @@ export function ScriptViewerModal({ script, onClose, onEdit }: ScriptViewerModal
         )}
 
         {script.vocabulary_words.length > 0 && (
-          <div className="px-6 py-3 bg-green-50 border-b border-green-200 flex-shrink-0">
+          <div className="px-6 py-3 bg-green-50 border-b border-green-200 flex-shrink-0 print:hidden">
             <div className="flex items-start gap-2">
               <span className="text-sm font-semibold text-gray-700">Vocabulary:</span>
               <div className="flex flex-wrap gap-2">
@@ -196,14 +279,14 @@ export function ScriptViewerModal({ script, onClose, onEdit }: ScriptViewerModal
         )}
 
         {loading ? (
-          <div className="flex-1 flex items-center justify-center p-12">
+          <div className="flex-1 flex items-center justify-center p-12 print:hidden">
             <div className="text-center">
               <div className="w-12 h-12 border-4 border-scripps-blue border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
               <p className="text-gray-600">Loading script content...</p>
             </div>
           </div>
         ) : acts.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center p-12">
+          <div className="flex-1 flex items-center justify-center p-12 print:hidden">
             <div className="text-center">
               <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600">This script has no acts or scenes yet.</p>
@@ -219,7 +302,7 @@ export function ScriptViewerModal({ script, onClose, onEdit }: ScriptViewerModal
           </div>
         ) : (
           <>
-            <div className="border-b border-gray-200 flex-shrink-0">
+            <div className="border-b border-gray-200 flex-shrink-0 print:hidden">
               <div className="flex items-center gap-2 px-6 pt-3">
                 <button
                   onClick={() => setViewMode('script')}
@@ -265,7 +348,7 @@ export function ScriptViewerModal({ script, onClose, onEdit }: ScriptViewerModal
               )}
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto p-6 print:hidden">
               {viewMode === 'script' ? (
                 acts[activeAct] && (
                   <div className="space-y-6">
@@ -350,23 +433,151 @@ export function ScriptViewerModal({ script, onClose, onEdit }: ScriptViewerModal
           </>
         )}
 
-        <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 flex justify-end gap-3 flex-shrink-0">
+        <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 flex justify-between items-center gap-3 flex-shrink-0 print:hidden">
           <button
-            onClick={onClose}
-            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all font-medium"
+            onClick={handlePrint}
+            className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-medium"
+            title="Print script in Table Read format"
           >
-            Close
+            <Printer className="w-5 h-5" />
+            Print Script
           </button>
-          {onEdit && (
+          <div className="flex gap-3">
             <button
-              onClick={onEdit}
-              className="px-6 py-2 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium"
+              onClick={onClose}
+              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all font-medium"
             >
-              Edit Script
+              Close
             </button>
+            {onEdit && (
+              <button
+                onClick={onEdit}
+                className="px-6 py-2 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium"
+              >
+                Edit Script
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Hidden print-only area with Table Read format */}
+      <div id="script-print-area" className="hidden print:block">
+        {/* Title Page */}
+        <div className="print-title-page">
+          <h1 style={{ fontSize: '24pt', marginBottom: '2em' }}>{script.title}</h1>
+          {script.episode_number && (
+            <p style={{ fontSize: '14pt', marginBottom: '1em' }}>
+              Season {script.season_number}, Episode {script.episode_number}
+            </p>
           )}
+          {script.synopsis && (
+            <div style={{ marginTop: '3em', textAlign: 'left', marginLeft: '1.5in', marginRight: '1.5in' }}>
+              <p style={{ fontWeight: 'bold', marginBottom: '0.5em' }}>SYNOPSIS:</p>
+              <p>{script.synopsis}</p>
+            </div>
+          )}
+          <div style={{ marginTop: '3em' }}>
+            <p style={{ fontSize: '12pt' }}>Written by: AI-Assisted</p>
+            <p style={{ fontSize: '12pt' }}>Runtime: {script.runtime_minutes} minutes</p>
+            {script.created_at && (
+              <p style={{ fontSize: '10pt', marginTop: '1em' }}>
+                {new Date(script.created_at).toLocaleDateString()}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Cast List */}
+        {acts.length > 0 && (
+          <div style={{ pageBreakAfter: 'always', marginTop: '2em' }}>
+            <h2 style={{ fontSize: '16pt', fontWeight: 'bold', marginBottom: '1em', textAlign: 'center' }}>
+              CAST
+            </h2>
+            <div style={{ marginLeft: '2in' }}>
+              {Array.from(new Set(
+                acts.flatMap(act =>
+                  act.scenes.flatMap((scene: Scene) =>
+                    Array.isArray(scene.dialogue)
+                      ? scene.dialogue.map((d: any) => d.character)
+                      : []
+                  )
+                )
+              )).sort().map((character, idx) => (
+                <p key={idx} style={{ marginBottom: '0.5em' }}>{character}</p>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Script Content */}
+        <div>
+          <p style={{ fontWeight: 'bold', marginBottom: '2em' }}>FADE IN:</p>
+
+          {acts.map((act, actIndex) => (
+            <div key={act.id} className={actIndex > 0 ? 'print-act' : ''}>
+              <h2 style={{
+                fontSize: '14pt',
+                fontWeight: 'bold',
+                textAlign: 'center',
+                marginTop: '2em',
+                marginBottom: '2em',
+                textDecoration: 'underline'
+              }}>
+                {act.notes || `ACT ${act.act_number}`}
+              </h2>
+
+              {act.scenes.map((scene: Scene) => (
+                <div key={scene.id} className="print-scene">
+                  {/* Scene Heading */}
+                  <div className="print-scene-heading">
+                    {scene.setting || `SCENE ${scene.scene_number}`}
+                  </div>
+
+                  {/* Scene Description */}
+                  {scene.description && (
+                    <div className="print-scene-description">
+                      {scene.description}
+                    </div>
+                  )}
+
+                  {/* Dialogue */}
+                  {Array.isArray(scene.dialogue) && scene.dialogue.map((line: any, lineIndex: number) => (
+                    <div key={lineIndex} className="print-dialogue-block">
+                      <div className="print-character-name">
+                        {line.character}
+                      </div>
+                      {line.stage_direction && (
+                        <div className="print-stage-direction">
+                          ({line.stage_direction})
+                        </div>
+                      )}
+                      <div className="print-dialogue">
+                        {line.line}
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Production Notes */}
+                  {scene.stage_directions && (
+                    <div className="print-stage-direction" style={{ marginTop: '1em' }}>
+                      [{scene.stage_directions}]
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ))}
+
+          <p style={{ fontWeight: 'bold', marginTop: '3em', textAlign: 'center' }}>
+            FADE OUT.
+          </p>
+          <p style={{ textAlign: 'center', marginTop: '2em', fontSize: '10pt' }}>
+            THE END
+          </p>
         </div>
       </div>
     </div>
+    </>
   );
 }

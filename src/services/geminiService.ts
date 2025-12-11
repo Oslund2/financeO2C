@@ -98,16 +98,36 @@ ${vocabularySection}
 Characters:
 ${characterDescriptions}
 
+CRITICAL CHARACTER NAMING REQUIREMENTS:
+- The teacher character's name is "Mrs. Higginbottom" (NO 'S' at the end - NOT "Mrs. Higginbottoms")
+- She is lovingly referred to as "Mrs. H" by the students
+- ALWAYS use "Mrs. Higginbottom" or "Mrs. H" - never add an 'S' to her last name
+
+SHOW PREMISE & CHARACTER PORTRAYAL:
+- The entire premise is that kids are SMART, COOL, and FUNNY
+- Portray all student characters (except antagonists) as intelligent, witty, and genuinely likeable
+- EXCEPTION: Chad and certain cameo characters may be antagonists and obstructors in the storylines
+- Chad can be portrayed as smug, condescending, or a rival
+- Other students should be clever, quick-witted, and demonstrate genuine intelligence and humor
+
 Script Requirements:
 - Tone: ${tone}
 - Pacing: ${pacing}
-- Format: 3-act structure (Setup, Confrontation, Resolution)
-- Each act should have 2-4 scenes
+- Format: 3-act structure (Setup, Confrontation, Resolution) in TABLE READ FORMAT
+- Runtime: EXACTLY 22 MINUTES of scripted content (enough to fill the entire content hole)
+- Each act should have 2-5 scenes to reach the 22-minute target
+- Write in Table Read format suitable for printing and production use:
+  * Use proper scene headings (INT./EXT., LOCATION, TIME OF DAY)
+  * Character names should be clear and consistent
+  * Include stage directions and parenthetical actions
+  * Dialogue should be easy to read aloud at a table read
+  * Include timing estimates for each scene
 - Each scene should include character dialogue with natural personality expression
 - Integrate vocabulary words smoothly into conversations
-- Include brief stage directions for claymation production
-- Keep dialogue age-appropriate and engaging
-- Total estimated duration: 10-15 minutes
+- Include detailed stage directions for claymation production
+- Keep dialogue age-appropriate but genuinely clever and engaging
+- Students should demonstrate intelligence through their dialogue and problem-solving
+- Make the kids witty and funny in natural, age-appropriate ways
 
 Please generate a complete script in the following JSON format:
 
@@ -121,22 +141,28 @@ Please generate a complete script in the following JSON format:
       "description": "Description of what happens in this act",
       "scenes": [
         {
-          "title": "Scene title",
-          "description": "Scene description and setting",
+          "title": "Scene title in proper format (e.g., INT. CLASSROOM - DAY)",
+          "description": "Scene description and setting for table read",
           "dialogue": [
             {
-              "character": "Character name",
-              "line": "What they say",
-              "stage_direction": "Optional action or expression"
+              "character": "Character name (use 'Mrs. Higginbottom' or 'Mrs. H' - NEVER 'Mrs. Higginbottoms')",
+              "line": "What they say - make kids sound smart, cool, and funny",
+              "stage_direction": "Optional action or expression in parentheses"
             }
           ],
-          "duration_estimate": 120,
-          "claymation_notes": "Production notes for animators"
+          "duration_estimate": 180,
+          "claymation_notes": "Detailed production notes for animators"
         }
       ]
     }
   ]
 }
+
+IMPORTANT REMINDERS:
+- Total script duration must be approximately 22 minutes (1,320 seconds total across all scenes)
+- Use "Mrs. Higginbottom" (no S) or "Mrs. H" - this is critical
+- Make the kids genuinely smart, cool, and funny through their dialogue
+- Chad and antagonist characters are the exception - they can be portrayed differently
 
 Generate the complete script now:`;
 }
