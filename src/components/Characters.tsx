@@ -167,22 +167,33 @@ export function Characters({ seriesId }: CharactersProps) {
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">Characters</h1>
-            <p className="text-sm sm:text-base text-gray-600">Manage your animated character cast</p>
+        {!seriesId ? (
+          <div className="bg-white rounded-xl shadow-md p-12 text-center border border-gray-200">
+            <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Film className="w-8 h-8 text-amber-600" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No Series Selected</h3>
+            <p className="text-gray-600 mb-2">Please select a series to manage its characters</p>
+            <p className="text-sm text-gray-500">Each series has its own unique cast of characters</p>
           </div>
-          <button
-            onClick={() => {
-              setEditingCharacter(null);
-              setShowForm(true);
-            }}
-            className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium min-h-[44px] w-full sm:w-auto"
-          >
-            <Plus className="w-5 h-5" />
-            New Character
-          </button>
-        </div>
+        ) : (
+          <>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">Characters</h1>
+                <p className="text-sm sm:text-base text-gray-600">Manage your animated character cast</p>
+              </div>
+              <button
+                onClick={() => {
+                  setEditingCharacter(null);
+                  setShowForm(true);
+                }}
+                className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium min-h-[44px] w-full sm:w-auto"
+              >
+                <Plus className="w-5 h-5" />
+                New Character
+              </button>
+            </div>
 
         <div className="bg-white rounded-xl shadow-md p-3 sm:p-4 mb-4 sm:mb-6 border border-gray-200">
           <div className="relative mb-3">
@@ -374,9 +385,8 @@ export function Characters({ seriesId }: CharactersProps) {
             ))}
           </div>
         )}
-      </div>
 
-      {fullscreenCharacter && (
+        {fullscreenCharacter && (
         <div
           className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-0 sm:p-4 lg:p-8 animate-in fade-in duration-200"
           onClick={() => setFullscreenCharacter(null)}
@@ -481,8 +491,10 @@ export function Characters({ seriesId }: CharactersProps) {
           </div>
         </div>
       )}
+          </>
+        )}
 
-      {showForm && (
+        {showForm && (
         <CharacterForm
           character={editingCharacter}
           seriesId={seriesId}
@@ -507,6 +519,7 @@ export function Characters({ seriesId }: CharactersProps) {
             : 'This character will be permanently deleted from your series.'
         }
       />
+      </div>
     </div>
   );
 }

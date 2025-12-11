@@ -105,10 +105,12 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
   const [ipSectionData, setIpSectionData] = useState<IPSectionData>(DEFAULT_IP_SECTION);
   const [ipSectionSource, setIpSectionSource] = useState<'series' | 'organization' | 'default'>('default');
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [seriesName, setSeriesName] = useState<string>('');
 
   useEffect(() => {
     loadDashboardData();
     loadIPSectionData();
+    loadSeriesName();
   }, [seriesId, currentOrganization]);
 
   useEffect(() => {
@@ -231,6 +233,27 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
       console.error('Error loading IP section data:', error);
       setIpSectionData(DEFAULT_IP_SECTION);
       setIpSectionSource('default');
+    }
+  };
+
+  const loadSeriesName = async () => {
+    if (!seriesId) {
+      setSeriesName('');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('series')
+        .select('name')
+        .eq('id', seriesId)
+        .single();
+
+      if (error) throw error;
+      setSeriesName(data?.name || '');
+    } catch (error) {
+      console.error('Error loading series name:', error);
+      setSeriesName('');
     }
   };
 
@@ -372,7 +395,7 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
           <p className="text-sm sm:text-base lg:text-lg text-gray-600">AI-Powered Storytelling Assistant</p>
         </div>
 
-        <CastFilmStrip seriesId={seriesId} onNavigate={onNavigate} />
+        <CastFilmStrip seriesId={seriesId} onNavigate={onNavigate} seriesName={seriesName} />
 
         <div className="mb-6 sm:mb-8 bg-gradient-to-br from-scripps-navy via-scripps-blue to-scripps-light-blue rounded-xl sm:rounded-2xl shadow-2xl overflow-hidden border border-scripps-blue transition-all">
           <div className="p-6 sm:p-8 lg:p-10">

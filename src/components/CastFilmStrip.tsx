@@ -8,6 +8,7 @@ type Character = Database['public']['Tables']['characters']['Row'];
 interface CastFilmStripProps {
   seriesId: string | null;
   onNavigate: (view: string) => void;
+  seriesName?: string;
 }
 
 const ROLE_ORDER = ['Primary', 'Ensemble', 'Recurring', 'Cameo'];
@@ -19,7 +20,7 @@ const ROLE_COLORS = {
   Cameo: 'bg-gray-500',
 };
 
-export function CastFilmStrip({ seriesId, onNavigate }: CastFilmStripProps) {
+export function CastFilmStrip({ seriesId, onNavigate, seriesName }: CastFilmStripProps) {
   const [characters, setCharacters] = useState<Character[]>([]);
   const [loading, setLoading] = useState(true);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -39,16 +40,17 @@ export function CastFilmStrip({ seriesId, onNavigate }: CastFilmStripProps) {
 
   const loadCharacters = async () => {
     try {
-      let query = supabase
-        .from('characters')
-        .select('id, name, reference_image_url, role')
-        .order('created_at', { ascending: true });
-
-      if (seriesId) {
-        query = query.eq('series_id', seriesId);
+      if (!seriesId) {
+        setCharacters([]);
+        setLoading(false);
+        return;
       }
 
-      const { data, error } = await query;
+      const { data, error } = await supabase
+        .from('characters')
+        .select('id, name, reference_image_url, role')
+        .eq('series_id', seriesId)
+        .order('created_at', { ascending: true });
 
       if (error) throw error;
 
@@ -62,7 +64,7 @@ export function CastFilmStrip({ seriesId, onNavigate }: CastFilmStripProps) {
         return aIndex - bIndex;
       });
 
-      console.log('Characters loaded and sorted by role:', sortedData.map(c => ({ name: c.name, role: c.role })));
+      console.log('Characters loaded for series:', seriesId, 'Count:', sortedData.length);
       setCharacters(sortedData);
     } catch (error) {
       console.error('Error loading characters:', error);
@@ -148,13 +150,22 @@ export function CastFilmStrip({ seriesId, onNavigate }: CastFilmStripProps) {
 
         <div className="py-8 px-6 text-center">
           <Users className="w-12 h-12 text-gray-500 mx-auto mb-3" />
-          <p className="text-gray-400 mb-3">Add characters to see your cast</p>
-          <button
-            onClick={() => onNavigate('characters')}
-            className="px-4 py-2 bg-scripps-blue hover:bg-scripps-navy text-white rounded-lg transition-colors font-medium"
-          >
-            Add Characters
-          </button>
+          {!seriesId ? (
+            <>
+              <p className="text-gray-400 mb-3">Select a series to view its cast</p>
+              <p className="text-gray-500 text-sm">Each series has its own unique characters</p>
+            </>
+          ) : (
+            <>
+              <p className="text-gray-400 mb-3">Add characters to {seriesName || 'this series'}</p>
+              <button
+                onClick={() => onNavigate('characters')}
+                className="px-4 py-2 bg-scripps-blue hover:bg-scripps-navy text-white rounded-lg transition-colors font-medium"
+              >
+                Add Characters
+              </button>
+            </>
+          )}
         </div>
       </div>
     );
@@ -162,6 +173,13 @@ export function CastFilmStrip({ seriesId, onNavigate }: CastFilmStripProps) {
 
   return (
     <div className="mb-6 relative group">
+      {seriesName && (
+        <div className="mb-2 px-2">
+          <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+            Cast for: {seriesName}
+          </p>
+        </div>
+      )}
       <div className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 rounded-lg overflow-hidden border-2 border-gray-700 relative">
         <div className="film-perforations-top"></div>
         <div className="film-perforations-bottom"></div>
