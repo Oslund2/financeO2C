@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Film, FileText, Loader2, CheckCircle, AlertCircle, PlayCircle, Settings, Upload } from 'lucide-react';
+import { Film, FileText, Loader2, CheckCircle, AlertCircle, PlayCircle, Settings, Upload, Lock, Check, X, Search, Filter } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useOrganization } from '../contexts/OrganizationContext';
 import {
@@ -9,11 +9,13 @@ import {
 } from '../services/shotListGeneratorService';
 import { generatePromptsForShots } from '../services/veo3PromptService';
 import { generateBatchRecommendations } from '../services/batchRecommendationService';
+import { getUserSettings, updateUserSettings } from '../services/settingsService';
 import ShotListManager from './ShotListManager';
 import BatchRecommendations from './BatchRecommendations';
 
 type ProductionMode = 'episode' | 'script';
 type WorkflowStep = 'select' | 'upload' | 'configure' | 'generating' | 'review' | 'batches';
+type ScriptStatusFilter = 'all' | 'draft' | 'approved';
 
 interface Script {
   id: string;
@@ -21,6 +23,9 @@ interface Script {
   version: number;
   status: string;
   series_id: string;
+  created_at?: string;
+  content?: string;
+  shot_count?: number;
 }
 
 interface Episode {
@@ -45,9 +50,10 @@ interface ProductionWorkflowProps {
 export default function ProductionWorkflow({ seriesId, navigationData }: ProductionWorkflowProps) {
   const { currentOrganization } = useOrganization();
   const [currentSeries, setCurrentSeries] = useState<Series | null>(null);
-  const [mode, setMode] = useState<ProductionMode>('episode');
+  const [mode, setMode] = useState<ProductionMode>('script');
   const [step, setStep] = useState<WorkflowStep>('select');
   const [scripts, setScripts] = useState<Script[]>([]);
+  const [allScripts, setAllScripts] = useState<Script[]>([]);
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [selectedScript, setSelectedScript] = useState<Script | null>(null);
   const [selectedEpisode, setSelectedEpisode] = useState<Episode | null>(null);
@@ -62,11 +68,17 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
   const [batchRecommendations, setBatchRecommendations] = useState<any[]>([]);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [scriptTitle, setScriptTitle] = useState('');
+  const [scriptSearch, setScriptSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<ScriptStatusFilter>('all');
+  const [draftSession, setDraftSession] = useState<any>(null);
+  const [showResumeDialog, setShowResumeDialog] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState({ step: '', percent: 0 });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (currentOrganization && seriesId) {
       loadSeriesData();
+      loadUserPreferences();
     }
   }, [currentOrganization, seriesId]);
 
@@ -75,6 +87,14 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
       loadData();
     }
   }, [currentOrganization, currentSeries, mode]);
+
+  useEffect(() => {
+    if (scriptSearch || statusFilter !== 'all') {
+      filterScripts();
+    } else {
+      setScripts(allScripts);
+    }
+  }, [scriptSearch, statusFilter, allScripts]);
 
   useEffect(() => {
     if (navigationData && currentOrganization && currentSeries) {
@@ -107,6 +127,54 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
     }
   };
 
+  const loadUserPreferences = async () => {
+    try {
+      const settings = await getUserSettings();
+      if (settings.generation_preferences) {
+        const prefs = settings.generation_preferences;
+        setGenerationOptions({
+          pacing: prefs.pacing || 'medium',
+          includeEstablishing: prefs.include_establishing !== undefined ? prefs.include_establishing : true
+        });
+      }
+    } catch (err) {
+      console.error('Error loading user preferences:', err);
+    }
+  };
+
+  const saveUserPreferences = async (options: GenerationOptions) => {
+    try {
+      await updateUserSettings({
+        generation_preferences: {
+          pacing: options.pacing || 'medium',
+          include_establishing: options.includeEstablishing,
+          temperature: 0.7,
+          max_tokens: 4000,
+          tone: 'educational and entertaining'
+        }
+      });
+    } catch (err) {
+      console.error('Error saving user preferences:', err);
+    }
+  };
+
+  const filterScripts = () => {
+    let filtered = [...allScripts];
+
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(s => s.status === statusFilter);
+    }
+
+    if (scriptSearch) {
+      const searchLower = scriptSearch.toLowerCase();
+      filtered = filtered.filter(s =>
+        s.title.toLowerCase().includes(searchLower)
+      );
+    }
+
+    setScripts(filtered);
+  };
+
   const loadSeriesData = async () => {
     if (!seriesId || !currentOrganization) return;
 
@@ -136,10 +204,25 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
         .select('*')
         .eq('organization_id', currentOrganization.id)
         .eq('series_id', currentSeries.id)
-        .eq('status', 'approved')
+        .in('status', ['draft', 'approved'])
         .order('created_at', { ascending: false });
 
-      setScripts(scriptsData || []);
+      if (scriptsData) {
+        const scriptsWithCounts = await Promise.all(
+          scriptsData.map(async (script) => {
+            const { count } = await supabase
+              .from('production_shot_plans')
+              .select('*', { count: 'exact', head: true })
+              .eq('series_id', currentSeries.id)
+              .eq('organization_id', currentOrganization.id);
+
+            return { ...script, shot_count: count || 0 };
+          })
+        );
+
+        setAllScripts(scriptsWithCounts);
+        setScripts(scriptsWithCounts);
+      }
 
       if (mode === 'episode') {
         const { data: episodesData } = await supabase
@@ -150,6 +233,10 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
           .order('episode_number', { ascending: false });
 
         setEpisodes(episodesData || []);
+
+        if (episodesData && episodesData.length === 0 && scriptsData && scriptsData.length > 0) {
+          setMode('script');
+        }
       }
     } catch (err) {
       console.error('Error loading data:', err);
@@ -159,17 +246,137 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
     }
   };
 
+  const checkForDraftSession = async (scriptId: string) => {
+    if (!currentOrganization) return null;
+
+    try {
+      const { data } = await supabase
+        .from('production_draft_sessions')
+        .select('*')
+        .eq('script_id', scriptId)
+        .eq('organization_id', currentOrganization.id)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      return data;
+    } catch (err) {
+      console.error('Error checking for draft session:', err);
+      return null;
+    }
+  };
+
+  const saveDraftSession = async (scriptId: string, sessionStep: string, options?: any, shotIds?: string[]) => {
+    if (!currentOrganization || !currentSeries) return;
+
+    try {
+      const sessionData = {
+        script_id: scriptId,
+        series_id: currentSeries.id,
+        organization_id: currentOrganization.id,
+        workflow_step: sessionStep,
+        generation_options: options || generationOptions,
+        generated_shot_ids: shotIds || generatedShotIds
+      };
+
+      if (draftSession?.id) {
+        await supabase
+          .from('production_draft_sessions')
+          .update(sessionData)
+          .eq('id', draftSession.id);
+      } else {
+        const { data } = await supabase
+          .from('production_draft_sessions')
+          .insert([sessionData])
+          .select()
+          .single();
+
+        setDraftSession(data);
+      }
+    } catch (err) {
+      console.error('Error saving draft session:', err);
+    }
+  };
+
+  const handleQuickApprove = async (script: Script) => {
+    if (!currentOrganization) return;
+
+    try {
+      const { error } = await supabase
+        .from('scripts')
+        .update({ status: 'approved' })
+        .eq('id', script.id)
+        .eq('organization_id', currentOrganization.id);
+
+      if (error) throw error;
+
+      await loadData();
+      await handleScriptSelect({ ...script, status: 'approved' });
+    } catch (err) {
+      console.error('Error approving script:', err);
+      setError('Failed to approve script');
+    }
+  };
+
   const handleScriptSelect = async (script: Script) => {
     setSelectedScript(script);
     setError(null);
 
+    const existingSession = await checkForDraftSession(script.id);
+
+    if (existingSession && existingSession.workflow_step !== 'select') {
+      setDraftSession(existingSession);
+      setShowResumeDialog(true);
+      return;
+    }
+
     try {
       const analysis = await getScriptAnalysis(script.id, currentOrganization!.id);
       setScriptAnalysis(analysis);
+      await saveDraftSession(script.id, 'configure');
       setStep('configure');
     } catch (err) {
       console.error('Error analyzing script:', err);
       setError('Failed to analyze script');
+    }
+  };
+
+  const handleResumeSession = () => {
+    if (!draftSession) return;
+
+    if (draftSession.generation_options) {
+      setGenerationOptions(draftSession.generation_options);
+    }
+
+    if (draftSession.generated_shot_ids && draftSession.generated_shot_ids.length > 0) {
+      setGeneratedShotIds(draftSession.generated_shot_ids);
+    }
+
+    setStep(draftSession.workflow_step as WorkflowStep);
+    setShowResumeDialog(false);
+  };
+
+  const handleStartFresh = async () => {
+    if (draftSession?.id) {
+      await supabase
+        .from('production_draft_sessions')
+        .delete()
+        .eq('id', draftSession.id);
+    }
+
+    setDraftSession(null);
+    setShowResumeDialog(false);
+    setGeneratedShotIds([]);
+
+    if (selectedScript) {
+      try {
+        const analysis = await getScriptAnalysis(selectedScript.id, currentOrganization!.id);
+        setScriptAnalysis(analysis);
+        setStep('configure');
+      } catch (err) {
+        console.error('Error analyzing script:', err);
+        setError('Failed to analyze script');
+      }
     }
   };
 
@@ -199,6 +406,10 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
     setError(null);
 
     try {
+      setGenerationProgress({ step: 'Analyzing script structure...', percent: 10 });
+      await saveDraftSession(selectedScript.id, 'generating');
+
+      setGenerationProgress({ step: 'Creating shot breakdown...', percent: 40 });
       const shots = await generateStandaloneShotList(
         selectedScript.id,
         currentSeries.id,
@@ -206,6 +417,7 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
         generationOptions
       );
 
+      setGenerationProgress({ step: 'Finalizing shot list...', percent: 70 });
       const { data: generatedShots } = await supabase
         .from('production_shot_plans')
         .select('id')
@@ -218,16 +430,27 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
       const shotIds = generatedShots?.map(s => s.id) || [];
       setGeneratedShotIds(shotIds);
 
+      setGenerationProgress({ step: 'Generating AI prompts for Veo 3...', percent: 85 });
       await generatePromptsForShots(shotIds, currentOrganization.id);
+
+      setGenerationProgress({ step: 'Complete!', percent: 100 });
+      await saveDraftSession(selectedScript.id, 'review', generationOptions, shotIds);
 
       setStep('review');
     } catch (err) {
       console.error('Error generating shot list:', err);
       setError(err instanceof Error ? err.message : 'Failed to generate shot list');
+      await saveDraftSession(selectedScript.id, 'configure');
       setStep('configure');
     } finally {
       setLoading(false);
+      setGenerationProgress({ step: '', percent: 0 });
     }
+  };
+
+  const handleGenerationOptionsChange = (newOptions: GenerationOptions) => {
+    setGenerationOptions(newOptions);
+    saveUserPreferences(newOptions);
   };
 
   const handleGenerateBatchRecommendations = async () => {
@@ -386,7 +609,7 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
             }`}
           >
             <Film className="w-4 h-4 inline mr-2" />
-            Episode Mode
+            Episode Mode ({episodes.length})
           </button>
           <button
             onClick={() => {
@@ -402,7 +625,7 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
             }`}
           >
             <FileText className="w-4 h-4 inline mr-2" />
-            Direct Script Mode
+            Direct Script Mode ({allScripts.length})
           </button>
         </div>
       </div>
@@ -425,6 +648,33 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
         </div>
       )}
 
+      {showResumeDialog && draftSession && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold mb-4">Resume Previous Session?</h3>
+            <p className="text-gray-600 mb-6">
+              You have a saved workflow for this script from{' '}
+              {new Date(draftSession.updated_at).toLocaleString()}.
+              Would you like to continue where you left off?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={handleStartFresh}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              >
+                Start Fresh
+              </button>
+              <button
+                onClick={handleResumeSession}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Resume Session
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {step === 'select' && (
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <h3 className="text-lg font-semibold mb-4">
@@ -443,7 +693,12 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
                 </button>
               ))}
               {episodes.length === 0 && (
-                <p className="text-gray-500 text-center py-8">No episodes found. Create an episode first.</p>
+                <div className="text-center py-8">
+                  <p className="text-gray-500 mb-2">No episodes found.</p>
+                  <p className="text-sm text-gray-400">
+                    Switch to Direct Script Mode to work with scripts, or go to Episodes tab to create one.
+                  </p>
+                </div>
               )}
             </div>
           ) : (
@@ -468,19 +723,87 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
                 </div>
               </div>
 
+              <div className="flex gap-3">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search scripts..."
+                    value={scriptSearch}
+                    onChange={(e) => setScriptSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as ScriptStatusFilter)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="all">All Scripts</option>
+                  <option value="draft">Draft Only</option>
+                  <option value="approved">Approved Only</option>
+                </select>
+              </div>
+
               <div className="space-y-2">
                 {scripts.map(script => (
-                  <button
+                  <div
                     key={script.id}
-                    onClick={() => handleScriptSelect(script)}
-                    className="w-full text-left p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                    className="border border-gray-200 rounded-lg hover:border-blue-500 transition-colors overflow-hidden"
                   >
-                    <div className="font-medium">{script.title}</div>
-                    <div className="text-sm text-gray-600">Version {script.version}</div>
-                  </button>
+                    <button
+                      onClick={() => handleScriptSelect(script)}
+                      className="w-full text-left p-4 hover:bg-blue-50"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium">{script.title}</span>
+                            <span
+                              className={`px-2 py-0.5 text-xs rounded-full ${
+                                script.status === 'approved'
+                                  ? 'bg-green-100 text-green-700'
+                                  : 'bg-yellow-100 text-yellow-700'
+                              }`}
+                            >
+                              {script.status === 'approved' ? (
+                                <><Check className="w-3 h-3 inline mr-1" />Approved</>
+                              ) : (
+                                'Draft'
+                              )}
+                            </span>
+                            {script.shot_count && script.shot_count > 0 && (
+                              <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">
+                                {script.shot_count} shots
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            Version {script.version} • Created{' '}
+                            {script.created_at && new Date(script.created_at).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                    {script.status === 'draft' && (
+                      <div className="px-4 pb-3 bg-gray-50">
+                        <button
+                          onClick={() => handleQuickApprove(script)}
+                          className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                        >
+                          <Check className="w-4 h-4" />
+                          Quick Approve & Use
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 ))}
                 {scripts.length === 0 && (
-                  <p className="text-gray-500 text-center py-8">No approved scripts found. Upload one to get started.</p>
+                  <p className="text-gray-500 text-center py-8">
+                    {scriptSearch || statusFilter !== 'all'
+                      ? 'No scripts match your filters.'
+                      : 'No scripts found. Upload one to get started.'}
+                  </p>
                 )}
               </div>
             </div>
@@ -593,13 +916,16 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
                 <label className="block text-sm font-medium text-gray-700 mb-2">Pacing</label>
                 <select
                   value={generationOptions.pacing}
-                  onChange={(e) => setGenerationOptions({ ...generationOptions, pacing: e.target.value as any })}
+                  onChange={(e) => handleGenerationOptionsChange({ ...generationOptions, pacing: e.target.value as any })}
                   className="w-full border border-gray-300 rounded-lg px-4 py-2"
                 >
                   <option value="fast">Fast (More cuts, dynamic)</option>
                   <option value="medium">Medium (Balanced)</option>
                   <option value="slow">Slow (Fewer cuts, contemplative)</option>
                 </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  This preference will be saved for future sessions
+                </p>
               </div>
 
               <div className="flex items-center gap-2">
@@ -607,7 +933,7 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
                   type="checkbox"
                   id="establishing"
                   checked={generationOptions.includeEstablishing}
-                  onChange={(e) => setGenerationOptions({ ...generationOptions, includeEstablishing: e.target.checked })}
+                  onChange={(e) => handleGenerationOptionsChange({ ...generationOptions, includeEstablishing: e.target.checked })}
                   className="rounded border-gray-300"
                 />
                 <label htmlFor="establishing" className="text-sm text-gray-700">
@@ -646,10 +972,26 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
       )}
 
       {step === 'generating' && (
-        <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Generating Shot List</h3>
-          <p className="text-gray-600">Analyzing script, creating shots, and generating AI prompts...</p>
+        <div className="bg-white rounded-lg border border-gray-200 p-12">
+          <div className="max-w-md mx-auto">
+            <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2 text-center">Generating Shot List</h3>
+
+            {generationProgress.step && (
+              <div className="space-y-4 mt-6">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">{generationProgress.step}</span>
+                  <span className="font-medium text-blue-600">{generationProgress.percent}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${generationProgress.percent}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

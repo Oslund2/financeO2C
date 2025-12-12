@@ -14,6 +14,7 @@ export interface UserSettings {
     max_tokens: number;
     tone: string;
     pacing: string;
+    include_establishing?: boolean;
     [key: string]: any;
   };
   vertex_ai_config?: {
@@ -35,7 +36,8 @@ const DEFAULT_SETTINGS: UserSettings = {
     temperature: 0.7,
     max_tokens: 4000,
     tone: 'educational and entertaining',
-    pacing: 'moderate'
+    pacing: 'medium',
+    include_establishing: true
   },
   vertex_ai_config: {
     project_id: '',
