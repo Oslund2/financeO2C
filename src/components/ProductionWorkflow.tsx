@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Film, FileText, Loader2, CheckCircle, AlertCircle, PlayCircle, Settings } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Film, FileText, Loader2, CheckCircle, AlertCircle, PlayCircle, Settings, Upload } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useOrganization } from '../contexts/OrganizationContext';
 import {
@@ -13,7 +13,7 @@ import ShotListManager from './ShotListManager';
 import BatchRecommendations from './BatchRecommendations';
 
 type ProductionMode = 'episode' | 'script';
-type WorkflowStep = 'select' | 'configure' | 'generating' | 'review' | 'batches';
+type WorkflowStep = 'select' | 'upload' | 'configure' | 'generating' | 'review' | 'batches';
 
 interface Script {
   id: string;
@@ -48,6 +48,9 @@ export default function ProductionWorkflow() {
   const [error, setError] = useState<string | null>(null);
   const [generatedShotIds, setGeneratedShotIds] = useState<string[]>([]);
   const [batchRecommendations, setBatchRecommendations] = useState<any[]>([]);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [scriptTitle, setScriptTitle] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (currentOrganization && currentSeries) {
@@ -178,6 +181,61 @@ export default function ProductionWorkflow() {
     }
   };
 
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (!file.name.endsWith('.txt') && !file.name.endsWith('.pdf') && !file.name.endsWith('.docx')) {
+        setError('Please upload a text file (.txt, .pdf, or .docx)');
+        return;
+      }
+      setUploadedFile(file);
+      setScriptTitle(file.name.replace(/\.(txt|pdf|docx)$/, ''));
+      setStep('upload');
+      setError(null);
+    }
+  };
+
+  const handleUploadScript = async () => {
+    if (!uploadedFile || !scriptTitle || !currentOrganization || !currentSeries) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const content = await uploadedFile.text();
+
+      const { data: newScript, error: scriptError } = await supabase
+        .from('scripts')
+        .insert({
+          title: scriptTitle,
+          content,
+          series_id: currentSeries.id,
+          organization_id: currentOrganization.id,
+          version: 1,
+          status: 'approved',
+          format: 'plain_text'
+        })
+        .select()
+        .single();
+
+      if (scriptError) throw scriptError;
+
+      setSelectedScript(newScript);
+
+      const analysis = await getScriptAnalysis(newScript.id, currentOrganization.id);
+      setScriptAnalysis(analysis);
+      setStep('configure');
+      setUploadedFile(null);
+
+      await loadData();
+    } catch (err) {
+      console.error('Error uploading script:', err);
+      setError(err instanceof Error ? err.message : 'Failed to upload script');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -254,22 +312,118 @@ export default function ProductionWorkflow() {
               )}
             </div>
           ) : (
-            <div className="space-y-2">
-              {scripts.map(script => (
-                <button
-                  key={script.id}
-                  onClick={() => handleScriptSelect(script)}
-                  className="w-full text-left p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors"
-                >
-                  <div className="font-medium">{script.title}</div>
-                  <div className="text-sm text-gray-600">Version {script.version}</div>
-                </button>
-              ))}
-              {scripts.length === 0 && (
-                <p className="text-gray-500 text-center py-8">No approved scripts found.</p>
-              )}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between pb-4 border-b border-gray-200">
+                <p className="text-sm text-gray-600">Select an existing script or upload a new one</p>
+                <div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".txt,.pdf,.docx"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                  >
+                    <Upload className="w-4 h-4" />
+                    Upload Script
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {scripts.map(script => (
+                  <button
+                    key={script.id}
+                    onClick={() => handleScriptSelect(script)}
+                    className="w-full text-left p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                  >
+                    <div className="font-medium">{script.title}</div>
+                    <div className="text-sm text-gray-600">Version {script.version}</div>
+                  </button>
+                ))}
+                {scripts.length === 0 && (
+                  <p className="text-gray-500 text-center py-8">No approved scripts found. Upload one to get started.</p>
+                )}
+              </div>
             </div>
           )}
+        </div>
+      )}
+
+      {step === 'upload' && uploadedFile && (
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold mb-4">Upload Script</h3>
+
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center gap-3">
+                <FileText className="w-8 h-8 text-blue-600" />
+                <div className="flex-1">
+                  <p className="font-medium text-gray-900">{uploadedFile.name}</p>
+                  <p className="text-sm text-gray-600">{(uploadedFile.size / 1024).toFixed(2)} KB</p>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Script Title
+              </label>
+              <input
+                type="text"
+                value={scriptTitle}
+                onChange={(e) => setScriptTitle(e.target.value)}
+                placeholder="Enter script title"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                This will be used to identify your script in the system
+              </p>
+            </div>
+
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h4 className="font-medium text-gray-900 mb-2">What happens next?</h4>
+              <ul className="text-sm text-gray-600 space-y-1">
+                <li>• Script will be saved to your series library</li>
+                <li>• AI will analyze the content for acts, scenes, and characters</li>
+                <li>• Shot list generation settings will be presented</li>
+                <li>• Status will be set to "Approved" for immediate use</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 mt-6">
+            <button
+              onClick={() => {
+                setStep('select');
+                setUploadedFile(null);
+                setScriptTitle('');
+              }}
+              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleUploadScript}
+              disabled={loading || !scriptTitle.trim()}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4" />
+                  Upload & Continue
+                </>
+              )}
+            </button>
+          </div>
         </div>
       )}
 
