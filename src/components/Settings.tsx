@@ -13,7 +13,13 @@ export function Settings() {
   const [techDocsExpanded, setTechDocsExpanded] = useState(false);
   const [backupExpanded, setBackupExpanded] = useState(false);
   const [promptLibraryExpanded, setPromptLibraryExpanded] = useState(false);
-  const [nextStepsExpanded, setNextStepsExpanded] = useState(true);
+  const [nextStepsExpanded, setNextStepsExpanded] = useState(false);
+  const [workspaceExpanded, setWorkspaceExpanded] = useState(false);
+  const [vertexAIExpanded, setVertexAIExpanded] = useState(false);
+  const [elevenLabsExpanded, setElevenLabsExpanded] = useState(false);
+  const [databaseExpanded, setDatabaseExpanded] = useState(false);
+  const [creatorCostExpanded, setCreatorCostExpanded] = useState(false);
+  const [lipSyncExpanded, setLipSyncExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [copiedText, setCopiedText] = useState('');
 
@@ -402,239 +408,339 @@ export function Settings() {
             )}
           </div>
 
-          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
-                <Building2 className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex-1">
-                <h2 className="text-xl font-bold text-gray-900">Workspace & Series Management</h2>
-                <p className="text-sm text-gray-600">Manage your workspaces and series settings</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                <div className="flex items-center gap-3 mb-2">
-                  <Building2 className="w-5 h-5 text-blue-600" />
-                  <h3 className="font-semibold text-gray-900">Current Workspace</h3>
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+            <button
+              onClick={() => setWorkspaceExpanded(!workspaceExpanded)}
+              className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
+                  <Building2 className="w-5 h-5 text-white" />
                 </div>
-                <p className="text-sm text-gray-600 mb-3">
-                  {currentOrganization?.name || 'Loading...'}
-                </p>
-                <p className="text-xs text-gray-500">
-                  Access workspace settings from the organization switcher in the sidebar. You can
-                  manage team members, billing, and archive your workspace.
-                </p>
-              </div>
-
-              <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                <div className="flex items-center gap-3 mb-2">
-                  <Film className="w-5 h-5 text-blue-600" />
-                  <h3 className="font-semibold text-gray-900">Series Management</h3>
-                </div>
-                <p className="text-sm text-gray-600 mb-3">Edit, duplicate, or archive series</p>
-                <p className="text-xs text-gray-500">
-                  Click the settings icon next to any series in the series switcher to edit details,
-                  duplicate, or archive. Archived series can be restored within 30 days.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-start gap-2">
-                <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-blue-900">
-                  <strong>Quick Access:</strong> Use the switchers in the left sidebar to quickly
-                  access workspace and series management options.
+                <div className="text-left">
+                  <h2 className="text-xl font-bold text-gray-900">Workspace & Series Management</h2>
+                  <p className="text-sm text-gray-600">Manage your workspaces and series settings</p>
                 </div>
               </div>
-            </div>
-          </div>
+              {workspaceExpanded ? (
+                <ChevronUp className="w-6 h-6 text-gray-400" />
+              ) : (
+                <ChevronDown className="w-6 h-6 text-gray-400" />
+              )}
+            </button>
 
-          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg flex items-center justify-center">
-                <Key className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex-1">
-                <h2 className="text-xl font-bold text-gray-900">{instructions.vertexAI.title}</h2>
-                <p className="text-sm text-gray-600">{instructions.vertexAI.description}</p>
-              </div>
-              <a
-                href={instructions.vertexAI.setupUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 px-4 py-2 text-scripps-blue hover:bg-blue-50 rounded-lg transition-colors text-sm font-medium"
-              >
-                <ExternalLink className="w-4 h-4" />
-                Setup Guide
-              </a>
-            </div>
-
-            <div className="space-y-4">
-              {instructions.vertexAI.secrets.map((secret: any) => (
-                <div key={secret.name} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <code className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
-                          {secret.name}
-                        </code>
-                        {secret.required && (
-                          <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">Required</span>
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-600">{secret.description}</p>
-                      <p className="text-xs text-gray-500 mt-1">Example: {secret.example}</p>
-                      {secret.default && (
-                        <p className="text-xs text-gray-500">Default: {secret.default}</p>
-                      )}
+            {workspaceExpanded && (
+              <div className="border-t border-gray-200 p-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Building2 className="w-5 h-5 text-blue-600" />
+                      <h3 className="font-semibold text-gray-900">Current Workspace</h3>
                     </div>
-                    <div className="ml-4">
-                      {apiStatus && secret.name === 'VITE_VERTEX_AI_PROJECT_ID' && apiStatus.vertexAI.projectId ? (
-                        <CheckCircle className="w-5 h-5 text-green-600" />
-                      ) : apiStatus && secret.name === 'VITE_VERTEX_AI_LOCATION' && apiStatus.vertexAI.location ? (
-                        <CheckCircle className="w-5 h-5 text-green-600" />
-                      ) : apiStatus && secret.name === 'VITE_VERTEX_AI_API_KEY' && apiStatus.vertexAI.apiKey ? (
-                        <CheckCircle className="w-5 h-5 text-green-600" />
-                      ) : secret.required ? (
-                        <XCircle className="w-5 h-5 text-red-600" />
-                      ) : (
-                        <div className="w-5 h-5 rounded-full bg-gray-300" />
-                      )}
+                    <p className="text-sm text-gray-600 mb-3">
+                      {currentOrganization?.name || 'Loading...'}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Access workspace settings from the organization switcher in the sidebar. You can
+                      manage team members, billing, and archive your workspace.
+                    </p>
+                  </div>
+
+                  <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Film className="w-5 h-5 text-blue-600" />
+                      <h3 className="font-semibold text-gray-900">Series Management</h3>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-3">Edit, duplicate, or archive series</p>
+                    <p className="text-xs text-gray-500">
+                      Click the settings icon next to any series in the series switcher to edit details,
+                      duplicate, or archive. Archived series can be restored within 30 days.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-blue-900">
+                      <strong>Quick Access:</strong> Use the switchers in the left sidebar to quickly
+                      access workspace and series management options.
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
           </div>
 
-          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-gradient-to-br from-scripps-yellow to-yellow-400 rounded-lg flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-white" />
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+            <button
+              onClick={() => setVertexAIExpanded(!vertexAIExpanded)}
+              className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg flex items-center justify-center">
+                  <Key className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <h2 className="text-xl font-bold text-gray-900">{instructions.vertexAI.title}</h2>
+                  <p className="text-sm text-gray-600">{instructions.vertexAI.description}</p>
+                </div>
               </div>
-              <div className="flex-1">
-                <h2 className="text-xl font-bold text-gray-900">{instructions.elevenLabs.title}</h2>
-                <p className="text-sm text-gray-600">{instructions.elevenLabs.description}</p>
-              </div>
-              <a
-                href={instructions.elevenLabs.setupUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 px-4 py-2 text-scripps-blue hover:bg-blue-50 rounded-lg transition-colors text-sm font-medium"
-              >
-                <ExternalLink className="w-4 h-4" />
-                Get API Key
-              </a>
-            </div>
+              {vertexAIExpanded ? (
+                <ChevronUp className="w-6 h-6 text-gray-400" />
+              ) : (
+                <ChevronDown className="w-6 h-6 text-gray-400" />
+              )}
+            </button>
 
-            <div className="space-y-4">
-              {instructions.elevenLabs.secrets.map((secret: any) => (
-                <div key={secret.name} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <code className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
-                          {secret.name}
-                        </code>
-                        {secret.required && (
-                          <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">Required</span>
-                        )}
+            {vertexAIExpanded && (
+              <div className="border-t border-gray-200 p-6">
+                <div className="flex justify-end mb-4">
+                  <a
+                    href={instructions.vertexAI.setupUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-4 py-2 text-scripps-blue hover:bg-blue-50 rounded-lg transition-colors text-sm font-medium"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Setup Guide
+                  </a>
+                </div>
+
+                <div className="space-y-4">
+                  {instructions.vertexAI.secrets.map((secret: any) => (
+                    <div key={secret.name} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <code className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
+                              {secret.name}
+                            </code>
+                            {secret.required && (
+                              <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">Required</span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-600">{secret.description}</p>
+                          <p className="text-xs text-gray-500 mt-1">Example: {secret.example}</p>
+                          {secret.default && (
+                            <p className="text-xs text-gray-500">Default: {secret.default}</p>
+                          )}
+                        </div>
+                        <div className="ml-4">
+                          {apiStatus && secret.name === 'VITE_VERTEX_AI_PROJECT_ID' && apiStatus.vertexAI.projectId ? (
+                            <CheckCircle className="w-5 h-5 text-green-600" />
+                          ) : apiStatus && secret.name === 'VITE_VERTEX_AI_LOCATION' && apiStatus.vertexAI.location ? (
+                            <CheckCircle className="w-5 h-5 text-green-600" />
+                          ) : apiStatus && secret.name === 'VITE_VERTEX_AI_API_KEY' && apiStatus.vertexAI.apiKey ? (
+                            <CheckCircle className="w-5 h-5 text-green-600" />
+                          ) : secret.required ? (
+                            <XCircle className="w-5 h-5 text-red-600" />
+                          ) : (
+                            <div className="w-5 h-5 rounded-full bg-gray-300" />
+                          )}
+                        </div>
                       </div>
-                      <p className="text-sm text-gray-600">{secret.description}</p>
-                      <p className="text-xs text-gray-500 mt-1">Example: {secret.example}</p>
                     </div>
-                    <div className="ml-4">
-                      {apiStatus?.elevenLabs.apiKey ? (
-                        <CheckCircle className="w-5 h-5 text-green-600" />
-                      ) : (
-                        <XCircle className="w-5 h-5 text-red-600" />
-                      )}
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+            <button
+              onClick={() => setElevenLabsExpanded(!elevenLabsExpanded)}
+              className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-scripps-yellow to-yellow-400 rounded-lg flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <h2 className="text-xl font-bold text-gray-900">{instructions.elevenLabs.title}</h2>
+                  <p className="text-sm text-gray-600">{instructions.elevenLabs.description}</p>
+                </div>
+              </div>
+              {elevenLabsExpanded ? (
+                <ChevronUp className="w-6 h-6 text-gray-400" />
+              ) : (
+                <ChevronDown className="w-6 h-6 text-gray-400" />
+              )}
+            </button>
+
+            {elevenLabsExpanded && (
+              <div className="border-t border-gray-200 p-6">
+                <div className="flex justify-end mb-4">
+                  <a
+                    href={instructions.elevenLabs.setupUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-4 py-2 text-scripps-blue hover:bg-blue-50 rounded-lg transition-colors text-sm font-medium"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Get API Key
+                  </a>
+                </div>
+
+                <div className="space-y-4">
+                  {instructions.elevenLabs.secrets.map((secret: any) => (
+                    <div key={secret.name} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <code className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
+                              {secret.name}
+                            </code>
+                            {secret.required && (
+                              <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">Required</span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-600">{secret.description}</p>
+                          <p className="text-xs text-gray-500 mt-1">Example: {secret.example}</p>
+                        </div>
+                        <div className="ml-4">
+                          {apiStatus?.elevenLabs.apiKey ? (
+                            <CheckCircle className="w-5 h-5 text-green-600" />
+                          ) : (
+                            <XCircle className="w-5 h-5 text-red-600" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+            <button
+              onClick={() => setDatabaseExpanded(!databaseExpanded)}
+              className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
+                  <Database className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <h2 className="text-xl font-bold text-gray-900">Database Status</h2>
+                  <p className="text-sm text-gray-600">Supabase connection information</p>
+                </div>
+              </div>
+              {databaseExpanded ? (
+                <ChevronUp className="w-6 h-6 text-gray-400" />
+              ) : (
+                <ChevronDown className="w-6 h-6 text-gray-400" />
+              )}
+            </button>
+
+            {databaseExpanded && (
+              <div className="border-t border-gray-200 p-6">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-center gap-2 text-green-800">
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                    <span className="font-medium">Connected</span>
+                  </div>
+                  <p className="text-sm text-green-700 mt-1">
+                    Database is configured and ready to use
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+            <button
+              onClick={() => setCreatorCostExpanded(!creatorCostExpanded)}
+              className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-600 rounded-lg flex items-center justify-center">
+                  <DollarSign className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <h2 className="text-xl font-bold text-gray-900">Creator Cost Configuration</h2>
+                  <p className="text-sm text-gray-600">Labor-based production cost settings and presets</p>
+                </div>
+              </div>
+              {creatorCostExpanded ? (
+                <ChevronUp className="w-6 h-6 text-gray-400" />
+              ) : (
+                <ChevronDown className="w-6 h-6 text-gray-400" />
+              )}
+            </button>
+
+            {creatorCostExpanded && (
+              <div className="border-t border-gray-200 p-6">
+                <div className="space-y-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <div className="text-sm text-blue-800">
+                        <p className="font-medium mb-1">Available Cost Presets</p>
+                        <p>Three preconfigured creator cost models are available globally:</p>
+                        <ul className="mt-2 space-y-1 list-disc list-inside">
+                          <li><strong>Global Default:</strong> 165 scenes, 4 artists/scene, 10 production days</li>
+                          <li><strong>Small Studio:</strong> 2 artists/scene, 15 production days, optimized for smaller teams</li>
+                          <li><strong>Large Studio:</strong> 5 artists/scene, 7 production days, faster production timelines</li>
+                        </ul>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
 
-          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
-                <Database className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">Database Status</h2>
-                <p className="text-sm text-gray-600">Supabase connection information</p>
-              </div>
-            </div>
-
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <div className="flex items-center gap-2 text-green-800">
-                <CheckCircle className="w-5 h-5 text-green-600" />
-                <span className="font-medium">Connected</span>
-              </div>
-              <p className="text-sm text-green-700 mt-1">
-                Database is configured and ready to use
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-600 rounded-lg flex items-center justify-center">
-                <DollarSign className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">Creator Cost Configuration</h2>
-                <p className="text-sm text-gray-600">Labor-based production cost settings and presets</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-start gap-3">
-                  <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                  <div className="text-sm text-blue-800">
-                    <p className="font-medium mb-1">Available Cost Presets</p>
-                    <p>Three preconfigured creator cost models are available globally:</p>
-                    <ul className="mt-2 space-y-1 list-disc list-inside">
-                      <li><strong>Global Default:</strong> 165 scenes, 4 artists/scene, 10 production days</li>
-                      <li><strong>Small Studio:</strong> 2 artists/scene, 15 production days, optimized for smaller teams</li>
-                      <li><strong>Large Studio:</strong> 5 artists/scene, 7 production days, faster production timelines</li>
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <p className="text-sm text-gray-700 mb-3">
+                      Use the <strong>Episode Profit Analytics</strong> page to configure creator costs with real-time calculations
+                      and detailed breakdowns. The Creator Cost Calculator allows you to:
+                    </p>
+                    <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside ml-4">
+                      <li>Adjust scenes per episode, artists per scene, and time per scene</li>
+                      <li>Configure production schedules and working hours</li>
+                      <li>Set artist salaries and overhead percentages</li>
+                      <li>Define preproduction, postproduction, and revision time allocations</li>
+                      <li>Specify facility costs including software, equipment, and studio space</li>
+                      <li>View detailed phase-by-phase cost breakdowns</li>
                     </ul>
                   </div>
+
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg">
+                    <div>
+                      <div className="font-medium text-gray-900">Creator Cost Presets Configured</div>
+                      <div className="text-sm text-gray-600">3 global presets available</div>
+                    </div>
+                    <CheckCircle className="w-6 h-6 text-green-600" />
+                  </div>
                 </div>
               </div>
-
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                <p className="text-sm text-gray-700 mb-3">
-                  Use the <strong>Episode Profit Analytics</strong> page to configure creator costs with real-time calculations
-                  and detailed breakdowns. The Creator Cost Calculator allows you to:
-                </p>
-                <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside ml-4">
-                  <li>Adjust scenes per episode, artists per scene, and time per scene</li>
-                  <li>Configure production schedules and working hours</li>
-                  <li>Set artist salaries and overhead percentages</li>
-                  <li>Define preproduction, postproduction, and revision time allocations</li>
-                  <li>Specify facility costs including software, equipment, and studio space</li>
-                  <li>View detailed phase-by-phase cost breakdowns</li>
-                </ul>
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg">
-                <div>
-                  <div className="font-medium text-gray-900">Creator Cost Presets Configured</div>
-                  <div className="text-sm text-gray-600">3 global presets available</div>
-                </div>
-                <CheckCircle className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
+            )}
           </div>
 
-          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-            <LipSyncSettings />
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+            <button
+              onClick={() => setLipSyncExpanded(!lipSyncExpanded)}
+              className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-rose-600 rounded-lg flex items-center justify-center">
+                  <Video className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <h2 className="text-xl font-bold text-gray-900">Lip Sync Configuration</h2>
+                  <p className="text-sm text-gray-600">Configure video lip sync providers and settings</p>
+                </div>
+              </div>
+              {lipSyncExpanded ? (
+                <ChevronUp className="w-6 h-6 text-gray-400" />
+              ) : (
+                <ChevronDown className="w-6 h-6 text-gray-400" />
+              )}
+            </button>
+
+            {lipSyncExpanded && (
+              <div className="border-t border-gray-200 p-6">
+                <LipSyncSettings />
+              </div>
+            )}
           </div>
 
           <PromptLibrary
