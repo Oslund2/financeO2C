@@ -28,6 +28,28 @@ export interface CategoryProgress {
   milestones: ProgressMilestone[];
 }
 
+export interface WorkflowMilestone {
+  name: string;
+  status: 'not_started' | 'in_progress' | 'completed';
+  count: number;
+  total: number | null;
+  navigation_target: string;
+  completed_at: string | null;
+  action_label: string;
+  icon: string;
+  description: string;
+}
+
+export interface WorkflowProgress {
+  milestones: WorkflowMilestone[];
+  overall_progress: number;
+  completed_count: number;
+  total_count: number;
+  episode_id: string;
+  episode_title: string;
+  next_step?: WorkflowMilestone | null;
+}
+
 export class EpisodeProgressService {
   static async getProgressBreakdown(episodeId: string): Promise<EpisodeProgressBreakdown | null> {
     try {
@@ -212,5 +234,47 @@ export class EpisodeProgressService {
     if (progress < 75) return 'bg-yellow-500';
     if (progress < 100) return 'bg-blue-500';
     return 'bg-green-500';
+  }
+
+  static async getWorkflowProgress(episodeId: string): Promise<WorkflowProgress | null> {
+    try {
+      const { data, error } = await supabase
+        .rpc('get_episode_workflow_milestones', { p_episode_id: episodeId });
+
+      if (error) throw error;
+      if (!data) return null;
+
+      const result = data as WorkflowProgress;
+
+      const nextStep = result.milestones.find(m => m.status !== 'completed') || null;
+
+      return {
+        ...result,
+        next_step: nextStep
+      };
+    } catch (error) {
+      console.error('Error fetching workflow progress:', error);
+      return null;
+    }
+  }
+
+  static getNextStepRecommendation(workflow: WorkflowProgress): string {
+    if (!workflow.next_step) {
+      return 'All workflow steps completed!';
+    }
+
+    const step = workflow.next_step;
+    const recommendations: { [key: string]: string } = {
+      'Characters': 'Add characters to your series to use in episodes',
+      'Script': 'Link a script to this episode to begin production',
+      'Storyboard': 'Generate a storyboard from your script',
+      'Shot List': 'Create a detailed shot list for production',
+      'Prompts': 'Generate AI prompts for your shots',
+      'Rendering': 'Start rendering shots with AI video generation',
+      'Lip Sync': 'Synchronize dialogue with character animations',
+      'Final Video': 'Export the final video for delivery'
+    };
+
+    return recommendations[step.name] || `Complete ${step.name} to continue`;
   }
 }

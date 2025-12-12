@@ -666,7 +666,11 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
                       </button>
                       {expandedProgressId === episode.id && (
                         <div className="mt-3">
-                          <EpisodeProgressBreakdown episodeId={episode.id} showRefreshButton />
+                          <EpisodeProgressBreakdown
+                            episodeId={episode.id}
+                            showRefreshButton
+                            onNavigate={onNavigate}
+                          />
                         </div>
                       )}
                     </div>
