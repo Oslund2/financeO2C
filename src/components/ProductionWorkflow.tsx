@@ -39,9 +39,10 @@ interface Series {
 
 interface ProductionWorkflowProps {
   seriesId: string | null;
+  navigationData?: any;
 }
 
-export default function ProductionWorkflow({ seriesId }: ProductionWorkflowProps) {
+export default function ProductionWorkflow({ seriesId, navigationData }: ProductionWorkflowProps) {
   const { currentOrganization } = useOrganization();
   const [currentSeries, setCurrentSeries] = useState<Series | null>(null);
   const [mode, setMode] = useState<ProductionMode>('episode');
@@ -74,6 +75,37 @@ export default function ProductionWorkflow({ seriesId }: ProductionWorkflowProps
       loadData();
     }
   }, [currentOrganization, currentSeries, mode]);
+
+  useEffect(() => {
+    if (navigationData && currentOrganization && currentSeries) {
+      handleNavigationData();
+    }
+  }, [navigationData, currentOrganization, currentSeries]);
+
+  const handleNavigationData = async () => {
+    if (navigationData?.episodeId) {
+      const { data: episode } = await supabase
+        .from('episodes')
+        .select('*')
+        .eq('id', navigationData.episodeId)
+        .maybeSingle();
+
+      if (episode) {
+        await handleEpisodeSelect(episode);
+      }
+    } else if (navigationData?.scriptId) {
+      const { data: script } = await supabase
+        .from('scripts')
+        .select('*')
+        .eq('id', navigationData.scriptId)
+        .maybeSingle();
+
+      if (script) {
+        setMode('script');
+        await handleScriptSelect(script);
+      }
+    }
+  };
 
   const loadSeriesData = async () => {
     if (!seriesId || !currentOrganization) return;

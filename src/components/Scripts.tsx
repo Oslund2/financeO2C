@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, FileText, Trash2, Edit2, CheckCircle, Clock, Sparkles, Lock, Film, AlertCircle, DollarSign, ArrowRight, Zap, X, Eye, Filter } from 'lucide-react';
+import { Plus, Search, FileText, Trash2, Edit2, CheckCircle, Clock, Sparkles, Lock, Film, AlertCircle, DollarSign, ArrowRight, Zap, X, Eye, Filter, PlayCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
@@ -514,14 +514,24 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
                       </>
                     )}
                     {script.status === 'approved' && !scriptLocks.get(script.id)?.locked && (
-                      <button
-                        onClick={() => setCreateEpisodeModal({ isOpen: true, script })}
-                        className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium"
-                        title="Create Episode from this script"
-                      >
-                        <Film className="w-4 h-4" />
-                        Create Episode
-                      </button>
+                      <>
+                        <button
+                          onClick={() => onNavigate('production', { scriptId: script.id })}
+                          className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+                          title="Generate shot list directly from this script"
+                        >
+                          <PlayCircle className="w-4 h-4" />
+                          Shot List
+                        </button>
+                        <button
+                          onClick={() => setCreateEpisodeModal({ isOpen: true, script })}
+                          className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium"
+                          title="Create Episode from this script"
+                        >
+                          <Film className="w-4 h-4" />
+                          Create Episode
+                        </button>
+                      </>
                     )}
                     {episodeCounts.get(script.id)! > 0 && (
                       <button

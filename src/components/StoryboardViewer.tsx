@@ -340,6 +340,15 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
             </button>
 
             <div className="flex items-center gap-3">
+              {storyboard.episode_id && (
+                <button
+                  onClick={() => onNavigate('production', { episodeId: storyboard.episode_id })}
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:shadow-lg transition-all font-medium"
+                >
+                  <Film className="w-4 h-4" />
+                  Start Production
+                </button>
+              )}
               <button
                 onClick={() => setShowBulkUpload(true)}
                 className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
@@ -512,6 +521,15 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
           </button>
 
           <div className="flex items-center gap-3">
+            {storyboard.episode_id && (
+              <button
+                onClick={() => onNavigate('production', { episodeId: storyboard.episode_id })}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:shadow-lg transition-all font-medium"
+              >
+                <Film className="w-4 h-4" />
+                Start Production
+              </button>
+            )}
             <div className="relative">
               <button
                 onClick={() => setShowFilterMenu(!showFilterMenu)}
