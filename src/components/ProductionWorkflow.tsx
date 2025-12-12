@@ -31,8 +31,19 @@ interface Episode {
   series_id: string;
 }
 
-export default function ProductionWorkflow() {
-  const { currentOrganization, currentSeries } = useOrganization();
+interface Series {
+  id: string;
+  title: string;
+  description: string;
+}
+
+interface ProductionWorkflowProps {
+  seriesId: string | null;
+}
+
+export default function ProductionWorkflow({ seriesId }: ProductionWorkflowProps) {
+  const { currentOrganization } = useOrganization();
+  const [currentSeries, setCurrentSeries] = useState<Series | null>(null);
   const [mode, setMode] = useState<ProductionMode>('episode');
   const [step, setStep] = useState<WorkflowStep>('select');
   const [scripts, setScripts] = useState<Script[]>([]);
@@ -53,10 +64,35 @@ export default function ProductionWorkflow() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if (currentOrganization && seriesId) {
+      loadSeriesData();
+    }
+  }, [currentOrganization, seriesId]);
+
+  useEffect(() => {
     if (currentOrganization && currentSeries) {
       loadData();
     }
   }, [currentOrganization, currentSeries, mode]);
+
+  const loadSeriesData = async () => {
+    if (!seriesId || !currentOrganization) return;
+
+    try {
+      const { data: seriesData, error } = await supabase
+        .from('series')
+        .select('id, title, description')
+        .eq('id', seriesId)
+        .eq('organization_id', currentOrganization.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      setCurrentSeries(seriesData);
+    } catch (err) {
+      console.error('Error loading series:', err);
+      setError('Failed to load series data');
+    }
+  };
 
   const loadData = async () => {
     if (!currentOrganization || !currentSeries) return;
@@ -236,7 +272,7 @@ export default function ProductionWorkflow() {
     }
   };
 
-  if (!currentOrganization || !currentSeries) {
+  if (!currentOrganization || !seriesId) {
     return (
       <div className="flex items-center justify-center h-full py-20">
         <div className="text-center">
