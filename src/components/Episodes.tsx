@@ -456,7 +456,7 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
               return (
               <div
                 key={episode.id}
-                className={`bg-white rounded-xl shadow-md hover:shadow-lg transition-all border p-4 sm:p-6 ${
+                className={`bg-white rounded-xl shadow-md hover:shadow-lg transition-all border p-4 sm:p-6 overflow-hidden ${
                   isOrphaned
                     ? 'border-4 border-red-400 ring-4 ring-red-400 ring-opacity-20'
                     : isHighlighted
@@ -482,11 +482,11 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
                     )}
                   </div>
 
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 overflow-hidden">
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3 mb-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2 mb-2">
-                          <h3 className="text-lg sm:text-xl font-bold text-gray-900 truncate">{episode.title}</h3>
+                      <div className="flex-1 min-w-0 overflow-hidden">
+                        <div className="flex items-center gap-2 mb-2 overflow-hidden">
+                          <h3 className="text-base sm:text-xl font-bold text-gray-900 truncate flex-shrink min-w-0">{episode.title}</h3>
                           {isOrphaned && (
                             <span className="px-2 py-0.5 bg-red-100 text-red-800 text-xs font-bold rounded border-2 border-red-400 flex items-center gap-1 flex-shrink-0">
                               <AlertTriangle className="w-3 h-3" />
@@ -500,25 +500,25 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-2 flex-wrap text-xs sm:text-sm">
+                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap text-[10px] sm:text-sm">
                           {getStatusIcon(episode.status)}
                           <span className="font-medium text-gray-700 capitalize">
                             {episode.status.replace('_', ' ')}
                           </span>
                           {episode.status !== 'completed' && (
-                            <span className="text-gray-600 bg-gray-100 px-2 py-0.5 rounded border border-gray-200">
-                              {episode.progress_percentage}%
+                            <span className="text-gray-600 bg-gray-100 px-1.5 sm:px-2 py-0.5 rounded border border-gray-200 text-[10px] sm:text-sm">
+                              Production: {episode.progress_percentage}%
                             </span>
                           )}
                           {shotListInfo && shotListInfo.total > 0 && (
-                            <div className="flex items-center gap-1 px-2 py-0.5 rounded border bg-blue-50 text-blue-800 border-blue-200">
+                            <div className="hidden sm:flex items-center gap-1 px-2 py-0.5 rounded border bg-blue-50 text-blue-800 border-blue-200">
                               <Camera className="w-3 h-3" />
                               <span className="font-medium">
                                 {shotListInfo.completed}/{shotListInfo.total}
                               </span>
                             </div>
                           )}
-                          <span className="text-gray-500">
+                          <span className="text-gray-500 text-[10px] sm:text-sm">
                             {new Date(episode.created_at).toLocaleDateString()}
                           </span>
                         </div>
@@ -529,11 +529,11 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
                           </div>
                         )}
                       </div>
-                      <div className="flex sm:flex-col items-center sm:items-end gap-3 sm:gap-2 text-right">
+                      <div className="flex sm:flex-col items-center sm:items-end gap-2 sm:gap-2 text-right flex-shrink-0">
                         {episode.estimated_cost && (
-                          <div>
-                            <div className="text-xs text-gray-600 hidden sm:block">Est. Cost</div>
-                            <div className="text-base sm:text-lg font-bold text-green-700">
+                          <div className="min-w-0">
+                            <div className="text-[10px] sm:text-xs text-gray-600 hidden sm:block">Est. Cost</div>
+                            <div className="text-sm sm:text-lg font-bold text-green-700 whitespace-nowrap">
                               ${episode.estimated_cost.toFixed(0)}
                             </div>
                           </div>
@@ -541,7 +541,7 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
                         {episode.source_script_snapshot && (
                           <button
                             onClick={() => setCostViewEpisode(episode)}
-                            className="text-xs text-scripps-blue hover:underline flex items-center gap-1"
+                            className="text-[10px] sm:text-xs text-scripps-blue hover:underline flex items-center gap-1 whitespace-nowrap"
                           >
                             <DollarSign className="w-3 h-3" />
                             <span className="hidden sm:inline">View Costs</span>
@@ -551,56 +551,56 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
                       </div>
                     </div>
 
-                    <div className={`mb-3 sm:mb-4 rounded-lg p-3 sm:p-4 border-2 ${
+                    <div className={`mb-3 sm:mb-4 rounded-lg p-3 sm:p-4 border-2 overflow-hidden ${
                       isProfit
                         ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200'
                         : 'bg-gradient-to-r from-red-50 to-orange-50 border-red-200'
                     }`}>
                       <div className="flex items-center justify-between mb-2 sm:mb-3">
-                        <div className="flex items-center gap-2">
-                          <DollarSign className={`w-4 h-4 sm:w-5 sm:h-5 ${isProfit ? 'text-green-600' : 'text-red-600'}`} />
-                          <span className="text-xs sm:text-sm font-semibold text-gray-700">
+                        <div className="flex items-center gap-1 sm:gap-2 min-w-0">
+                          <DollarSign className={`w-4 h-4 flex-shrink-0 ${isProfit ? 'text-green-600' : 'text-red-600'}`} />
+                          <span className="text-[10px] sm:text-sm font-semibold text-gray-700 truncate">
                             {ltvMetrics.isInService ? 'Lifetime Value' : 'Projected LTV'}
                           </span>
                         </div>
-                        <div className="flex items-center gap-1 sm:gap-2 text-xs text-gray-600">
+                        <div className="flex items-center gap-1 text-[10px] sm:text-xs text-gray-600 flex-shrink-0">
                           <Calendar className="w-3 h-3" />
                           <span>{ltvMetrics.yearsInService}y</span>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-3 gap-2 sm:gap-4">
-                        <div>
-                          <div className="text-xs text-gray-600 mb-0.5 sm:mb-1">Revenue/yr</div>
-                          <div className="text-sm sm:text-lg font-bold text-gray-900">
+                      <div className="grid grid-cols-3 gap-1 sm:gap-4">
+                        <div className="min-w-0">
+                          <div className="text-[10px] sm:text-xs text-gray-600 mb-0.5 sm:mb-1 truncate">Annual Rev</div>
+                          <div className="text-xs sm:text-lg font-bold text-gray-900 truncate">
                             {LTVCalculationService.formatCurrency(ltvMetrics.annualRevenue)}
                           </div>
                         </div>
-                        <div>
-                          <div className="text-xs text-gray-600 mb-0.5 sm:mb-1">Profit</div>
-                          <div className={`text-sm sm:text-lg font-bold ${isProfit ? 'text-green-700' : 'text-red-700'}`}>
+                        <div className="min-w-0">
+                          <div className="text-[10px] sm:text-xs text-gray-600 mb-0.5 sm:mb-1 truncate">Lifetime Profit</div>
+                          <div className={`text-xs sm:text-lg font-bold truncate ${isProfit ? 'text-green-700' : 'text-red-700'}`}>
                             {LTVCalculationService.formatCurrency(ltvMetrics.lifetimeProfit)}
                           </div>
                         </div>
-                        <div>
-                          <div className="text-xs text-gray-600 mb-0.5 sm:mb-1">Margin</div>
-                          <div className={`text-sm sm:text-lg font-bold ${isProfit ? 'text-green-700' : 'text-red-700'}`}>
+                        <div className="min-w-0">
+                          <div className="text-[10px] sm:text-xs text-gray-600 mb-0.5 sm:mb-1 truncate">Margin</div>
+                          <div className={`text-xs sm:text-lg font-bold truncate ${isProfit ? 'text-green-700' : 'text-red-700'}`}>
                             {ltvMetrics.lifetimeMargin.toFixed(0)}%
                           </div>
                         </div>
                       </div>
 
-                      <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-gray-300 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs">
-                        <div className="flex items-center gap-2 text-gray-700">
-                          <TrendingUp className="w-4 h-4 text-green-600" />
+                      <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-gray-300 flex flex-wrap items-center justify-between gap-1 sm:gap-2 text-[10px] sm:text-xs overflow-hidden">
+                        <div className="flex items-center gap-1 sm:gap-2 text-gray-700 min-w-0">
+                          <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-green-600 flex-shrink-0" />
                           <span className="font-medium">Payback:</span>
-                          <span className="text-sm sm:text-base font-bold text-green-700">
+                          <span className="text-xs sm:text-base font-bold text-green-700 truncate">
                             {LTVCalculationService.formatYearsMonths(ltvMetrics.paybackPeriodYears)}
                           </span>
                         </div>
                         {ltvMetrics.isInService && (
-                          <div className="flex items-center gap-2">
-                            <span className={`px-2 py-0.5 sm:py-1 rounded ${LTVCalculationService.getPhaseColor(ltvMetrics.currentRetentionPercent, ltvMetrics.minimumRetentionPercent)} bg-opacity-10 font-medium text-xs`}>
+                          <div className="flex items-center">
+                            <span className={`px-1.5 sm:px-2 py-0.5 rounded ${LTVCalculationService.getPhaseColor(ltvMetrics.currentRetentionPercent, ltvMetrics.minimumRetentionPercent)} bg-opacity-10 font-medium text-[10px] sm:text-xs truncate max-w-[100px] sm:max-w-none`}>
                               {LTVCalculationService.getRetentionPhaseLabel(ltvMetrics.currentRetentionPercent, ltvMetrics.minimumRetentionPercent)}
                             </span>
                           </div>
