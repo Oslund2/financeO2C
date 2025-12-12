@@ -18,10 +18,13 @@ Deno.serve(async (req: Request) => {
 
   try {
     const apiKey = Deno.env.get("ELEVENLABS_API_KEY");
-    
+
+    console.log('ElevenLabs API key configured:', !!apiKey);
+    console.log('API key length:', apiKey?.length || 0);
+
     if (!apiKey) {
       return new Response(
-        JSON.stringify({ error: "Eleven Labs API key is not configured" }),
+        JSON.stringify({ error: "Eleven Labs API key is not configured in edge function environment" }),
         {
           status: 500,
           headers: {
@@ -75,6 +78,28 @@ Deno.serve(async (req: Request) => {
 
     // Handle JSON responses
     const data = await response.json();
+
+    // If ElevenLabs returns an error, include more details
+    if (!response.ok) {
+      console.error('ElevenLabs API error:', {
+        status: response.status,
+        data,
+        url: elevenLabsUrl
+      });
+
+      return new Response(JSON.stringify({
+        error: data.detail?.message || data.message || data.error || 'ElevenLabs API error',
+        status: response.status,
+        details: data
+      }), {
+        status: response.status,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+        },
+      });
+    }
+
     return new Response(JSON.stringify(data), {
       status: response.status,
       headers: {
