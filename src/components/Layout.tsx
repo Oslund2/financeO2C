@@ -42,8 +42,8 @@ export function Layout({ children, currentView, onNavigate, currentSeriesId, onS
     { id: 'storyboard-generator', label: 'Storyboards', icon: Camera },
     { id: 'assets', label: 'Asset Library', icon: Image },
     { id: 'episodes', label: 'Episodes', icon: Film },
-    { id: 'profit-per-episode', label: 'Profit Per Episode', icon: TrendingUp },
     { id: 'production', label: 'Production', icon: PlayCircle },
+    { id: 'profit-per-episode', label: 'Profit Per Episode', icon: TrendingUp },
   ];
 
   const handleNavigation = (view: string) => {
