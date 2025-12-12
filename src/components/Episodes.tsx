@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Play, Plus, Clock, CheckCircle, AlertCircle, TrendingUp, Trash2, RefreshCw, FileText, DollarSign, Film, ArrowRight, Sparkles, X, Calendar, PlayCircle } from 'lucide-react';
+import { Play, Plus, Clock, CheckCircle, AlertCircle, TrendingUp, Trash2, RefreshCw, FileText, DollarSign, Film, ArrowRight, Sparkles, X, Calendar, PlayCircle, Camera, AlertTriangle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
@@ -8,6 +8,7 @@ import { CostComparison } from './CostComparison';
 import { ShowRevenueEstimator } from './ShowRevenueEstimator';
 import type { CostComparison as CostComparisonType } from '../services/costCalculationService';
 import { LTVCalculationService } from '../services/ltvCalculationService';
+import { useOrganization } from '../contexts/OrganizationContext';
 
 type Episode = Database['public']['Tables']['episodes']['Row'];
 type Script = Database['public']['Tables']['scripts']['Row'];
@@ -19,6 +20,7 @@ interface EpisodesProps {
 }
 
 export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps) {
+  const { currentOrganization } = useOrganization();
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [loading, setLoading] = useState(true);
   const [scriptTitles, setScriptTitles] = useState<Map<string, string>>(new Map());
@@ -27,6 +29,7 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
   const [costViewEpisode, setCostViewEpisode] = useState<Episode | null>(null);
   const [availableScripts, setAvailableScripts] = useState<Script[]>([]);
   const [creatingEpisode, setCreatingEpisode] = useState<string | null>(null);
+  const [orphanedEpisodes, setOrphanedEpisodes] = useState<Set<string>>(new Set());
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
     episode: Episode | null;
@@ -42,8 +45,14 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
   }, [seriesId]);
 
   const loadEpisodes = async () => {
+    if (!currentOrganization) return;
+
     try {
-      let query = supabase.from('episodes').select('*').order('created_at', { ascending: false });
+      let query = supabase
+        .from('episodes')
+        .select('*')
+        .eq('organization_id', currentOrganization.id)
+        .order('created_at', { ascending: false });
 
       if (seriesId) {
         query = query.eq('series_id', seriesId);
@@ -56,19 +65,27 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
 
       const titles = new Map<string, string>();
       const shotLists = new Map<string, { total: number; completed: number }>();
+      const orphaned = new Set<string>();
 
       await Promise.all(
         (data || []).map(async (episode) => {
           if (episode.script_id) {
-            const { data: script } = await supabase
+            const { data: script, error: scriptError } = await supabase
               .from('scripts')
               .select('title')
               .eq('id', episode.script_id)
+              .eq('organization_id', currentOrganization.id)
               .maybeSingle();
 
             if (script) {
               titles.set(episode.id, script.title);
+            } else {
+              orphaned.add(episode.id);
+              console.warn(`Episode "${episode.title}" references missing script: ${episode.script_id}`);
             }
+          } else {
+            orphaned.add(episode.id);
+            console.warn(`Episode "${episode.title}" has no script_id`);
           }
 
           const { data: storyboards } = await supabase
@@ -101,10 +118,12 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
 
       setScriptTitles(titles);
       setShotListCounts(shotLists);
+      setOrphanedEpisodes(orphaned);
 
       let scriptsQuery = supabase
         .from('scripts')
         .select('*')
+        .eq('organization_id', currentOrganization.id)
         .eq('status', 'approved')
         .order('created_at', { ascending: false });
 
@@ -298,6 +317,32 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
           </button>
         </div>
 
+        {orphanedEpisodes.size > 0 && (
+          <div className="mb-6 bg-gradient-to-r from-red-50 to-orange-50 border-2 border-red-300 rounded-xl p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 bg-red-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="w-6 h-6 text-white" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-red-900 mb-2">Data Integrity Issue Detected</h3>
+                <p className="text-sm text-red-800 mb-3">
+                  {orphanedEpisodes.size} episode{orphanedEpisodes.size !== 1 ? 's' : ''} found with missing or deleted scripts.
+                  These episodes cannot be edited or used in production until the issue is resolved.
+                </p>
+                <div className="bg-white rounded-lg p-3 border border-red-200 mb-3">
+                  <p className="text-xs text-gray-700 mb-2">
+                    <strong>What happened?</strong> These episodes reference scripts that have been deleted or are no longer accessible.
+                  </p>
+                  <p className="text-xs text-gray-700">
+                    <strong>What to do?</strong> Episodes with missing scripts are marked with a warning icon below.
+                    You may need to delete these episodes or contact support if the scripts need to be recovered.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {availableScripts.length > 0 && (
           <div className="mb-6 bg-gradient-to-r from-blue-50 to-green-50 border-2 border-blue-200 rounded-xl p-6">
             <div className="flex items-start justify-between mb-4">
@@ -424,14 +469,17 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
               const isProfit = ltvMetrics.lifetimeProfit >= 0;
               const isHighlighted = navigationData?.highlightScriptId && episode.script_id === navigationData.highlightScriptId;
               const shotListInfo = shotListCounts.get(episode.id);
+              const isOrphaned = orphanedEpisodes.has(episode.id);
 
               return (
               <div
                 key={episode.id}
                 className={`bg-white rounded-xl shadow-md hover:shadow-lg transition-all border p-6 ${
-                  isHighlighted
-                    ? 'border-4 border-scripps-blue ring-4 ring-scripps-blue ring-opacity-20'
-                    : 'border-gray-200'
+                  isOrphaned
+                    ? 'border-4 border-red-400 ring-4 ring-red-400 ring-opacity-20'
+                    : isHighlighted
+                      ? 'border-4 border-scripps-blue ring-4 ring-scripps-blue ring-opacity-20'
+                      : 'border-gray-200'
                 }`}
               >
                 <div className="flex items-start gap-6">
@@ -457,6 +505,12 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           <h3 className="text-xl font-bold text-gray-900">{episode.title}</h3>
+                          {isOrphaned && (
+                            <span className="px-2 py-1 bg-red-100 text-red-800 text-xs font-bold rounded border-2 border-red-400 flex items-center gap-1">
+                              <AlertTriangle className="w-3 h-3" />
+                              MISSING SCRIPT
+                            </span>
+                          )}
                           {episode.multi_part_episode && (
                             <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded border border-blue-200">
                               Part {episode.part_number}
@@ -599,31 +653,40 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
                     )}
 
                     <div className="mt-4 pt-4 border-t border-gray-200 flex justify-between items-center">
-                      <div className="flex gap-2">
-                        {episode.sync_status === 'script_modified' && episode.status !== 'completed' && (
-                          <button
-                            onClick={() => handleSync(episode.id)}
-                            disabled={syncing === episode.id}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium disabled:opacity-50"
-                          >
-                            <RefreshCw className={`w-4 h-4 ${syncing === episode.id ? 'animate-spin' : ''}`} />
-                            {syncing === episode.id ? 'Syncing...' : 'Sync from Script'}
-                          </button>
-                        )}
-                        {episode.sync_status === 'needs_review' && (
-                          <div className="flex items-center gap-2 px-4 py-2 bg-yellow-50 text-yellow-800 rounded-lg text-sm border border-yellow-200">
-                            <AlertCircle className="w-4 h-4" />
-                            Manual review required - episode in production stage
+                      <div className="flex gap-2 flex-1">
+                        {isOrphaned ? (
+                          <div className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-800 rounded-lg text-sm border-2 border-red-300">
+                            <AlertTriangle className="w-4 h-4" />
+                            <span className="font-medium">Cannot view production: Script is missing or deleted. Delete this episode to resolve.</span>
                           </div>
+                        ) : (
+                          <>
+                            {episode.sync_status === 'script_modified' && episode.status !== 'completed' && (
+                              <button
+                                onClick={() => handleSync(episode.id)}
+                                disabled={syncing === episode.id}
+                                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium disabled:opacity-50"
+                              >
+                                <RefreshCw className={`w-4 h-4 ${syncing === episode.id ? 'animate-spin' : ''}`} />
+                                {syncing === episode.id ? 'Syncing...' : 'Sync from Script'}
+                              </button>
+                            )}
+                            {episode.sync_status === 'needs_review' && (
+                              <div className="flex items-center gap-2 px-4 py-2 bg-yellow-50 text-yellow-800 rounded-lg text-sm border border-yellow-200">
+                                <AlertCircle className="w-4 h-4" />
+                                Manual review required - episode in production stage
+                              </div>
+                            )}
+                            <button
+                              onClick={() => onNavigate('production', { episodeId: episode.id })}
+                              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium"
+                              title="View production and generate shot list"
+                            >
+                              <PlayCircle className="w-4 h-4" />
+                              View Production
+                            </button>
+                          </>
                         )}
-                        <button
-                          onClick={() => onNavigate('production', { episodeId: episode.id })}
-                          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium"
-                          title="View production and generate shot list"
-                        >
-                          <PlayCircle className="w-4 h-4" />
-                          View Production
-                        </button>
                       </div>
                       <button
                         onClick={() => handleDeleteClick(episode)}

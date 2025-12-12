@@ -122,6 +122,7 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
           .from('episodes')
           .select('*')
           .eq('id', navigationData.episodeId)
+          .eq('organization_id', currentOrganization!.id)
           .maybeSingle();
 
         if (episodeError) throw episodeError;
@@ -135,6 +136,13 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
 
         setSelectedEpisode(episode);
 
+        if (!episode.script_id) {
+          setError('This episode has no associated script. The data may be corrupted. Please delete this episode and create a new one.');
+          setMode('script');
+          setStep('select');
+          return;
+        }
+
         let script = allScripts.find(s => s.id === episode.script_id);
 
         if (!script) {
@@ -145,10 +153,13 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
             .eq('organization_id', currentOrganization!.id)
             .maybeSingle();
 
-          if (scriptError) throw scriptError;
+          if (scriptError) {
+            console.error('Script fetch error:', scriptError);
+            throw new Error('Failed to fetch script data from database.');
+          }
 
           if (!fetchedScript) {
-            setError('Script not found for this episode. The script may have been deleted.');
+            setError('Script not found for this episode. The script may have been deleted. Please delete this episode and create a new one with a valid script.');
             setMode('script');
             setStep('select');
             return;
@@ -492,6 +503,12 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
     setLoading(true);
 
     try {
+      if (!episode.script_id) {
+        setError('This episode has no associated script. The data may be corrupted. Please delete this episode and create a new one.');
+        setLoading(false);
+        return;
+      }
+
       let script = allScripts.find(s => s.id === episode.script_id);
 
       if (!script) {
@@ -502,10 +519,14 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
           .eq('organization_id', currentOrganization!.id)
           .maybeSingle();
 
-        if (scriptError) throw scriptError;
+        if (scriptError) {
+          console.error('Script fetch error:', scriptError);
+          throw new Error('Failed to fetch script data from database.');
+        }
 
         if (!fetchedScript) {
-          setError('Script not found for this episode. The script may have been deleted.');
+          setError('Script not found for this episode. The script may have been deleted. Please delete this episode and create a new one with a valid script.');
+          setLoading(false);
           return;
         }
 

@@ -2,6 +2,22 @@ import { supabase } from '../lib/supabase';
 import { calculateProductionCosts, ScriptData } from './costCalculationService';
 import { lockScript } from './scriptLockingService';
 
+export interface ScriptDependency {
+  episode_id: string;
+  episode_title: string;
+  episode_status: string;
+  series_id: string;
+  series_name: string;
+  created_at: string;
+}
+
+export interface ScriptDeletionCheck {
+  canDelete: boolean;
+  reason: string;
+  dependentEpisodesCount: number;
+  dependentEpisodes: ScriptDependency[];
+}
+
 interface Script {
   id: string;
   series_id: string | null;
@@ -241,6 +257,71 @@ export async function getEpisodesByScript(scriptId: string) {
 
   if (error) throw error;
   return data || [];
+}
+
+export async function checkScriptDeletion(scriptId: string): Promise<ScriptDeletionCheck> {
+  try {
+    const { data, error } = await supabase.rpc('can_delete_script', {
+      script_id_param: scriptId
+    });
+
+    if (error) {
+      console.error('Error checking script deletion:', error);
+      throw error;
+    }
+
+    const result = data[0];
+
+    if (!result.can_delete) {
+      const dependencies = await getScriptDependencies(scriptId);
+      return {
+        canDelete: false,
+        reason: result.reason,
+        dependentEpisodesCount: result.dependent_episodes_count,
+        dependentEpisodes: dependencies
+      };
+    }
+
+    return {
+      canDelete: true,
+      reason: result.reason,
+      dependentEpisodesCount: 0,
+      dependentEpisodes: []
+    };
+  } catch (err) {
+    console.error('Error in checkScriptDeletion:', err);
+    throw new Error('Failed to check script deletion status');
+  }
+}
+
+export async function getScriptDependencies(scriptId: string): Promise<ScriptDependency[]> {
+  try {
+    const { data, error } = await supabase.rpc('get_script_dependencies', {
+      script_id_param: scriptId
+    });
+
+    if (error) {
+      console.error('Error getting script dependencies:', error);
+      throw error;
+    }
+
+    return (data || []).map((dep: any) => ({
+      episode_id: dep.episode_id,
+      episode_title: dep.episode_title,
+      episode_status: dep.episode_status,
+      series_id: dep.series_id,
+      series_name: dep.series_name,
+      created_at: dep.created_at
+    }));
+  } catch (err) {
+    console.error('Error in getScriptDependencies:', err);
+    return [];
+  }
+}
+
+export async function canDeleteScript(scriptId: string): Promise<boolean> {
+  const check = await checkScriptDeletion(scriptId);
+  return check.canDelete;
 }
 
 export async function syncEpisodeFromScript(episodeId: string): Promise<void> {
