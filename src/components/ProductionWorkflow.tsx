@@ -122,7 +122,6 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
           .from('episodes')
           .select('*')
           .eq('id', navigationData.episodeId)
-          .eq('organization_id', currentOrganization!.id)
           .maybeSingle();
 
         if (episodeError) throw episodeError;
@@ -150,7 +149,6 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
             .from('scripts')
             .select('*')
             .eq('id', episode.script_id)
-            .eq('organization_id', currentOrganization!.id)
             .maybeSingle();
 
           if (scriptError) {
@@ -179,7 +177,7 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
         }
 
         try {
-          const analysis = await getScriptAnalysis(script.id, currentOrganization?.id || null);
+          const analysis = await getScriptAnalysis(script.id, null);
           setScriptAnalysis(analysis);
           await saveDraftSession(script.id, 'configure');
           setStep('configure');
@@ -267,7 +265,6 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
         .from('series')
         .select('id, name, description')
         .eq('id', seriesId)
-        .eq('organization_id', currentOrganization.id)
         .maybeSingle();
 
       if (error) throw error;
@@ -286,12 +283,10 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
         supabase
           .from('episodes')
           .select('*', { count: 'exact', head: true })
-          .eq('organization_id', currentOrganization.id)
           .eq('series_id', currentSeries.id),
         supabase
           .from('scripts')
           .select('*', { count: 'exact', head: true })
-          .eq('organization_id', currentOrganization.id)
           .eq('series_id', currentSeries.id)
           .in('status', ['draft', 'approved'])
       ]);
@@ -317,7 +312,6 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
       const { data: scriptsData } = await supabase
         .from('scripts')
         .select('*')
-        .eq('organization_id', currentOrganization.id)
         .eq('series_id', currentSeries.id)
         .in('status', ['draft', 'approved'])
         .order('created_at', { ascending: false });
@@ -328,8 +322,7 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
             const { count } = await supabase
               .from('production_shot_plans')
               .select('*', { count: 'exact', head: true })
-              .eq('series_id', currentSeries.id)
-              .eq('organization_id', currentOrganization.id);
+              .eq('series_id', currentSeries.id);
 
             return { ...script, shot_count: count || 0 };
           })
@@ -342,7 +335,6 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
       const { data: episodesData } = await supabase
         .from('episodes')
         .select('*')
-        .eq('organization_id', currentOrganization.id)
         .eq('series_id', currentSeries.id)
         .order('episode_number', { ascending: false });
 
@@ -370,7 +362,6 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
         .from('production_draft_sessions')
         .select('*')
         .eq('script_id', scriptId)
-        .eq('organization_id', currentOrganization.id)
         .order('updated_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -421,8 +412,7 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
       const { error } = await supabase
         .from('scripts')
         .update({ status: 'approved' })
-        .eq('id', script.id)
-        .eq('organization_id', currentOrganization.id);
+        .eq('id', script.id);
 
       if (error) throw error;
 
@@ -447,7 +437,7 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
     }
 
     try {
-      const analysis = await getScriptAnalysis(script.id, currentOrganization?.id || null);
+      const analysis = await getScriptAnalysis(script.id, null);
       setScriptAnalysis(analysis);
       await saveDraftSession(script.id, 'configure');
       setStep('configure');
@@ -486,7 +476,7 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
 
     if (selectedScript) {
       try {
-        const analysis = await getScriptAnalysis(selectedScript.id, currentOrganization?.id || null);
+        const analysis = await getScriptAnalysis(selectedScript.id, null);
         setScriptAnalysis(analysis);
         setStep('configure');
       } catch (err) {
@@ -516,7 +506,6 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
           .from('scripts')
           .select('*')
           .eq('id', episode.script_id)
-          .eq('organization_id', currentOrganization!.id)
           .maybeSingle();
 
         if (scriptError) {
@@ -536,7 +525,7 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
       setSelectedScript(script);
 
       try {
-        const analysis = await getScriptAnalysis(script.id, currentOrganization?.id || null);
+        const analysis = await getScriptAnalysis(script.id, null);
         setScriptAnalysis(analysis);
         setStep('configure');
       } catch (err) {
@@ -575,7 +564,6 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
         .from('production_shot_plans')
         .select('id')
         .eq('series_id', currentSeries.id)
-        .eq('organization_id', currentOrganization.id)
         .is('episode_id', null)
         .order('created_at', { ascending: false })
         .limit(shots.length);
@@ -694,7 +682,7 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
       setSelectedScript(newScript);
 
       try {
-        const analysis = await getScriptAnalysis(newScript.id, currentOrganization?.id || null);
+        const analysis = await getScriptAnalysis(newScript.id, null);
         console.log('Script analysis result:', analysis);
         setScriptAnalysis(analysis);
       } catch (analysisError) {
