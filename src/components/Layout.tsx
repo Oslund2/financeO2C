@@ -59,7 +59,7 @@ export function Layout({ children, currentView, onNavigate, currentSeriesId, onS
           <div className="flex flex-col gap-3">
             <Logo size="xlarge" className="mx-auto" logoUrl={currentOrganization?.logo_url} />
             <div className="text-center">
-              <p className="text-xs font-medium text-scripps-navy">Animation Studio</p>
+              <p className="text-xs font-medium text-scripps-navy">Genre</p>
             </div>
           </div>
         </div>
@@ -145,7 +145,7 @@ export function Layout({ children, currentView, onNavigate, currentSeriesId, onS
               <div className="p-6 border-b border-blue-200 flex items-center justify-between">
                 <div className="flex flex-col gap-2">
                   <Logo size="xlarge" logoUrl={currentOrganization?.logo_url} />
-                  <p className="text-xs font-medium text-scripps-navy">Animation Studio</p>
+                  <p className="text-xs font-medium text-scripps-navy">Genre</p>
                 </div>
                 <button
                   onClick={() => setMobileMenuOpen(false)}
