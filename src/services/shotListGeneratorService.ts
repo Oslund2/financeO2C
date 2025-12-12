@@ -92,7 +92,7 @@ function getCameraMovementForDuration(duration: number, shotType: string): strin
 
 export async function generateShotListFromScript(
   scriptId: string,
-  episodeId: string,
+  episodeId: string | null,
   seriesId: string,
   organizationId: string,
   options: GenerationOptions = {}
@@ -210,6 +210,40 @@ export async function generateShotListFromScript(
   }
 
   return shots;
+}
+
+export async function generateStandaloneShotList(
+  scriptId: string,
+  seriesId: string,
+  organizationId: string,
+  options: GenerationOptions = {}
+): Promise<ShotPlan[]> {
+  return generateShotListFromScript(scriptId, null, seriesId, organizationId, options);
+}
+
+export async function getScriptAnalysis(
+  scriptId: string,
+  organizationId: string
+): Promise<{
+  script_id: string;
+  title: string;
+  version: number;
+  series_id: string;
+  series_title: string;
+  status: string;
+  has_episode: boolean;
+  estimated_acts: number;
+  estimated_scenes: number;
+  estimated_shots: number;
+  estimated_runtime_minutes: number;
+}> {
+  const { data, error } = await supabase.rpc('get_script_analysis_for_production', {
+    p_script_id: scriptId,
+    p_organization_id: organizationId
+  });
+
+  if (error) throw error;
+  return data as any;
 }
 
 export async function regenerateShotList(

@@ -12,6 +12,7 @@ import { StoryboardGenerator } from './components/StoryboardGenerator';
 import { StoryboardViewer } from './components/StoryboardViewer';
 import BackupRecovery from './components/BackupRecovery';
 import { EpisodeProfitAnalytics } from './components/EpisodeProfitAnalytics';
+import ProductionWorkflow from './components/ProductionWorkflow';
 import { supabase } from './lib/supabase';
 import { initializeSampleData } from './utils/sampleData';
 import { useAuth } from './contexts/AuthContext';
@@ -231,7 +232,7 @@ function App() {
       {currentView === 'assets' && <Assets seriesId={seriesId} />}
       {currentView === 'episodes' && <Episodes seriesId={seriesId} onNavigate={handleNavigate} navigationData={navigationData} />}
       {currentView === 'profit-per-episode' && <EpisodeProfitAnalytics seriesId={seriesId} />}
-      {currentView === 'production' && <Production seriesId={seriesId} episodeId={navigationData?.episodeId} />}
+      {currentView === 'production' && <ProductionWorkflow />}
       {currentView === 'ai-studio' && <AIStudio seriesId={seriesId} onNavigate={handleNavigate} />}
       {currentView === 'storyboard-generator' && <StoryboardGenerator onNavigate={handleNavigate} />}
       {currentView === 'storyboard-viewer' && navigationData?.storyboardId && (
