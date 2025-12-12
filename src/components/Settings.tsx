@@ -1779,7 +1779,7 @@ colors: {
                               'VITE_VERTEX_AI_PROJECT_ID',
                               'VITE_VERTEX_AI_LOCATION',
                               'VITE_VERTEX_AI_API_KEY',
-                              'VITE_ELEVENLABS_API_KEY',
+                              'ELEVENLABS_API_KEY',
                               'VITE_CHATTERBOX_SERVER_URL',
                             ].map((envVar) => (
                               <div key={envVar} className="bg-white border border-gray-200 rounded p-2 flex items-center justify-between">

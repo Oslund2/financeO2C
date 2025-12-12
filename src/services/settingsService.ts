@@ -159,7 +159,7 @@ export function getAPIKeyStatus() {
       apiKey: !!import.meta.env.VITE_VERTEX_AI_API_KEY
     },
     elevenLabs: {
-      apiKey: !!import.meta.env.VITE_ELEVENLABS_API_KEY
+      apiKey: !!import.meta.env.ELEVENLABS_API_KEY
     }
   };
 }
@@ -204,7 +204,7 @@ export function getConfigurationInstructions() {
       description: 'Set up ElevenLabs for voice generation',
       secrets: [
         {
-          name: 'VITE_ELEVENLABS_API_KEY',
+          name: 'ELEVENLABS_API_KEY',
           description: 'Your ElevenLabs API key',
           example: 'sk_...',
           required: true
