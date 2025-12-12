@@ -115,7 +115,7 @@ export async function generateShotListFromScript(
     throw new Error('Script not found');
   }
 
-  const acts = script.script_acts || [];
+  const acts = (script.script_acts || []).sort((a, b) => a.act_number - b.act_number);
   const shots: ShotPlan[] = [];
   let globalShotNumber = 1;
 
@@ -123,7 +123,7 @@ export async function generateShotListFromScript(
   const pacingMultiplier = pacing === 'fast' ? 0.8 : pacing === 'slow' ? 1.2 : 1.0;
 
   for (const act of acts) {
-    const scenes = act.script_scenes || [];
+    const scenes = (act.script_scenes || []).sort((a, b) => a.scene_number - b.scene_number);
 
     for (const scene of scenes) {
       const location = scene.setting || 'Unknown Location';
