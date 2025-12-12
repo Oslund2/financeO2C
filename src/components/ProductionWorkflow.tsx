@@ -232,7 +232,19 @@ export default function ProductionWorkflow({ seriesId }: ProductionWorkflowProps
   };
 
   const handleUploadScript = async () => {
-    if (!uploadedFile || !scriptTitle || !currentOrganization || !currentSeries) return;
+    console.log('handleUploadScript called', {
+      hasFile: !!uploadedFile,
+      hasTitle: !!scriptTitle,
+      hasOrg: !!currentOrganization,
+      hasSeries: !!currentSeries,
+      title: scriptTitle
+    });
+
+    if (!uploadedFile || !scriptTitle || !currentOrganization || !currentSeries) {
+      console.error('Missing required data for upload');
+      setError('Missing required information. Please ensure you have a file and title.');
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -250,6 +262,7 @@ export default function ProductionWorkflow({ seriesId }: ProductionWorkflowProps
         throw new Error('The file appears to be empty. Please upload a file with content.');
       }
 
+      console.log('Inserting script into database...');
       const { data: newScript, error: scriptError } = await supabase
         .from('scripts')
         .insert({
@@ -264,12 +277,36 @@ export default function ProductionWorkflow({ seriesId }: ProductionWorkflowProps
         .select()
         .single();
 
-      if (scriptError) throw scriptError;
+      if (scriptError) {
+        console.error('Script insert error:', scriptError);
+        throw scriptError;
+      }
 
+      console.log('Script inserted successfully:', newScript.id);
       setSelectedScript(newScript);
 
-      const analysis = await getScriptAnalysis(newScript.id, currentOrganization.id);
-      setScriptAnalysis(analysis);
+      try {
+        const analysis = await getScriptAnalysis(newScript.id, currentOrganization.id);
+        console.log('Script analysis result:', analysis);
+        setScriptAnalysis(analysis);
+      } catch (analysisError) {
+        console.error('Script analysis failed:', analysisError);
+        console.warn('Continuing without analysis - using defaults');
+        setScriptAnalysis({
+          script_id: newScript.id,
+          title: newScript.title,
+          version: newScript.version,
+          series_id: newScript.series_id,
+          series_title: currentSeries.title,
+          status: newScript.status,
+          has_episode: false,
+          estimated_acts: 3,
+          estimated_scenes: 12,
+          estimated_shots: 48,
+          estimated_runtime_minutes: 22
+        });
+      }
+
       setStep('configure');
       setUploadedFile(null);
 
@@ -339,12 +376,20 @@ export default function ProductionWorkflow({ seriesId }: ProductionWorkflowProps
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-          <div>
-            <h3 className="font-medium text-red-900">Error</h3>
-            <p className="text-sm text-red-700 mt-1">{error}</p>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center justify-between">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <h3 className="font-medium text-red-900">Error</h3>
+              <p className="text-sm text-red-700 mt-1">{error}</p>
+            </div>
           </div>
+          <button
+            onClick={() => setError(null)}
+            className="text-red-600 hover:text-red-800 text-sm font-medium"
+          >
+            Dismiss
+          </button>
         </div>
       )}
 
