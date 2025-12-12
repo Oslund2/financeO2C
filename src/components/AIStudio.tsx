@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Sparkles, Wand2, FileText, Users, Image as ImageIcon, Video, Mic, AlertCircle, CheckCircle, Settings as SettingsIcon, ArrowRight, Eye } from 'lucide-react';
+import { Sparkles, Wand2, FileText, Users, Image as ImageIcon, Video, Mic, AlertCircle, CheckCircle, Settings as SettingsIcon, ArrowRight, Eye, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { generateScriptWithGemini, checkVertexAIConfiguration } from '../services/geminiService';
@@ -98,6 +98,12 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
   const [generatedData, setGeneratedData] = useState<any>(null);
   const [savedScriptId, setSavedScriptId] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [progress, setProgress] = useState({
+    elapsedSeconds: 0,
+    statusMessage: '',
+    percentage: 0
+  });
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
 
   useEffect(() => {
     loadCharacters();
@@ -131,9 +137,52 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
     }
   };
 
+  const getErrorMessage = (error: Error): string => {
+    const errorMsg = error.message;
+
+    if (errorMsg === 'TIMEOUT') {
+      return 'The AI script generation took longer than expected (over 2 minutes). This sometimes happens with complex requests. Please try again, and the AI should respond more quickly.';
+    }
+
+    if (errorMsg === 'QUOTA_EXCEEDED') {
+      return 'Your Gemini API quota has been exceeded. Please check your Google Cloud console or try again later.';
+    }
+
+    if (errorMsg === 'INVALID_API_KEY') {
+      return 'Your Gemini API key appears to be invalid. Please verify it in Settings.';
+    }
+
+    if (errorMsg === 'SERVER_ERROR') {
+      return 'The Gemini API is currently experiencing issues. Please try again in a few moments.';
+    }
+
+    if (errorMsg === 'EMPTY_RESPONSE') {
+      return 'The AI generated an incomplete script. This is rare, but please try generating again.';
+    }
+
+    if (errorMsg === 'INVALID_JSON') {
+      return 'The AI generated an incomplete script. This is rare, but please try generating again.';
+    }
+
+    if (errorMsg.includes('network') || errorMsg.includes('fetch')) {
+      return 'Unable to connect to the Gemini API. Please check your internet connection and try again.';
+    }
+
+    if (errorMsg.includes('Script is too short') || errorMsg.includes('Script is too long')) {
+      return 'The AI generated a script with incorrect length. Please try again.';
+    }
+
+    return `An unexpected error occurred: ${errorMsg}. Please try again.`;
+  };
+
   const handleGenerate = async () => {
-    if (!formData.title || !formData.theme) {
-      alert('Please fill in the required fields');
+    if (!formData.title.trim()) {
+      setGenerationError('Please enter an episode title before generating.');
+      return;
+    }
+
+    if (!formData.theme.trim()) {
+      setGenerationError('Please enter a theme or focus for the episode.');
       return;
     }
 
@@ -143,12 +192,54 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
     }
 
     if (formData.mainCharacters.length === 0) {
-      alert('Please select at least one character');
+      setGenerationError('Please select at least one character before generating.');
       return;
     }
 
+    if (formData.plotSummary.length > 2000) {
+      setGenerationError('Your plot summary is too long (over 2000 characters). Please shorten it and try again. Very long summaries can slow down generation.');
+      return;
+    }
+
+    const controller = new AbortController();
+    setAbortController(controller);
+
+    const timeout = setTimeout(() => {
+      controller.abort();
+    }, 120000);
+
     setGenerating(true);
     setGenerationError(null);
+    setProgress({ elapsedSeconds: 0, statusMessage: 'Initializing AI...', percentage: 0 });
+
+    const progressMessages = [
+      'Analyzing characters...',
+      'Processing episode structure...',
+      'Creating dialogue...',
+      'Generating scenes...',
+      'Building script structure...',
+      'Adding stage directions...',
+      'Finalizing timecodes...',
+      'Almost complete...'
+    ];
+
+    const progressInterval = setInterval(() => {
+      setProgress(prev => {
+        const newElapsed = prev.elapsedSeconds + 1;
+        const percentage = Math.min((newElapsed / 120) * 100, 95);
+
+        const messageIndex = Math.min(
+          Math.floor(newElapsed / 15),
+          progressMessages.length - 1
+        );
+
+        return {
+          elapsedSeconds: newElapsed,
+          statusMessage: progressMessages[messageIndex],
+          percentage
+        };
+      });
+    }, 1000);
 
     try {
       const vocabularyArray = formData.vocabularyWords
@@ -185,8 +276,14 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
           voice_id: c.voice_id,
           image_url: c.image_url
         })),
-        settings.generation_preferences
+        settings.generation_preferences,
+        controller.signal
       );
+
+      clearTimeout(timeout);
+      clearInterval(progressInterval);
+
+      setProgress({ elapsedSeconds: 120, statusMessage: 'Complete!', percentage: 100 });
 
       setGeneratedData({
         script: generatedScript,
@@ -196,10 +293,27 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
       setShowPreview(true);
 
     } catch (error) {
+      clearTimeout(timeout);
+      clearInterval(progressInterval);
       console.error('Error generating script:', error);
-      setGenerationError(error instanceof Error ? error.message : 'Failed to generate script. Please try again.');
+
+      const errorMessage = error instanceof Error
+        ? getErrorMessage(error)
+        : 'An unexpected error occurred. Please try again.';
+
+      setGenerationError(errorMessage);
     } finally {
       setGenerating(false);
+      setAbortController(null);
+    }
+  };
+
+  const handleCancelGeneration = () => {
+    if (abortController) {
+      abortController.abort();
+      setGenerating(false);
+      setAbortController(null);
+      setGenerationError('Generation cancelled by user.');
     }
   };
 
@@ -504,19 +618,80 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
         </select>
       </div>
 
+      {configStatus?.configured && !generating && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+            <div className="text-sm text-blue-800">
+              <p className="font-semibold mb-1">Generation Time</p>
+              <p>
+                Script generation typically takes 30-90 seconds. The AI will create a complete 4-segment episode with detailed scenes and dialogue.
+                If generation exceeds 2 minutes, it will automatically timeout and you can try again.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="pt-4">
-        <button
-          onClick={handleGenerate}
-          disabled={generating || !configStatus?.configured}
-          className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg hover:shadow-lg transition-all font-medium disabled:opacity-50 text-lg"
-        >
-          <Sparkles className="w-6 h-6" />
-          {generating ? 'Generating Script with AI...' : 'Generate Complete Episode Script'}
-        </button>
-        {configStatus?.configured && (
-          <p className="text-xs text-gray-600 text-center mt-2">
-            Using Gemini 2.5 Flash to generate a complete 3-act script with dialogue
-          </p>
+        {generating ? (
+          <div className="space-y-4">
+            <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-200 rounded-lg p-6">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h3 className="font-semibold text-gray-900 text-lg">Generating Script with AI</h3>
+                  <p className="text-sm text-gray-600 mt-1">{progress.statusMessage}</p>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-blue-600">{progress.elapsedSeconds}s</div>
+                  <div className="text-xs text-gray-600">of 120s max</div>
+                </div>
+              </div>
+
+              <div className="relative w-full h-3 bg-gray-200 rounded-full overflow-hidden mb-3">
+                <div
+                  className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-500 to-cyan-600 rounded-full transition-all duration-1000 ease-out"
+                  style={{ width: `${progress.percentage}%` }}
+                >
+                  <div className="absolute inset-0 bg-white opacity-20 animate-pulse"></div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-gray-600">
+                <span>{Math.round(progress.percentage)}% Complete</span>
+                <span>{120 - progress.elapsedSeconds}s remaining</span>
+              </div>
+
+              <div className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-600">
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                <span>AI is working...</span>
+              </div>
+            </div>
+
+            <button
+              onClick={handleCancelGeneration}
+              className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all font-medium"
+            >
+              <X className="w-5 h-5" />
+              Cancel Generation
+            </button>
+          </div>
+        ) : (
+          <>
+            <button
+              onClick={handleGenerate}
+              disabled={!configStatus?.configured}
+              className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg hover:shadow-lg transition-all font-medium disabled:opacity-50 text-lg"
+            >
+              <Sparkles className="w-6 h-6" />
+              Generate Complete Episode Script
+            </button>
+            {configStatus?.configured && (
+              <p className="text-xs text-gray-600 text-center mt-2">
+                Using Gemini 2.5 Flash to generate a complete 4-segment script with dialogue
+              </p>
+            )}
+          </>
         )}
       </div>
 

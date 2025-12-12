@@ -327,7 +327,8 @@ Generate the complete script now with ALL segments and scenes filled in:`;
 export async function generateScriptWithGemini(
   episode: Episode,
   characters: Character[],
-  options: GenerationOptions = {}
+  options: GenerationOptions = {},
+  signal?: AbortSignal
 ): Promise<GeneratedScript> {
   try {
     const apiKey = getGeminiAPIKey();
@@ -356,25 +357,39 @@ export async function generateScriptWithGemini(
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(requestBody)
+      body: JSON.stringify(requestBody),
+      signal
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(`Gemini API error: ${response.status} ${response.statusText}. ${JSON.stringify(errorData)}`);
+
+      if (response.status === 429) {
+        throw new Error('QUOTA_EXCEEDED');
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('INVALID_API_KEY');
+      }
+
+      if (response.status >= 500) {
+        throw new Error('SERVER_ERROR');
+      }
+
+      throw new Error(`API_ERROR: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
 
     if (!data.candidates || data.candidates.length === 0) {
-      throw new Error('No response generated from Gemini');
+      throw new Error('EMPTY_RESPONSE');
     }
 
     const textContent = data.candidates[0].content.parts[0].text;
 
     const jsonMatch = textContent.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      throw new Error('Could not parse JSON from Gemini response');
+      throw new Error('INVALID_JSON');
     }
 
     const parsedScript = JSON.parse(jsonMatch[0]);
@@ -387,9 +402,12 @@ export async function generateScriptWithGemini(
 
   } catch (error) {
     if (error instanceof Error) {
-      throw new Error(`Script generation failed: ${error.message}`);
+      if (error.name === 'AbortError') {
+        throw new Error('TIMEOUT');
+      }
+      throw error;
     }
-    throw new Error('Script generation failed with unknown error');
+    throw new Error('UNKNOWN_ERROR');
   }
 }
 
