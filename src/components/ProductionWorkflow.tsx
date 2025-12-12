@@ -220,12 +220,12 @@ export default function ProductionWorkflow({ seriesId }: ProductionWorkflowProps
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (!file.name.endsWith('.txt') && !file.name.endsWith('.pdf') && !file.name.endsWith('.docx')) {
-        setError('Please upload a text file (.txt, .pdf, or .docx)');
+      if (!file.name.endsWith('.txt')) {
+        setError('Please upload a plain text file (.txt). PDF and DOCX support coming soon.');
         return;
       }
       setUploadedFile(file);
-      setScriptTitle(file.name.replace(/\.(txt|pdf|docx)$/, ''));
+      setScriptTitle(file.name.replace(/\.txt$/, ''));
       setStep('upload');
       setError(null);
     }
@@ -238,7 +238,17 @@ export default function ProductionWorkflow({ seriesId }: ProductionWorkflowProps
     setError(null);
 
     try {
-      const content = await uploadedFile.text();
+      let content: string;
+
+      try {
+        content = await uploadedFile.text();
+      } catch (readError) {
+        throw new Error('Failed to read file. Please ensure it is a valid text file.');
+      }
+
+      if (!content || content.trim().length === 0) {
+        throw new Error('The file appears to be empty. Please upload a file with content.');
+      }
 
       const { data: newScript, error: scriptError } = await supabase
         .from('scripts')
@@ -367,7 +377,7 @@ export default function ProductionWorkflow({ seriesId }: ProductionWorkflowProps
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept=".txt,.pdf,.docx"
+                    accept=".txt"
                     onChange={handleFileSelect}
                     className="hidden"
                   />
@@ -376,7 +386,7 @@ export default function ProductionWorkflow({ seriesId }: ProductionWorkflowProps
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
                   >
                     <Upload className="w-4 h-4" />
-                    Upload Script
+                    Upload Script (.txt)
                   </button>
                 </div>
               </div>
