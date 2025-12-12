@@ -33,7 +33,7 @@ interface Episode {
 
 interface Series {
   id: string;
-  title: string;
+  name: string;
   description: string;
 }
 
@@ -113,7 +113,7 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
     try {
       const { data: seriesData, error } = await supabase
         .from('series')
-        .select('id, title, description')
+        .select('id, name, description')
         .eq('id', seriesId)
         .eq('organization_id', currentOrganization.id)
         .maybeSingle();
@@ -329,7 +329,7 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
           title: newScript.title,
           version: newScript.version,
           series_id: newScript.series_id,
-          series_title: currentSeries.title,
+          series_title: currentSeries.name,
           status: newScript.status,
           has_episode: false,
           estimated_acts: 3,
