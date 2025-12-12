@@ -37,6 +37,7 @@ export interface CostBreakdown {
   charactersCost: number;
   voicesCost: number;
   videoGenerationCost: number;
+  lipSyncCost?: number;
   complexityAdjustment: number;
   totalCost: number;
 }

@@ -4,6 +4,7 @@ import { getAPIKeyStatus, getConfigurationInstructions } from '../services/setti
 import { useOrganization } from '../contexts/OrganizationContext';
 import { backupService } from '../services/backupService';
 import type { RecoveryPoint, IntegrityCheck, BackupSchedule } from '../services/backupService';
+import { LipSyncSettings } from './LipSyncSettings';
 
 export function Settings() {
   const { currentOrganization } = useOrganization();
@@ -415,6 +416,10 @@ export function Settings() {
                 <CheckCircle className="w-6 h-6 text-green-600" />
               </div>
             </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+            <LipSyncSettings />
           </div>
 
           <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">

@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react';
 import {
   PlayCircle, Film, FileText, Eye, Image, Sparkles, CheckCircle, AlertCircle,
   ChevronRight, ChevronDown, Settings, RefreshCw, Clock, Zap, BookOpen,
-  Grid, TrendingUp, Loader2, ArrowLeft, Camera, List as ListIcon
+  Grid, TrendingUp, Loader2, ArrowLeft, Camera, List as ListIcon, Video
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { generatePromptsForShots } from '../services/veo3PromptService';
 import { StoryboardViewer } from './StoryboardViewer';
+import { LipSyncManager } from './LipSyncManager';
 
 interface ProductionProps {
   seriesId: string | null;
@@ -60,7 +61,7 @@ interface ShotPrompt {
 }
 
 type ViewMode = 'scripts' | 'shots' | 'storyboard_viewer';
-type TabType = 'overview' | 'shots' | 'batches';
+type TabType = 'overview' | 'shots' | 'batches' | 'lipsync';
 
 export function Production({ seriesId, episodeId: initialEpisodeId }: ProductionProps) {
   const { currentOrganization } = useOrganization();
@@ -579,6 +580,17 @@ export function Production({ seriesId, episodeId: initialEpisodeId }: Production
                 <Grid className="w-4 h-4 inline mr-2" />
                 Batches
               </button>
+              <button
+                onClick={() => setActiveTab('lipsync')}
+                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'lipsync'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <Video className="w-4 h-4 inline mr-2" />
+                Lip Sync
+              </button>
             </nav>
           </div>
 
@@ -875,6 +887,13 @@ export function Production({ seriesId, episodeId: initialEpisodeId }: Production
                   </div>
                 </div>
               </div>
+            )}
+
+            {activeTab === 'lipsync' && selectedScript && (
+              <LipSyncManager
+                episodeId={selectedScript.id}
+                episodeName={selectedScript.title}
+              />
             )}
           </div>
         </div>
