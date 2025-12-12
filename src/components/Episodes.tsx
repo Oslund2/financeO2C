@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Play, Plus, Clock, CheckCircle, AlertCircle, TrendingUp, Trash2, RefreshCw, FileText, DollarSign, Film, ArrowRight, Sparkles, X, Calendar, PlayCircle, Camera, AlertTriangle } from 'lucide-react';
+import { Play, Plus, Clock, CheckCircle, AlertCircle, TrendingUp, Trash2, RefreshCw, FileText, DollarSign, Film, ArrowRight, Sparkles, X, Calendar, PlayCircle, Camera, AlertTriangle, BarChart3 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
@@ -9,6 +9,7 @@ import { ShowRevenueEstimator } from './ShowRevenueEstimator';
 import type { CostComparison as CostComparisonType } from '../services/costCalculationService';
 import { LTVCalculationService } from '../services/ltvCalculationService';
 import { useOrganization } from '../contexts/OrganizationContext';
+import { EpisodeProgressBreakdown } from './EpisodeProgressBreakdown';
 
 type Episode = Database['public']['Tables']['episodes']['Row'];
 type Script = Database['public']['Tables']['scripts']['Row'];
@@ -30,6 +31,7 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
   const [availableScripts, setAvailableScripts] = useState<Script[]>([]);
   const [creatingEpisode, setCreatingEpisode] = useState<string | null>(null);
   const [orphanedEpisodes, setOrphanedEpisodes] = useState<Set<string>>(new Set());
+  const [expandedProgressId, setExpandedProgressId] = useState<string | null>(null);
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
     episode: Episode | null;
@@ -646,6 +648,28 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
                         Completed on {new Date(episode.completed_at).toLocaleDateString()}
                       </div>
                     )}
+
+                    <div className="mt-4">
+                      <button
+                        onClick={() => setExpandedProgressId(expandedProgressId === episode.id ? null : episode.id)}
+                        className="w-full flex items-center justify-between px-4 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
+                      >
+                        <div className="flex items-center gap-2">
+                          <BarChart3 className="w-4 h-4 text-scripps-blue" />
+                          <span className="text-sm font-medium text-gray-700">
+                            {expandedProgressId === episode.id ? 'Hide' : 'Show'} Progress Breakdown
+                          </span>
+                        </div>
+                        <span className="text-xs text-gray-500">
+                          {expandedProgressId === episode.id ? 'Click to collapse' : 'Click to expand'}
+                        </span>
+                      </button>
+                      {expandedProgressId === episode.id && (
+                        <div className="mt-3">
+                          <EpisodeProgressBreakdown episodeId={episode.id} showRefreshButton />
+                        </div>
+                      )}
+                    </div>
 
                     <div className="mt-4 pt-4 border-t border-gray-200 flex justify-between items-center">
                       <div className="flex gap-2 flex-1">

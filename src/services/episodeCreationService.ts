@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { calculateProductionCosts, ScriptData } from './costCalculationService';
 import { lockScript } from './scriptLockingService';
+import { EpisodeProgressService } from './episodeProgressService';
 
 export interface ScriptDependency {
   episode_id: string;
@@ -244,6 +245,16 @@ export async function createEpisodeFromScript(
     .from('scripts')
     .update({ status: 'in_production' })
     .eq('id', scriptId);
+
+  const { data: seriesData } = await supabase
+    .from('series')
+    .select('organization_id')
+    .eq('id', script.series_id)
+    .single();
+
+  if (seriesData?.organization_id) {
+    await EpisodeProgressService.initializeEpisodeProgress(episode.id, seriesData.organization_id);
+  }
 
   return episode.id;
 }
