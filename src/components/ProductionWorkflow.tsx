@@ -1272,6 +1272,11 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
           <ShotListManager
             shotIds={generatedShotIds}
             organizationId={currentOrganization!.id}
+            episodeId={selectedEpisode?.id}
+            scriptId={selectedScript?.id}
+            seriesId={currentSeries?.id}
+            showTRT={true}
+            showScriptViewer={true}
           />
 
           <div className="flex justify-end gap-3">

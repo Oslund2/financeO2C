@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, Edit3, RotateCcw, Check, X, AlertTriangle } from 'lucide-react';
+import { ChevronDown, ChevronUp, Edit3, RotateCcw, Check, X, AlertTriangle, Download, FileText, FileSpreadsheet, FileImage } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { regeneratePromptForShot, updatePrompt, validatePrompt } from '../services/veo3PromptService';
+import { exportShotList, downloadBlob, type ExportFormat } from '../services/shotListExportService';
+import TRTCalculator from './TRTCalculator';
+import ScriptPromptViewer from './ScriptPromptViewer';
 
 interface Shot {
   id: string;
@@ -18,6 +21,8 @@ interface Shot {
   location: string;
   props: string[];
   status: string;
+  episode_id: string | null;
+  series_id: string;
 }
 
 interface ShotPrompt {
@@ -27,6 +32,7 @@ interface ShotPrompt {
   negative_prompt: string;
   style_directives: string;
   audio_cues: string;
+  dialogue_cues: any[];
   character_references: string[];
   location_reference: string;
   prompt_version: number;
@@ -41,14 +47,29 @@ interface ShotWithPrompt {
 interface ShotListManagerProps {
   shotIds: string[];
   organizationId: string;
+  episodeId?: string;
+  scriptId?: string;
+  seriesId?: string;
+  showTRT?: boolean;
+  showScriptViewer?: boolean;
 }
 
-export default function ShotListManager({ shotIds, organizationId }: ShotListManagerProps) {
+export default function ShotListManager({
+  shotIds,
+  organizationId,
+  episodeId,
+  scriptId,
+  seriesId,
+  showTRT = true,
+  showScriptViewer = false
+}: ShotListManagerProps) {
   const [shots, setShots] = useState<ShotWithPrompt[]>([]);
   const [expandedShots, setExpandedShots] = useState<Set<string>>(new Set());
   const [editingPrompt, setEditingPrompt] = useState<string | null>(null);
   const [editedText, setEditedText] = useState('');
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   useEffect(() => {
     loadShots();
@@ -135,6 +156,44 @@ export default function ShotListManager({ shotIds, organizationId }: ShotListMan
     }
   };
 
+  const handleExport = async (format: ExportFormat) => {
+    if (!seriesId) {
+      alert('Series ID is required for export');
+      return;
+    }
+
+    setExporting(true);
+    setShowExportMenu(false);
+
+    try {
+      const blob = await exportShotList(
+        shotIds,
+        episodeId || null,
+        seriesId,
+        organizationId,
+        {
+          format,
+          includeReferenceImages: true
+        }
+      );
+
+      const fileExtensions = {
+        csv: 'csv',
+        excel: 'xlsx',
+        pdf: 'pdf',
+        json: 'json'
+      };
+
+      const fileName = `shot-list-${Date.now()}.${fileExtensions[format]}`;
+      downloadBlob(blob, fileName);
+    } catch (err) {
+      console.error('Error exporting shot list:', err);
+      alert('Failed to export shot list');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const groupByAct = () => {
     const grouped = new Map<number, ShotWithPrompt[]>();
     shots.forEach(sw => {
@@ -148,13 +207,91 @@ export default function ShotListManager({ shotIds, organizationId }: ShotListMan
   };
 
   const actGroups = groupByAct();
+  const firstShot = shots[0]?.shot;
 
   return (
     <div className="space-y-6">
+      {showTRT && episodeId && (
+        <TRTCalculator episodeId={episodeId} shotIds={shotIds} />
+      )}
+
+      {showScriptViewer && scriptId && (
+        <ScriptPromptViewer scriptId={scriptId} shotIds={shotIds} episodeId={episodeId} />
+      )}
+
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Shot List with AI Prompts</h3>
-        <div className="text-sm text-gray-600">
-          {shots.length} shots | {shots.filter(s => s.prompt?.validated).length} validated
+        <div>
+          <h3 className="text-lg font-semibold">Shot List with AI Prompts</h3>
+          <div className="text-sm text-gray-600 mt-1">
+            {shots.length} shots | {shots.filter(s => s.prompt?.validated).length} validated
+          </div>
+        </div>
+
+        <div className="relative">
+          <button
+            onClick={() => setShowExportMenu(!showExportMenu)}
+            disabled={exporting || shots.length === 0}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {exporting ? (
+              <>
+                <Download className="w-4 h-4 animate-pulse" />
+                Exporting...
+              </>
+            ) : (
+              <>
+                <Download className="w-4 h-4" />
+                Export Shot List
+              </>
+            )}
+          </button>
+
+          {showExportMenu && (
+            <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+              <div className="py-2">
+                <button
+                  onClick={() => handleExport('csv')}
+                  className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-3"
+                >
+                  <FileText className="w-4 h-4 text-green-600" />
+                  <div>
+                    <div className="font-medium text-sm">CSV</div>
+                    <div className="text-xs text-gray-500">Spreadsheet format</div>
+                  </div>
+                </button>
+                <button
+                  onClick={() => handleExport('excel')}
+                  className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-3"
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-green-700" />
+                  <div>
+                    <div className="font-medium text-sm">Excel</div>
+                    <div className="text-xs text-gray-500">Multi-sheet workbook</div>
+                  </div>
+                </button>
+                <button
+                  onClick={() => handleExport('pdf')}
+                  className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-3"
+                >
+                  <FileImage className="w-4 h-4 text-red-600" />
+                  <div>
+                    <div className="font-medium text-sm">PDF</div>
+                    <div className="text-xs text-gray-500">Production-ready document</div>
+                  </div>
+                </button>
+                <button
+                  onClick={() => handleExport('json')}
+                  className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-3"
+                >
+                  <FileText className="w-4 h-4 text-blue-600" />
+                  <div>
+                    <div className="font-medium text-sm">JSON</div>
+                    <div className="text-xs text-gray-500">Veo 3 batch format</div>
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -292,10 +429,27 @@ export default function ShotListManager({ shotIds, organizationId }: ShotListMan
 
                           <div>
                             <label className="text-sm font-medium text-gray-700 block mb-2">Audio Cues</label>
-                            <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-700">
-                              {prompt.audio_cues}
+                            <div className="bg-yellow-50 rounded-lg p-3 text-sm text-gray-700">
+                              {prompt.audio_cues || 'NO MUSIC. Dialogue and natural sound effects only.'}
                             </div>
                           </div>
+
+                          {prompt.dialogue_cues && prompt.dialogue_cues.length > 0 && (
+                            <div>
+                              <label className="text-sm font-medium text-gray-700 block mb-2">Dialogue with Voice Assignments</label>
+                              <div className="bg-blue-50 rounded-lg p-3 space-y-2">
+                                {prompt.dialogue_cues.map((dialogue: any, idx: number) => (
+                                  <div key={idx} className="flex items-start gap-2 text-sm">
+                                    <span className="font-semibold text-blue-900">{dialogue.character_name}:</span>
+                                    <span className="flex-1 text-gray-800">{dialogue.text}</span>
+                                    <span className="text-xs px-2 py-1 bg-blue-200 text-blue-800 rounded-full">
+                                      {dialogue.voice_provider}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
 
                           {!prompt.validated && (
                             <div className="flex items-center gap-2 pt-2">

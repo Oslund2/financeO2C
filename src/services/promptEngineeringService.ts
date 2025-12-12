@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { getCharacterProfilesForShot, getLocationProfileForShot } from './consistencyManagementService';
+import { extractDialogueFromScene, formatDialogueForPrompt, type ExtractedDialogue } from './dialogueExtractionService';
 
 export interface PromptComponents {
   subject: string;
@@ -9,12 +10,15 @@ export interface PromptComponents {
   lighting: string;
   style: string;
   audio?: string;
+  dialogue?: string;
 }
 
 export interface GeneratedPrompt {
   veo3_prompt_text: string;
   negative_prompt: string;
   style_directives: string;
+  audio_cues: string;
+  dialogue_cues: any[];
   reference_image_uri?: string;
 }
 
@@ -30,8 +34,13 @@ const NEGATIVE_PROMPTS = [
   'blurry',
   'low quality',
   'distorted',
-  'watermark'
+  'watermark',
+  'background music',
+  'musical score',
+  'soundtrack'
 ].join(', ');
+
+const AUDIO_DIRECTIVES = 'NO MUSIC. Dialogue and natural sound effects only. Music will be added in post-production.';
 
 function getCameraInstructionForShot(
   shotType: string,
@@ -146,23 +155,40 @@ export async function generatePromptForShot(
 
   const actionDescription = shot.narrative_description || shot.technical_description || 'scene unfolds naturally';
 
+  let dialogueExtracted: ExtractedDialogue | null = null;
+  let dialoguePromptText = '';
+
+  if (shot.dialogue_content && Array.isArray(shot.dialogue_content) && shot.dialogue_content.length > 0) {
+    dialogueExtracted = await extractDialogueFromScene(shot.dialogue_content, shot.series_id);
+    dialoguePromptText = formatDialogueForPrompt(dialogueExtracted);
+  }
+
   const components: PromptComponents = {
     subject: characterDescriptions || 'claymation characters',
     action: actionDescription,
     environment: locationDescription,
     camera: cameraInstruction,
     lighting: lightingInstruction,
-    style: [CLAYMATION_STYLE_BASE, seriesStyle].filter(Boolean).join('. ')
+    style: [CLAYMATION_STYLE_BASE, seriesStyle].filter(Boolean).join('. '),
+    audio: AUDIO_DIRECTIVES,
+    dialogue: dialoguePromptText
   };
 
-  const promptText = [
+  const promptParts = [
     components.subject,
     components.action,
     `Setting: ${components.environment}`,
     `Camera: ${components.camera}`,
     `Lighting: ${components.lighting}`,
-    `Style: ${components.style}`
-  ].filter(Boolean).join('. ');
+    `Style: ${components.style}`,
+    `Audio: ${components.audio}`
+  ];
+
+  if (components.dialogue) {
+    promptParts.push(components.dialogue);
+  }
+
+  const promptText = promptParts.filter(Boolean).join('. ');
 
   const referenceImageUri = characterProfiles.length > 0 && characterProfiles[0].reference_image_cloud_storage_uris.length > 0
     ? characterProfiles[0].reference_image_cloud_storage_uris[0]
@@ -172,6 +198,8 @@ export async function generatePromptForShot(
     veo3_prompt_text: promptText,
     negative_prompt: NEGATIVE_PROMPTS,
     style_directives: components.style,
+    audio_cues: AUDIO_DIRECTIVES,
+    dialogue_cues: dialogueExtracted?.lines || [],
     reference_image_uri: referenceImageUri
   };
 }
@@ -200,6 +228,8 @@ export async function savePromptForShot(
       veo3_prompt_text: prompt.veo3_prompt_text,
       negative_prompt: prompt.negative_prompt,
       style_directives: prompt.style_directives,
+      audio_cues: prompt.audio_cues,
+      dialogue_cues: prompt.dialogue_cues,
       character_references: characterReferences,
       location_reference: locationReference,
       reference_image_uri: prompt.reference_image_uri,
