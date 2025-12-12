@@ -159,7 +159,7 @@ export function getAPIKeyStatus() {
       apiKey: !!import.meta.env.VITE_VERTEX_AI_API_KEY
     },
     elevenLabs: {
-      apiKey: !!import.meta.env.ELEVENLABS_API_KEY
+      apiKey: !!import.meta.env.VITE_ELEVENLABS_API_KEY
     }
   };
 }
@@ -205,7 +205,13 @@ export function getConfigurationInstructions() {
       secrets: [
         {
           name: 'ELEVENLABS_API_KEY',
-          description: 'Your ElevenLabs API key',
+          description: 'Your ElevenLabs API key (for server-side edge function)',
+          example: 'sk_...',
+          required: true
+        },
+        {
+          name: 'VITE_ELEVENLABS_API_KEY',
+          description: 'Your ElevenLabs API key (for frontend validation)',
           example: 'sk_...',
           required: true
         }
