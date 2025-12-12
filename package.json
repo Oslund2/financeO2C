@@ -8,7 +8,9 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit -p tsconfig.app.json"
+    "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "deploy:functions": "bash scripts/deploy-edge-functions.sh",
+    "verify:setup": "bash scripts/verify-setup.sh"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",

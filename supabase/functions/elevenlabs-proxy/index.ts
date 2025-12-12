@@ -17,6 +17,30 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    const url = new URL(req.url);
+    const path = url.searchParams.get("path") || "/voices";
+    const method = url.searchParams.get("method") || "GET";
+
+    if (path === "/health") {
+      const apiKey = Deno.env.get("ELEVENLABS_API_KEY");
+      return new Response(
+        JSON.stringify({
+          status: "ok",
+          edge_function_deployed: true,
+          api_key_configured: !!apiKey,
+          api_key_length: apiKey?.length || 0,
+          timestamp: new Date().toISOString(),
+        }),
+        {
+          status: 200,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+    }
+
     const apiKey = Deno.env.get("ELEVENLABS_API_KEY");
 
     console.log('ElevenLabs API key configured:', !!apiKey);
@@ -24,7 +48,12 @@ Deno.serve(async (req: Request) => {
 
     if (!apiKey) {
       return new Response(
-        JSON.stringify({ error: "Eleven Labs API key is not configured in edge function environment" }),
+        JSON.stringify({
+          error: "ElevenLabs API key not configured in Supabase",
+          error_code: "MISSING_API_KEY",
+          setup_required: true,
+          instructions: "Configure ELEVENLABS_API_KEY secret in Supabase Dashboard under Project Settings > Edge Functions > Secrets"
+        }),
         {
           status: 500,
           headers: {
@@ -34,10 +63,6 @@ Deno.serve(async (req: Request) => {
         }
       );
     }
-
-    const url = new URL(req.url);
-    const path = url.searchParams.get("path") || "/voices";
-    const method = url.searchParams.get("method") || "GET";
 
     // Build the Eleven Labs API URL
     const elevenLabsUrl = `${ELEVENLABS_API_BASE}${path}`;
@@ -87,9 +112,25 @@ Deno.serve(async (req: Request) => {
         url: elevenLabsUrl
       });
 
+      let errorCode = "ELEVENLABS_API_ERROR";
+      let instructions = "";
+
+      if (response.status === 401) {
+        errorCode = "INVALID_API_KEY";
+        instructions = "The API key configured in Supabase is invalid. Please verify your ElevenLabs API key in the Supabase Dashboard.";
+      } else if (response.status === 429) {
+        errorCode = "RATE_LIMIT_EXCEEDED";
+        instructions = "ElevenLabs API rate limit exceeded. Please wait before trying again or upgrade your ElevenLabs plan.";
+      } else if (response.status === 403) {
+        errorCode = "INSUFFICIENT_QUOTA";
+        instructions = "Insufficient quota on your ElevenLabs account. Please check your usage and plan limits.";
+      }
+
       return new Response(JSON.stringify({
         error: data.detail?.message || data.message || data.error || 'ElevenLabs API error',
+        error_code: errorCode,
         status: response.status,
+        instructions,
         details: data
       }), {
         status: response.status,

@@ -17,6 +17,16 @@ export interface VoicesResponse {
   voices: ElevenLabsVoice[];
 }
 
+export interface ElevenLabsHealthStatus {
+  edge_function_deployed: boolean;
+  api_key_configured: boolean;
+  api_connectivity: boolean;
+  error?: string;
+  error_code?: string;
+  instructions?: string;
+  timestamp?: string;
+}
+
 export class ElevenLabsService {
   private cachedVoices: ElevenLabsVoice[] | null = null;
   private cacheTimestamp: number | null = null;
@@ -29,6 +39,50 @@ export class ElevenLabsService {
       throw new Error('Supabase URL is not configured');
     }
     this.edgeFunctionUrl = `${supabaseUrl}/functions/v1/elevenlabs-proxy`;
+  }
+
+  async checkHealth(): Promise<ElevenLabsHealthStatus> {
+    try {
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const response = await fetch(
+        `${this.edgeFunctionUrl}?path=/health&method=GET`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${anonKey}`,
+            'apikey': anonKey,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        return {
+          edge_function_deployed: false,
+          api_key_configured: false,
+          api_connectivity: false,
+          error: 'Edge function not accessible',
+          error_code: 'EDGE_FUNCTION_ERROR',
+        };
+      }
+
+      const healthData = await response.json();
+
+      return {
+        edge_function_deployed: true,
+        api_key_configured: healthData.api_key_configured || false,
+        api_connectivity: healthData.api_key_configured || false,
+        timestamp: healthData.timestamp,
+      };
+    } catch (error) {
+      return {
+        edge_function_deployed: false,
+        api_key_configured: false,
+        api_connectivity: false,
+        error: error instanceof Error ? error.message : 'Failed to connect to edge function',
+        error_code: 'EDGE_FUNCTION_UNREACHABLE',
+        instructions: 'The ElevenLabs edge function needs to be deployed. Please deploy it from the Supabase Dashboard.',
+      };
+    }
   }
 
   async getVoices(forceRefresh = false): Promise<ElevenLabsVoice[]> {
@@ -56,10 +110,20 @@ export class ElevenLabsService {
       );
 
       if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Invalid API key. Please check your Eleven Labs configuration.');
-        }
         const errorData = await response.json().catch(() => ({}));
+
+        if (errorData.error_code === 'MISSING_API_KEY') {
+          throw new Error(errorData.instructions || 'ElevenLabs API key not configured in Supabase');
+        }
+
+        if (errorData.error_code === 'INVALID_API_KEY') {
+          throw new Error('Invalid API key. ' + (errorData.instructions || 'Please check your Eleven Labs configuration.'));
+        }
+
+        if (errorData.instructions) {
+          throw new Error(errorData.error + '. ' + errorData.instructions);
+        }
+
         throw new Error(errorData.error || `Failed to fetch voices: ${response.statusText}`);
       }
 

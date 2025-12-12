@@ -17,6 +17,7 @@ import { getVoiceService } from '../services/voiceService';
 import type { Database } from '../lib/database.types';
 import { VoiceCloningModal } from './VoiceCloningModal';
 import { VoiceSelector } from './VoiceSelector';
+import { ElevenLabsSetupWizard } from './ElevenLabsSetupWizard';
 
 type Character = Database['public']['Tables']['characters']['Row'];
 
@@ -35,6 +36,7 @@ export function VoiceGenerationTab({ seriesId, onNavigate }: VoiceGenerationTabP
   } | null>(null);
   const [showCloningModal, setShowCloningModal] = useState(false);
   const [editingCharacter, setEditingCharacter] = useState<Character | null>(null);
+  const [showSetupWizard, setShowSetupWizard] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -138,6 +140,7 @@ export function VoiceGenerationTab({ seriesId, onNavigate }: VoiceGenerationTabP
           onNavigate={onNavigate}
           onRefresh={checkProviderHealth}
           onSectionChange={setActiveSection}
+          onOpenSetup={() => setShowSetupWizard(true)}
         />
       )}
 
@@ -167,6 +170,14 @@ export function VoiceGenerationTab({ seriesId, onNavigate }: VoiceGenerationTabP
           }}
         />
       )}
+
+      <ElevenLabsSetupWizard
+        isOpen={showSetupWizard}
+        onClose={() => {
+          setShowSetupWizard(false);
+          checkProviderHealth();
+        }}
+      />
 
       {editingCharacter && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -211,9 +222,10 @@ interface OverviewSectionProps {
   onNavigate: (view: string) => void;
   onRefresh: () => void;
   onSectionChange: (section: 'overview' | 'characters' | 'clone' | 'library') => void;
+  onOpenSetup: () => void;
 }
 
-function OverviewSection({ providerHealth, characters, onNavigate, onRefresh, onSectionChange }: OverviewSectionProps) {
+function OverviewSection({ providerHealth, characters, onNavigate, onRefresh, onSectionChange, onOpenSetup }: OverviewSectionProps) {
   const charactersWithVoice = characters.filter(c => c.voice_id).length;
   const elevenlabsCount = characters.filter(c => c.voice_provider === 'elevenlabs').length;
   const chatterboxCount = characters.filter(c => c.voice_provider === 'chatterbox').length;
@@ -275,14 +287,22 @@ function OverviewSection({ providerHealth, characters, onNavigate, onRefresh, on
               </div>
             </div>
           ) : (
-            <div className="flex items-start gap-2">
-              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-red-900">Unavailable</p>
-                <p className="text-xs text-red-700 mt-1">
-                  {providerHealth?.elevenlabs.error || 'Service unavailable'}
-                </p>
+            <div className="space-y-2">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-red-900">Unavailable</p>
+                  <p className="text-xs text-red-700 mt-1">
+                    {providerHealth?.elevenlabs.error || 'Service unavailable'}
+                  </p>
+                </div>
               </div>
+              <button
+                onClick={onOpenSetup}
+                className="w-full px-3 py-1.5 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors font-medium"
+              >
+                Setup ElevenLabs
+              </button>
             </div>
           )}
         </div>
