@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { SystemHealthWidget } from './SystemHealthWidget';
 import { CastFilmStrip } from './CastFilmStrip';
 import { DashboardIPSectionEditor } from './DashboardIPSectionEditor';
+import { EpisodeProgressBreakdown } from './EpisodeProgressBreakdown';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -107,6 +108,7 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editorInitialTab, setEditorInitialTab] = useState<'main' | 'card1' | 'card2' | 'card3'>('main');
   const [seriesName, setSeriesName] = useState<string>('');
+  const [expandedEpisodeId, setExpandedEpisodeId] = useState<string | null>(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -656,33 +658,47 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
             ) : (
               <div className="space-y-3">
                 {recentEpisodes.map((episode) => (
-                  <div
-                    key={episode.id}
-                    className="flex items-center justify-between p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors border border-gray-200"
-                  >
-                    <div className="flex items-center gap-4 flex-1">
-                      {getStatusIcon(episode.status)}
-                      <div className="flex-1">
-                        <h3 className="font-medium text-gray-900">{episode.title}</h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className={`text-xs px-2 py-1 rounded-full border ${getStatusColor(episode.status)}`}>
-                            {episode.status}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {new Date(episode.created_at).toLocaleDateString()}
-                          </span>
+                  <div key={episode.id} className="rounded-lg bg-gray-50 border border-gray-200 overflow-hidden">
+                    <div
+                      className="flex items-center justify-between p-4 hover:bg-gray-100 transition-colors cursor-pointer"
+                      onClick={() => setExpandedEpisodeId(expandedEpisodeId === episode.id ? null : episode.id)}
+                    >
+                      <div className="flex items-center gap-4 flex-1">
+                        {getStatusIcon(episode.status)}
+                        <div className="flex-1">
+                          <h3 className="font-medium text-gray-900">{episode.title}</h3>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className={`text-xs px-2 py-1 rounded-full border ${getStatusColor(episode.status)}`}>
+                              {episode.status}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {new Date(episode.created_at).toLocaleDateString()}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-medium text-gray-900">{episode.progress_percentage}%</div>
-                      <div className="w-24 h-2 bg-gray-200 rounded-full mt-1 overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-scripps-blue to-scripps-light-blue rounded-full transition-all"
-                          style={{ width: `${episode.progress_percentage}%` }}
-                        />
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <div className="text-sm font-medium text-gray-900">{episode.progress_percentage}%</div>
+                          <div className="w-24 h-2 bg-gray-200 rounded-full mt-1 overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-scripps-blue to-scripps-light-blue rounded-full transition-all"
+                              style={{ width: `${episode.progress_percentage}%` }}
+                            />
+                          </div>
+                        </div>
+                        {expandedEpisodeId === episode.id ? (
+                          <ChevronUp className="w-5 h-5 text-gray-400" />
+                        ) : (
+                          <ChevronDown className="w-5 h-5 text-gray-400" />
+                        )}
                       </div>
                     </div>
+                    {expandedEpisodeId === episode.id && (
+                      <div className="border-t border-gray-200">
+                        <EpisodeProgressBreakdown episodeId={episode.id} onNavigate={onNavigate} />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
