@@ -284,16 +284,16 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Episodes</h1>
-            <p className="text-gray-600">Track and manage episode production</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">Episodes</h1>
+            <p className="text-sm sm:text-base text-gray-600">Track and manage episode production</p>
           </div>
           <button
             onClick={() => onNavigate('ai-studio')}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium"
+            className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium text-sm sm:text-base w-full sm:w-auto"
           >
             <Plus className="w-5 h-5" />
             New Episode
@@ -301,24 +301,19 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
         </div>
 
         {orphanedEpisodes.size > 0 && (
-          <div className="mb-6 bg-gradient-to-r from-red-50 to-orange-50 border-2 border-red-300 rounded-xl p-6">
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 bg-red-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                <AlertTriangle className="w-6 h-6 text-white" />
+          <div className="mb-4 sm:mb-6 bg-gradient-to-r from-red-50 to-orange-50 border-2 border-red-300 rounded-xl p-4 sm:p-6">
+            <div className="flex items-start gap-3 sm:gap-4">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-red-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-red-900 mb-2">Data Integrity Issue Detected</h3>
-                <p className="text-sm text-red-800 mb-3">
-                  {orphanedEpisodes.size} episode{orphanedEpisodes.size !== 1 ? 's' : ''} found with missing or deleted scripts.
-                  These episodes cannot be edited or used in production until the issue is resolved.
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base sm:text-lg font-bold text-red-900 mb-1 sm:mb-2">Data Integrity Issue</h3>
+                <p className="text-xs sm:text-sm text-red-800 mb-2 sm:mb-3">
+                  {orphanedEpisodes.size} episode{orphanedEpisodes.size !== 1 ? 's' : ''} found with missing scripts.
                 </p>
-                <div className="bg-white rounded-lg p-3 border border-red-200 mb-3">
-                  <p className="text-xs text-gray-700 mb-2">
-                    <strong>What happened?</strong> These episodes reference scripts that have been deleted or are no longer accessible.
-                  </p>
+                <div className="bg-white rounded-lg p-2 sm:p-3 border border-red-200">
                   <p className="text-xs text-gray-700">
-                    <strong>What to do?</strong> Episodes with missing scripts are marked with a warning icon below.
-                    You may need to delete these episodes or contact support if the scripts need to be recovered.
+                    Episodes with missing scripts are marked below. Delete them or contact support to recover.
                   </p>
                 </div>
               </div>
@@ -327,16 +322,16 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
         )}
 
         {availableScripts.length > 0 && (
-          <div className="mb-6 bg-gradient-to-r from-blue-50 to-green-50 border-2 border-blue-200 rounded-xl p-6">
-            <div className="flex items-start justify-between mb-4">
+          <div className="mb-4 sm:mb-6 bg-gradient-to-r from-blue-50 to-green-50 border-2 border-blue-200 rounded-xl p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
-                  <FileText className="w-6 h-6 text-white" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900">Available Scripts</h3>
-                  <p className="text-sm text-gray-600">
-                    {availableScripts.length} approved script{availableScripts.length !== 1 ? 's' : ''} ready to become episode{availableScripts.length !== 1 ? 's' : ''}
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900">Available Scripts</h3>
+                  <p className="text-xs sm:text-sm text-gray-600">
+                    {availableScripts.length} approved script{availableScripts.length !== 1 ? 's' : ''} ready
                   </p>
                 </div>
               </div>
@@ -344,23 +339,23 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
                 onClick={() => onNavigate('scripts')}
                 className="flex items-center gap-2 text-sm font-medium text-blue-700 hover:text-blue-900 transition-colors"
               >
-                <span>View All Scripts</span>
+                <span>View All</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {availableScripts.map((script) => (
                 <div
                   key={script.id}
-                  className="bg-white rounded-lg p-4 border border-blue-200 hover:border-blue-300 hover:shadow-md transition-all"
+                  className="bg-white rounded-lg p-3 sm:p-4 border border-blue-200 hover:border-blue-300 hover:shadow-md transition-all"
                 >
                   <div className="flex items-start justify-between mb-2">
-                    <h4 className="font-semibold text-gray-900 text-sm">{script.title}</h4>
+                    <h4 className="font-semibold text-gray-900 text-sm line-clamp-1">{script.title}</h4>
                     {script.ai_generated && (
-                      <div className="flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800 border border-purple-200 flex-shrink-0 ml-2">
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-purple-100 text-purple-800 border border-purple-200 flex-shrink-0 ml-2">
                         <Sparkles className="w-3 h-3" />
-                        <span className="font-medium">AI</span>
+                        <span className="font-medium hidden sm:inline">AI</span>
                       </div>
                     )}
                   </div>
@@ -368,22 +363,23 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
                     S{script.season_number}E{script.episode_number} • {script.runtime_minutes} min
                   </div>
                   {script.synopsis && (
-                    <p className="text-xs text-gray-700 mb-3 line-clamp-2">{script.synopsis}</p>
+                    <p className="text-xs text-gray-700 mb-3 line-clamp-2 hidden sm:block">{script.synopsis}</p>
                   )}
                   <button
                     onClick={() => handleQuickCreateEpisode(script.id, script.title)}
                     disabled={creatingEpisode === script.id}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-500 to-green-500 text-white rounded-lg hover:shadow-lg transition-all font-medium text-sm disabled:opacity-50"
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-500 to-green-500 text-white rounded-lg hover:shadow-lg transition-all font-medium text-sm disabled:opacity-50 active:scale-95"
                   >
                     {creatingEpisode === script.id ? (
                       <>
                         <RefreshCw className="w-4 h-4 animate-spin" />
-                        Creating...
+                        <span className="hidden sm:inline">Creating...</span>
+                        <span className="sm:hidden">...</span>
                       </>
                     ) : (
                       <>
                         <Film className="w-4 h-4" />
-                        Create Episode
+                        Create
                       </>
                     )}
                   </button>
@@ -391,62 +387,65 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
               ))}
             </div>
 
-            <div className="mt-4 flex items-center gap-2 text-xs text-gray-600">
-              <AlertCircle className="w-4 h-4" />
-              <span>
-                These scripts are approved and ready for production. Creating an episode will lock the script from further edits.
+            <div className="mt-3 sm:mt-4 flex items-start gap-2 text-xs text-gray-600">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <span className="hidden sm:inline">
+                These scripts are approved and ready for production. Creating an episode will lock the script.
+              </span>
+              <span className="sm:hidden">
+                Creating an episode will lock the script.
               </span>
             </div>
           </div>
         )}
 
         {episodes.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-md p-12 text-center border border-gray-200">
-            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Play className="w-8 h-8 text-scripps-blue" />
+          <div className="bg-white rounded-xl shadow-md p-6 sm:p-12 text-center border border-gray-200">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Play className="w-6 h-6 sm:w-8 sm:h-8 text-scripps-blue" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No episodes yet</h3>
-            <p className="text-gray-600 mb-6">
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">No episodes yet</h3>
+            <p className="text-sm sm:text-base text-gray-600 mb-6">
               {availableScripts.length > 0
                 ? 'Create your first episode from the approved scripts above'
-                : 'Start by creating and approving a script to produce your first episode'}
+                : 'Start by creating and approving a script'}
             </p>
             {availableScripts.length === 0 && (
               <>
-                <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200 max-w-md mx-auto">
-                  <div className="flex items-center gap-2 text-sm text-gray-700 mb-2">
+                <div className="mb-6 p-3 sm:p-4 bg-blue-50 rounded-lg border border-blue-200 max-w-md mx-auto">
+                  <div className="flex flex-col sm:flex-row items-center gap-2 text-sm text-gray-700">
                     <span className="flex items-center gap-1 px-2 py-1 bg-gray-200 rounded text-xs">
                       1. Create Script
                     </span>
-                    <ArrowRight className="w-3 h-3" />
+                    <ArrowRight className="w-3 h-3 rotate-90 sm:rotate-0" />
                     <span className="flex items-center gap-1 px-2 py-1 bg-blue-200 rounded text-xs">
-                      2. Approve Script
+                      2. Approve
                     </span>
-                    <ArrowRight className="w-3 h-3" />
+                    <ArrowRight className="w-3 h-3 rotate-90 sm:rotate-0" />
                     <span className="flex items-center gap-1 px-2 py-1 bg-green-200 rounded text-xs">
                       3. Create Episode
                     </span>
                   </div>
                 </div>
-                <div className="flex gap-3 justify-center">
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
                   <button
                     onClick={() => onNavigate('scripts')}
-                    className="px-6 py-3 bg-white text-scripps-blue border-2 border-scripps-blue rounded-lg hover:bg-blue-50 transition-all font-medium"
+                    className="px-4 sm:px-6 py-2.5 sm:py-3 bg-white text-scripps-blue border-2 border-scripps-blue rounded-lg hover:bg-blue-50 transition-all font-medium text-sm sm:text-base"
                   >
                     View Scripts
                   </button>
                   <button
                     onClick={() => onNavigate('ai-studio')}
-                    className="px-6 py-3 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium"
+                    className="px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium text-sm sm:text-base"
                   >
-                    Generate New Script
+                    Generate Script
                   </button>
                 </div>
               </>
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6">
+          <div className="grid grid-cols-1 gap-4 sm:gap-6">
             {episodes.map((episode) => {
               const ltvMetrics = calculateEpisodeLTV(episode);
               const isProfit = ltvMetrics.lifetimeProfit >= 0;
@@ -457,7 +456,7 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
               return (
               <div
                 key={episode.id}
-                className={`bg-white rounded-xl shadow-md hover:shadow-lg transition-all border p-6 ${
+                className={`bg-white rounded-xl shadow-md hover:shadow-lg transition-all border p-4 sm:p-6 ${
                   isOrphaned
                     ? 'border-4 border-red-400 ring-4 ring-red-400 ring-opacity-20'
                     : isHighlighted
@@ -465,8 +464,8 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
                       : 'border-gray-200'
                 }`}
               >
-                <div className="flex items-start gap-6">
-                  <div className={`w-40 h-24 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                <div className="flex flex-col sm:flex-row sm:items-start gap-4 sm:gap-6">
+                  <div className={`hidden sm:flex w-32 lg:w-40 h-20 lg:h-24 rounded-lg items-center justify-center flex-shrink-0 ${
                     episode.final_video_url
                       ? 'bg-gradient-to-br from-scripps-blue to-scripps-light-blue'
                       : isProfit
@@ -474,84 +473,68 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
                         : 'bg-gradient-to-br from-red-500 to-orange-600'
                   }`}>
                     {episode.final_video_url ? (
-                      <Play className="w-12 h-12 text-white" />
+                      <Play className="w-10 h-10 lg:w-12 lg:h-12 text-white" />
                     ) : (
                       <div className="text-white text-center px-2">
-                        <div className="text-lg font-bold">{LTVCalculationService.formatCurrency(ltvMetrics.lifetimeProfit)}</div>
+                        <div className="text-base lg:text-lg font-bold">{LTVCalculationService.formatCurrency(ltvMetrics.lifetimeProfit)}</div>
                         <div className="text-xs">LTV</div>
                       </div>
                     )}
                   </div>
 
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-xl font-bold text-gray-900">{episode.title}</h3>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3 mb-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                          <h3 className="text-lg sm:text-xl font-bold text-gray-900 truncate">{episode.title}</h3>
                           {isOrphaned && (
-                            <span className="px-2 py-1 bg-red-100 text-red-800 text-xs font-bold rounded border-2 border-red-400 flex items-center gap-1">
+                            <span className="px-2 py-0.5 bg-red-100 text-red-800 text-xs font-bold rounded border-2 border-red-400 flex items-center gap-1 flex-shrink-0">
                               <AlertTriangle className="w-3 h-3" />
-                              MISSING SCRIPT
+                              <span className="hidden sm:inline">MISSING SCRIPT</span>
+                              <span className="sm:hidden">ERROR</span>
                             </span>
                           )}
                           {episode.multi_part_episode && (
-                            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded border border-blue-200">
+                            <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-medium rounded border border-blue-200 flex-shrink-0">
                               Part {episode.part_number}
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-3 flex-wrap">
+                        <div className="flex items-center gap-2 flex-wrap text-xs sm:text-sm">
                           {getStatusIcon(episode.status)}
-                          <span className="text-sm font-medium text-gray-700 capitalize">
+                          <span className="font-medium text-gray-700 capitalize">
                             {episode.status.replace('_', ' ')}
                           </span>
                           {episode.status !== 'completed' && (
-                            <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded border border-gray-200">
-                              Production: {episode.progress_percentage}%
+                            <span className="text-gray-600 bg-gray-100 px-2 py-0.5 rounded border border-gray-200">
+                              {episode.progress_percentage}%
                             </span>
                           )}
                           {shotListInfo && shotListInfo.total > 0 && (
-                            <div className="flex items-center gap-1 text-xs px-2 py-1 rounded border bg-blue-50 text-blue-800 border-blue-200">
+                            <div className="flex items-center gap-1 px-2 py-0.5 rounded border bg-blue-50 text-blue-800 border-blue-200">
                               <Camera className="w-3 h-3" />
                               <span className="font-medium">
-                                {shotListInfo.completed}/{shotListInfo.total} Shots
-                                {shotListInfo.completed === shotListInfo.total && ' ✓'}
+                                {shotListInfo.completed}/{shotListInfo.total}
                               </span>
                             </div>
                           )}
-                          {scriptTitles.get(episode.id) && (
-                            <div className="flex items-center gap-1 text-sm text-gray-600">
-                              <FileText className="w-3 h-3" />
-                              <span>From: {scriptTitles.get(episode.id)}</span>
-                            </div>
-                          )}
-                          {episode.sync_status && (
-                            <div className={`flex items-center gap-1 px-2 py-1 rounded text-xs border ${getSyncStatusColor(episode.sync_status)}`}>
-                              {episode.sync_status === 'in_sync' && <CheckCircle className="w-3 h-3" />}
-                              {episode.sync_status === 'script_modified' && <AlertCircle className="w-3 h-3" />}
-                              {episode.sync_status === 'needs_review' && <AlertCircle className="w-3 h-3" />}
-                              <span className="font-medium capitalize">{episode.sync_status.replace('_', ' ')}</span>
-                            </div>
-                          )}
-                          <span className="text-sm text-gray-500">
+                          <span className="text-gray-500">
                             {new Date(episode.created_at).toLocaleDateString()}
                           </span>
                         </div>
-                      </div>
-                      <div className="text-right flex flex-col gap-2">
-                        {episode.estimated_cost && (
-                          <div>
-                            <div className="text-xs text-gray-600">Estimated Cost (AI)</div>
-                            <div className="text-lg font-bold text-green-700">
-                              ${episode.estimated_cost.toFixed(2)}
-                            </div>
+                        {scriptTitles.get(episode.id) && (
+                          <div className="flex items-center gap-1 text-xs text-gray-600 mt-1">
+                            <FileText className="w-3 h-3" />
+                            <span className="truncate">From: {scriptTitles.get(episode.id)}</span>
                           </div>
                         )}
-                        {episode.actual_cost && (
+                      </div>
+                      <div className="flex sm:flex-col items-center sm:items-end gap-3 sm:gap-2 text-right">
+                        {episode.estimated_cost && (
                           <div>
-                            <div className="text-xs text-gray-600">Actual Cost</div>
-                            <div className="text-sm font-semibold text-gray-900">
-                              ${episode.actual_cost.toFixed(2)}
+                            <div className="text-xs text-gray-600 hidden sm:block">Est. Cost</div>
+                            <div className="text-base sm:text-lg font-bold text-green-700">
+                              ${episode.estimated_cost.toFixed(0)}
                             </div>
                           </div>
                         )}
@@ -561,62 +544,63 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
                             className="text-xs text-scripps-blue hover:underline flex items-center gap-1"
                           >
                             <DollarSign className="w-3 h-3" />
-                            View Cost Breakdown
+                            <span className="hidden sm:inline">View Costs</span>
+                            <span className="sm:hidden">Costs</span>
                           </button>
                         )}
                       </div>
                     </div>
 
-                    <div className={`mb-4 rounded-lg p-4 border-2 ${
+                    <div className={`mb-3 sm:mb-4 rounded-lg p-3 sm:p-4 border-2 ${
                       isProfit
                         ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200'
                         : 'bg-gradient-to-r from-red-50 to-orange-50 border-red-200'
                     }`}>
-                      <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center justify-between mb-2 sm:mb-3">
                         <div className="flex items-center gap-2">
-                          <DollarSign className={`w-5 h-5 ${isProfit ? 'text-green-600' : 'text-red-600'}`} />
-                          <span className="text-sm font-semibold text-gray-700">
+                          <DollarSign className={`w-4 h-4 sm:w-5 sm:h-5 ${isProfit ? 'text-green-600' : 'text-red-600'}`} />
+                          <span className="text-xs sm:text-sm font-semibold text-gray-700">
                             {ltvMetrics.isInService ? 'Lifetime Value' : 'Projected LTV'}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2 text-xs text-gray-600">
+                        <div className="flex items-center gap-1 sm:gap-2 text-xs text-gray-600">
                           <Calendar className="w-3 h-3" />
-                          <span>{ltvMetrics.yearsInService} years</span>
+                          <span>{ltvMetrics.yearsInService}y</span>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-3 gap-4">
+                      <div className="grid grid-cols-3 gap-2 sm:gap-4">
                         <div>
-                          <div className="text-xs text-gray-600 mb-1">Annual Revenue</div>
-                          <div className="text-lg font-bold text-gray-900">
+                          <div className="text-xs text-gray-600 mb-0.5 sm:mb-1">Revenue/yr</div>
+                          <div className="text-sm sm:text-lg font-bold text-gray-900">
                             {LTVCalculationService.formatCurrency(ltvMetrics.annualRevenue)}
                           </div>
                         </div>
                         <div>
-                          <div className="text-xs text-gray-600 mb-1">Lifetime Profit</div>
-                          <div className={`text-lg font-bold ${isProfit ? 'text-green-700' : 'text-red-700'}`}>
+                          <div className="text-xs text-gray-600 mb-0.5 sm:mb-1">Profit</div>
+                          <div className={`text-sm sm:text-lg font-bold ${isProfit ? 'text-green-700' : 'text-red-700'}`}>
                             {LTVCalculationService.formatCurrency(ltvMetrics.lifetimeProfit)}
                           </div>
                         </div>
                         <div>
-                          <div className="text-xs text-gray-600 mb-1">Margin</div>
-                          <div className={`text-lg font-bold ${isProfit ? 'text-green-700' : 'text-red-700'}`}>
-                            {ltvMetrics.lifetimeMargin.toFixed(1)}%
+                          <div className="text-xs text-gray-600 mb-0.5 sm:mb-1">Margin</div>
+                          <div className={`text-sm sm:text-lg font-bold ${isProfit ? 'text-green-700' : 'text-red-700'}`}>
+                            {ltvMetrics.lifetimeMargin.toFixed(0)}%
                           </div>
                         </div>
                       </div>
 
-                      <div className="mt-3 pt-3 border-t border-gray-300 flex items-center justify-between text-xs">
+                      <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-gray-300 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs">
                         <div className="flex items-center gap-2 text-gray-700">
                           <TrendingUp className="w-4 h-4 text-green-600" />
-                          <span className="font-medium">Payback Period:</span>
-                          <span className="text-base font-bold text-green-700">
+                          <span className="font-medium">Payback:</span>
+                          <span className="text-sm sm:text-base font-bold text-green-700">
                             {LTVCalculationService.formatYearsMonths(ltvMetrics.paybackPeriodYears)}
                           </span>
                         </div>
                         {ltvMetrics.isInService && (
                           <div className="flex items-center gap-2">
-                            <span className={`px-2 py-1 rounded ${LTVCalculationService.getPhaseColor(ltvMetrics.currentRetentionPercent, ltvMetrics.minimumRetentionPercent)} bg-opacity-10 font-medium`}>
+                            <span className={`px-2 py-0.5 sm:py-1 rounded ${LTVCalculationService.getPhaseColor(ltvMetrics.currentRetentionPercent, ltvMetrics.minimumRetentionPercent)} bg-opacity-10 font-medium text-xs`}>
                               {LTVCalculationService.getRetentionPhaseLabel(ltvMetrics.currentRetentionPercent, ltvMetrics.minimumRetentionPercent)}
                             </span>
                           </div>
@@ -625,29 +609,29 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
                     </div>
 
                     {episode.production_notes && (
-                      <p className="text-sm text-gray-700">{episode.production_notes}</p>
+                      <p className="text-xs sm:text-sm text-gray-700 line-clamp-2">{episode.production_notes}</p>
                     )}
 
                     {episode.completed_at && (
-                      <div className="mt-3 flex items-center gap-2 text-sm text-green-700">
+                      <div className="mt-2 sm:mt-3 flex items-center gap-2 text-xs sm:text-sm text-green-700">
                         <CheckCircle className="w-4 h-4" />
-                        Completed on {new Date(episode.completed_at).toLocaleDateString()}
+                        Completed {new Date(episode.completed_at).toLocaleDateString()}
                       </div>
                     )}
 
-                    <div className="mt-4">
+                    <div className="mt-3 sm:mt-4">
                       <button
                         onClick={() => setExpandedProgressId(expandedProgressId === episode.id ? null : episode.id)}
-                        className="w-full flex items-center justify-between px-4 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
+                        className="w-full flex items-center justify-between px-3 sm:px-4 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200 active:scale-[0.98]"
                       >
                         <div className="flex items-center gap-2">
                           <BarChart3 className="w-4 h-4 text-scripps-blue" />
-                          <span className="text-sm font-medium text-gray-700">
-                            {expandedProgressId === episode.id ? 'Hide' : 'Show'} Progress Breakdown
+                          <span className="text-xs sm:text-sm font-medium text-gray-700">
+                            {expandedProgressId === episode.id ? 'Hide' : 'Show'} Progress
                           </span>
                         </div>
-                        <span className="text-xs text-gray-500">
-                          {expandedProgressId === episode.id ? 'Click to collapse' : 'Click to expand'}
+                        <span className="text-xs text-gray-500 hidden sm:inline">
+                          {expandedProgressId === episode.id ? 'Collapse' : 'Expand'}
                         </span>
                       </button>
                       {expandedProgressId === episode.id && (
@@ -661,49 +645,59 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
                       )}
                     </div>
 
-                    <div className="mt-4 pt-4 border-t border-gray-200 flex justify-between items-center">
-                      <div className="flex gap-2 flex-1">
-                        {isOrphaned ? (
-                          <div className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-800 rounded-lg text-sm border-2 border-red-300">
-                            <AlertTriangle className="w-4 h-4" />
-                            <span className="font-medium">Cannot view production: Script is missing or deleted. Delete this episode to resolve.</span>
+                    <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200">
+                      {isOrphaned ? (
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                          <div className="flex-1 flex items-start gap-2 px-3 py-2 bg-red-50 text-red-800 rounded-lg text-xs sm:text-sm border-2 border-red-300">
+                            <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                            <span className="font-medium">Script missing. Delete to resolve.</span>
                           </div>
-                        ) : (
-                          <>
+                          <button
+                            onClick={() => handleDeleteClick(episode)}
+                            className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium text-sm w-full sm:w-auto active:scale-95"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Delete
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                          <div className="flex flex-wrap gap-2 flex-1">
                             {episode.sync_status === 'script_modified' && episode.status !== 'completed' && (
                               <button
                                 onClick={() => handleSync(episode.id)}
                                 disabled={syncing === episode.id}
-                                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium disabled:opacity-50"
+                                className="flex items-center justify-center gap-2 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium disabled:opacity-50 text-sm flex-1 sm:flex-initial active:scale-95"
                               >
                                 <RefreshCw className={`w-4 h-4 ${syncing === episode.id ? 'animate-spin' : ''}`} />
-                                {syncing === episode.id ? 'Syncing...' : 'Sync from Script'}
+                                <span className="hidden sm:inline">{syncing === episode.id ? 'Syncing...' : 'Sync'}</span>
                               </button>
                             )}
                             {episode.sync_status === 'needs_review' && (
-                              <div className="flex items-center gap-2 px-4 py-2 bg-yellow-50 text-yellow-800 rounded-lg text-sm border border-yellow-200">
-                                <AlertCircle className="w-4 h-4" />
-                                Manual review required - episode in production stage
+                              <div className="flex items-center gap-2 px-3 py-2 bg-yellow-50 text-yellow-800 rounded-lg text-xs border border-yellow-200 flex-1 sm:flex-initial">
+                                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                                <span className="hidden sm:inline">Manual review required</span>
+                                <span className="sm:hidden">Needs review</span>
                               </div>
                             )}
                             <button
                               onClick={() => onNavigate('production', { episodeId: episode.id })}
-                              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium"
-                              title="View production and generate shot list"
+                              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium text-sm flex-1 sm:flex-initial active:scale-95"
                             >
                               <PlayCircle className="w-4 h-4" />
-                              View Production
+                              <span className="hidden sm:inline">View Production</span>
+                              <span className="sm:hidden">Production</span>
                             </button>
-                          </>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => handleDeleteClick(episode)}
-                        className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Delete Episode
-                      </button>
+                          </div>
+                          <button
+                            onClick={() => handleDeleteClick(episode)}
+                            className="flex items-center justify-center gap-2 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium text-sm sm:w-auto active:scale-95"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            <span className="hidden sm:inline">Delete</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

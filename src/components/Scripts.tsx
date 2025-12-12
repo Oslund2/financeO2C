@@ -268,41 +268,43 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Scripts</h1>
-            <p className="text-gray-600">Manage episode scripts and storylines</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">Scripts</h1>
+            <p className="text-sm sm:text-base text-gray-600">Manage episode scripts and storylines</p>
           </div>
           <button
             onClick={() => onNavigate('ai-studio')}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium"
+            className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium text-sm sm:text-base w-full sm:w-auto active:scale-95"
           >
             <Sparkles className="w-5 h-5" />
             Generate with AI
           </button>
         </div>
 
-        <div className="bg-white rounded-xl shadow-md p-4 mb-6 border border-gray-200">
-          <div className="relative mb-4">
+        <div className="bg-white rounded-xl shadow-md p-3 sm:p-4 mb-4 sm:mb-6 border border-gray-200">
+          <div className="relative mb-3 sm:mb-4">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Search scripts by title, theme, or synopsis..."
+              placeholder="Search scripts..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent text-sm sm:text-base"
             />
           </div>
 
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-gray-500" />
-            <span className="text-sm font-medium text-gray-700">Filter:</span>
-            <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 mr-1">
+              <Filter className="w-4 h-4 text-gray-500" />
+              <span className="text-xs sm:text-sm font-medium text-gray-700">Filter:</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
               <button
                 onClick={() => setFilterType('all')}
-                className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                className={`px-2.5 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-medium transition-all active:scale-95 ${
                   filterType === 'all'
                     ? 'bg-scripps-blue text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -312,18 +314,18 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
               </button>
               <button
                 onClick={() => setFilterType('ai')}
-                className={`flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                className={`flex items-center gap-1 px-2.5 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-medium transition-all active:scale-95 ${
                   filterType === 'ai'
                     ? 'bg-purple-500 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
                 <Sparkles className="w-3 h-3" />
-                AI Generated ({aiGeneratedCount})
+                <span className="hidden sm:inline">AI</span> ({aiGeneratedCount})
               </button>
               <button
                 onClick={() => setFilterType('manual')}
-                className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                className={`px-2.5 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-medium transition-all active:scale-95 ${
                   filterType === 'manual'
                     ? 'bg-scripps-blue text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -341,22 +343,22 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
 
           if (approvedScripts.length > 0 || draftScripts.length > 0) {
             return (
-              <div className="mb-6 space-y-4">
+              <div className="mb-4 sm:mb-6 space-y-3 sm:space-y-4">
                 {approvedScripts.length > 0 && (
-                  <div className="bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-6">
-                    <div className="flex items-start justify-between mb-4">
+                  <div className="bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-4 sm:p-6">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
-                          <Film className="w-6 h-6 text-white" />
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Film className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                         </div>
                         <div>
-                          <h3 className="text-lg font-bold text-gray-900">Ready to Produce</h3>
-                          <p className="text-sm text-gray-600">
-                            {approvedScripts.length} approved script{approvedScripts.length !== 1 ? 's' : ''} ready to become episode{approvedScripts.length !== 1 ? 's' : ''}
+                          <h3 className="text-base sm:text-lg font-bold text-gray-900">Ready to Produce</h3>
+                          <p className="text-xs sm:text-sm text-gray-600">
+                            {approvedScripts.length} approved script{approvedScripts.length !== 1 ? 's' : ''} ready
                           </p>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="hidden sm:block text-right">
                         <div className="text-xs text-gray-600 mb-1">Next Step</div>
                         <div className="flex items-center gap-2 text-sm font-semibold text-green-700">
                           <span>Create Episode</span>
@@ -364,55 +366,52 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
                         </div>
                       </div>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
                       {approvedScripts.slice(0, 6).map((script) => (
                         <div
                           key={script.id}
-                          className="bg-white rounded-lg p-4 border border-green-200 hover:border-green-300 hover:shadow-md transition-all"
+                          className="bg-white rounded-lg p-3 sm:p-4 border border-green-200 hover:border-green-300 hover:shadow-md transition-all"
                         >
                           <div className="flex items-start justify-between mb-2">
-                            <h4 className="font-semibold text-gray-900 text-sm">{script.title}</h4>
+                            <h4 className="font-semibold text-gray-900 text-sm line-clamp-1">{script.title}</h4>
                             <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0 ml-2" />
                           </div>
-                          <div className="text-xs text-gray-600 mb-3">
+                          <div className="text-xs text-gray-600 mb-2 sm:mb-3">
                             S{script.season_number}E{script.episode_number} • {script.runtime_minutes} min
                           </div>
                           <button
                             onClick={() => setCreateEpisodeModal({ isOpen: true, script })}
-                            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium text-sm"
+                            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium text-sm active:scale-95"
                           >
                             <Film className="w-4 h-4" />
-                            Create Episode
+                            Create
                           </button>
                         </div>
                       ))}
                     </div>
                     {approvedScripts.length > 6 && (
-                      <div className="mt-4 text-center text-sm text-gray-600">
-                        +{approvedScripts.length - 6} more approved scripts below
+                      <div className="mt-3 sm:mt-4 text-center text-xs sm:text-sm text-gray-600">
+                        +{approvedScripts.length - 6} more below
                       </div>
                     )}
                   </div>
                 )}
 
                 {draftScripts.length > 0 && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
-                    <div className="flex items-center gap-3 mb-2">
-                      <AlertCircle className="w-5 h-5 text-blue-600" />
-                      <h4 className="font-semibold text-gray-900">Workflow Tip</h4>
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 sm:p-5">
+                    <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
+                      <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+                      <h4 className="font-semibold text-gray-900 text-sm sm:text-base">Workflow Tip</h4>
                     </div>
-                    <p className="text-sm text-gray-700 mb-1">
-                      You have <span className="font-semibold text-blue-700">{draftScripts.length} draft script{draftScripts.length !== 1 ? 's' : ''}</span>.
-                      Scripts must be approved before creating episodes.
+                    <p className="text-xs sm:text-sm text-gray-700 mb-2">
+                      <span className="font-semibold text-blue-700">{draftScripts.length} draft{draftScripts.length !== 1 ? 's' : ''}</span> need approval before creating episodes.
                     </p>
-                    <div className="flex items-center gap-2 text-xs text-gray-600 mt-2">
-                      <span className="px-2 py-1 bg-gray-200 rounded">Draft</span>
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs text-gray-600">
+                      <span className="px-2 py-0.5 bg-gray-200 rounded">Draft</span>
                       <ArrowRight className="w-3 h-3" />
-                      <span className="px-2 py-1 bg-blue-200 rounded">Approved</span>
+                      <span className="px-2 py-0.5 bg-blue-200 rounded">Approved</span>
                       <ArrowRight className="w-3 h-3" />
-                      <span className="px-2 py-1 bg-green-200 rounded">Create Episode</span>
-                      <ArrowRight className="w-3 h-3" />
-                      <span className="px-2 py-1 bg-red-200 rounded">Locked</span>
+                      <span className="px-2 py-0.5 bg-green-200 rounded">Episode</span>
                     </div>
                   </div>
                 )}
@@ -423,120 +422,137 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
         })()}
 
         {filteredScripts.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-md p-12 text-center border border-gray-200">
-            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <FileText className="w-8 h-8 text-scripps-blue" />
+          <div className="bg-white rounded-xl shadow-md p-6 sm:p-12 text-center border border-gray-200">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-scripps-blue" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No scripts yet</h3>
-            <p className="text-gray-600 mb-6">Generate your first episode script with AI</p>
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">No scripts yet</h3>
+            <p className="text-sm sm:text-base text-gray-600 mb-6">Generate your first episode script with AI</p>
             <button
               onClick={() => onNavigate('ai-studio')}
-              className="px-6 py-3 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium"
+              className="px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium text-sm sm:text-base active:scale-95"
             >
-              Generate Script with AI
+              Generate Script
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 gap-3 sm:gap-4">
             {filteredScripts.map((script) => (
               <div
                 key={script.id}
-                className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all border border-gray-200 p-6"
+                className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all border border-gray-200 p-4 sm:p-6"
               >
-                <div className="flex items-start justify-between">
+                <div className="flex flex-col">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-3 flex-wrap">
-                      <h3 className="text-xl font-bold text-gray-900">{script.title}</h3>
-                      {isRecentScript(script.created_at) && (
-                        <div className="flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold animate-pulse">
-                          NEW
-                        </div>
-                      )}
-                      <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs border ${getStatusColor(script.status)}`}>
+                    <div className="flex items-start justify-between gap-2 mb-2 sm:mb-3">
+                      <div className="flex flex-wrap items-center gap-2 min-w-0">
+                        <h3 className="text-base sm:text-xl font-bold text-gray-900 truncate">{script.title}</h3>
+                        {isRecentScript(script.created_at) && (
+                          <div className="px-2 py-0.5 rounded-full text-xs bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold animate-pulse flex-shrink-0">
+                            NEW
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 sm:hidden flex-shrink-0">
+                        <button
+                          onClick={() => setViewingScript(script)}
+                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
+                          <Eye className="w-5 h-5 text-gray-600" />
+                        </button>
+                        <button
+                          onClick={() => setSelectedScript(script)}
+                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
+                          <Edit2 className="w-5 h-5 text-gray-600" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+                      <div className={`flex items-center gap-1 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs border ${getStatusColor(script.status)}`}>
                         {getStatusIcon(script.status)}
                         <span className="font-medium">{script.status}</span>
                       </div>
                       {script.ai_generated && (
-                        <div className="flex items-center gap-1 px-3 py-1 rounded-full text-xs bg-purple-100 text-purple-800 border border-purple-200">
+                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-purple-100 text-purple-800 border border-purple-200">
                           <Sparkles className="w-3 h-3" />
-                          <span className="font-medium">AI Generated</span>
+                          <span className="font-medium hidden sm:inline">AI Generated</span>
+                          <span className="font-medium sm:hidden">AI</span>
                         </div>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600 mb-2 sm:mb-3">
                       {script.season_number && script.episode_number && (
                         <span>S{script.season_number}E{script.episode_number}</span>
                       )}
-                      <span>{script.runtime_minutes} minutes</span>
+                      <span>{script.runtime_minutes} min</span>
                       {script.theme && (
-                        <span className="px-2 py-1 bg-gray-100 rounded-full text-xs">{script.theme}</span>
+                        <span className="px-2 py-0.5 bg-gray-100 rounded-full text-xs hidden sm:inline">{script.theme}</span>
                       )}
                     </div>
 
                     {script.synopsis && (
-                      <p className="text-gray-700 mb-3">{script.synopsis}</p>
+                      <p className="text-xs sm:text-sm text-gray-700 mb-2 sm:mb-3 line-clamp-2">{script.synopsis}</p>
                     )}
 
                     {script.vocabulary_words.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mb-3">
-                        <span className="text-xs font-semibold text-gray-600">Vocabulary:</span>
-                        {script.vocabulary_words.slice(0, 5).map((word, index) => (
+                      <div className="flex flex-wrap gap-1.5 mb-2 sm:mb-3 hidden sm:flex">
+                        <span className="text-xs font-semibold text-gray-600">Vocab:</span>
+                        {script.vocabulary_words.slice(0, 3).map((word, index) => (
                           <span
                             key={index}
-                            className="text-xs px-2 py-1 bg-yellow-50 text-yellow-800 rounded border border-yellow-200 font-medium"
+                            className="text-xs px-2 py-0.5 bg-yellow-50 text-yellow-800 rounded border border-yellow-200 font-medium"
                           >
                             {word}
                           </span>
                         ))}
-                        {script.vocabulary_words.length > 5 && (
-                          <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded border border-gray-200">
-                            +{script.vocabulary_words.length - 5} more
+                        {script.vocabulary_words.length > 3 && (
+                          <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-700 rounded border border-gray-200">
+                            +{script.vocabulary_words.length - 3}
                           </span>
                         )}
                       </div>
                     )}
 
-                    <div className="flex items-center gap-4 text-xs text-gray-500">
-                      <span>Created {new Date(script.created_at).toLocaleDateString()}</span>
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs text-gray-500 mb-3 sm:mb-0">
+                      <span>{new Date(script.created_at).toLocaleDateString()}</span>
                       {scriptLocks.get(script.id)?.locked && (
                         <div className="flex items-center gap-1 text-red-600">
                           <Lock className="w-3 h-3" />
-                          <span className="font-medium">Locked by {scriptLocks.get(script.id)?.locked_by}</span>
+                          <span className="font-medium">Locked</span>
                         </div>
                       )}
                       {episodeCounts.get(script.id)! > 0 && (
                         <button
                           onClick={() => onNavigate('episodes', { highlightScriptId: script.id })}
-                          className="flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline transition-colors cursor-pointer"
-                          title="View episodes for this script"
+                          className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors"
                         >
                           <Film className="w-3 h-3" />
-                          <span className="font-medium">{episodeCounts.get(script.id)} Episode{episodeCounts.get(script.id)! > 1 ? 's' : ''}</span>
-                          <ArrowRight className="w-3 h-3" />
+                          <span className="font-medium">{episodeCounts.get(script.id)} Ep{episodeCounts.get(script.id)! > 1 ? 's' : ''}</span>
                         </button>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex gap-2 ml-4">
+                  <div className="flex flex-wrap gap-2 pt-3 sm:pt-4 border-t border-gray-200 mt-2 sm:mt-4">
                     {script.status === 'draft' && !scriptLocks.get(script.id)?.locked && (
                       <>
                         <button
                           onClick={() => handleApproveScript(script.id)}
-                          className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
-                          title="Approve this script for production"
+                          className="flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium text-sm flex-1 sm:flex-initial active:scale-95"
                         >
                           <CheckCircle className="w-4 h-4" />
-                          Approve
+                          <span>Approve</span>
                         </button>
                         <button
                           onClick={() => handleApproveAndCreateEpisode(script)}
-                          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-green-500 text-white rounded-lg hover:shadow-lg transition-all font-medium"
-                          title="Approve script and immediately create episode"
+                          className="flex items-center justify-center gap-1.5 px-3 py-2 bg-gradient-to-r from-blue-500 to-green-500 text-white rounded-lg hover:shadow-lg transition-all font-medium text-sm flex-1 sm:flex-initial active:scale-95"
                         >
                           <Zap className="w-4 h-4" />
-                          Quick Create
+                          <span className="hidden sm:inline">Quick Create</span>
+                          <span className="sm:hidden">Quick</span>
                         </button>
                       </>
                     )}
@@ -544,52 +560,48 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
                       <>
                         <button
                           onClick={() => onNavigate('production', { scriptId: script.id })}
-                          className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
-                          title="Generate shot list directly from this script"
+                          className="flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium text-sm flex-1 sm:flex-initial active:scale-95"
                         >
                           <PlayCircle className="w-4 h-4" />
-                          Shot List
+                          <span className="hidden sm:inline">Shot List</span>
+                          <span className="sm:hidden">Shots</span>
                         </button>
                         <button
                           onClick={() => setCreateEpisodeModal({ isOpen: true, script })}
-                          className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium"
-                          title="Create Episode from this script"
+                          className="flex items-center justify-center gap-1.5 px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium text-sm flex-1 sm:flex-initial active:scale-95"
                         >
                           <Film className="w-4 h-4" />
-                          Create Episode
+                          <span className="hidden sm:inline">Create Episode</span>
+                          <span className="sm:hidden">Episode</span>
                         </button>
                       </>
                     )}
                     {episodeCounts.get(script.id)! > 0 && (
                       <button
                         onClick={() => onNavigate('episodes', { highlightScriptId: script.id })}
-                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium"
-                        title="View episodes for this script"
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium text-sm flex-1 sm:flex-initial active:scale-95"
                       >
                         <Film className="w-4 h-4" />
-                        View Episode{episodeCounts.get(script.id)! > 1 ? 's' : ''}
-                        <ArrowRight className="w-4 h-4" />
+                        <span className="hidden sm:inline">View Episodes</span>
+                        <span className="sm:hidden">Episodes</span>
                       </button>
                     )}
                     <button
                       onClick={() => setViewingScript(script)}
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
-                      title="View full script"
+                      className="hidden sm:flex items-center gap-2 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium text-sm active:scale-95"
                     >
                       <Eye className="w-4 h-4" />
-                      View Script
+                      View
                     </button>
                     <button
                       onClick={() => setSelectedScript(script)}
-                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                      title="Edit script"
+                      className="hidden sm:flex p-2 hover:bg-gray-100 rounded-lg transition-colors"
                     >
                       <Edit2 className="w-5 h-5 text-gray-600" />
                     </button>
                     <button
                       onClick={() => handleDeleteClick(script)}
-                      className="p-2 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Delete script"
+                      className="p-2 hover:bg-red-50 rounded-lg transition-colors active:scale-95"
                     >
                       <Trash2 className="w-5 h-5 text-red-600" />
                     </button>
