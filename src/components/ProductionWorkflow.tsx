@@ -89,6 +89,12 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
   }, [currentOrganization, currentSeries, mode]);
 
   useEffect(() => {
+    if (currentOrganization && currentSeries) {
+      determineInitialMode();
+    }
+  }, [currentOrganization, currentSeries]);
+
+  useEffect(() => {
     if (scriptSearch || statusFilter !== 'all') {
       filterScripts();
     } else {
@@ -194,6 +200,37 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
     }
   };
 
+  const determineInitialMode = async () => {
+    if (!currentOrganization || !currentSeries) return;
+
+    try {
+      const [{ count: episodeCount }, { count: scriptCount }] = await Promise.all([
+        supabase
+          .from('episodes')
+          .select('*', { count: 'exact', head: true })
+          .eq('organization_id', currentOrganization.id)
+          .eq('series_id', currentSeries.id),
+        supabase
+          .from('scripts')
+          .select('*', { count: 'exact', head: true })
+          .eq('organization_id', currentOrganization.id)
+          .eq('series_id', currentSeries.id)
+          .in('status', ['draft', 'approved'])
+      ]);
+
+      if ((episodeCount || 0) === 0 && (scriptCount || 0) > 0) {
+        setMode('script');
+      } else if ((episodeCount || 0) > 0) {
+        setMode('episode');
+      } else {
+        setMode('script');
+      }
+    } catch (err) {
+      console.error('Error determining initial mode:', err);
+      setMode('script');
+    }
+  };
+
   const loadData = async () => {
     if (!currentOrganization || !currentSeries) return;
 
@@ -224,19 +261,17 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
         setScripts(scriptsWithCounts);
       }
 
-      if (mode === 'episode') {
-        const { data: episodesData } = await supabase
-          .from('episodes')
-          .select('*')
-          .eq('organization_id', currentOrganization.id)
-          .eq('series_id', currentSeries.id)
-          .order('episode_number', { ascending: false });
+      const { data: episodesData } = await supabase
+        .from('episodes')
+        .select('*')
+        .eq('organization_id', currentOrganization.id)
+        .eq('series_id', currentSeries.id)
+        .order('episode_number', { ascending: false });
 
-        setEpisodes(episodesData || []);
+      setEpisodes(episodesData || []);
 
-        if (episodesData && episodesData.length === 0 && scriptsData && scriptsData.length > 0) {
-          setMode('script');
-        }
+      if (mode === 'episode' && episodesData && episodesData.length === 0 && scriptsData && scriptsData.length > 0) {
+        setMode('script');
       }
     } catch (err) {
       console.error('Error loading data:', err);
@@ -676,10 +711,28 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
       )}
 
       {step === 'select' && (
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold mb-4">
-            {mode === 'episode' ? 'Select Episode' : 'Select Script'}
-          </h3>
+        <div className="space-y-4">
+          {allScripts.length === 0 && episodes.length === 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-medium text-blue-900 mb-2 flex items-center gap-2">
+                <Film className="w-4 h-4" />
+                Getting Started with Production Workflow
+              </h4>
+              <div className="text-sm text-blue-800 space-y-2">
+                <p>
+                  <strong>Direct Script Mode:</strong> Upload a script and immediately generate shot lists without creating episodes. Best for quick prototyping or one-off productions.
+                </p>
+                <p>
+                  <strong>Episode Mode:</strong> Work with episodes that link scripts to structured metadata. Best for series production with multiple episodes.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold mb-4">
+              {mode === 'episode' ? 'Select Episode' : 'Select Script'}
+            </h3>
 
           {mode === 'episode' ? (
             <div className="space-y-2">
@@ -693,11 +746,24 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
                 </button>
               ))}
               {episodes.length === 0 && (
-                <div className="text-center py-8">
-                  <p className="text-gray-500 mb-2">No episodes found.</p>
-                  <p className="text-sm text-gray-400">
-                    Switch to Direct Script Mode to work with scripts, or go to Episodes tab to create one.
+                <div className="text-center py-12">
+                  <Film className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <h4 className="text-lg font-semibold text-gray-900 mb-2">No Episodes Yet</h4>
+                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                    Episodes link scripts to structured production workflows.
+                    {allScripts.length > 0
+                      ? ' You have scripts available - switch to Direct Script Mode to start generating shot lists.'
+                      : ' Create an episode in the Episodes tab, or upload a script to get started.'}
                   </p>
+                  {allScripts.length > 0 && (
+                    <button
+                      onClick={() => setMode('script')}
+                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-flex items-center gap-2"
+                    >
+                      <FileText className="w-4 h-4" />
+                      Switch to Direct Script Mode
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -799,15 +865,47 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
                   </div>
                 ))}
                 {scripts.length === 0 && (
-                  <p className="text-gray-500 text-center py-8">
-                    {scriptSearch || statusFilter !== 'all'
-                      ? 'No scripts match your filters.'
-                      : 'No scripts found. Upload one to get started.'}
-                  </p>
+                  <div className="text-center py-12">
+                    {scriptSearch || statusFilter !== 'all' ? (
+                      <>
+                        <Search className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                        <h4 className="text-lg font-semibold text-gray-900 mb-2">No Matching Scripts</h4>
+                        <p className="text-gray-600 mb-4">
+                          No scripts match your current filters. Try adjusting your search or filters.
+                        </p>
+                        <button
+                          onClick={() => {
+                            setScriptSearch('');
+                            setStatusFilter('all');
+                          }}
+                          className="text-blue-600 hover:text-blue-700 font-medium"
+                        >
+                          Clear Filters
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                        <h4 className="text-lg font-semibold text-gray-900 mb-2">No Scripts Yet</h4>
+                        <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                          Upload your first script to start generating shot lists and production workflows.
+                          Scripts should be in plain text format (.txt).
+                        </p>
+                        <button
+                          onClick={() => fileInputRef.current?.click()}
+                          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-flex items-center gap-2 text-base font-medium"
+                        >
+                          <Upload className="w-5 h-5" />
+                          Upload Your First Script
+                        </button>
+                      </>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
           )}
+          </div>
         </div>
       )}
 
