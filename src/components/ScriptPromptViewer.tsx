@@ -39,7 +39,7 @@ export default function ScriptPromptViewer({ scriptId, shotIds, episodeId }: Scr
   const [scriptContent, setScriptContent] = useState<ScriptContent | null>(null);
   const [shots, setShots] = useState<ShotWithPrompt[]>([]);
   const [selectedAct, setSelectedAct] = useState<number>(1);
-  const [selectedScene, setSelectedScene] = useState<number>(1);
+  const [selectedShotId, setSelectedShotId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [panelWidth, setPanelWidth] = useState(50);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -112,6 +112,10 @@ export default function ScriptPromptViewer({ scriptId, shotIds, episodeId }: Scr
       }) || [];
 
       setShots(formattedShots);
+
+      if (formattedShots.length > 0 && !selectedShotId) {
+        setSelectedShotId(formattedShots[0].id);
+      }
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -187,23 +191,23 @@ export default function ScriptPromptViewer({ scriptId, shotIds, episodeId }: Scr
     return scriptContent.acts.map(act => act.act_number);
   };
 
-  const getAvailableScenes = (): number[] => {
-    if (!scriptContent) return [1];
-    const act = scriptContent.acts.find(a => a.act_number === selectedAct);
-    return act?.scenes.map(scene => scene.scene_number) || [1];
+  const getAvailableShotsForCurrentAct = (): ShotWithPrompt[] => {
+    return shots.filter(shot => shot.act_number === selectedAct);
   };
 
   const getCurrentSceneContent = (): string => {
     if (!scriptContent) return '';
-    const act = scriptContent.acts.find(a => a.act_number === selectedAct);
-    const scene = act?.scenes.find(s => s.scene_number === selectedScene);
+    const selectedShot = shots.find(s => s.id === selectedShotId);
+    if (!selectedShot) return '';
+
+    const act = scriptContent.acts.find(a => a.act_number === selectedShot.act_number);
+    const scene = act?.scenes.find(s => s.scene_number === selectedShot.scene_number);
     return scene?.content || '';
   };
 
   const getCurrentShots = (): ShotWithPrompt[] => {
-    return shots.filter(shot =>
-      shot.act_number === selectedAct && shot.scene_number === selectedScene
-    );
+    const shot = shots.find(s => s.id === selectedShotId);
+    return shot ? [shot] : [];
   };
 
   const handleDrag = (e: React.MouseEvent) => {
@@ -241,8 +245,12 @@ export default function ScriptPromptViewer({ scriptId, shotIds, episodeId }: Scr
               <select
                 value={selectedAct}
                 onChange={(e) => {
-                  setSelectedAct(parseInt(e.target.value));
-                  setSelectedScene(1);
+                  const newAct = parseInt(e.target.value);
+                  setSelectedAct(newAct);
+                  const firstShotInAct = shots.find(shot => shot.act_number === newAct);
+                  if (firstShotInAct) {
+                    setSelectedShotId(firstShotInAct.id);
+                  }
                 }}
                 className="border border-gray-300 rounded px-3 py-1 text-sm"
               >
@@ -251,14 +259,16 @@ export default function ScriptPromptViewer({ scriptId, shotIds, episodeId }: Scr
                 ))}
               </select>
 
-              <label className="text-sm text-gray-600 ml-2">Scene:</label>
+              <label className="text-sm text-gray-600 ml-2">Shot:</label>
               <select
-                value={selectedScene}
-                onChange={(e) => setSelectedScene(parseInt(e.target.value))}
-                className="border border-gray-300 rounded px-3 py-1 text-sm"
+                value={selectedShotId}
+                onChange={(e) => setSelectedShotId(e.target.value)}
+                className="border border-gray-300 rounded px-3 py-1 text-sm min-w-[200px]"
               >
-                {getAvailableScenes().map(scene => (
-                  <option key={scene} value={scene}>Scene {scene}</option>
+                {getAvailableShotsForCurrentAct().map(shot => (
+                  <option key={shot.id} value={shot.id}>
+                    Scene {shot.scene_number} - Shot {shot.shot_number}
+                  </option>
                 ))}
               </select>
             </div>
@@ -326,7 +336,6 @@ export default function ScriptPromptViewer({ scriptId, shotIds, episodeId }: Scr
             <div className="flex items-center gap-2 mb-4 text-gray-700">
               <Film className="w-5 h-5" />
               <h4 className="font-semibold">Veo 3 Prompts</h4>
-              <span className="text-sm text-gray-500">({getCurrentShots().length} shots)</span>
             </div>
 
             <div className="space-y-6">
