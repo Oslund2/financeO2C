@@ -223,7 +223,7 @@ export async function generateStandaloneShotList(
 
 export async function getScriptAnalysis(
   scriptId: string,
-  organizationId: string
+  organizationId: string | null = null
 ): Promise<{
   script_id: string;
   title: string;

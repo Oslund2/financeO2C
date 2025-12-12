@@ -45,14 +45,15 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
   }, [seriesId]);
 
   const loadEpisodes = async () => {
-    if (!currentOrganization) return;
-
     try {
       let query = supabase
         .from('episodes')
         .select('*')
-        .eq('organization_id', currentOrganization.id)
         .order('created_at', { ascending: false });
+
+      if (currentOrganization) {
+        query = query.eq('organization_id', currentOrganization.id);
+      }
 
       if (seriesId) {
         query = query.eq('series_id', seriesId);
@@ -70,12 +71,16 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
       await Promise.all(
         (data || []).map(async (episode) => {
           if (episode.script_id) {
-            const { data: script, error: scriptError } = await supabase
+            let scriptQuery = supabase
               .from('scripts')
               .select('title')
-              .eq('id', episode.script_id)
-              .eq('organization_id', currentOrganization.id)
-              .maybeSingle();
+              .eq('id', episode.script_id);
+
+            if (currentOrganization) {
+              scriptQuery = scriptQuery.eq('organization_id', currentOrganization.id);
+            }
+
+            const { data: script, error: scriptError } = await scriptQuery.maybeSingle();
 
             if (script) {
               titles.set(episode.id, script.title);
@@ -123,9 +128,12 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
       let scriptsQuery = supabase
         .from('scripts')
         .select('*')
-        .eq('organization_id', currentOrganization.id)
         .eq('status', 'approved')
         .order('created_at', { ascending: false });
+
+      if (currentOrganization) {
+        scriptsQuery = scriptsQuery.eq('organization_id', currentOrganization.id);
+      }
 
       if (seriesId) {
         scriptsQuery = scriptsQuery.eq('series_id', seriesId);

@@ -179,7 +179,7 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
         }
 
         try {
-          const analysis = await getScriptAnalysis(script.id, currentOrganization!.id);
+          const analysis = await getScriptAnalysis(script.id, currentOrganization?.id || null);
           setScriptAnalysis(analysis);
           await saveDraftSession(script.id, 'configure');
           setStep('configure');
@@ -447,7 +447,7 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
     }
 
     try {
-      const analysis = await getScriptAnalysis(script.id, currentOrganization!.id);
+      const analysis = await getScriptAnalysis(script.id, currentOrganization?.id || null);
       setScriptAnalysis(analysis);
       await saveDraftSession(script.id, 'configure');
       setStep('configure');
@@ -486,7 +486,7 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
 
     if (selectedScript) {
       try {
-        const analysis = await getScriptAnalysis(selectedScript.id, currentOrganization!.id);
+        const analysis = await getScriptAnalysis(selectedScript.id, currentOrganization?.id || null);
         setScriptAnalysis(analysis);
         setStep('configure');
       } catch (err) {
@@ -536,7 +536,7 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
       setSelectedScript(script);
 
       try {
-        const analysis = await getScriptAnalysis(script.id, currentOrganization!.id);
+        const analysis = await getScriptAnalysis(script.id, currentOrganization?.id || null);
         setScriptAnalysis(analysis);
         setStep('configure');
       } catch (err) {
@@ -694,7 +694,7 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
       setSelectedScript(newScript);
 
       try {
-        const analysis = await getScriptAnalysis(newScript.id, currentOrganization.id);
+        const analysis = await getScriptAnalysis(newScript.id, currentOrganization?.id || null);
         console.log('Script analysis result:', analysis);
         setScriptAnalysis(analysis);
       } catch (analysisError) {
