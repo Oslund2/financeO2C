@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import type { DialogueLine } from './dialogueExtractionService';
 
 export interface Veo3PromptConfig {
   shot_type: string;
@@ -10,6 +11,7 @@ export interface Veo3PromptConfig {
   characters: string[];
   location: string;
   props: string[];
+  dialogue_content?: DialogueLine[];
 }
 
 export interface GeneratedPrompt {
@@ -114,22 +116,47 @@ function buildCharacterDescription(characters: string[]): string {
   return `featuring ${characters.slice(0, -1).join(', ')}, and ${characters[characters.length - 1]}`;
 }
 
-function extractAudioCues(narrative: string, characters: string[]): string {
+function formatDialogueForPrompt(dialogue: DialogueLine[]): string {
+  if (dialogue.length === 0) return '';
+
+  const formatted = dialogue.map(line => {
+    const voiceInfo = `[${line.voice_provider}: ${line.voice_id}]`;
+    return `${line.character_name} ${voiceInfo}: "${line.text}"`;
+  }).join('\n');
+
+  return `\n\nDialogue:\n${formatted}`;
+}
+
+function extractAudioCues(
+  narrative: string,
+  characters: string[],
+  dialogue: DialogueLine[] = []
+): string {
   const cues: string[] = [];
 
-  if (characters.length > 0) {
-    cues.push('character dialogue');
-  }
-
-  if (narrative.toLowerCase().includes('music')) {
-    cues.push('background music');
+  if (dialogue.length > 0) {
+    const voiceProviders = Array.from(new Set(dialogue.map(d => d.voice_provider)));
+    const voiceCue = voiceProviders.map(provider => {
+      const providerLines = dialogue.filter(d => d.voice_provider === provider);
+      return `${provider} voices for ${providerLines.map(l => l.character_name).join(', ')}`;
+    }).join('; ');
+    cues.push(voiceCue);
+    cues.push('NO MUSIC - dialogue present');
+  } else if (characters.length > 0) {
+    cues.push('character presence');
   }
 
   if (narrative.toLowerCase().includes('sound') || narrative.toLowerCase().includes('noise')) {
     cues.push('ambient sound effects');
   }
 
-  cues.push('atmospheric audio');
+  if (dialogue.length === 0 && narrative.toLowerCase().includes('music')) {
+    cues.push('background music');
+  }
+
+  if (dialogue.length === 0) {
+    cues.push('atmospheric audio');
+  }
 
   return cues.join(', ');
 }
@@ -149,6 +176,10 @@ export function generateVeo3Prompt(config: Veo3PromptConfig): GeneratedPrompt {
     ? `with props: ${config.props.join(', ')}`
     : '';
 
+  const dialogueSection = config.dialogue_content && config.dialogue_content.length > 0
+    ? formatDialogueForPrompt(config.dialogue_content)
+    : '';
+
   const promptParts: string[] = [
     CLAYMATION_STYLE,
     cameraDirective,
@@ -160,13 +191,17 @@ export function generateVeo3Prompt(config: Veo3PromptConfig): GeneratedPrompt {
     'cinematic composition'
   ].filter(p => p);
 
-  const veo3_prompt_text = promptParts.join(', ') + '.';
+  const veo3_prompt_text = promptParts.join(', ') + '.' + dialogueSection;
 
   const negative_prompt = NEGATIVE_PROMPTS.join(', ');
 
   const style_directives = 'Maintain consistent claymation aesthetic, preserve character proportions, ensure proper lighting continuity, avoid anachronistic elements';
 
-  const audio_cues = extractAudioCues(config.narrative_description, config.characters);
+  const audio_cues = extractAudioCues(
+    config.narrative_description,
+    config.characters,
+    config.dialogue_content || []
+  );
 
   return {
     veo3_prompt_text,
@@ -202,7 +237,8 @@ export async function generatePromptsForShots(
       technical_description: shot.technical_description,
       characters: shot.characters,
       location: shot.location,
-      props: shot.props
+      props: shot.props,
+      dialogue_content: shot.dialogue_content
     });
 
     return {
@@ -250,7 +286,8 @@ export async function regeneratePromptForShot(
     technical_description: shot.technical_description,
     characters: shot.characters,
     location: shot.location,
-    props: shot.props
+    props: shot.props,
+    dialogue_content: shot.dialogue_content
   });
 
   const { data: existingPrompt } = await supabase

@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { getOptimalShotDuration } from './vertexAIService';
+import { extractDialogueFromScene, type DialogueLine } from './dialogueExtractionService';
 
 export interface ShotPlan {
   act_number: number;
@@ -14,6 +15,7 @@ export interface ShotPlan {
   characters: string[];
   location: string;
   props: string[];
+  dialogue_content?: DialogueLine[];
 }
 
 export interface GenerationOptions {
@@ -90,6 +92,31 @@ function getCameraMovementForDuration(duration: number, shotType: string): strin
   return 'static';
 }
 
+function distributeDialogueAcrossShots(
+  dialogueLines: DialogueLine[],
+  shotCount: number
+): DialogueLine[][] {
+  if (dialogueLines.length === 0) {
+    return Array(shotCount).fill([]);
+  }
+
+  const distributed: DialogueLine[][] = Array(shotCount).fill(null).map(() => []);
+
+  if (shotCount === 1) {
+    distributed[0] = dialogueLines;
+    return distributed;
+  }
+
+  const linesPerShot = Math.ceil(dialogueLines.length / shotCount);
+
+  for (let i = 0; i < dialogueLines.length; i++) {
+    const shotIndex = Math.min(Math.floor(i / linesPerShot), shotCount - 1);
+    distributed[shotIndex].push(dialogueLines[i]);
+  }
+
+  return distributed;
+}
+
 export async function generateShotListFromScript(
   scriptId: string,
   episodeId: string | null,
@@ -131,9 +158,11 @@ export async function generateShotListFromScript(
       const characters = scene.characters || [];
       const description = scene.description || '';
 
-      const dialogueLines = Array.isArray(dialogue) ? dialogue : [];
-      const totalDialogueLength = dialogueLines.reduce((sum: number, line: any) => {
-        return sum + (line.line?.length || 0);
+      const extractedDialogue = await extractDialogueFromScene(dialogue, seriesId);
+
+      const dialogueLines = extractedDialogue.lines;
+      const totalDialogueLength = dialogueLines.reduce((sum: number, line: DialogueLine) => {
+        return sum + line.text.length;
       }, 0);
 
       const estimatedSceneShots = Math.max(
@@ -141,21 +170,26 @@ export async function generateShotListFromScript(
         Math.ceil((dialogueLines.length + 2) * pacingMultiplier)
       );
 
+      const distributedDialogue = distributeDialogueAcrossShots(dialogueLines, estimatedSceneShots);
+
       const isFirstSceneInAct = scenes.indexOf(scene) === 0;
 
       for (let i = 0; i < estimatedSceneShots; i++) {
         const isFirstShot = i === 0;
         const isLastShot = i === estimatedSceneShots - 1;
 
+        const shotDialogue = distributedDialogue[i] || [];
+        const shotDialogueLength = shotDialogue.reduce((sum, line) => sum + line.text.length, 0);
+
         const shotType = getShotTypeForContext(
           isFirstShot && (isFirstSceneInAct || options.includeEstablishing),
-          totalDialogueLength / estimatedSceneShots,
+          shotDialogueLength,
           characters.length
         );
 
         const durationSeconds = getOptimalShotDuration(
           shotType,
-          Math.floor(totalDialogueLength / estimatedSceneShots)
+          shotDialogueLength
         );
 
         const cameraAngle = getCameraAngleForShot(shotType);
@@ -183,7 +217,8 @@ export async function generateShotListFromScript(
           technical_description: technicalDescription,
           characters: relevantCharacters,
           location,
-          props: []
+          props: [],
+          dialogue_content: shotDialogue
         });
 
         globalShotNumber++;
