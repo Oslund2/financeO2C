@@ -70,27 +70,54 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
 
   const loadScripts = async () => {
     try {
-      let query = supabase.from('scripts').select('*').order('created_at', { ascending: false });
-
-      if (seriesId) {
-        query = query.eq('series_id', seriesId);
-      }
-
-      const { data, error } = await query;
+      const { data, error } = await supabase
+        .rpc('get_scripts_with_lock_info', {
+          p_series_id: seriesId || null,
+          p_organization_id: null
+        });
 
       if (error) throw error;
-      setScripts(data || []);
+
+      const scriptList = (data || []).map((s: any) => ({
+        id: s.id,
+        series_id: s.series_id,
+        organization_id: s.organization_id,
+        title: s.title,
+        episode_number: s.episode_number,
+        season_number: s.season_number,
+        runtime_minutes: s.runtime_minutes,
+        synopsis: s.synopsis,
+        theme: s.theme,
+        vocabulary_words: s.vocabulary_words || [],
+        status: s.status,
+        ai_generated: s.ai_generated,
+        generation_prompt: s.generation_prompt,
+        content: s.content,
+        format: s.format,
+        version: s.version,
+        locked: s.locked,
+        locked_by: s.locked_by,
+        locked_at: s.locked_at,
+        created_by: s.created_by,
+        created_at: s.created_at,
+        updated_at: s.updated_at,
+      }));
+
+      setScripts(scriptList);
 
       const locks = new Map<string, ScriptLockInfo>();
       const episodes = new Map<string, number>();
 
-      await Promise.all(
-        (data || []).map(async (script) => {
-          const lockInfo = await getScriptLockInfo(script.id);
-          locks.set(script.id, lockInfo);
-          episodes.set(script.id, lockInfo.associated_episodes.length);
-        })
-      );
+      (data || []).forEach((script: any) => {
+        const associatedEpisodes = script.associated_episodes || [];
+        locks.set(script.id, {
+          locked: script.locked || false,
+          locked_by: script.locked_by,
+          locked_at: script.locked_at,
+          associated_episodes: associatedEpisodes,
+        });
+        episodes.set(script.id, script.episode_count || 0);
+      });
 
       setScriptLocks(locks);
       setEpisodeCounts(episodes);
@@ -656,30 +683,34 @@ function ScriptEditor({ script, onClose, onSave }: ScriptEditorProps) {
 
   const loadScriptContent = async () => {
     try {
-      const { data: actsData, error: actsError } = await supabase
-        .from('script_acts')
-        .select('*')
-        .eq('script_id', script.id)
-        .order('act_number', { ascending: true });
+      const { data, error } = await supabase
+        .rpc('get_script_acts_with_scenes', { p_script_id: script.id });
 
-      if (actsError) throw actsError;
+      if (error) throw error;
 
-      const actsWithScenes = await Promise.all(
-        (actsData || []).map(async (act) => {
-          const { data: scenesData, error: scenesError } = await supabase
-            .from('script_scenes')
-            .select('*')
-            .eq('act_id', act.id)
-            .order('scene_number', { ascending: true});
-
-          if (scenesError) throw scenesError;
-
-          return {
-            ...act,
-            scenes: scenesData || []
-          };
-        })
-      );
+      const actsWithScenes = (data || []).map((act: any) => ({
+        id: act.id,
+        script_id: act.script_id,
+        act_number: act.act_number,
+        content: act.content,
+        duration_estimate: act.duration_estimate,
+        notes: act.notes,
+        created_at: act.created_at,
+        updated_at: act.updated_at,
+        scenes: (act.scenes || []).map((scene: any) => ({
+          id: scene.id,
+          act_id: scene.act_id,
+          scene_number: scene.scene_number,
+          setting: scene.setting,
+          description: scene.description,
+          dialogue: scene.dialogue || [],
+          stage_directions: scene.stage_directions,
+          characters: scene.characters || [],
+          duration_estimate: scene.duration_estimate,
+          created_at: scene.created_at,
+          updated_at: scene.updated_at,
+        }))
+      }));
 
       setActs(actsWithScenes);
     } catch (error) {

@@ -9,6 +9,70 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      organizations: {
+        Row: {
+          id: string
+          name: string
+          slug: string
+          logo_url: string | null
+          settings: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          slug: string
+          logo_url?: string | null
+          settings?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          slug?: string
+          logo_url?: string | null
+          settings?: Json
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      organization_members: {
+        Row: {
+          id: string
+          organization_id: string
+          user_id: string
+          role: string
+          invited_by: string | null
+          invited_at: string | null
+          joined_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          user_id: string
+          role?: string
+          invited_by?: string | null
+          invited_at?: string | null
+          joined_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          user_id?: string
+          role?: string
+          invited_by?: string | null
+          invited_at?: string | null
+          joined_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
       series: {
         Row: {
           id: string
@@ -16,6 +80,10 @@ export interface Database {
           description: string | null
           theme: string | null
           style_guide: string | null
+          organization_id: string | null
+          archived: boolean
+          archived_at: string | null
+          archived_by: string | null
           created_at: string
           updated_at: string
         }
@@ -25,6 +93,10 @@ export interface Database {
           description?: string | null
           theme?: string | null
           style_guide?: string | null
+          organization_id?: string | null
+          archived?: boolean
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -34,6 +106,10 @@ export interface Database {
           description?: string | null
           theme?: string | null
           style_guide?: string | null
+          organization_id?: string | null
+          archived?: boolean
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -42,6 +118,7 @@ export interface Database {
         Row: {
           id: string
           series_id: string | null
+          organization_id: string | null
           name: string
           age: number | null
           description: string | null
@@ -49,7 +126,10 @@ export interface Database {
           clay_features: string | null
           voice_characteristics: string | null
           eleven_labs_voice_id: string | null
+          voice_provider: string | null
+          chatterbox_voice_id: string | null
           reference_image_url: string | null
+          lip_sync_reference_image_url: string | null
           tags: string[]
           role: string
           created_at: string
@@ -58,6 +138,7 @@ export interface Database {
         Insert: {
           id?: string
           series_id?: string | null
+          organization_id?: string | null
           name: string
           age?: number | null
           description?: string | null
@@ -65,7 +146,10 @@ export interface Database {
           clay_features?: string | null
           voice_characteristics?: string | null
           eleven_labs_voice_id?: string | null
+          voice_provider?: string | null
+          chatterbox_voice_id?: string | null
           reference_image_url?: string | null
+          lip_sync_reference_image_url?: string | null
           tags?: string[]
           role?: string
           created_at?: string
@@ -74,6 +158,7 @@ export interface Database {
         Update: {
           id?: string
           series_id?: string | null
+          organization_id?: string | null
           name?: string
           age?: number | null
           description?: string | null
@@ -81,7 +166,72 @@ export interface Database {
           clay_features?: string | null
           voice_characteristics?: string | null
           eleven_labs_voice_id?: string | null
+          voice_provider?: string | null
+          chatterbox_voice_id?: string | null
           reference_image_url?: string | null
+          lip_sync_reference_image_url?: string | null
+          tags?: string[]
+          role?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      character_consistency_profiles: {
+        Row: {
+          id: string
+          series_id: string
+          organization_id: string | null
+          name: string
+          description: string | null
+          age: number | null
+          personality: string | null
+          clay_features: string | null
+          voice_characteristics: string | null
+          eleven_labs_voice_id: string | null
+          voice_provider: string | null
+          chatterbox_voice_id: string | null
+          reference_image_url: string | null
+          lip_sync_reference_image_url: string | null
+          tags: string[]
+          role: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          series_id: string
+          organization_id?: string | null
+          name: string
+          description?: string | null
+          age?: number | null
+          personality?: string | null
+          clay_features?: string | null
+          voice_characteristics?: string | null
+          eleven_labs_voice_id?: string | null
+          voice_provider?: string | null
+          chatterbox_voice_id?: string | null
+          reference_image_url?: string | null
+          lip_sync_reference_image_url?: string | null
+          tags?: string[]
+          role?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          series_id?: string
+          organization_id?: string | null
+          name?: string
+          description?: string | null
+          age?: number | null
+          personality?: string | null
+          clay_features?: string | null
+          voice_characteristics?: string | null
+          eleven_labs_voice_id?: string | null
+          voice_provider?: string | null
+          chatterbox_voice_id?: string | null
+          reference_image_url?: string | null
+          lip_sync_reference_image_url?: string | null
           tags?: string[]
           role?: string
           created_at?: string
@@ -92,6 +242,7 @@ export interface Database {
         Row: {
           id: string
           series_id: string | null
+          organization_id: string | null
           title: string
           episode_number: number | null
           season_number: number
@@ -102,12 +253,20 @@ export interface Database {
           status: string
           ai_generated: boolean
           generation_prompt: string | null
+          content: string | null
+          format: string | null
+          version: number
+          locked: boolean
+          locked_by: string | null
+          locked_at: string | null
+          created_by: string | null
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: string
           series_id?: string | null
+          organization_id?: string | null
           title: string
           episode_number?: number | null
           season_number?: number
@@ -118,12 +277,20 @@ export interface Database {
           status?: string
           ai_generated?: boolean
           generation_prompt?: string | null
+          content?: string | null
+          format?: string | null
+          version?: number
+          locked?: boolean
+          locked_by?: string | null
+          locked_at?: string | null
+          created_by?: string | null
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
           series_id?: string | null
+          organization_id?: string | null
           title?: string
           episode_number?: number | null
           season_number?: number
@@ -134,6 +301,13 @@ export interface Database {
           status?: string
           ai_generated?: boolean
           generation_prompt?: string | null
+          content?: string | null
+          format?: string | null
+          version?: number
+          locked?: boolean
+          locked_by?: string | null
+          locked_at?: string | null
+          created_by?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -216,6 +390,7 @@ export interface Database {
           id: string
           series_id: string | null
           character_id: string | null
+          organization_id: string | null
           asset_type: string
           name: string
           description: string | null
@@ -233,6 +408,7 @@ export interface Database {
           id?: string
           series_id?: string | null
           character_id?: string | null
+          organization_id?: string | null
           asset_type: string
           name: string
           description?: string | null
@@ -250,6 +426,7 @@ export interface Database {
           id?: string
           series_id?: string | null
           character_id?: string | null
+          organization_id?: string | null
           asset_type?: string
           name?: string
           description?: string | null
@@ -269,58 +446,94 @@ export interface Database {
           id: string
           script_id: string | null
           series_id: string | null
+          organization_id: string | null
           title: string
+          episode_number: number | null
           status: string
           progress_percentage: number
           final_video_url: string | null
           production_notes: string | null
           estimated_cost: number | null
           actual_cost: number | null
-          created_at: string
-          updated_at: string
-          completed_at: string | null
+          source_script_snapshot: Json | null
+          script_version: number | null
+          sync_status: string | null
+          multi_part_episode: boolean
+          part_number: number | null
+          previous_episode_id: string | null
+          next_episode_id: string | null
+          trt_metadata: Json | null
+          target_runtime_seconds: number | null
+          actual_runtime_seconds: number | null
           date_put_in_service: string | null
           projected_service_years: number
           decay_rate_percent: number
           minimum_retention_percent: number
+          created_at: string
+          updated_at: string
+          completed_at: string | null
         }
         Insert: {
           id?: string
           script_id?: string | null
           series_id?: string | null
+          organization_id?: string | null
           title: string
+          episode_number?: number | null
           status?: string
           progress_percentage?: number
           final_video_url?: string | null
           production_notes?: string | null
           estimated_cost?: number | null
           actual_cost?: number | null
-          created_at?: string
-          updated_at?: string
-          completed_at?: string | null
+          source_script_snapshot?: Json | null
+          script_version?: number | null
+          sync_status?: string | null
+          multi_part_episode?: boolean
+          part_number?: number | null
+          previous_episode_id?: string | null
+          next_episode_id?: string | null
+          trt_metadata?: Json | null
+          target_runtime_seconds?: number | null
+          actual_runtime_seconds?: number | null
           date_put_in_service?: string | null
           projected_service_years?: number
           decay_rate_percent?: number
           minimum_retention_percent?: number
+          created_at?: string
+          updated_at?: string
+          completed_at?: string | null
         }
         Update: {
           id?: string
           script_id?: string | null
           series_id?: string | null
+          organization_id?: string | null
           title?: string
+          episode_number?: number | null
           status?: string
           progress_percentage?: number
           final_video_url?: string | null
           production_notes?: string | null
           estimated_cost?: number | null
           actual_cost?: number | null
-          created_at?: string
-          updated_at?: string
-          completed_at?: string | null
+          source_script_snapshot?: Json | null
+          script_version?: number | null
+          sync_status?: string | null
+          multi_part_episode?: boolean
+          part_number?: number | null
+          previous_episode_id?: string | null
+          next_episode_id?: string | null
+          trt_metadata?: Json | null
+          target_runtime_seconds?: number | null
+          actual_runtime_seconds?: number | null
           date_put_in_service?: string | null
           projected_service_years?: number
           decay_rate_percent?: number
           minimum_retention_percent?: number
+          created_at?: string
+          updated_at?: string
+          completed_at?: string | null
         }
       }
       scene_shots: {
@@ -460,6 +673,8 @@ export interface Database {
           id: string
           script_id: string
           series_id: string | null
+          organization_id: string | null
+          episode_id: string | null
           title: string
           status: string
           total_shots: number
@@ -475,6 +690,8 @@ export interface Database {
           id?: string
           script_id: string
           series_id?: string | null
+          organization_id?: string | null
+          episode_id?: string | null
           title: string
           status?: string
           total_shots?: number
@@ -490,6 +707,8 @@ export interface Database {
           id?: string
           script_id?: string
           series_id?: string | null
+          organization_id?: string | null
+          episode_id?: string | null
           title?: string
           status?: string
           total_shots?: number
@@ -527,6 +746,14 @@ export interface Database {
           generation_metadata: Json
           revision_notes: string | null
           approved: boolean
+          approval_status: string | null
+          approved_by: string | null
+          approved_at: string | null
+          review_notes: string | null
+          current_version: number
+          last_edited_by: string | null
+          last_edited_at: string | null
+          published: boolean
           created_at: string
           updated_at: string
         }
@@ -554,6 +781,14 @@ export interface Database {
           generation_metadata?: Json
           revision_notes?: string | null
           approved?: boolean
+          approval_status?: string | null
+          approved_by?: string | null
+          approved_at?: string | null
+          review_notes?: string | null
+          current_version?: number
+          last_edited_by?: string | null
+          last_edited_at?: string | null
+          published?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -581,6 +816,14 @@ export interface Database {
           generation_metadata?: Json
           revision_notes?: string | null
           approved?: boolean
+          approval_status?: string | null
+          approved_by?: string | null
+          approved_at?: string | null
+          review_notes?: string | null
+          current_version?: number
+          last_edited_by?: string | null
+          last_edited_at?: string | null
+          published?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -612,6 +855,150 @@ export interface Database {
           revision_notes?: string | null
           snapshot_data?: Json
           created_at?: string
+        }
+      }
+      production_shot_plans: {
+        Row: {
+          id: string
+          episode_id: string
+          organization_id: string | null
+          storyboard_shot_id: string | null
+          shot_number: number
+          shot_type: string | null
+          description: string | null
+          duration_seconds: number | null
+          dialogue_text: string | null
+          status: string
+          render_url: string | null
+          render_metadata: Json | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          episode_id: string
+          organization_id?: string | null
+          storyboard_shot_id?: string | null
+          shot_number: number
+          shot_type?: string | null
+          description?: string | null
+          duration_seconds?: number | null
+          dialogue_text?: string | null
+          status?: string
+          render_url?: string | null
+          render_metadata?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          episode_id?: string
+          organization_id?: string | null
+          storyboard_shot_id?: string | null
+          shot_number?: number
+          shot_type?: string | null
+          description?: string | null
+          duration_seconds?: number | null
+          dialogue_text?: string | null
+          status?: string
+          render_url?: string | null
+          render_metadata?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      production_shot_prompts: {
+        Row: {
+          id: string
+          shot_plan_id: string
+          prompt_type: string
+          prompt_text: string
+          version: number
+          is_active: boolean
+          metadata: Json | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          shot_plan_id: string
+          prompt_type?: string
+          prompt_text: string
+          version?: number
+          is_active?: boolean
+          metadata?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          shot_plan_id?: string
+          prompt_type?: string
+          prompt_text?: string
+          version?: number
+          is_active?: boolean
+          metadata?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      lip_sync_jobs: {
+        Row: {
+          id: string
+          episode_id: string
+          organization_id: string | null
+          shot_plan_id: string | null
+          character_id: string | null
+          dialogue_text: string | null
+          audio_url: string | null
+          video_url: string | null
+          output_url: string | null
+          provider: string | null
+          provider_job_id: string | null
+          status: string
+          error_message: string | null
+          metadata: Json | null
+          created_at: string
+          updated_at: string
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          episode_id: string
+          organization_id?: string | null
+          shot_plan_id?: string | null
+          character_id?: string | null
+          dialogue_text?: string | null
+          audio_url?: string | null
+          video_url?: string | null
+          output_url?: string | null
+          provider?: string | null
+          provider_job_id?: string | null
+          status?: string
+          error_message?: string | null
+          metadata?: Json | null
+          created_at?: string
+          updated_at?: string
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          episode_id?: string
+          organization_id?: string | null
+          shot_plan_id?: string | null
+          character_id?: string | null
+          dialogue_text?: string | null
+          audio_url?: string | null
+          video_url?: string | null
+          output_url?: string | null
+          provider?: string | null
+          provider_job_id?: string | null
+          status?: string
+          error_message?: string | null
+          metadata?: Json | null
+          created_at?: string
+          updated_at?: string
+          completed_at?: string | null
         }
       }
     }

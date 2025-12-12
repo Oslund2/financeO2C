@@ -48,94 +48,80 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
 
   const loadEpisodes = async () => {
     try {
-      let query = supabase
-        .from('episodes')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const { data: episodesData, error: episodesError } = await supabase
+        .rpc('get_episodes_with_details', {
+          p_series_id: seriesId || null,
+          p_organization_id: currentOrganization?.id || null
+        });
 
-      if (seriesId) {
-        query = query.eq('series_id', seriesId);
-      }
+      if (episodesError) throw episodesError;
 
-      const { data, error } = await query;
+      const episodeList = (episodesData || []).map((ep: any) => ({
+        id: ep.id,
+        script_id: ep.script_id,
+        series_id: ep.series_id,
+        organization_id: ep.organization_id,
+        title: ep.title,
+        episode_number: ep.episode_number,
+        status: ep.status,
+        progress_percentage: ep.progress_percentage,
+        final_video_url: ep.final_video_url,
+        production_notes: ep.production_notes,
+        estimated_cost: ep.estimated_cost,
+        actual_cost: ep.actual_cost,
+        source_script_snapshot: ep.source_script_snapshot,
+        script_version: ep.script_version,
+        sync_status: ep.sync_status,
+        multi_part_episode: ep.multi_part_episode,
+        part_number: ep.part_number,
+        previous_episode_id: ep.previous_episode_id,
+        next_episode_id: ep.next_episode_id,
+        trt_metadata: ep.trt_metadata,
+        target_runtime_seconds: ep.target_runtime_seconds,
+        actual_runtime_seconds: ep.actual_runtime_seconds,
+        date_put_in_service: ep.date_put_in_service,
+        projected_service_years: ep.projected_service_years,
+        decay_rate_percent: ep.decay_rate_percent,
+        minimum_retention_percent: ep.minimum_retention_percent,
+        created_at: ep.created_at,
+        updated_at: ep.updated_at,
+        completed_at: ep.completed_at,
+      }));
 
-      if (error) throw error;
-      setEpisodes(data || []);
+      setEpisodes(episodeList);
 
       const titles = new Map<string, string>();
       const shotLists = new Map<string, { total: number; completed: number }>();
       const orphaned = new Set<string>();
 
-      await Promise.all(
-        (data || []).map(async (episode) => {
-          if (episode.script_id) {
-            const { data: script, error: scriptError } = await supabase
-              .from('scripts')
-              .select('title')
-              .eq('id', episode.script_id)
-              .maybeSingle();
-
-            if (script) {
-              titles.set(episode.id, script.title);
-            } else {
-              orphaned.add(episode.id);
-              console.warn(`Episode "${episode.title}" references missing script: ${episode.script_id}`);
-            }
-          } else {
-            orphaned.add(episode.id);
-            console.warn(`Episode "${episode.title}" has no script_id`);
-          }
-
-          const { data: storyboards } = await supabase
-            .from('storyboards')
-            .select('id')
-            .eq('episode_id', episode.id);
-
-          if (storyboards && storyboards.length > 0) {
-            let totalShots = 0;
-            let completedShots = 0;
-
-            await Promise.all(
-              storyboards.map(async (storyboard) => {
-                const { data: shots } = await supabase
-                  .from('storyboard_shots')
-                  .select('id, status')
-                  .eq('storyboard_id', storyboard.id);
-
-                if (shots) {
-                  totalShots += shots.length;
-                  completedShots += shots.filter(s => s.status === 'approved').length;
-                }
-              })
-            );
-
-            shotLists.set(episode.id, { total: totalShots, completed: completedShots });
-          }
-        })
-      );
+      (episodesData || []).forEach((ep: any) => {
+        if (ep.script_title) {
+          titles.set(ep.id, ep.script_title);
+        }
+        if (ep.has_orphaned_script || (!ep.script_id && !ep.script_title)) {
+          orphaned.add(ep.id);
+        }
+        if (ep.total_shots > 0) {
+          shotLists.set(ep.id, {
+            total: ep.total_shots,
+            completed: ep.completed_shots
+          });
+        }
+      });
 
       setScriptTitles(titles);
       setShotListCounts(shotLists);
       setOrphanedEpisodes(orphaned);
 
-      let scriptsQuery = supabase
-        .from('scripts')
-        .select('*')
-        .eq('status', 'approved')
-        .order('created_at', { ascending: false });
+      const { data: scriptsData, error: scriptsError } = await supabase
+        .rpc('get_available_scripts_for_episodes', {
+          p_series_id: seriesId || null,
+          p_organization_id: currentOrganization?.id || null
+        });
 
-      if (seriesId) {
-        scriptsQuery = scriptsQuery.eq('series_id', seriesId);
-      }
+      if (scriptsError) throw scriptsError;
 
-      const { data: scriptsData } = await scriptsQuery;
-
-      const scriptsWithoutEpisodes = (scriptsData || []).filter(script => {
-        const hasEpisode = (data || []).some(ep => ep.script_id === script.id);
-        return !hasEpisode;
-      });
-
-      setAvailableScripts(scriptsWithoutEpisodes);
+      setAvailableScripts(scriptsData || []);
     } catch (error) {
       console.error('Error loading episodes:', error);
     } finally {
