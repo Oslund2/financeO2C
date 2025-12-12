@@ -20,6 +20,11 @@ export interface SystemHealth {
     storage: 'healthy' | 'warning' | 'critical';
     backups: 'healthy' | 'warning' | 'critical';
   };
+  warnings: {
+    database?: string;
+    storage?: string;
+    backups?: string;
+  };
   statistics: {
     total_characters: number;
     total_assets: number;
@@ -65,24 +70,34 @@ class MonitoringService {
       let databaseStatus: 'healthy' | 'warning' | 'critical' = 'healthy';
       let storageStatus: 'healthy' | 'warning' | 'critical' = 'healthy';
       let backupStatus: 'healthy' | 'warning' | 'critical' = 'healthy';
+      const warnings: { database?: string; storage?: string; backups?: string } = {};
+
+      const INTEGRITY_CHECK_THRESHOLD_MS = 72 * 60 * 60 * 1000;
 
       if (latestIntegrityCheck?.status === 'failed') {
         databaseStatus = 'critical';
+        warnings.database = 'The latest integrity check found critical issues with your data.';
       } else if (latestIntegrityCheck?.status === 'warning') {
         databaseStatus = 'warning';
+        warnings.database = 'The latest integrity check found potential issues that should be reviewed.';
       }
 
-      if (!latestIntegrityCheck ||
-          new Date(latestIntegrityCheck.checked_at).getTime() < Date.now() - 24 * 60 * 60 * 1000) {
+      if (!latestIntegrityCheck) {
         databaseStatus = 'warning';
+        warnings.database = 'No integrity check has ever been performed. Run one to verify your data is consistent.';
+      } else if (new Date(latestIntegrityCheck.checked_at).getTime() < Date.now() - INTEGRITY_CHECK_THRESHOLD_MS) {
+        databaseStatus = 'warning';
+        warnings.database = 'No integrity check has been performed in the last 72 hours. Run one to ensure your data remains consistent.';
       }
 
       if ((recentBackups.data?.length || 0) === 0) {
         backupStatus = 'warning';
+        warnings.backups = 'No recovery points have been created in the last 7 days.';
       }
 
       if ((storageCount.count || 0) === 0 && (charactersCount.count || 0) > 0) {
         storageStatus = 'warning';
+        warnings.storage = 'You have characters but no stored images. Some character images may be missing.';
       }
 
       const overallStatus =
@@ -100,6 +115,7 @@ class MonitoringService {
           storage: storageStatus,
           backups: backupStatus
         },
+        warnings,
         statistics: {
           total_characters: charactersCount.count || 0,
           total_assets: assetsCount.count || 0,
@@ -118,6 +134,9 @@ class MonitoringService {
           database: 'critical',
           storage: 'critical',
           backups: 'critical'
+        },
+        warnings: {
+          database: 'Unable to connect to the database or retrieve health information.'
         },
         statistics: {
           total_characters: 0,

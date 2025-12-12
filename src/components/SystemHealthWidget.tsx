@@ -7,9 +7,14 @@ import {
   CheckCircle,
   AlertTriangle,
   XCircle,
-  RefreshCw
+  RefreshCw,
+  Info,
+  ChevronDown,
+  ChevronUp,
+  Play
 } from 'lucide-react';
 import { monitoringService } from '../services/monitoringService';
+import { backupService } from '../services/backupService';
 import type { SystemHealth } from '../services/monitoringService';
 
 interface SystemHealthWidgetProps {
@@ -19,7 +24,11 @@ interface SystemHealthWidgetProps {
 export function SystemHealthWidget({ onNavigateToBackup }: SystemHealthWidgetProps) {
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expandedWarning, setExpandedWarning] = useState<'database' | 'storage' | 'backups' | null>(null);
+  const [runningIntegrityCheck, setRunningIntegrityCheck] = useState(false);
+  const [integrityCheckResult, setIntegrityCheckResult] = useState<'success' | 'error' | null>(null);
 
   useEffect(() => {
     loadHealth();
@@ -27,15 +36,38 @@ export function SystemHealthWidget({ onNavigateToBackup }: SystemHealthWidgetPro
     return () => clearInterval(interval);
   }, []);
 
-  const loadHealth = async () => {
+  const loadHealth = async (isManualRefresh = false) => {
     try {
+      if (isManualRefresh) {
+        setRefreshing(true);
+      }
       setError(null);
       const healthData = await monitoringService.getSystemHealth();
       setHealth(healthData);
+      setIntegrityCheckResult(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load system health');
     } finally {
       setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const handleRefresh = () => {
+    loadHealth(true);
+  };
+
+  const handleRunIntegrityCheck = async () => {
+    setRunningIntegrityCheck(true);
+    setIntegrityCheckResult(null);
+    try {
+      await backupService.runIntegrityCheck();
+      setIntegrityCheckResult('success');
+      await loadHealth(true);
+    } catch {
+      setIntegrityCheckResult('error');
+    } finally {
+      setRunningIntegrityCheck(false);
     }
   };
 
@@ -108,49 +140,153 @@ export function SystemHealthWidget({ onNavigateToBackup }: SystemHealthWidgetPro
             {health.overall_status.toUpperCase()}
           </span>
           <button
-            onClick={loadHealth}
-            className="p-2 hover:bg-white/50 rounded-lg transition-colors"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="p-2 hover:bg-white/50 rounded-lg transition-colors disabled:opacity-50"
             title="Refresh"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
 
       <div className="grid grid-cols-3 gap-4 mb-4">
-        <div className="flex items-center gap-3">
+        <button
+          onClick={() => health.warnings?.database && setExpandedWarning(expandedWarning === 'database' ? null : 'database')}
+          className={`flex items-center gap-3 text-left ${health.warnings?.database ? 'cursor-pointer hover:bg-white/30 rounded-lg p-1 -m-1 transition-colors' : ''}`}
+          disabled={!health.warnings?.database}
+        >
           <Database className="w-5 h-5" />
           <div className="flex-1">
             <div className="text-xs opacity-75 mb-1">Database</div>
             <div className="flex items-center gap-2">
               {getStatusIcon(health.checks.database)}
               <span className="text-sm font-medium">{health.checks.database}</span>
+              {health.warnings?.database && (
+                expandedWarning === 'database' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />
+              )}
             </div>
           </div>
-        </div>
+        </button>
 
-        <div className="flex items-center gap-3">
+        <button
+          onClick={() => health.warnings?.storage && setExpandedWarning(expandedWarning === 'storage' ? null : 'storage')}
+          className={`flex items-center gap-3 text-left ${health.warnings?.storage ? 'cursor-pointer hover:bg-white/30 rounded-lg p-1 -m-1 transition-colors' : ''}`}
+          disabled={!health.warnings?.storage}
+        >
           <HardDrive className="w-5 h-5" />
           <div className="flex-1">
             <div className="text-xs opacity-75 mb-1">Storage</div>
             <div className="flex items-center gap-2">
               {getStatusIcon(health.checks.storage)}
               <span className="text-sm font-medium">{health.checks.storage}</span>
+              {health.warnings?.storage && (
+                expandedWarning === 'storage' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />
+              )}
             </div>
           </div>
-        </div>
+        </button>
 
-        <div className="flex items-center gap-3">
+        <button
+          onClick={() => health.warnings?.backups && setExpandedWarning(expandedWarning === 'backups' ? null : 'backups')}
+          className={`flex items-center gap-3 text-left ${health.warnings?.backups ? 'cursor-pointer hover:bg-white/30 rounded-lg p-1 -m-1 transition-colors' : ''}`}
+          disabled={!health.warnings?.backups}
+        >
           <Archive className="w-5 h-5" />
           <div className="flex-1">
             <div className="text-xs opacity-75 mb-1">Backups</div>
             <div className="flex items-center gap-2">
               {getStatusIcon(health.checks.backups)}
               <span className="text-sm font-medium">{health.checks.backups}</span>
+              {health.warnings?.backups && (
+                expandedWarning === 'backups' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />
+              )}
+            </div>
+          </div>
+        </button>
+      </div>
+
+      {expandedWarning === 'database' && health.warnings?.database && (
+        <div className="mb-4 p-4 bg-white/50 rounded-lg border border-yellow-300">
+          <div className="flex items-start gap-3 mb-3">
+            <AlertTriangle className="w-5 h-5 text-yellow-700 flex-shrink-0 mt-0.5" />
+            <div>
+              <h4 className="font-medium text-yellow-900 mb-1">Why am I seeing this warning?</h4>
+              <p className="text-sm text-yellow-800">{health.warnings.database}</p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3 mb-4 pt-3 border-t border-yellow-200">
+            <Info className="w-5 h-5 text-yellow-700 flex-shrink-0 mt-0.5" />
+            <div>
+              <h4 className="font-medium text-yellow-900 mb-1">What is an integrity check?</h4>
+              <p className="text-sm text-yellow-800">
+                An integrity check verifies that all your data (characters, assets, scripts, and their relationships)
+                is consistent and uncorrupted in the database. It helps catch potential issues before they become problems.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleRunIntegrityCheck}
+              disabled={runningIntegrityCheck}
+              className="flex items-center gap-2 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+            >
+              {runningIntegrityCheck ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Running Check...
+                </>
+              ) : (
+                <>
+                  <Play className="w-4 h-4" />
+                  Run Integrity Check
+                </>
+              )}
+            </button>
+            {integrityCheckResult === 'success' && (
+              <span className="flex items-center gap-1 text-sm text-green-700">
+                <CheckCircle className="w-4 h-4" />
+                Check completed successfully
+              </span>
+            )}
+            {integrityCheckResult === 'error' && (
+              <span className="flex items-center gap-1 text-sm text-red-700">
+                <XCircle className="w-4 h-4" />
+                Check failed. Please try again.
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {expandedWarning === 'storage' && health.warnings?.storage && (
+        <div className="mb-4 p-4 bg-white/50 rounded-lg border border-yellow-300">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-yellow-700 flex-shrink-0 mt-0.5" />
+            <div>
+              <h4 className="font-medium text-yellow-900 mb-1">Why am I seeing this warning?</h4>
+              <p className="text-sm text-yellow-800">{health.warnings.storage}</p>
             </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {expandedWarning === 'backups' && health.warnings?.backups && (
+        <div className="mb-4 p-4 bg-white/50 rounded-lg border border-yellow-300">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-yellow-700 flex-shrink-0 mt-0.5" />
+            <div>
+              <h4 className="font-medium text-yellow-900 mb-1">Why am I seeing this warning?</h4>
+              <p className="text-sm text-yellow-800">{health.warnings.backups}</p>
+              <p className="text-sm text-yellow-800 mt-2">
+                Use the "View Backup & Recovery" button below to create a recovery point.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="border-t border-current/20 pt-4 mt-4">
         <div className="grid grid-cols-3 gap-4 text-sm">
