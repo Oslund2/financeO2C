@@ -236,8 +236,20 @@ export default function ProductionWorkflow() {
     }
   };
 
+  if (!currentOrganization || !currentSeries) {
+    return (
+      <div className="flex items-center justify-center h-full py-20">
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">No Series Selected</h3>
+          <p className="text-gray-600">Please select or create a series to use the Production Workflow</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Production Workflow</h2>
