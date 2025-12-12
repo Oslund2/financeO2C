@@ -73,6 +73,8 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
   const [draftSession, setDraftSession] = useState<any>(null);
   const [showResumeDialog, setShowResumeDialog] = useState(false);
   const [generationProgress, setGenerationProgress] = useState({ step: '', percent: 0 });
+  const [dataLoaded, setDataLoaded] = useState(false);
+  const [navigationProcessed, setNavigationProcessed] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -89,7 +91,7 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
   }, [currentOrganization, currentSeries, mode]);
 
   useEffect(() => {
-    if (currentOrganization && currentSeries) {
+    if (currentOrganization && currentSeries && !navigationData?.episodeId) {
       determineInitialMode();
     }
   }, [currentOrganization, currentSeries]);
@@ -103,21 +105,85 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
   }, [scriptSearch, statusFilter, allScripts]);
 
   useEffect(() => {
-    if (navigationData && currentOrganization && currentSeries) {
+    if (navigationData && currentOrganization && currentSeries && dataLoaded && !navigationProcessed) {
       handleNavigationData();
     }
-  }, [navigationData, currentOrganization, currentSeries]);
+  }, [navigationData, currentOrganization, currentSeries, dataLoaded]);
 
   const handleNavigationData = async () => {
     if (navigationData?.episodeId) {
-      const { data: episode } = await supabase
-        .from('episodes')
-        .select('*')
-        .eq('id', navigationData.episodeId)
-        .maybeSingle();
+      setLoading(true);
+      setMode('episode');
+      setError(null);
+      setNavigationProcessed(true);
 
-      if (episode) {
-        await handleEpisodeSelect(episode);
+      try {
+        const { data: episode, error: episodeError } = await supabase
+          .from('episodes')
+          .select('*')
+          .eq('id', navigationData.episodeId)
+          .maybeSingle();
+
+        if (episodeError) throw episodeError;
+
+        if (!episode) {
+          setError('Episode not found. It may have been deleted.');
+          setMode('script');
+          setStep('select');
+          return;
+        }
+
+        setSelectedEpisode(episode);
+
+        let script = allScripts.find(s => s.id === episode.script_id);
+
+        if (!script) {
+          const { data: fetchedScript, error: scriptError } = await supabase
+            .from('scripts')
+            .select('*')
+            .eq('id', episode.script_id)
+            .eq('organization_id', currentOrganization!.id)
+            .maybeSingle();
+
+          if (scriptError) throw scriptError;
+
+          if (!fetchedScript) {
+            setError('Script not found for this episode. The script may have been deleted.');
+            setMode('script');
+            setStep('select');
+            return;
+          }
+
+          script = fetchedScript;
+        }
+
+        setSelectedScript(script);
+
+        const existingSession = await checkForDraftSession(script.id);
+
+        if (existingSession && existingSession.workflow_step !== 'select') {
+          setDraftSession(existingSession);
+          setShowResumeDialog(true);
+          return;
+        }
+
+        try {
+          const analysis = await getScriptAnalysis(script.id, currentOrganization!.id);
+          setScriptAnalysis(analysis);
+          await saveDraftSession(script.id, 'configure');
+          setStep('configure');
+        } catch (err) {
+          console.error('Error analyzing script:', err);
+          setError('Failed to analyze script');
+          setStep('select');
+        }
+      } catch (err) {
+        console.error('Error loading episode:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load episode data');
+        setMode('script');
+        setStep('select');
+      } finally {
+        setLoading(false);
       }
     } else if (navigationData?.scriptId) {
       const { data: script } = await supabase
@@ -130,6 +196,7 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
         setMode('script');
         await handleScriptSelect(script);
       }
+      setNavigationProcessed(true);
     }
   };
 
@@ -273,9 +340,12 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
       if (mode === 'episode' && episodesData && episodesData.length === 0 && scriptsData && scriptsData.length > 0) {
         setMode('script');
       }
+
+      setDataLoaded(true);
     } catch (err) {
       console.error('Error loading data:', err);
       setError('Failed to load data');
+      setDataLoaded(true);
     } finally {
       setLoading(false);
     }
@@ -417,11 +487,33 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
 
   const handleEpisodeSelect = async (episode: Episode) => {
     setSelectedEpisode(episode);
+    setMode('episode');
     setError(null);
+    setLoading(true);
 
-    const script = scripts.find(s => s.id === episode.script_id);
-    if (script) {
+    try {
+      let script = allScripts.find(s => s.id === episode.script_id);
+
+      if (!script) {
+        const { data: fetchedScript, error: scriptError } = await supabase
+          .from('scripts')
+          .select('*')
+          .eq('id', episode.script_id)
+          .eq('organization_id', currentOrganization!.id)
+          .maybeSingle();
+
+        if (scriptError) throw scriptError;
+
+        if (!fetchedScript) {
+          setError('Script not found for this episode. The script may have been deleted.');
+          return;
+        }
+
+        script = fetchedScript;
+      }
+
       setSelectedScript(script);
+
       try {
         const analysis = await getScriptAnalysis(script.id, currentOrganization!.id);
         setScriptAnalysis(analysis);
@@ -430,6 +522,11 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
         console.error('Error analyzing script:', err);
         setError('Failed to analyze script');
       }
+    } catch (err) {
+      console.error('Error loading script for episode:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load script');
+    } finally {
+      setLoading(false);
     }
   };
 
