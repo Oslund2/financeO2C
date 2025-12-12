@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Key, Database, Sparkles, ExternalLink, CheckCircle, XCircle, Info, BookOpen, ChevronDown, ChevronUp, Copy, Code, Layers, FileCode, Palette, Rocket, DollarSign, FolderTree, Building2, Film, Shield, Clock, AlertTriangle, History, Download, RefreshCw, Archive, Activity } from 'lucide-react';
+import { Key, Database, Sparkles, ExternalLink, CheckCircle, XCircle, Info, BookOpen, ChevronDown, ChevronUp, Copy, Code, Layers, FileCode, Palette, Rocket, DollarSign, FolderTree, Building2, Film, Shield, Clock, AlertTriangle, History, Download, RefreshCw, Archive, Activity, Video, Mic2, Image, Zap } from 'lucide-react';
 import { getAPIKeyStatus, getConfigurationInstructions } from '../services/settingsService';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { backupService } from '../services/backupService';
@@ -13,6 +13,7 @@ export function Settings() {
   const [techDocsExpanded, setTechDocsExpanded] = useState(false);
   const [backupExpanded, setBackupExpanded] = useState(false);
   const [promptLibraryExpanded, setPromptLibraryExpanded] = useState(false);
+  const [nextStepsExpanded, setNextStepsExpanded] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [copiedText, setCopiedText] = useState('');
 
@@ -189,6 +190,218 @@ export function Settings() {
         </div>
 
         <div className="space-y-6">
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+            <button
+              onClick={() => setNextStepsExpanded(!nextStepsExpanded)}
+              className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg flex items-center justify-center">
+                  <Zap className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <h2 className="text-xl font-bold text-gray-900">Next Steps</h2>
+                  <p className="text-sm text-gray-600">Required API integrations for full production capability</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full font-medium">3 integrations needed</span>
+                {nextStepsExpanded ? (
+                  <ChevronUp className="w-6 h-6 text-gray-400" />
+                ) : (
+                  <ChevronDown className="w-6 h-6 text-gray-400" />
+                )}
+              </div>
+            </button>
+
+            {nextStepsExpanded && (
+              <div className="border-t border-gray-200 p-6">
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+                  <div className="flex items-start gap-3">
+                    <Info className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-amber-800">
+                      <p className="font-medium mb-1">Production Pipeline Status</p>
+                      <p>The following external services need to be integrated to enable full video production capabilities. Each service handles a specific phase of the animation pipeline.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="border border-gray-200 rounded-lg p-5 hover:border-blue-300 transition-colors">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Video className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="font-bold text-gray-900">Video Generation API (Veo 3)</h3>
+                          <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">Required</span>
+                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">High Priority</span>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-3">
+                          Google's Veo 3 model generates animated video clips from text descriptions. This is the core engine for turning storyboards into animated sequences.
+                        </p>
+                        <div className="bg-gray-50 rounded-lg p-3 mb-3">
+                          <div className="text-xs font-medium text-gray-700 mb-2">Environment Variables Needed:</div>
+                          <div className="space-y-1">
+                            <code className="text-xs bg-gray-200 px-2 py-1 rounded block">VITE_VERTEX_AI_PROJECT_ID</code>
+                            <code className="text-xs bg-gray-200 px-2 py-1 rounded block">VITE_VERTEX_AI_LOCATION</code>
+                            <code className="text-xs bg-gray-200 px-2 py-1 rounded block">VITE_VERTEX_AI_API_KEY</code>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm">
+                          <span className="text-gray-500">Est. Cost: ~$0.50 per 5-sec clip</span>
+                          <a
+                            href="https://cloud.google.com/vertex-ai/generative-ai/docs/video/overview"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                          >
+                            Documentation <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0">
+                        {apiStatus?.vertexAI?.apiKey ? (
+                          <CheckCircle className="w-6 h-6 text-green-600" />
+                        ) : (
+                          <XCircle className="w-6 h-6 text-red-500" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border border-gray-200 rounded-lg p-5 hover:border-blue-300 transition-colors">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-rose-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Mic2 className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="font-bold text-gray-900">Lip Sync Provider</h3>
+                          <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">Required</span>
+                          <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">Medium Priority</span>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-3">
+                          Synchronizes character lip movements with dialogue audio. Choose between Sync Labs (high quality) or Veed.io (budget-friendly).
+                        </p>
+                        <div className="grid grid-cols-2 gap-3 mb-3">
+                          <div className="bg-gray-50 rounded-lg p-3">
+                            <div className="font-medium text-sm text-gray-900 mb-1">Sync Labs</div>
+                            <div className="text-xs text-gray-600 mb-2">Premium quality, best for production</div>
+                            <code className="text-xs bg-gray-200 px-2 py-1 rounded block">VITE_SYNC_LABS_API_KEY</code>
+                          </div>
+                          <div className="bg-gray-50 rounded-lg p-3">
+                            <div className="font-medium text-sm text-gray-900 mb-1">Veed.io</div>
+                            <div className="text-xs text-gray-600 mb-2">Budget option, good for drafts</div>
+                            <code className="text-xs bg-gray-200 px-2 py-1 rounded block">VITE_VEED_API_KEY</code>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm">
+                          <span className="text-gray-500">Est. Cost: $0.10-0.50 per minute of audio</span>
+                          <a
+                            href="https://synclabs.so/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                          >
+                            Sync Labs <ExternalLink className="w-3 h-3" />
+                          </a>
+                          <a
+                            href="https://www.veed.io/tools/lip-sync"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                          >
+                            Veed.io <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0">
+                        <XCircle className="w-6 h-6 text-red-500" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border border-gray-200 rounded-lg p-5 hover:border-blue-300 transition-colors">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Image className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="font-bold text-gray-900">Image Generation API</h3>
+                          <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">Optional</span>
+                          <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">Lower Priority</span>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-3">
+                          Generates storyboard frames, character poses, and background images. Currently using Vertex AI Imagen, but can be replaced with alternatives like DALL-E 3 or Stable Diffusion.
+                        </p>
+                        <div className="bg-gray-50 rounded-lg p-3 mb-3">
+                          <div className="text-xs font-medium text-gray-700 mb-2">Uses same Vertex AI credentials as Video Generation</div>
+                          <div className="text-xs text-gray-500">No additional configuration needed if Vertex AI is set up</div>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm">
+                          <span className="text-gray-500">Est. Cost: ~$0.04 per image</span>
+                          <a
+                            href="https://cloud.google.com/vertex-ai/generative-ai/docs/image/overview"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                          >
+                            Imagen Docs <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0">
+                        {apiStatus?.vertexAI?.apiKey ? (
+                          <CheckCircle className="w-6 h-6 text-green-600" />
+                        ) : (
+                          <XCircle className="w-6 h-6 text-red-500" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-lg">
+                  <h4 className="font-semibold text-blue-900 mb-3">Production Pipeline Overview</h4>
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-blue-200">
+                      <FileCode className="w-4 h-4 text-blue-600" />
+                      <span className="text-gray-700">Script</span>
+                    </div>
+                    <span className="text-gray-400">→</span>
+                    <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-blue-200">
+                      <Image className="w-4 h-4 text-green-600" />
+                      <span className="text-gray-700">Storyboard</span>
+                    </div>
+                    <span className="text-gray-400">→</span>
+                    <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-blue-200">
+                      <Sparkles className="w-4 h-4 text-amber-600" />
+                      <span className="text-gray-700">Voice</span>
+                    </div>
+                    <span className="text-gray-400">→</span>
+                    <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-blue-200">
+                      <Video className="w-4 h-4 text-blue-600" />
+                      <span className="text-gray-700">Video</span>
+                    </div>
+                    <span className="text-gray-400">→</span>
+                    <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-blue-200">
+                      <Mic2 className="w-4 h-4 text-pink-600" />
+                      <span className="text-gray-700">Lip Sync</span>
+                    </div>
+                    <span className="text-gray-400">→</span>
+                    <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-green-300 bg-green-50">
+                      <Film className="w-4 h-4 text-green-600" />
+                      <span className="text-green-700 font-medium">Final</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
