@@ -10,6 +10,7 @@ import {
 import { generatePromptsForShots } from '../services/veo3PromptService';
 import { generateBatchRecommendations } from '../services/batchRecommendationService';
 import { getUserSettings, updateUserSettings } from '../services/settingsService';
+import { ScriptUploadService, ParsedScript } from '../services/scriptUploadService';
 import ShotListManager from './ShotListManager';
 import BatchRecommendations from './BatchRecommendations';
 
@@ -25,6 +26,7 @@ interface Script {
   series_id: string;
   created_at?: string;
   content?: string;
+  format?: string;
   shot_count?: number;
 }
 
@@ -67,6 +69,7 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
   const [generatedShotIds, setGeneratedShotIds] = useState<string[]>([]);
   const [batchRecommendations, setBatchRecommendations] = useState<any[]>([]);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [parsedScript, setParsedScript] = useState<ParsedScript | null>(null);
   const [scriptTitle, setScriptTitle] = useState('');
   const [scriptSearch, setScriptSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ScriptStatusFilter>('all');
@@ -75,6 +78,7 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
   const [generationProgress, setGenerationProgress] = useState({ step: '', percent: 0 });
   const [dataLoaded, setDataLoaded] = useState(false);
   const [navigationProcessed, setNavigationProcessed] = useState(false);
+  const [parsingFile, setParsingFile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -438,12 +442,34 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
 
     try {
       const analysis = await getScriptAnalysis(script.id, null);
+
+      if (!analysis.has_content && !analysis.has_structure) {
+        setError(
+          'Script has no content or structure. This script may be corrupted. ' +
+          'Please upload a new version or select a different script.'
+        );
+        setSelectedScript(null);
+        return;
+      }
+
       setScriptAnalysis(analysis);
       await saveDraftSession(script.id, 'configure');
       setStep('configure');
     } catch (err) {
       console.error('Error analyzing script:', err);
-      setError('Failed to analyze script');
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+
+      if (errorMessage.includes('not found')) {
+        setError('Script not found in the database. It may have been deleted.');
+      } else if (errorMessage.includes('access denied')) {
+        setError('You do not have permission to access this script.');
+      } else if (errorMessage.includes('content')) {
+        setError('Script content is missing or unreadable. Please re-upload the script.');
+      } else {
+        setError(`Failed to analyze script: ${errorMessage}`);
+      }
+
+      setSelectedScript(null);
     }
   };
 
@@ -613,31 +639,40 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
     }
   };
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      if (!file.name.endsWith('.txt')) {
-        setError('Please upload a plain text file (.txt). PDF and DOCX support coming soon.');
+    if (!file) return;
+
+    setError(null);
+    setParsingFile(true);
+
+    try {
+      // Validate file
+      const validation = ScriptUploadService.validateFile(file);
+      if (!validation.valid) {
+        setError(validation.error || 'Invalid file');
         return;
       }
+
+      // Parse file content
+      const parsed = await ScriptUploadService.parseFile(file);
+
+      setParsedScript(parsed);
       setUploadedFile(file);
-      setScriptTitle(file.name.replace(/\.txt$/, ''));
+      setScriptTitle(file.name.replace(/\.(txt|docx|pdf)$/, ''));
       setStep('upload');
-      setError(null);
+    } catch (err) {
+      console.error('Error parsing file:', err);
+      setError(err instanceof Error ? err.message : 'Failed to parse file');
+      setParsedScript(null);
+      setUploadedFile(null);
+    } finally {
+      setParsingFile(false);
     }
   };
 
   const handleUploadScript = async () => {
-    console.log('handleUploadScript called', {
-      hasFile: !!uploadedFile,
-      hasTitle: !!scriptTitle,
-      hasOrg: !!currentOrganization,
-      hasSeries: !!currentSeries,
-      title: scriptTitle
-    });
-
-    if (!uploadedFile || !scriptTitle || !currentOrganization || !currentSeries) {
-      console.error('Missing required data for upload');
+    if (!parsedScript || !scriptTitle || !currentOrganization || !currentSeries) {
       setError('Missing required information. Please ensure you have a file and title.');
       return;
     }
@@ -646,29 +681,16 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
     setError(null);
 
     try {
-      let content: string;
-
-      try {
-        content = await uploadedFile.text();
-      } catch (readError) {
-        throw new Error('Failed to read file. Please ensure it is a valid text file.');
-      }
-
-      if (!content || content.trim().length === 0) {
-        throw new Error('The file appears to be empty. Please upload a file with content.');
-      }
-
-      console.log('Inserting script into database...');
       const { data: newScript, error: scriptError } = await supabase
         .from('scripts')
         .insert({
           title: scriptTitle,
-          content,
+          content: parsedScript.content,
           series_id: currentSeries.id,
           organization_id: currentOrganization.id,
           version: 1,
           status: 'approved',
-          format: 'plain_text'
+          format: parsedScript.format
         })
         .select()
         .single();
@@ -678,16 +700,13 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
         throw scriptError;
       }
 
-      console.log('Script inserted successfully:', newScript.id);
       setSelectedScript(newScript);
 
       try {
         const analysis = await getScriptAnalysis(newScript.id, null);
-        console.log('Script analysis result:', analysis);
         setScriptAnalysis(analysis);
       } catch (analysisError) {
         console.error('Script analysis failed:', analysisError);
-        console.warn('Continuing without analysis - using defaults');
         setScriptAnalysis({
           script_id: newScript.id,
           title: newScript.title,
@@ -705,6 +724,7 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
 
       setStep('configure');
       setUploadedFile(null);
+      setParsedScript(null);
 
       await loadData();
     } catch (err) {
@@ -881,16 +901,26 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept=".txt"
+                    accept=".txt,.docx,.pdf"
                     onChange={handleFileSelect}
                     className="hidden"
                   />
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                    disabled={parsingFile}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 disabled:opacity-50"
                   >
-                    <Upload className="w-4 h-4" />
-                    Upload Script (.txt)
+                    {parsingFile ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Parsing...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4" />
+                        Upload Script (.txt, .docx, .pdf)
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
@@ -929,7 +959,7 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <span className="font-medium">{script.title}</span>
                             <span
                               className={`px-2 py-0.5 text-xs rounded-full ${
@@ -944,8 +974,18 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
                                 'Draft'
                               )}
                             </span>
+                            {script.format && (
+                              <span className={`px-2 py-0.5 text-xs rounded-full ${
+                                script.format === 'structured' ? 'bg-purple-100 text-purple-700' :
+                                script.format === 'docx' ? 'bg-blue-100 text-blue-700' :
+                                script.format === 'pdf' ? 'bg-red-100 text-red-700' :
+                                'bg-gray-100 text-gray-700'
+                              }`}>
+                                {script.format === 'structured' ? 'AI Generated' : script.format.toUpperCase()}
+                              </span>
+                            )}
                             {script.shot_count && script.shot_count > 0 && (
-                              <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">
+                              <span className="px-2 py-0.5 text-xs rounded-full bg-cyan-100 text-cyan-700">
                                 {script.shot_count} shots
                               </span>
                             )}
@@ -1015,17 +1055,34 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
         </div>
       )}
 
-      {step === 'upload' && uploadedFile && (
+      {step === 'upload' && uploadedFile && parsedScript && (
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <h3 className="text-lg font-semibold mb-4">Upload Script</h3>
 
           <div className="space-y-4">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 mb-3">
                 <FileText className="w-8 h-8 text-blue-600" />
                 <div className="flex-1">
                   <p className="font-medium text-gray-900">{uploadedFile.name}</p>
                   <p className="text-sm text-gray-600">{(uploadedFile.size / 1024).toFixed(2)} KB</p>
+                </div>
+                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                  parsedScript.format === 'docx' ? 'bg-blue-100 text-blue-700' :
+                  parsedScript.format === 'pdf' ? 'bg-red-100 text-red-700' :
+                  'bg-gray-100 text-gray-700'
+                }`}>
+                  {parsedScript.format.toUpperCase()}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <span className="text-gray-600">Word count:</span>
+                  <span className="ml-2 font-medium text-gray-900">{parsedScript.wordCount.toLocaleString()}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Estimated length:</span>
+                  <span className="ml-2 font-medium text-gray-900">{ScriptUploadService.estimateScriptLength(parsedScript.wordCount)}</span>
                 </div>
               </div>
             </div>
@@ -1062,6 +1119,7 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
               onClick={() => {
                 setStep('select');
                 setUploadedFile(null);
+                setParsedScript(null);
                 setScriptTitle('');
               }}
               className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
