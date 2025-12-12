@@ -5,12 +5,14 @@ import { useOrganization } from '../contexts/OrganizationContext';
 import { backupService } from '../services/backupService';
 import type { RecoveryPoint, IntegrityCheck, BackupSchedule } from '../services/backupService';
 import { LipSyncSettings } from './LipSyncSettings';
+import { PromptLibrary } from './PromptLibrary';
 
 export function Settings() {
   const { currentOrganization } = useOrganization();
   const [apiStatus, setApiStatus] = useState<any>(null);
   const [techDocsExpanded, setTechDocsExpanded] = useState(false);
   const [backupExpanded, setBackupExpanded] = useState(false);
+  const [promptLibraryExpanded, setPromptLibraryExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [copiedText, setCopiedText] = useState('');
 
@@ -421,6 +423,11 @@ export function Settings() {
           <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
             <LipSyncSettings />
           </div>
+
+          <PromptLibrary
+            expanded={promptLibraryExpanded}
+            onToggle={() => setPromptLibraryExpanded(!promptLibraryExpanded)}
+          />
 
           <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
             <button
