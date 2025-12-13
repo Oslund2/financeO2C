@@ -336,6 +336,10 @@ export async function generateScriptWithGemini(
 
     const prompt = buildScriptGenerationPrompt(episode, characters, mergedOptions);
 
+    console.log('Starting script generation...');
+    console.log('Prompt length:', prompt.length, 'characters');
+    console.log('Characters:', characters.length);
+
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
 
     const requestBody = {
@@ -352,6 +356,9 @@ export async function generateScriptWithGemini(
       }
     };
 
+    console.log('Sending request to Gemini API...');
+    const requestStartTime = Date.now();
+
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
@@ -361,8 +368,12 @@ export async function generateScriptWithGemini(
       signal
     });
 
+    const requestDuration = Date.now() - requestStartTime;
+    console.log('Request completed in', requestDuration, 'ms');
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      console.error('API Error:', response.status, response.statusText, errorData);
 
       if (response.status === 429) {
         throw new Error('QUOTA_EXCEEDED');
@@ -379,6 +390,7 @@ export async function generateScriptWithGemini(
       throw new Error(`API_ERROR: ${response.status} ${response.statusText}`);
     }
 
+    console.log('Parsing response...');
     const data = await response.json();
 
     if (!data.candidates || data.candidates.length === 0) {
@@ -396,15 +408,28 @@ export async function generateScriptWithGemini(
 
     const generatedScript: GeneratedScript = convertLegacyScript(parsedScript);
 
+    console.log('Script generated successfully');
+    console.log('Segments:', generatedScript.segments.length);
+    console.log('Total duration:', generatedScript.total_scripted_duration_seconds, 'seconds');
+
     validateGeneratedScript(generatedScript);
 
     return generatedScript;
 
   } catch (error) {
+    console.error('Script generation error:', error);
+
     if (error instanceof Error) {
       if (error.name === 'AbortError') {
+        console.error('Request was aborted/timed out');
         throw new Error('TIMEOUT');
       }
+
+      if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+        console.error('Network connectivity issue');
+        throw new Error('NETWORK_ERROR');
+      }
+
       throw error;
     }
     throw new Error('UNKNOWN_ERROR');

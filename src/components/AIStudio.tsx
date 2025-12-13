@@ -164,8 +164,8 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
       return 'The AI generated an incomplete script. This is rare, but please try generating again.';
     }
 
-    if (errorMsg.includes('network') || errorMsg.includes('fetch')) {
-      return 'Unable to connect to the Gemini API. Please check your internet connection and try again.';
+    if (errorMsg === 'NETWORK_ERROR' || errorMsg.includes('network') || errorMsg.includes('fetch')) {
+      return 'Unable to connect to the Gemini API. This could be due to a network timeout or connectivity issue. Please check your internet connection and try again. If the problem persists, the request may be too large.';
     }
 
     if (errorMsg.includes('Script is too short') || errorMsg.includes('Script is too long')) {
@@ -351,23 +351,23 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
 
       if (scriptError) throw scriptError;
 
-      for (const act of generatedData.script.acts) {
+      for (const segment of generatedData.script.segments) {
         const { data: actData, error: actError } = await supabase
           .from('script_acts')
           .insert([{
             script_id: script.id,
-            act_number: act.act_number,
-            content: `${act.title}\n\n${act.description}`,
-            duration_estimate: act.scenes.reduce((sum: number, s: any) => sum + (s.duration_estimate || 0), 0),
-            notes: act.title
+            act_number: segment.segment_number,
+            content: `${segment.title}\n\n${segment.description}`,
+            duration_estimate: segment.scenes.reduce((sum: number, s: any) => sum + (s.duration_seconds || 0), 0),
+            notes: segment.title
           }])
           .select()
           .single();
 
         if (actError) throw actError;
 
-        for (let sceneIndex = 0; sceneIndex < act.scenes.length; sceneIndex++) {
-          const scene = act.scenes[sceneIndex];
+        for (let sceneIndex = 0; sceneIndex < segment.scenes.length; sceneIndex++) {
+          const scene = segment.scenes[sceneIndex];
           const { error: sceneError } = await supabase
             .from('script_scenes')
             .insert([{
@@ -377,7 +377,7 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
               description: scene.description,
               dialogue: scene.dialogue,
               stage_directions: scene.claymation_notes || '',
-              duration_estimate: scene.duration_estimate
+              duration_estimate: scene.duration_seconds
             }]);
 
           if (sceneError) throw sceneError;
@@ -713,13 +713,13 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
                 <p className="text-gray-700">{generatedData.script.synopsis}</p>
               </div>
 
-              {generatedData.script.acts.map((act: any, actIndex: number) => (
-                <div key={actIndex} className="border border-gray-200 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-900 mb-2">{act.title}</h3>
-                  <p className="text-sm text-gray-700 mb-4">{act.description}</p>
+              {generatedData.script.segments.map((segment: any, segmentIndex: number) => (
+                <div key={segmentIndex} className="border border-gray-200 rounded-lg p-4">
+                  <h3 className="font-semibold text-gray-900 mb-2">{segment.title}</h3>
+                  <p className="text-sm text-gray-700 mb-4">{segment.description}</p>
 
                   <div className="space-y-4">
-                    {act.scenes.map((scene: any, sceneIndex: number) => (
+                    {segment.scenes.map((scene: any, sceneIndex: number) => (
                       <div key={sceneIndex} className="bg-gray-50 rounded-lg p-4">
                         <h4 className="font-medium text-gray-900 mb-2">{scene.title}</h4>
                         <p className="text-sm text-gray-600 mb-3">{scene.description}</p>
