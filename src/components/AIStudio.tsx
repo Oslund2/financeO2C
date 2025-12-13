@@ -141,7 +141,7 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
     const errorMsg = error.message;
 
     if (errorMsg === 'TIMEOUT') {
-      return 'The AI script generation took longer than expected (over 2 minutes). This sometimes happens with complex requests. Please try again, and the AI should respond more quickly.';
+      return 'The AI script generation took longer than expected (over 4 minutes). This sometimes happens with complex requests. Please try again, and the AI should respond more quickly.';
     }
 
     if (errorMsg === 'QUOTA_EXCEEDED') {
@@ -206,7 +206,7 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
 
     const timeout = setTimeout(() => {
       controller.abort();
-    }, 120000);
+    }, 240000);
 
     setGenerating(true);
     setGenerationError(null);
@@ -218,18 +218,22 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
       'Creating dialogue...',
       'Generating scenes...',
       'Building script structure...',
+      'Refining dialogue...',
       'Adding stage directions...',
-      'Finalizing timecodes...',
+      'Optimizing scene transitions...',
+      'Polishing script structure...',
+      'Validating timecodes...',
+      'Finalizing details...',
       'Almost complete...'
     ];
 
     const progressInterval = setInterval(() => {
       setProgress(prev => {
         const newElapsed = prev.elapsedSeconds + 1;
-        const percentage = Math.min((newElapsed / 120) * 100, 95);
+        const percentage = Math.min((newElapsed / 240) * 100, 95);
 
         const messageIndex = Math.min(
-          Math.floor(newElapsed / 15),
+          Math.floor(newElapsed / 20),
           progressMessages.length - 1
         );
 
@@ -283,7 +287,7 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
       clearTimeout(timeout);
       clearInterval(progressInterval);
 
-      setProgress({ elapsedSeconds: 120, statusMessage: 'Complete!', percentage: 100 });
+      setProgress({ elapsedSeconds: 240, statusMessage: 'Complete!', percentage: 100 });
 
       setGeneratedData({
         script: generatedScript,
@@ -625,8 +629,8 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
             <div className="text-sm text-blue-800">
               <p className="font-semibold mb-1">Generation Time</p>
               <p>
-                Script generation typically takes 30-90 seconds. The AI will create a complete 4-segment episode with detailed scenes and dialogue.
-                If generation exceeds 2 minutes, it will automatically timeout and you can try again.
+                Script generation typically takes 1-3 minutes. The AI will create a complete 4-segment episode with detailed scenes and dialogue.
+                If generation exceeds 4 minutes, it will automatically timeout and you can try again.
               </p>
             </div>
           </div>
@@ -644,7 +648,7 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-bold text-blue-600">{progress.elapsedSeconds}s</div>
-                  <div className="text-xs text-gray-600">of 120s max</div>
+                  <div className="text-xs text-gray-600">of 240s max</div>
                 </div>
               </div>
 
@@ -659,7 +663,7 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
 
               <div className="flex items-center justify-between text-xs text-gray-600">
                 <span>{Math.round(progress.percentage)}% Complete</span>
-                <span>{120 - progress.elapsedSeconds}s remaining</span>
+                <span>{240 - progress.elapsedSeconds}s remaining</span>
               </div>
 
               <div className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-600">
