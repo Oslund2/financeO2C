@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Building2, ChevronDown, Check, Settings, Plus } from 'lucide-react';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { OrganizationSettingsModal } from './OrganizationSettingsModal';
+import { CreateWorkspaceModal } from './CreateWorkspaceModal';
 
 export function OrganizationSwitcher() {
   const { currentOrganization, organizations, switchOrganization, loading, refreshOrganizations } = useOrganization();
@@ -195,21 +196,15 @@ export function OrganizationSwitcher() {
       )}
 
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Create New Workspace</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Creating additional workspaces will be available soon. For now, you can manage your
-              existing workspaces and switch between them.
-            </p>
-            <button
-              onClick={() => setShowCreateModal(false)}
-              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Got it
-            </button>
-          </div>
-        </div>
+        <CreateWorkspaceModal
+          onClose={() => setShowCreateModal(false)}
+          onCreate={(newOrgId) => {
+            refreshOrganizations().then(() => {
+              switchOrganization(newOrgId);
+              setShowCreateModal(false);
+            });
+          }}
+        />
       )}
     </div>
   );
