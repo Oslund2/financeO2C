@@ -199,6 +199,30 @@ export function ScriptTranslationManager({ scriptId, scriptTitle }: ScriptTransl
           </label>
         </div>
 
+        {enableMultiLanguage && (
+          <div className="mb-4">
+            <button
+              onClick={() => {
+                if (completedTranslations.length === 0) {
+                  alert('No translations available yet. Please translate the script to at least one language first.');
+                  return;
+                }
+                setShowTranslationCard(!showTranslationCard);
+              }}
+              disabled={completedTranslations.length === 0}
+              className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
+                completedTranslations.length > 0
+                  ? 'bg-blue-500 text-white hover:bg-blue-600'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+            >
+              <Globe className="w-4 h-4" />
+              {showTranslationCard ? 'Hide' : 'View'} Translated Scripts
+              {completedTranslations.length > 0 && ` (${completedTranslations.length})`}
+            </button>
+          </div>
+        )}
+
         <div className="space-y-2 max-h-96 overflow-y-auto">
           {languages.map((language) => (
             <div
@@ -243,17 +267,6 @@ export function ScriptTranslationManager({ scriptId, scriptTitle }: ScriptTransl
               <span className="font-medium text-gray-700">Enabled Languages:</span>
               <span className="font-bold text-green-600">{enabledLanguages.length}</span>
             </div>
-            {completedTranslations.length > 0 && (
-              <div className="mt-2">
-                <button
-                  onClick={() => setShowTranslationCard(!showTranslationCard)}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
-                >
-                  <Globe className="w-4 h-4" />
-                  {showTranslationCard ? 'Hide' : 'View'} Translated Scripts ({completedTranslations.length})
-                </button>
-              </div>
-            )}
           </div>
         )}
       </div>
