@@ -1,6 +1,10 @@
 import { supabase } from '../lib/supabase';
 import { calculateCreatorCosts, type CreatorCostBreakdown } from './creatorCostCalculationService';
 
+export type AnimationStyle = 'claymation' | 'hyper_real' | '3d';
+export type ProductionTier = 'indie' | 'mid_tier' | 'broadcast';
+export type FreelanceTier = 'entry' | 'mid' | 'senior';
+
 export interface CostConfig {
   id: string;
   series_id: string | null;
@@ -26,6 +30,19 @@ export interface CostConfig {
   asset_decay_rate?: number;
   asset_decay_floor?: number;
   human_cost_profile?: string;
+  animation_style?: AnimationStyle;
+  production_tier?: ProductionTier;
+  traditional_labor_hours_per_minute?: number;
+  traditional_animator_hourly_rate?: number;
+  traditional_materials_cost_per_character?: number;
+  traditional_set_cost_per_scene?: number;
+  traditional_voice_talent_per_session?: number;
+  traditional_studio_daily_rate?: number;
+  traditional_reshoot_percentage?: number;
+  traditional_frame_rate?: number;
+  freelance_tier?: FreelanceTier;
+  freelance_hourly_rate?: number;
+  freelance_platform_fee_percentage?: number;
 }
 
 export type HumanCostProfile = 'lean' | 'standard' | 'broadcast';
@@ -82,6 +99,110 @@ export const HUMAN_COST_PROFILES: Record<HumanCostProfile, HumanCostProfileSetti
   },
 };
 
+export interface AnimationStyleSettings {
+  name: string;
+  description: string;
+  laborMultiplier: number;
+  baseHoursPerMinute: number;
+  materialsMultiplier: number;
+}
+
+export const ANIMATION_STYLE_MULTIPLIERS: Record<AnimationStyle, AnimationStyleSettings> = {
+  claymation: {
+    name: 'Claymation / Stop-Motion',
+    description: 'Traditional stop-motion with clay or physical puppets',
+    laborMultiplier: 1.0,
+    baseHoursPerMinute: 350,
+    materialsMultiplier: 1.0,
+  },
+  hyper_real: {
+    name: 'Hyper-Realistic 2D',
+    description: 'High-detail 2D animation with realistic movement',
+    laborMultiplier: 1.5,
+    baseHoursPerMinute: 500,
+    materialsMultiplier: 0.3,
+  },
+  '3d': {
+    name: 'Full 3D Animation',
+    description: 'Computer-generated 3D animation and rendering',
+    laborMultiplier: 2.5,
+    baseHoursPerMinute: 750,
+    materialsMultiplier: 0.1,
+  },
+};
+
+export interface ProductionTierSettings {
+  name: string;
+  description: string;
+  hourlyRate: number;
+  materialsPerCharacter: number;
+  setCostPerScene: number;
+  voiceTalentPerSession: number;
+  studioDailyRate: number;
+  reshootPercentage: number;
+}
+
+export const PRODUCTION_TIER_PRESETS: Record<ProductionTier, ProductionTierSettings> = {
+  indie: {
+    name: 'Indie Production',
+    description: 'Low-budget independent production with smaller teams',
+    hourlyRate: 25,
+    materialsPerCharacter: 500,
+    setCostPerScene: 1000,
+    voiceTalentPerSession: 200,
+    studioDailyRate: 150,
+    reshootPercentage: 20,
+  },
+  mid_tier: {
+    name: 'Mid-Tier Studio',
+    description: 'Professional studio with industry-standard rates',
+    hourlyRate: 40,
+    materialsPerCharacter: 1000,
+    setCostPerScene: 2500,
+    voiceTalentPerSession: 500,
+    studioDailyRate: 350,
+    reshootPercentage: 25,
+  },
+  broadcast: {
+    name: 'Broadcast Quality',
+    description: 'Premium production for major networks/streaming',
+    hourlyRate: 65,
+    materialsPerCharacter: 2000,
+    setCostPerScene: 5000,
+    voiceTalentPerSession: 1000,
+    studioDailyRate: 500,
+    reshootPercentage: 30,
+  },
+};
+
+export interface FreelanceTierSettings {
+  name: string;
+  description: string;
+  hourlyRate: number;
+  platformFeePercentage: number;
+}
+
+export const FREELANCE_TIER_PRESETS: Record<FreelanceTier, FreelanceTierSettings> = {
+  entry: {
+    name: 'Entry-Level',
+    description: 'New freelancers on Fiverr/Upwork',
+    hourlyRate: 25,
+    platformFeePercentage: 20,
+  },
+  mid: {
+    name: 'Mid-Level',
+    description: 'Experienced freelancers with portfolios',
+    hourlyRate: 50,
+    platformFeePercentage: 15,
+  },
+  senior: {
+    name: 'Senior Expert',
+    description: 'Top-rated professionals with extensive experience',
+    hourlyRate: 100,
+    platformFeePercentage: 10,
+  },
+};
+
 export interface HumanCostBreakdown {
   editingCost: number;
   sceneSetupCost: number;
@@ -108,6 +229,32 @@ export interface ScriptData {
   unique_characters: string[];
 }
 
+export interface TraditionalLaborBreakdown {
+  animatorLaborCost: number;
+  animatorHours: number;
+  animatorHourlyRate: number;
+  materialsCost: number;
+  setCostTotal: number;
+  voiceTalentCost: number;
+  studioCost: number;
+  studioDays: number;
+  reshootContingency: number;
+  totalLaborCost: number;
+  animationStyle: AnimationStyle;
+  productionTier: ProductionTier;
+  styleMultiplier: number;
+}
+
+export interface FreelanceCostBreakdown {
+  baseLaborCost: number;
+  laborHours: number;
+  hourlyRate: number;
+  platformFees: number;
+  totalCost: number;
+  freelanceTier: FreelanceTier;
+  platformFeePercentage: number;
+}
+
 export interface CostBreakdown {
   baseCost: number;
   actsCost: number;
@@ -118,15 +265,19 @@ export interface CostBreakdown {
   lipSyncCost?: number;
   complexityAdjustment: number;
   humanCosts?: HumanCostBreakdown;
+  traditionalLabor?: TraditionalLaborBreakdown;
   totalCost: number;
 }
 
 export interface CostComparison {
   aiCost: CostBreakdown;
   traditionalCost: CostBreakdown;
+  freelanceCost?: FreelanceCostBreakdown;
   creatorCost?: CreatorCostBreakdown;
   savings: number;
   savingsPercentage: number;
+  savingsVsFreelance?: number;
+  savingsVsFreelancePercentage?: number;
   savingsVsCreator?: number;
   savingsVsCreatorPercentage?: number;
 }
@@ -333,29 +484,98 @@ function calculateAICost(
 }
 
 function calculateTraditionalCost(scriptData: ScriptData, config: CostConfig): CostBreakdown {
-  const actCount = scriptData.acts.length;
   const sceneCount = scriptData.acts.reduce((sum, act) => sum + act.scenes.length, 0);
+  const characterCount = scriptData.unique_characters.length;
+  const dialogueSessionCount = Math.ceil(characterCount / 3);
 
-  const baseCost = scriptData.runtime_minutes * config.cost_per_minute_traditional;
-  const actsCost = actCount * config.cost_per_act * 3;
-  const scenesCost = sceneCount * config.cost_per_scene * 4;
-  const charactersCost = scriptData.unique_characters.length * config.cost_per_character * 5;
-  const voicesCost = 0;
-  const videoGenerationCost = 0;
+  const animationStyle = config.animation_style || 'claymation';
+  const productionTier = config.production_tier || 'mid_tier';
 
-  const complexityAdjustment = scenesCost * 0.5;
+  const styleSettings = ANIMATION_STYLE_MULTIPLIERS[animationStyle];
+  const tierSettings = PRODUCTION_TIER_PRESETS[productionTier];
 
-  const totalCost = baseCost + actsCost + scenesCost + charactersCost + voicesCost + videoGenerationCost + complexityAdjustment;
+  const baseHoursPerMinute = config.traditional_labor_hours_per_minute ?? styleSettings.baseHoursPerMinute;
+  const hourlyRate = config.traditional_animator_hourly_rate ?? tierSettings.hourlyRate;
+  const materialsPerCharacter = config.traditional_materials_cost_per_character ?? tierSettings.materialsPerCharacter;
+  const setCostPerScene = config.traditional_set_cost_per_scene ?? tierSettings.setCostPerScene;
+  const voiceTalentPerSession = config.traditional_voice_talent_per_session ?? tierSettings.voiceTalentPerSession;
+  const studioDailyRate = config.traditional_studio_daily_rate ?? tierSettings.studioDailyRate;
+  const reshootPercentage = config.traditional_reshoot_percentage ?? tierSettings.reshootPercentage;
+
+  const styleMultiplier = styleSettings.laborMultiplier;
+  const materialsMultiplier = styleSettings.materialsMultiplier;
+
+  const animatorHours = scriptData.runtime_minutes * baseHoursPerMinute * styleMultiplier;
+  const animatorLaborCost = animatorHours * hourlyRate;
+
+  const materialsCost = characterCount * materialsPerCharacter * materialsMultiplier;
+
+  const uniqueSceneCount = Math.ceil(sceneCount * 0.7);
+  const setCostTotal = uniqueSceneCount * setCostPerScene * materialsMultiplier;
+
+  const voiceTalentCost = dialogueSessionCount * voiceTalentPerSession;
+
+  const studioDays = Math.ceil(animatorHours / 8 / 3);
+  const studioCost = studioDays * studioDailyRate;
+
+  const baseProductionCost = animatorLaborCost + materialsCost + setCostTotal + voiceTalentCost + studioCost;
+  const reshootContingency = baseProductionCost * (reshootPercentage / 100);
+
+  const totalLaborCost = baseProductionCost + reshootContingency;
+
+  const traditionalLabor: TraditionalLaborBreakdown = {
+    animatorLaborCost,
+    animatorHours,
+    animatorHourlyRate: hourlyRate,
+    materialsCost,
+    setCostTotal,
+    voiceTalentCost,
+    studioCost,
+    studioDays,
+    reshootContingency,
+    totalLaborCost,
+    animationStyle,
+    productionTier,
+    styleMultiplier,
+  };
 
   return {
-    baseCost,
-    actsCost,
-    scenesCost,
-    charactersCost,
-    voicesCost,
-    videoGenerationCost,
-    complexityAdjustment,
-    totalCost,
+    baseCost: animatorLaborCost,
+    actsCost: 0,
+    scenesCost: setCostTotal,
+    charactersCost: materialsCost,
+    voicesCost: voiceTalentCost,
+    videoGenerationCost: 0,
+    complexityAdjustment: reshootContingency + studioCost,
+    traditionalLabor,
+    totalCost: totalLaborCost,
+  };
+}
+
+function calculateFreelanceCost(scriptData: ScriptData, config: CostConfig): FreelanceCostBreakdown {
+  const animationStyle = config.animation_style || 'claymation';
+  const freelanceTier = config.freelance_tier || 'mid';
+
+  const styleSettings = ANIMATION_STYLE_MULTIPLIERS[animationStyle];
+  const tierSettings = FREELANCE_TIER_PRESETS[freelanceTier];
+
+  const hourlyRate = config.freelance_hourly_rate ?? tierSettings.hourlyRate;
+  const platformFeePercentage = config.freelance_platform_fee_percentage ?? tierSettings.platformFeePercentage;
+
+  const baseHoursPerMinute = styleSettings.baseHoursPerMinute * 0.6;
+  const laborHours = scriptData.runtime_minutes * baseHoursPerMinute * styleSettings.laborMultiplier;
+
+  const baseLaborCost = laborHours * hourlyRate;
+  const platformFees = baseLaborCost * (platformFeePercentage / 100);
+
+  return {
+    baseLaborCost,
+    laborHours,
+    hourlyRate,
+    platformFees,
+    totalCost: baseLaborCost + platformFees,
+    freelanceTier,
+    platformFeePercentage,
   };
 }
 
@@ -364,7 +584,8 @@ export async function calculateProductionCosts(
   seriesId: string | null,
   includeCreatorCosts: boolean = false,
   episodeNumber: number = 1,
-  includeHumanCosts: boolean = true
+  includeHumanCosts: boolean = true,
+  includeFreelanceCosts: boolean = true
 ): Promise<CostComparison> {
   const config = await getCostConfig(seriesId);
 
@@ -372,7 +593,21 @@ export async function calculateProductionCosts(
   const traditionalCost = calculateTraditionalCost(scriptData, config);
 
   const savings = traditionalCost.totalCost - aiCost.totalCost;
-  const savingsPercentage = (savings / traditionalCost.totalCost) * 100;
+  const savingsPercentage = traditionalCost.totalCost > 0
+    ? (savings / traditionalCost.totalCost) * 100
+    : 0;
+
+  let freelanceCost: FreelanceCostBreakdown | undefined;
+  let savingsVsFreelance: number | undefined;
+  let savingsVsFreelancePercentage: number | undefined;
+
+  if (includeFreelanceCosts) {
+    freelanceCost = calculateFreelanceCost(scriptData, config);
+    savingsVsFreelance = freelanceCost.totalCost - aiCost.totalCost;
+    savingsVsFreelancePercentage = freelanceCost.totalCost > 0
+      ? (savingsVsFreelance / freelanceCost.totalCost) * 100
+      : 0;
+  }
 
   let creatorCost: CreatorCostBreakdown | undefined;
   let savingsVsCreator: number | undefined;
@@ -382,7 +617,9 @@ export async function calculateProductionCosts(
     try {
       creatorCost = await calculateCreatorCosts(seriesId);
       savingsVsCreator = creatorCost.metrics.totalCreatorCost - aiCost.totalCost;
-      savingsVsCreatorPercentage = (savingsVsCreator / creatorCost.metrics.totalCreatorCost) * 100;
+      savingsVsCreatorPercentage = creatorCost.metrics.totalCreatorCost > 0
+        ? (savingsVsCreator / creatorCost.metrics.totalCreatorCost) * 100
+        : 0;
     } catch (error) {
       console.error('Error calculating creator costs:', error);
     }
@@ -391,9 +628,12 @@ export async function calculateProductionCosts(
   return {
     aiCost,
     traditionalCost,
+    freelanceCost,
     creatorCost,
     savings,
     savingsPercentage,
+    savingsVsFreelance,
+    savingsVsFreelancePercentage,
     savingsVsCreator,
     savingsVsCreatorPercentage,
   };

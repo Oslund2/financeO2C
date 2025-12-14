@@ -1,6 +1,7 @@
-import { DollarSign, TrendingDown, Sparkles, ChevronDown, ChevronUp, Info, Users, ArrowDown, UserCog } from 'lucide-react';
+import { DollarSign, TrendingDown, Sparkles, ChevronDown, ChevronUp, Info, Users, ArrowDown, UserCog, Clock, Briefcase, Building, Hammer } from 'lucide-react';
 import { useState } from 'react';
-import type { CostComparison as CostComparisonType, HumanCostBreakdown } from '../services/costCalculationService';
+import type { CostComparison as CostComparisonType, HumanCostBreakdown, TraditionalLaborBreakdown, FreelanceCostBreakdown } from '../services/costCalculationService';
+import { ANIMATION_STYLE_MULTIPLIERS, PRODUCTION_TIER_PRESETS, FREELANCE_TIER_PRESETS } from '../services/costCalculationService';
 import { InfoTooltip } from './InfoTooltip';
 import { formatCurrency } from '../services/creatorCostCalculationService';
 
@@ -111,13 +112,162 @@ function HumanCostSection({ humanCosts }: { humanCosts: HumanCostBreakdown }) {
   );
 }
 
+function TraditionalLaborSection({ labor }: { labor: TraditionalLaborBreakdown }) {
+  const styleSettings = ANIMATION_STYLE_MULTIPLIERS[labor.animationStyle];
+  const tierSettings = PRODUCTION_TIER_PRESETS[labor.productionTier];
+
+  return (
+    <div className="mt-4 pt-4 border-t border-gray-300">
+      <div className="flex items-center gap-2 mb-3">
+        <Hammer className="w-4 h-4 text-gray-700" />
+        <span className="font-semibold text-gray-900 text-sm">Labor Breakdown</span>
+      </div>
+
+      <div className="mb-3 flex flex-wrap gap-2">
+        <span className="text-xs px-2 py-1 bg-gray-200 text-gray-700 rounded-full">
+          {styleSettings.name}
+        </span>
+        <span className="text-xs px-2 py-1 bg-gray-200 text-gray-700 rounded-full">
+          {tierSettings.name}
+        </span>
+      </div>
+
+      <div className="space-y-1.5">
+        <div className="flex justify-between text-gray-700 text-sm">
+          <span className="flex items-center">
+            Animator Labor:
+            <InfoTooltip content={`${labor.animatorHours.toLocaleString()} hours at $${labor.animatorHourlyRate}/hr. Based on industry standard of 300-500 hours per minute of animation.`} />
+          </span>
+          <span className="font-medium">{formatCurrency(labor.animatorLaborCost)}</span>
+        </div>
+
+        <div className="flex justify-between text-gray-700 text-sm">
+          <span className="flex items-center">
+            Physical Materials:
+            <InfoTooltip content="Clay, armatures, costumes, and props for each character. Physical models require maintenance throughout production." />
+          </span>
+          <span className="font-medium">{formatCurrency(labor.materialsCost)}</span>
+        </div>
+
+        <div className="flex justify-between text-gray-700 text-sm">
+          <span className="flex items-center">
+            Set Construction:
+            <InfoTooltip content="Physical sets, backgrounds, and miniatures. Each unique location requires custom construction." />
+          </span>
+          <span className="font-medium">{formatCurrency(labor.setCostTotal)}</span>
+        </div>
+
+        <div className="flex justify-between text-gray-700 text-sm">
+          <span className="flex items-center">
+            Voice Talent:
+            <InfoTooltip content="Professional voice actors (SAG rates). Includes recording sessions and direction." />
+          </span>
+          <span className="font-medium">{formatCurrency(labor.voiceTalentCost)}</span>
+        </div>
+
+        <div className="flex justify-between text-gray-700 text-sm">
+          <span className="flex items-center">
+            Studio Rental:
+            <InfoTooltip content={`${labor.studioDays} days of studio time at $${tierSettings.studioDailyRate}/day. Includes equipment and facilities.`} />
+          </span>
+          <span className="font-medium">{formatCurrency(labor.studioCost)}</span>
+        </div>
+
+        <div className="flex justify-between text-gray-700 text-sm">
+          <span className="flex items-center">
+            Reshoot Contingency:
+            <InfoTooltip content="Stop-motion requires complete reshooting for errors. Industry standard is 20-30% contingency." />
+          </span>
+          <span className="font-medium">{formatCurrency(labor.reshootContingency)}</span>
+        </div>
+
+        <div className="flex justify-between text-gray-900 text-sm pt-2 border-t border-gray-300">
+          <span className="font-semibold">Total Production:</span>
+          <span className="font-bold text-gray-700">{formatCurrency(labor.totalLaborCost)}</span>
+        </div>
+      </div>
+
+      <div className="mt-3 p-2 bg-gray-100 rounded-lg">
+        <div className="flex items-center gap-2 text-xs text-gray-600">
+          <Clock className="w-3 h-3" />
+          <span>{labor.animatorHours.toLocaleString()} total animator hours</span>
+        </div>
+        <div className="text-xs text-gray-500 mt-1">
+          {labor.styleMultiplier > 1 ? `${labor.styleMultiplier}x labor multiplier for ${styleSettings.name}` : 'Baseline labor rate'}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FreelanceCostCard({ freelanceCost, showDetailed }: { freelanceCost: FreelanceCostBreakdown; showDetailed: boolean }) {
+  const tierSettings = FREELANCE_TIER_PRESETS[freelanceCost.freelanceTier];
+
+  return (
+    <div className="bg-gradient-to-br from-cyan-50 to-teal-50 border-2 border-cyan-200 rounded-xl p-6">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-10 h-10 bg-cyan-500 rounded-lg flex items-center justify-center">
+          <Briefcase className="w-5 h-5 text-white" />
+        </div>
+        <div>
+          <h3 className="font-semibold text-gray-900">Creator Economy</h3>
+          <p className="text-sm text-gray-600">Fiverr / Upwork freelancers</p>
+        </div>
+      </div>
+
+      <div className="text-3xl font-bold text-cyan-700 mb-4">
+        {formatCurrency(freelanceCost.totalCost)}
+      </div>
+
+      {showDetailed && (
+        <div className="space-y-2 text-sm">
+          <div className="mb-3">
+            <span className="text-xs px-2 py-1 bg-cyan-100 text-cyan-700 rounded-full">
+              {tierSettings.name} ({tierSettings.description})
+            </span>
+          </div>
+
+          <div className="flex justify-between text-gray-700">
+            <span className="flex items-center">
+              Labor Cost:
+              <InfoTooltip content={`${freelanceCost.laborHours.toLocaleString()} hours at $${freelanceCost.hourlyRate}/hr. Freelancers work faster than traditional studios but still require significant hours.`} />
+            </span>
+            <span className="font-medium">{formatCurrency(freelanceCost.baseLaborCost)}</span>
+          </div>
+
+          <div className="flex justify-between text-gray-700">
+            <span className="flex items-center">
+              Platform Fees:
+              <InfoTooltip content={`${freelanceCost.platformFeePercentage}% platform fee (Fiverr ~20%, Upwork ~10-20%)`} />
+            </span>
+            <span className="font-medium">{formatCurrency(freelanceCost.platformFees)}</span>
+          </div>
+
+          <div className="mt-3 p-2 bg-cyan-100 rounded-lg">
+            <div className="flex items-center gap-2 text-xs text-cyan-700">
+              <Clock className="w-3 h-3" />
+              <span>{freelanceCost.laborHours.toLocaleString()} estimated hours</span>
+            </div>
+            <div className="text-xs text-cyan-600 mt-1">
+              ${freelanceCost.hourlyRate}/hr ({tierSettings.name})
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function CostComparison({ comparison, showDetailed = false }: CostComparisonProps) {
-  const { aiCost, traditionalCost, creatorCost, savings, savingsPercentage, savingsVsCreator, savingsVsCreatorPercentage } = comparison;
+  const { aiCost, traditionalCost, freelanceCost, creatorCost, savings, savingsPercentage, savingsVsFreelance, savingsVsFreelancePercentage, savingsVsCreator, savingsVsCreatorPercentage } = comparison;
   const [showGlossary, setShowGlossary] = useState(false);
+
+  const columnCount = 2 + (freelanceCost ? 1 : 0) + (creatorCost ? 1 : 0);
+  const gridClass = columnCount === 4 ? 'lg:grid-cols-4 md:grid-cols-2' : columnCount === 3 ? 'md:grid-cols-3' : 'md:grid-cols-2';
 
   return (
     <div className="space-y-4">
-      <div className={`grid grid-cols-1 gap-4 ${creatorCost ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
+      <div className={`grid grid-cols-1 gap-4 ${gridClass}`}>
         <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-6">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
@@ -199,12 +349,12 @@ export function CostComparison({ comparison, showDetailed = false }: CostCompari
 
         <div className="bg-gradient-to-br from-gray-50 to-slate-50 border-2 border-gray-300 rounded-xl p-6">
           <div className="flex items-center gap-2 mb-4">
-            <div className="w-10 h-10 bg-gray-500 rounded-lg flex items-center justify-center">
-              <DollarSign className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 bg-gray-600 rounded-lg flex items-center justify-center">
+              <Building className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900">Traditional Animation</h3>
-              <p className="text-sm text-gray-600">Manual claymation production</p>
+              <h3 className="font-semibold text-gray-900">Traditional Studio</h3>
+              <p className="text-sm text-gray-600">Professional animation studio</p>
             </div>
           </div>
 
@@ -216,55 +366,54 @@ export function CostComparison({ comparison, showDetailed = false }: CostCompari
             <div className="space-y-2 text-sm">
               <div className="flex justify-between text-gray-700">
                 <span className="flex items-center">
-                  Base Cost:
-                  <InfoTooltip content="Traditional animation cost per minute including crew salaries, studio time, and materials." />
+                  Animator Labor:
+                  <InfoTooltip content="Professional animators working frame-by-frame. Stop-motion requires 300-500 hours per minute of animation." />
                 </span>
                 <span className="font-medium">{formatCurrency(traditionalCost.baseCost)}</span>
               </div>
               <div className="flex justify-between text-gray-700">
                 <span className="flex items-center">
-                  Acts:
-                  <InfoTooltip
-                    title="3x AI Cost"
-                    content="Manual storyboarding, planning meetings, and setup for each act. Traditional requires significantly more human labor."
-                  />
-                </span>
-                <span className="font-medium">{formatCurrency(traditionalCost.actsCost)}</span>
-              </div>
-              <div className="flex justify-between text-gray-700">
-                <span className="flex items-center">
-                  Scenes:
-                  <InfoTooltip
-                    title="4x AI Cost"
-                    content="Physical set construction, lighting setup, camera positioning, and multiple takes for each scene."
-                  />
+                  Set Construction:
+                  <InfoTooltip content="Physical sets, backgrounds, and miniatures for each unique location." />
                 </span>
                 <span className="font-medium">{formatCurrency(traditionalCost.scenesCost)}</span>
               </div>
               <div className="flex justify-between text-gray-700">
                 <span className="flex items-center">
-                  Characters:
-                  <InfoTooltip
-                    title="5x AI Cost"
-                    content="Physical model creation, armature rigging, costume design, and character maintenance throughout production."
-                  />
+                  Physical Materials:
+                  <InfoTooltip content="Clay, armatures, costumes, and props for each character." />
                 </span>
                 <span className="font-medium">{formatCurrency(traditionalCost.charactersCost)}</span>
+              </div>
+              <div className="flex justify-between text-gray-700">
+                <span className="flex items-center">
+                  Voice Talent:
+                  <InfoTooltip content="Professional voice actors at SAG rates." />
+                </span>
+                <span className="font-medium">{formatCurrency(traditionalCost.voicesCost)}</span>
               </div>
               {traditionalCost.complexityAdjustment !== 0 && (
                 <div className="flex justify-between text-gray-700">
                   <span className="flex items-center">
-                    Complexity Adjustment:
-                    <InfoTooltip content="Additional 50% cost for complex scenes requiring extra manual work, precision positioning, and multiple filming attempts." />
+                    Studio & Contingency:
+                    <InfoTooltip content="Studio rental, equipment, and reshoot contingency (25-30% for stop-motion errors)." />
                   </span>
                   <span className="font-medium">
                     {formatCurrency(traditionalCost.complexityAdjustment)}
                   </span>
                 </div>
               )}
+
+              {traditionalCost.traditionalLabor && (
+                <TraditionalLaborSection labor={traditionalCost.traditionalLabor} />
+              )}
             </div>
           )}
         </div>
+
+        {freelanceCost && (
+          <FreelanceCostCard freelanceCost={freelanceCost} showDetailed={showDetailed} />
+        )}
 
         {creatorCost && (
           <div className="bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-orange-200 rounded-xl p-6">
@@ -356,15 +505,26 @@ export function CostComparison({ comparison, showDetailed = false }: CostCompari
           </p>
         </div>
 
-        {creatorCost && savingsVsCreator !== undefined && savingsVsCreatorPercentage !== undefined && (
-          <div className="mt-4 pt-4 border-t border-blue-200">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">Savings vs Creator Labor:</span>
-              <div className="text-right">
-                <div className="text-xl font-bold text-blue-700">{formatCurrency(savingsVsCreator)}</div>
-                <div className="text-sm text-blue-600">({savingsVsCreatorPercentage.toFixed(1)}% savings)</div>
+        {(freelanceCost || creatorCost) && (
+          <div className="mt-4 pt-4 border-t border-blue-200 space-y-3">
+            {freelanceCost && savingsVsFreelance !== undefined && savingsVsFreelancePercentage !== undefined && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">vs Freelancers (Fiverr/Upwork):</span>
+                <div className="text-right">
+                  <div className="text-lg font-bold text-blue-700">{formatCurrency(savingsVsFreelance)}</div>
+                  <div className="text-sm text-blue-600">({savingsVsFreelancePercentage.toFixed(1)}% savings)</div>
+                </div>
               </div>
-            </div>
+            )}
+            {creatorCost && savingsVsCreator !== undefined && savingsVsCreatorPercentage !== undefined && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">vs In-House Creator Team:</span>
+                <div className="text-right">
+                  <div className="text-lg font-bold text-blue-700">{formatCurrency(savingsVsCreator)}</div>
+                  <div className="text-sm text-blue-600">({savingsVsCreatorPercentage.toFixed(1)}% savings)</div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
