@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Globe, Loader2, CheckCircle, XCircle, Languages } from 'lucide-react';
+import { Globe, Loader2, CheckCircle, XCircle, Languages, AlertTriangle, RefreshCw } from 'lucide-react';
 import { ScriptTranslationService, type ScriptTranslationStatus } from '../services/scriptTranslationService';
 import { TranslatedScriptCard } from './TranslatedScriptCard';
 
@@ -19,6 +19,7 @@ export function ScriptTranslationManager({ scriptId, scriptTitle }: ScriptTransl
   const [showTranslationCard, setShowTranslationCard] = useState(false);
   const [translationStatuses, setTranslationStatuses] = useState<Map<string, ScriptTranslationStatus>>(new Map());
   const [translating, setTranslating] = useState<Set<string>>(new Set());
+  const [incompleteTranslations, setIncompleteTranslations] = useState<Set<string>>(new Set());
 
   const [languages, setLanguages] = useState<Language[]>([
     { code: 'en', name: 'English', enabled: true },
@@ -54,15 +55,46 @@ export function ScriptTranslationManager({ scriptId, scriptTitle }: ScriptTransl
 
   const loadTranslationStatuses = async () => {
     const statuses = new Map<string, ScriptTranslationStatus>();
+    const incomplete = new Set<string>();
+
     for (const lang of languages) {
       if (lang.code !== 'en') {
         const status = await ScriptTranslationService.getTranslationStatus(scriptId, lang.code);
         if (status) {
           statuses.set(lang.code, status);
+
+          // Check if translation is incomplete (completed but has no content)
+          if (status.status === 'completed') {
+            const content = await ScriptTranslationService.getTranslatedScript(scriptId, lang.code);
+            if (content && content.acts) {
+              let hasDialogue = false;
+              for (const act of content.acts) {
+                for (const scene of act.scenes) {
+                  if (scene.dialogue && Array.isArray(scene.dialogue) && scene.dialogue.length > 0) {
+                    const hasText = scene.dialogue.some((line: any) => {
+                      const text = line.text || line.line || '';
+                      return text.trim().length > 0;
+                    });
+                    if (hasText) {
+                      hasDialogue = true;
+                      break;
+                    }
+                  }
+                }
+                if (hasDialogue) break;
+              }
+
+              if (!hasDialogue) {
+                incomplete.add(lang.code);
+              }
+            }
+          }
         }
       }
     }
+
     setTranslationStatuses(statuses);
+    setIncompleteTranslations(incomplete);
   };
 
   const toggleLanguage = (code: string) => {
@@ -104,8 +136,30 @@ export function ScriptTranslationManager({ scriptId, scriptTitle }: ScriptTransl
     }
   };
 
+  const handleRetranslateAll = async () => {
+    const completed = Array.from(translationStatuses.entries())
+      .filter(([_, status]) => status.status === 'completed')
+      .map(([code]) => code);
+
+    if (completed.length === 0) {
+      alert('No completed translations to re-translate.');
+      return;
+    }
+
+    if (!confirm(`This will re-translate all ${completed.length} language(s). Continue?`)) {
+      return;
+    }
+
+    for (const languageCode of completed) {
+      const lang = languages.find(l => l.code === languageCode);
+      if (lang) {
+        await handleTranslateScript(languageCode, lang.name);
+      }
+    }
+  };
+
   const getTranslationButton = (language: Language) => {
-    if (language.code === 'en' || !language.enabled) return null;
+    if (language.code === 'en') return null;
 
     const status = translationStatuses.get(language.code);
     const isTranslating = translating.has(language.code);
@@ -120,17 +174,30 @@ export function ScriptTranslationManager({ scriptId, scriptTitle }: ScriptTransl
     }
 
     if (status?.status === 'completed') {
+      const isIncomplete = incompleteTranslations.has(language.code);
+
       return (
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-lg text-xs">
-            <CheckCircle className="w-3 h-3" />
-            <span>Translated</span>
-          </div>
+          {isIncomplete ? (
+            <div className="flex items-center gap-1 px-3 py-1 bg-yellow-100 text-yellow-700 rounded-lg text-xs">
+              <AlertTriangle className="w-3 h-3" />
+              <span>Incomplete</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-lg text-xs">
+              <CheckCircle className="w-3 h-3" />
+              <span>Translated</span>
+            </div>
+          )}
           <button
             onClick={() => handleTranslateScript(language.code, language.name)}
-            className="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-xs"
+            className={`px-3 py-1 text-white rounded-lg transition-colors text-xs font-medium ${
+              isIncomplete
+                ? 'bg-orange-500 hover:bg-orange-600'
+                : 'bg-blue-500 hover:bg-blue-600'
+            }`}
           >
-            Re-translate
+            {isIncomplete ? 'Fix Translation' : 'Re-translate'}
           </button>
         </div>
       );
@@ -159,6 +226,9 @@ export function ScriptTranslationManager({ scriptId, scriptTitle }: ScriptTransl
         </div>
       );
     }
+
+    // Only show Convert Script button if language is enabled
+    if (!language.enabled) return null;
 
     return (
       <button
@@ -200,7 +270,7 @@ export function ScriptTranslationManager({ scriptId, scriptTitle }: ScriptTransl
         </div>
 
         {enableMultiLanguage && (
-          <div className="mb-4">
+          <div className="mb-4 space-y-2">
             <button
               onClick={() => {
                 if (completedTranslations.length === 0) {
@@ -220,6 +290,17 @@ export function ScriptTranslationManager({ scriptId, scriptTitle }: ScriptTransl
               {showTranslationCard ? 'Hide' : 'View'} Translated Scripts
               {completedTranslations.length > 0 && ` (${completedTranslations.length})`}
             </button>
+
+            {completedTranslations.length > 1 && (
+              <button
+                onClick={handleRetranslateAll}
+                disabled={translating.size > 0}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium bg-orange-500 text-white hover:bg-orange-600 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Re-translate All Languages ({completedTranslations.length})
+              </button>
+            )}
           </div>
         )}
 
@@ -277,6 +358,7 @@ export function ScriptTranslationManager({ scriptId, scriptTitle }: ScriptTransl
           scriptTitle={scriptTitle}
           availableLanguages={completedTranslations}
           onClose={() => setShowTranslationCard(false)}
+          onRetranslate={handleTranslateScript}
         />
       )}
     </div>

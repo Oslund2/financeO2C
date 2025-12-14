@@ -8,6 +8,7 @@ interface TranslatedScriptCardProps {
   scriptTitle: string;
   availableLanguages: Array<{ code: string; name: string }>;
   onClose: () => void;
+  onRetranslate?: (languageCode: string, languageName: string) => void;
 }
 
 interface Translation {
@@ -42,7 +43,7 @@ interface Scene {
   characters: string[];
 }
 
-export function TranslatedScriptCard({ scriptId, scriptTitle, availableLanguages, onClose }: TranslatedScriptCardProps) {
+export function TranslatedScriptCard({ scriptId, scriptTitle, availableLanguages, onClose, onRetranslate }: TranslatedScriptCardProps) {
   const [translations, setTranslations] = useState<Translation[]>([]);
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
   const [translatedContent, setTranslatedContent] = useState<{ acts: Act[] } | null>(null);
@@ -279,6 +280,16 @@ export function TranslatedScriptCard({ scriptId, scriptTitle, availableLanguages
                     )}
                   </div>
                   <div className="flex items-center gap-2">
+                    {onRetranslate && (
+                      <button
+                        onClick={() => onRetranslate(selectedTranslation.language_code, selectedTranslation.language_name)}
+                        className="flex items-center gap-1 px-3 py-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors text-sm font-medium"
+                        title="Re-translate this script"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        Re-translate
+                      </button>
+                    )}
                     <button
                       onClick={() => handleDeleteTranslation(selectedTranslation.language_code)}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
