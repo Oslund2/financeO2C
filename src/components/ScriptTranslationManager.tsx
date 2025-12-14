@@ -37,6 +37,21 @@ export function ScriptTranslationManager({ scriptId, scriptTitle }: ScriptTransl
     loadTranslationStatuses();
   }, [scriptId]);
 
+  useEffect(() => {
+    // Poll for status updates every 2 seconds if there are any in-progress translations
+    const hasInProgress = Array.from(translationStatuses.values()).some(
+      status => status.status === 'in_progress'
+    ) || translating.size > 0;
+
+    if (!hasInProgress) return;
+
+    const interval = setInterval(() => {
+      loadTranslationStatuses();
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [translationStatuses, translating, scriptId]);
+
   const loadTranslationStatuses = async () => {
     const statuses = new Map<string, ScriptTranslationStatus>();
     for (const lang of languages) {
@@ -60,26 +75,33 @@ export function ScriptTranslationManager({ scriptId, scriptTitle }: ScriptTransl
   const handleTranslateScript = async (languageCode: string, languageName: string) => {
     setTranslating(prev => new Set(prev).add(languageCode));
 
-    const result = await ScriptTranslationService.translateScript(
-      scriptId,
-      languageCode,
-      languageName,
-      (progress) => {
-        console.log(`Translation progress: ${progress.percentage}%`);
+    try {
+      const result = await ScriptTranslationService.translateScript(
+        scriptId,
+        languageCode,
+        languageName,
+        (progress) => {
+          console.log(`Translation progress: ${progress.percentage}%`);
+        }
+      );
+
+      if (result.success) {
+        await loadTranslationStatuses();
+      } else {
+        await loadTranslationStatuses();
+        alert(`Translation failed: ${result.error}`);
       }
-    );
-
-    if (result.success) {
+    } catch (error) {
+      console.error('Translation error:', error);
       await loadTranslationStatuses();
-    } else {
-      alert(`Translation failed: ${result.error}`);
+      alert(`Translation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setTranslating(prev => {
+        const next = new Set(prev);
+        next.delete(languageCode);
+        return next;
+      });
     }
-
-    setTranslating(prev => {
-      const next = new Set(prev);
-      next.delete(languageCode);
-      return next;
-    });
   };
 
   const getTranslationButton = (language: Language) => {
@@ -116,17 +138,24 @@ export function ScriptTranslationManager({ scriptId, scriptTitle }: ScriptTransl
 
     if (status?.status === 'failed') {
       return (
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 px-3 py-1 bg-red-100 text-red-700 rounded-lg text-xs">
-            <XCircle className="w-3 h-3" />
-            <span>Failed</span>
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 px-3 py-1 bg-red-100 text-red-700 rounded-lg text-xs">
+              <XCircle className="w-3 h-3" />
+              <span>Failed</span>
+            </div>
+            <button
+              onClick={() => handleTranslateScript(language.code, language.name)}
+              className="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-xs"
+            >
+              Retry
+            </button>
           </div>
-          <button
-            onClick={() => handleTranslateScript(language.code, language.name)}
-            className="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-xs"
-          >
-            Retry
-          </button>
+          {status.errorMessage && (
+            <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1">
+              {status.errorMessage}
+            </div>
+          )}
         </div>
       );
     }

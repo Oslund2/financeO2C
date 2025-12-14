@@ -434,6 +434,26 @@ export class ScriptTranslationService {
         errorMessage = `Translation service error: ${errorMessage}. Please check your API configuration.`;
       }
 
+      // Get the translation record to find its ID
+      const { data: translationRecord } = await supabase
+        .from('script_translations')
+        .select('id')
+        .eq('script_id', scriptId)
+        .eq('language_code', languageCode)
+        .maybeSingle();
+
+      if (translationRecord) {
+        // Update status to failed with error message
+        await supabase
+          .from('script_translations')
+          .update({
+            status: 'failed',
+            error_message: errorMessage,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', translationRecord.id);
+      }
+
       return { success: false, error: errorMessage };
     }
   }
