@@ -47,38 +47,38 @@ export const HUMAN_COST_PROFILES: Record<HumanCostProfile, HumanCostProfileSetti
   lean: {
     name: 'Lean Production',
     description: 'Lower overhead, aggressive efficiency gains, smaller teams',
-    editingCostPerMinute: 35,
-    sceneSetupCostPerMinute: 18,
-    characterQCCostPerMinute: 7,
-    renderSupervisionCostPerMinute: 12,
-    voiceDirectionCostPerSession: 150,
-    revisionRatePercentage: 15,
-    decayRate: 0.92,
-    decayFloor: 0.35,
+    editingCostPerMinute: 25,
+    sceneSetupCostPerMinute: 12,
+    characterQCCostPerMinute: 5,
+    renderSupervisionCostPerMinute: 8,
+    voiceDirectionCostPerSession: 125,
+    revisionRatePercentage: 12,
+    decayRate: 0.90,
+    decayFloor: 0.30,
   },
   standard: {
     name: 'Standard Production',
     description: 'Industry-standard oversight, balanced efficiency gains',
-    editingCostPerMinute: 50,
-    sceneSetupCostPerMinute: 25,
-    characterQCCostPerMinute: 10,
-    renderSupervisionCostPerMinute: 15,
-    voiceDirectionCostPerSession: 200,
-    revisionRatePercentage: 20,
-    decayRate: 0.95,
-    decayFloor: 0.40,
+    editingCostPerMinute: 40,
+    sceneSetupCostPerMinute: 18,
+    characterQCCostPerMinute: 8,
+    renderSupervisionCostPerMinute: 12,
+    voiceDirectionCostPerSession: 175,
+    revisionRatePercentage: 18,
+    decayRate: 0.93,
+    decayFloor: 0.35,
   },
   broadcast: {
     name: 'Broadcast Quality',
     description: 'Premium oversight, conservative efficiency, higher QC standards',
-    editingCostPerMinute: 75,
-    sceneSetupCostPerMinute: 38,
-    characterQCCostPerMinute: 15,
-    renderSupervisionCostPerMinute: 22,
-    voiceDirectionCostPerSession: 300,
-    revisionRatePercentage: 25,
-    decayRate: 0.97,
-    decayFloor: 0.50,
+    editingCostPerMinute: 65,
+    sceneSetupCostPerMinute: 30,
+    characterQCCostPerMinute: 12,
+    renderSupervisionCostPerMinute: 18,
+    voiceDirectionCostPerSession: 275,
+    revisionRatePercentage: 22,
+    decayRate: 0.95,
+    decayFloor: 0.45,
   },
 };
 
@@ -192,14 +192,14 @@ export function calculateHumanCosts(
   config: CostConfig,
   episodeNumber: number = 1
 ): HumanCostBreakdown {
-  const editingRate = config.human_editing_cost_per_minute ?? 50;
-  const sceneSetupRate = config.human_scene_setup_cost_per_minute ?? 25;
-  const characterQCRate = config.human_character_qc_cost_per_minute ?? 10;
-  const renderSupervisionRate = config.human_render_supervision_cost_per_minute ?? 15;
-  const voiceDirectionPerSession = config.human_voice_direction_cost_per_session ?? 200;
-  const revisionRatePercent = config.human_revision_rate_percentage ?? 20;
-  const decayRate = config.asset_decay_rate ?? 0.95;
-  const decayFloor = config.asset_decay_floor ?? 0.40;
+  const editingRate = config.human_editing_cost_per_minute ?? 40;
+  const sceneSetupRate = config.human_scene_setup_cost_per_minute ?? 18;
+  const characterQCRate = config.human_character_qc_cost_per_minute ?? 8;
+  const renderSupervisionRate = config.human_render_supervision_cost_per_minute ?? 12;
+  const voiceDirectionPerSession = config.human_voice_direction_cost_per_session ?? 175;
+  const revisionRatePercent = config.human_revision_rate_percentage ?? 18;
+  const decayRate = config.asset_decay_rate ?? 0.93;
+  const decayFloor = config.asset_decay_floor ?? 0.35;
 
   const decayMultiplier = calculateDecayMultiplier(episodeNumber, decayRate, decayFloor);
 
