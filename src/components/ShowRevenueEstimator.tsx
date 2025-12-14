@@ -96,7 +96,6 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, initialEpisode
 
   const [enableHumanCosts, setEnableHumanCosts] = useState(true);
   const [humanCostProfile, setHumanCostProfile] = useState<HumanCostProfile>('standard');
-  const [useCustomRates, setUseCustomRates] = useState(false);
 
   const [customEditingRate, setCustomEditingRate] = useState(() => {
     const saved = localStorage.getItem('humanCost_editingRate');
@@ -408,9 +407,9 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, initialEpisode
 
     const baseProfileSettings = HUMAN_COST_PROFILES[humanCostProfile];
 
-    const effectiveSettings = useCustomRates ? {
+    const effectiveSettings = {
       name: 'Custom',
-      description: 'User-defined custom rates',
+      description: 'User-defined rates',
       editingCostPerMinute: customEditingRate,
       sceneSetupCostPerMinute: customSceneSetupRate,
       characterQCCostPerMinute: customCharacterQCRate,
@@ -419,17 +418,17 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, initialEpisode
       revisionRatePercentage: customRevisionRate,
       decayRate: customDecayRate,
       decayFloor: customDecayFloor,
-    } : baseProfileSettings;
+    };
 
     const humanCostConfig: Partial<CostConfig> = {
-      human_editing_cost_per_minute: effectiveSettings.editingCostPerMinute,
-      human_scene_setup_cost_per_minute: effectiveSettings.sceneSetupCostPerMinute,
-      human_character_qc_cost_per_minute: effectiveSettings.characterQCCostPerMinute,
-      human_render_supervision_cost_per_minute: effectiveSettings.renderSupervisionCostPerMinute,
-      human_voice_direction_cost_per_session: effectiveSettings.voiceDirectionCostPerSession,
-      human_revision_rate_percentage: effectiveSettings.revisionRatePercentage,
-      asset_decay_rate: effectiveSettings.decayRate,
-      asset_decay_floor: effectiveSettings.decayFloor,
+      human_editing_cost_per_minute: customEditingRate,
+      human_scene_setup_cost_per_minute: customSceneSetupRate,
+      human_character_qc_cost_per_minute: customCharacterQCRate,
+      human_render_supervision_cost_per_minute: customRenderSupervisionRate,
+      human_voice_direction_cost_per_session: customVoiceDirectionRate,
+      human_revision_rate_percentage: customRevisionRate,
+      asset_decay_rate: customDecayRate,
+      asset_decay_floor: customDecayFloor,
     };
 
     const seasonHumanCosts = enableHumanCosts
@@ -439,8 +438,8 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, initialEpisode
     const totalHumanCost = seasonHumanCosts?.totalSeasonCost ?? 0;
 
     const decayCurve = getDecayCurvePreview(
-      effectiveSettings.decayRate,
-      effectiveSettings.decayFloor,
+      customDecayRate,
+      customDecayFloor,
       [1, 5, 10, 20]
     );
 
@@ -455,7 +454,17 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, initialEpisode
       asset_decay_floor: baseProfileSettings.decayFloor,
     } as CostConfig, numberOfEpisodes);
 
-    const profileComparison = useCustomRates ? {
+    const hasCustomValues =
+      customEditingRate !== baseProfileSettings.editingCostPerMinute ||
+      customSceneSetupRate !== baseProfileSettings.sceneSetupCostPerMinute ||
+      customCharacterQCRate !== baseProfileSettings.characterQCCostPerMinute ||
+      customRenderSupervisionRate !== baseProfileSettings.renderSupervisionCostPerMinute ||
+      customVoiceDirectionRate !== baseProfileSettings.voiceDirectionCostPerSession ||
+      customRevisionRate !== baseProfileSettings.revisionRatePercentage ||
+      customDecayRate !== baseProfileSettings.decayRate ||
+      customDecayFloor !== baseProfileSettings.decayFloor;
+
+    const profileComparison = hasCustomValues ? {
       profileName: baseProfileSettings.name,
       profileCost: profileComparisonCost?.totalSeasonCost ?? 0,
       customCost: totalHumanCost,
@@ -523,7 +532,7 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, initialEpisode
       decayCurve,
       profileSettings: effectiveSettings,
       profileComparison,
-      useCustomRates,
+      hasCustomValues,
     };
   }, [
     numberOfEpisodes,
@@ -540,7 +549,6 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, initialEpisode
     decayRatePercent,
     minimumRetentionPercent,
     dubbingTier,
-    useCustomRates,
     customEditingRate,
     customSceneSetupRate,
     customCharacterQCRate,
@@ -1064,7 +1072,6 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, initialEpisode
                   setCustomRevisionRate(profile.revisionRatePercentage);
                   setCustomDecayRate(profile.decayRate);
                   setCustomDecayFloor(profile.decayFloor);
-                  setUseCustomRates(false);
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
@@ -1185,7 +1192,6 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, initialEpisode
                         setCustomRevisionRate(profile.revisionRatePercentage);
                         setCustomDecayRate(profile.decayRate);
                         setCustomDecayFloor(profile.decayFloor);
-                        setUseCustomRates(false);
                       }}
                       className="flex items-center gap-1 px-2 py-1 text-xs text-orange-700 hover:bg-orange-100 rounded transition-colors"
                     >
@@ -1206,7 +1212,7 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, initialEpisode
                         max="100"
                         step="1"
                         value={customEditingRate}
-                        onChange={(e) => { setCustomEditingRate(Number(e.target.value)); setUseCustomRates(true); }}
+                        onChange={(e) => setCustomEditingRate(Number(e.target.value))}
                         className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-600"
                       />
                     </div>
@@ -1222,7 +1228,7 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, initialEpisode
                         max="60"
                         step="1"
                         value={customSceneSetupRate}
-                        onChange={(e) => { setCustomSceneSetupRate(Number(e.target.value)); setUseCustomRates(true); }}
+                        onChange={(e) => setCustomSceneSetupRate(Number(e.target.value))}
                         className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-600"
                       />
                     </div>
@@ -1238,7 +1244,7 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, initialEpisode
                         max="30"
                         step="1"
                         value={customCharacterQCRate}
-                        onChange={(e) => { setCustomCharacterQCRate(Number(e.target.value)); setUseCustomRates(true); }}
+                        onChange={(e) => setCustomCharacterQCRate(Number(e.target.value))}
                         className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-600"
                       />
                     </div>
@@ -1254,7 +1260,7 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, initialEpisode
                         max="40"
                         step="1"
                         value={customRenderSupervisionRate}
-                        onChange={(e) => { setCustomRenderSupervisionRate(Number(e.target.value)); setUseCustomRates(true); }}
+                        onChange={(e) => setCustomRenderSupervisionRate(Number(e.target.value))}
                         className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-gray-500"
                       />
                     </div>
@@ -1270,7 +1276,7 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, initialEpisode
                         max="500"
                         step="25"
                         value={customVoiceDirectionRate}
-                        onChange={(e) => { setCustomVoiceDirectionRate(Number(e.target.value)); setUseCustomRates(true); }}
+                        onChange={(e) => setCustomVoiceDirectionRate(Number(e.target.value))}
                         className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-gray-500"
                       />
                     </div>
@@ -1286,7 +1292,7 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, initialEpisode
                         max="40"
                         step="1"
                         value={customRevisionRate}
-                        onChange={(e) => { setCustomRevisionRate(Number(e.target.value)); setUseCustomRates(true); }}
+                        onChange={(e) => setCustomRevisionRate(Number(e.target.value))}
                         className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-gray-500"
                       />
                     </div>
@@ -1306,7 +1312,7 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, initialEpisode
                           max="0.98"
                           step="0.01"
                           value={customDecayRate}
-                          onChange={(e) => { setCustomDecayRate(Number(e.target.value)); setUseCustomRates(true); }}
+                          onChange={(e) => setCustomDecayRate(Number(e.target.value))}
                           className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600"
                         />
                       </div>
@@ -1321,7 +1327,7 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, initialEpisode
                           max="0.60"
                           step="0.05"
                           value={customDecayFloor}
-                          onChange={(e) => { setCustomDecayFloor(Number(e.target.value)); setUseCustomRates(true); }}
+                          onChange={(e) => setCustomDecayFloor(Number(e.target.value))}
                           className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600"
                         />
                       </div>
