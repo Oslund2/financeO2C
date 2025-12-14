@@ -10,6 +10,7 @@ interface Asset {
   file_url: string | null;
   thumbnail_url: string | null;
   asset_type: string;
+  metadata: { mimeType?: string } | null;
 }
 
 interface Script {
@@ -81,11 +82,10 @@ export function VideoSelectorModal({
     setLoading(true);
 
     try {
-      const [videosRes, scriptsRes, charactersRes] = await Promise.all([
+      const [assetsRes, scriptsRes, charactersRes] = await Promise.all([
         supabase
           .from('assets')
-          .select('id, name, description, file_url, thumbnail_url, asset_type')
-          .eq('asset_type', 'video_clip')
+          .select('id, name, description, file_url, thumbnail_url, asset_type, metadata')
           .or(`organization_id.eq.${currentOrganization.id},organization_id.is.null`)
           .eq('series_id', seriesId)
           .order('created_at', { ascending: false }),
@@ -101,11 +101,16 @@ export function VideoSelectorModal({
           .order('name', { ascending: true })
       ]);
 
-      if (videosRes.error) throw videosRes.error;
+      if (assetsRes.error) throw assetsRes.error;
       if (scriptsRes.error) throw scriptsRes.error;
       if (charactersRes.error) throw charactersRes.error;
 
-      setVideos(videosRes.data || []);
+      const allAssets = assetsRes.data || [];
+      const videoAssets = allAssets.filter((asset) => {
+        const mimeType = asset.metadata?.mimeType || '';
+        return mimeType.startsWith('video/') || asset.asset_type === 'video_clip';
+      });
+      setVideos(videoAssets);
       setScripts(scriptsRes.data || []);
       setCharacters(charactersRes.data || []);
     } catch (error) {
