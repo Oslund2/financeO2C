@@ -25,10 +25,44 @@ import { CostComparison } from './CostComparison';
 import { ShowRevenueEstimator, type RevenueCalculations } from './ShowRevenueEstimator';
 import { CreatorCostCalculator } from './CreatorCostCalculator';
 import type { CostComparison as CostComparisonType } from '../services/costCalculationService';
+import { calculateProductionCosts, type ScriptData } from '../services/costCalculationService';
 import { LTVCalculationService } from '../services/ltvCalculationService';
 import jsPDF from 'jspdf';
 
 type Episode = Database['public']['Tables']['episodes']['Row'];
+
+interface EpisodeCostBreakdown {
+  tokenCost: number;
+  humanCost: number;
+  totalCost: number;
+  hasHumanCosts: boolean;
+}
+
+function getEpisodeCosts(episode: Episode): EpisodeCostBreakdown | null {
+  const snapshot = episode.source_script_snapshot as any;
+  const costComparison: CostComparisonType | null = snapshot?.cost_comparison || null;
+
+  if (!costComparison) return null;
+
+  const tokenCost =
+    costComparison.aiCost.baseCost +
+    costComparison.aiCost.actsCost +
+    costComparison.aiCost.scenesCost +
+    costComparison.aiCost.charactersCost +
+    costComparison.aiCost.voicesCost +
+    (costComparison.aiCost.videoGenerationCost || 0) +
+    costComparison.aiCost.complexityAdjustment;
+
+  const humanCost = costComparison.aiCost.humanCosts?.totalHumanCost || 0;
+  const hasHumanCosts = costComparison.aiCost.humanCosts !== undefined;
+
+  return {
+    tokenCost,
+    humanCost,
+    totalCost: tokenCost + humanCost,
+    hasHumanCosts
+  };
+}
 type Character = Database['public']['Tables']['characters']['Row'];
 
 interface EpisodeProfitAnalyticsProps {
@@ -46,6 +80,7 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
   const [showCostHelp, setShowCostHelp] = useState(false);
   const [revenueCalculations, setRevenueCalculations] = useState<RevenueCalculations | null>(null);
   const [defaultEpisodeCount, setDefaultEpisodeCount] = useState(6);
+  const [recalculatingEpisodes, setRecalculatingEpisodes] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadEpisodes();
@@ -127,6 +162,78 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
       setDefaultEpisodeCount(6);
     }
   };
+
+  const recalculateEpisodeCosts = async (episode: Episode) => {
+    if (recalculatingEpisodes.has(episode.id)) return;
+
+    const snapshot = episode.source_script_snapshot as any;
+    if (!snapshot?.script) return;
+
+    setRecalculatingEpisodes(prev => new Set(prev).add(episode.id));
+
+    try {
+      const scriptData: ScriptData = {
+        runtime_minutes: snapshot.script.estimated_runtime_minutes || 10,
+        acts: (snapshot.acts || []).map((act: any) => ({
+          scenes: (act.scenes || []).map((scene: any) => ({
+            dialogue: scene.dialogue || [],
+            description: scene.description || ''
+          }))
+        })),
+        unique_characters: snapshot.script.unique_characters || []
+      };
+
+      const newCostComparison = await calculateProductionCosts(
+        scriptData,
+        episode.series_id,
+        false,
+        episode.episode_number || 1,
+        true,
+        true
+      );
+
+      const updatedSnapshot = {
+        ...snapshot,
+        cost_comparison: newCostComparison
+      };
+
+      const { error } = await supabase
+        .from('episodes')
+        .update({
+          source_script_snapshot: updatedSnapshot,
+          estimated_cost: newCostComparison.aiCost.totalCost
+        })
+        .eq('id', episode.id);
+
+      if (!error) {
+        setEpisodes(prev => prev.map(ep =>
+          ep.id === episode.id
+            ? { ...ep, source_script_snapshot: updatedSnapshot, estimated_cost: newCostComparison.aiCost.totalCost }
+            : ep
+        ));
+        if (selectedEpisode?.id === episode.id) {
+          setSelectedEpisode({ ...episode, source_script_snapshot: updatedSnapshot, estimated_cost: newCostComparison.aiCost.totalCost });
+        }
+      }
+    } catch (error) {
+      console.error('Error recalculating episode costs:', error);
+    } finally {
+      setRecalculatingEpisodes(prev => {
+        const next = new Set(prev);
+        next.delete(episode.id);
+        return next;
+      });
+    }
+  };
+
+  useEffect(() => {
+    episodes.forEach(episode => {
+      const costs = getEpisodeCosts(episode);
+      if (costs && !costs.hasHumanCosts) {
+        recalculateEpisodeCosts(episode);
+      }
+    });
+  }, [episodes.length]);
 
   const determinePrimaryCharacter = async (episode: Episode) => {
     if (characters.length === 0) {
@@ -859,6 +966,8 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
             <div className="flex gap-3 overflow-x-auto pb-2">
               {filteredEpisodes.map((episode) => {
                 const metrics = getEpisodeMetrics(episode);
+                const costs = getEpisodeCosts(episode);
+                const isRecalculating = recalculatingEpisodes.has(episode.id);
                 return (
                   <button
                     key={episode.id}
@@ -919,6 +1028,35 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
                             return `${roiMultiple.toFixed(0)}x`;
                           })()}
                         </span>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 pt-3 border-t border-gray-200 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-1 text-xs text-gray-600">
+                          <Sparkles className="w-3 h-3 text-green-600" />
+                          Token Cost
+                        </span>
+                        {isRecalculating ? (
+                          <div className="w-3 h-3 border border-green-600 border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                          <span className="text-xs font-semibold text-green-700">
+                            {costs ? formatCurrency(costs.tokenCost) : 'N/A'}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-1 text-xs text-gray-600">
+                          <UserCog className="w-3 h-3 text-amber-600" />
+                          Human Cost
+                        </span>
+                        {isRecalculating ? (
+                          <div className="w-3 h-3 border border-amber-600 border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                          <span className="text-xs font-semibold text-amber-700">
+                            {costs ? formatCurrency(costs.humanCost) : 'N/A'}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </button>
