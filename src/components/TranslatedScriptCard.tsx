@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Globe, FileText, X, Loader2, ChevronDown, ChevronRight, Trash2, RefreshCw } from 'lucide-react';
+import { Globe, FileText, X, Loader2, ChevronDown, ChevronRight, Trash2, RefreshCw, Download, Search, Eye, FileDown, Maximize2, BarChart2 } from 'lucide-react';
 import { ScriptTranslationService } from '../services/scriptTranslationService';
+import { TranslationExportService, type ExportFormat } from '../services/translationExportService';
 
 interface TranslatedScriptCardProps {
   scriptId: string;
@@ -47,6 +48,11 @@ export function TranslatedScriptCard({ scriptId, scriptTitle, availableLanguages
   const [translatedContent, setTranslatedContent] = useState<{ acts: Act[] } | null>(null);
   const [loading, setLoading] = useState(false);
   const [expandedActs, setExpandedActs] = useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = useState<'tabs' | 'fullscreen'>('tabs');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportStats, setExportStats] = useState<any>(null);
 
   useEffect(() => {
     loadTranslations();
@@ -55,8 +61,20 @@ export function TranslatedScriptCard({ scriptId, scriptTitle, availableLanguages
   useEffect(() => {
     if (selectedLanguage) {
       loadTranslatedContent(selectedLanguage);
+      loadExportStats();
     }
   }, [selectedLanguage]);
+
+  const loadExportStats = async () => {
+    const translation = translations.find(t => t.language_code === selectedLanguage);
+    if (translation) {
+      const stats = await TranslationExportService.getExportStats(translation.id);
+      setExportStats(stats);
+
+      // Track view
+      await TranslationExportService.trackView(translation.id);
+    }
+  };
 
   const loadTranslations = async () => {
     const allTranslations = await ScriptTranslationService.getAllTranslations(scriptId);
@@ -97,28 +115,122 @@ export function TranslatedScriptCard({ scriptId, scriptTitle, availableLanguages
     setExpandedActs(newExpanded);
   };
 
+  const handleExport = async (format: ExportFormat) => {
+    if (!selectedLanguage) return;
+
+    setExporting(true);
+    setShowExportMenu(false);
+
+    try {
+      const blob = await TranslationExportService.exportTranslation(scriptId, selectedLanguage, format, {
+        includeSynopsis: true,
+        includeStageDirections: true,
+        includeSceneNumbers: true
+      });
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${scriptTitle}_${selectedLanguage}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      await loadExportStats();
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Export failed. Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportAll = async (format: ExportFormat) => {
+    setExporting(true);
+    setShowExportMenu(false);
+
+    try {
+      const { files } = await TranslationExportService.exportAllTranslations(scriptId, format);
+
+      files.forEach(({ name, blob }) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+
+      alert(`Successfully exported ${files.length} translation(s)!`);
+    } catch (error) {
+      console.error('Export all failed:', error);
+      alert('Export failed. Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const formatDuration = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}m ${remainingSeconds}s`;
   };
 
+  const filterContent = (content: { acts: Act[] } | null, search: string) => {
+    if (!content || !search) return content;
+
+    const filtered = {
+      acts: content.acts.map(act => ({
+        ...act,
+        scenes: act.scenes.filter(scene => {
+          const searchLower = search.toLowerCase();
+          return (
+            scene.setting.toLowerCase().includes(searchLower) ||
+            scene.description.toLowerCase().includes(searchLower) ||
+            (Array.isArray(scene.dialogue) && scene.dialogue.some((line: any) =>
+              line.text?.toLowerCase().includes(searchLower) ||
+              line.character?.toLowerCase().includes(searchLower)
+            ))
+          );
+        })
+      })).filter(act => act.scenes.length > 0)
+    };
+
+    return filtered;
+  };
+
   const selectedTranslation = translations.find(t => t.language_code === selectedLanguage);
   const completedTranslations = translations.filter(t => t.status === 'completed');
+  const filteredContent = filterContent(translatedContent, searchTerm);
 
   return (
-    <div className="bg-white border-2 border-gray-200 rounded-xl p-6">
+    <div className={`bg-white border-2 border-gray-200 rounded-xl p-6 ${viewMode === 'fullscreen' ? 'fixed inset-4 z-50 overflow-auto' : ''}`}>
       <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-2 flex-1">
-          <Globe className="w-5 h-5 text-blue-600" />
-          <h4 className="text-lg font-bold text-gray-900">Translated Scripts</h4>
+        <div className="flex items-center gap-3 flex-1">
+          <Globe className="w-6 h-6 text-blue-600" />
+          <div>
+            <h4 className="text-xl font-bold text-gray-900">Translated Scripts</h4>
+            <p className="text-xs text-gray-500 mt-0.5">{completedTranslations.length} translation(s) available</p>
+          </div>
         </div>
-        <button
-          onClick={onClose}
-          className="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setViewMode(viewMode === 'fullscreen' ? 'tabs' : 'fullscreen')}
+            className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            title={viewMode === 'fullscreen' ? 'Exit fullscreen' : 'Enter fullscreen'}
+          >
+            <Maximize2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={onClose}
+            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       {completedTranslations.length === 0 ? (
@@ -129,30 +241,32 @@ export function TranslatedScriptCard({ scriptId, scriptTitle, availableLanguages
         </div>
       ) : (
         <div className="space-y-4">
-          <div>
-            <label className="text-sm font-medium text-gray-700 mb-2 block">Select Language:</label>
-            <select
-              value={selectedLanguage || ''}
-              onChange={(e) => setSelectedLanguage(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">Choose a language...</option>
-              {completedTranslations.map((translation) => (
-                <option key={translation.language_code} value={translation.language_code}>
-                  {translation.language_name}
-                </option>
-              ))}
-            </select>
+          {/* Language Tabs */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-2">
+            {completedTranslations.map((translation) => (
+              <button
+                key={translation.language_code}
+                onClick={() => setSelectedLanguage(translation.language_code)}
+                className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all ${
+                  selectedLanguage === translation.language_code
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {translation.language_name}
+              </button>
+            ))}
           </div>
 
           {selectedTranslation && (
             <div className="space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-start justify-between mb-2">
+              {/* Header with title and actions */}
+              <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-2">
                       <FileText className="w-5 h-5 text-blue-600" />
-                      <h5 className="font-bold text-gray-900">{selectedTranslation.translated_title}</h5>
+                      <h5 className="font-bold text-gray-900 text-lg">{selectedTranslation.translated_title}</h5>
                     </div>
                     {selectedTranslation.translated_synopsis && (
                       <p className="text-sm text-gray-700 mb-2">{selectedTranslation.translated_synopsis}</p>
@@ -163,14 +277,93 @@ export function TranslatedScriptCard({ scriptId, scriptTitle, availableLanguages
                       </div>
                     )}
                   </div>
-                  <button
-                    onClick={() => handleDeleteTranslation(selectedTranslation.language_code)}
-                    className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Delete translation"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleDeleteTranslation(selectedTranslation.language_code)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Delete translation"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
+
+                {/* Stats and Actions Bar */}
+                <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-blue-200">
+                  {exportStats && (
+                    <div className="flex items-center gap-4 text-xs text-gray-600">
+                      <div className="flex items-center gap-1">
+                        <Eye className="w-3 h-3" />
+                        <span>{exportStats.viewCount} views</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Download className="w-3 h-3" />
+                        <span>{exportStats.downloadCount} downloads</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex-1"></div>
+
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowExportMenu(!showExportMenu)}
+                      disabled={exporting}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50"
+                    >
+                      {exporting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Exporting...
+                        </>
+                      ) : (
+                        <>
+                          <FileDown className="w-4 h-4" />
+                          Export
+                        </>
+                      )}
+                    </button>
+
+                    {showExportMenu && (
+                      <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-xl z-10">
+                        <div className="p-2">
+                          <div className="text-xs font-semibold text-gray-500 px-3 py-2">Current Language</div>
+                          <button onClick={() => handleExport('pdf')} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded">PDF Document</button>
+                          <button onClick={() => handleExport('txt')} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded">Plain Text</button>
+                          <button onClick={() => handleExport('json')} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded">JSON Data</button>
+                          <button onClick={() => handleExport('csv')} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded">CSV (Dialogue)</button>
+                          <button onClick={() => handleExport('srt')} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded">SRT Subtitles</button>
+                          <button onClick={() => handleExport('vtt')} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded">VTT Subtitles</button>
+
+                          <div className="border-t border-gray-200 my-2"></div>
+                          <div className="text-xs font-semibold text-gray-500 px-3 py-2">All Languages</div>
+                          <button onClick={() => handleExportAll('pdf')} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded">Export All as PDF</button>
+                          <button onClick={() => handleExportAll('txt')} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded">Export All as TXT</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Search Bar */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search dialogue, scenes, or descriptions..."
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
               </div>
 
               {loading ? (
@@ -178,9 +371,14 @@ export function TranslatedScriptCard({ scriptId, scriptTitle, availableLanguages
                   <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
                   <span className="ml-2 text-sm text-gray-600">Loading translated content...</span>
                 </div>
-              ) : translatedContent && translatedContent.acts ? (
-                <div className="space-y-3 max-h-[500px] overflow-y-auto">
-                  {translatedContent.acts.map((act: Act) => {
+              ) : filteredContent && filteredContent.acts && filteredContent.acts.length > 0 ? (
+                <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                  {searchTerm && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-900">
+                      Found {filteredContent.acts.reduce((sum, act) => sum + act.scenes.length, 0)} scene(s) matching "{searchTerm}"
+                    </div>
+                  )}
+                  {filteredContent.acts.map((act: Act) => {
                     const isExpanded = expandedActs.has(act.id);
                     return (
                       <div key={act.id} className="border border-gray-200 rounded-lg overflow-hidden">
@@ -251,9 +449,22 @@ export function TranslatedScriptCard({ scriptId, scriptTitle, availableLanguages
                     );
                   })}
                 </div>
+              ) : searchTerm ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Search className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                  <p className="text-sm font-medium">No results found</p>
+                  <p className="text-xs mt-1">Try different search terms</p>
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="mt-3 text-sm text-blue-600 hover:text-blue-700 underline"
+                  >
+                    Clear search
+                  </button>
+                </div>
               ) : (
-                <div className="text-center py-4 text-gray-500">
-                  <p className="text-sm">No content available</p>
+                <div className="text-center py-8 text-gray-500">
+                  <FileText className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                  <p className="text-sm font-medium">No content available</p>
                 </div>
               )}
             </div>
