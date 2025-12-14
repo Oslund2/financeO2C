@@ -164,6 +164,10 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
       return 'The AI generated an incomplete script. This is rare, but please try generating again.';
     }
 
+    if (errorMsg === 'TRUNCATED_RESPONSE') {
+      return 'The AI response was cut off before completing the full script. This can happen with complex generation requests. Please try again - the system will attempt to generate a complete response. If this persists, try using a shorter plot summary.';
+    }
+
     if (errorMsg === 'NETWORK_ERROR' || errorMsg.includes('network') || errorMsg.includes('fetch')) {
       return 'Unable to connect to the Gemini API. This could be due to a network timeout or connectivity issue. Please check your internet connection and try again. If the problem persists, the request may be too large.';
     }

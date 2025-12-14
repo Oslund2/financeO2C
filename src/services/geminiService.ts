@@ -81,10 +81,101 @@ interface GenerationOptions {
 
 const DEFAULT_OPTIONS: GenerationOptions = {
   temperature: 0.75,
-  maxTokens: 16000,
+  maxTokens: 32000,
   tone: 'educational and entertaining',
   pacing: 'moderate'
 };
+
+function isJsonComplete(jsonString: string): boolean {
+  let braceCount = 0;
+  let bracketCount = 0;
+  let inString = false;
+  let escapeNext = false;
+
+  for (let i = 0; i < jsonString.length; i++) {
+    const char = jsonString[i];
+
+    if (escapeNext) {
+      escapeNext = false;
+      continue;
+    }
+
+    if (char === '\\' && inString) {
+      escapeNext = true;
+      continue;
+    }
+
+    if (char === '"' && !escapeNext) {
+      inString = !inString;
+      continue;
+    }
+
+    if (inString) continue;
+
+    if (char === '{') braceCount++;
+    else if (char === '}') braceCount--;
+    else if (char === '[') bracketCount++;
+    else if (char === ']') bracketCount--;
+  }
+
+  return braceCount === 0 && bracketCount === 0 && !inString;
+}
+
+function tryRepairTruncatedJson(jsonString: string): string | null {
+  let repaired = jsonString.trim();
+
+  let braceCount = 0;
+  let bracketCount = 0;
+  let inString = false;
+  let escapeNext = false;
+
+  for (let i = 0; i < repaired.length; i++) {
+    const char = repaired[i];
+
+    if (escapeNext) {
+      escapeNext = false;
+      continue;
+    }
+
+    if (char === '\\' && inString) {
+      escapeNext = true;
+      continue;
+    }
+
+    if (char === '"' && !escapeNext) {
+      inString = !inString;
+      continue;
+    }
+
+    if (inString) continue;
+
+    if (char === '{') braceCount++;
+    else if (char === '}') braceCount--;
+    else if (char === '[') bracketCount++;
+    else if (char === ']') bracketCount--;
+  }
+
+  if (inString) {
+    repaired += '"';
+  }
+
+  while (bracketCount > 0) {
+    repaired += ']';
+    bracketCount--;
+  }
+
+  while (braceCount > 0) {
+    repaired += '}';
+    braceCount--;
+  }
+
+  try {
+    JSON.parse(repaired);
+    return repaired;
+  } catch {
+    return null;
+  }
+}
 
 function getGeminiAPIKey() {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
@@ -397,14 +488,50 @@ export async function generateScriptWithGemini(
       throw new Error('EMPTY_RESPONSE');
     }
 
-    const textContent = data.candidates[0].content.parts[0].text;
+    const candidate = data.candidates[0];
+    const finishReason = candidate.finishReason;
+
+    if (finishReason === 'MAX_TOKENS') {
+      console.warn('Response was truncated due to max tokens limit');
+      throw new Error('TRUNCATED_RESPONSE');
+    }
+
+    const textContent = candidate.content?.parts?.[0]?.text;
+
+    if (!textContent) {
+      console.error('No text content in response');
+      throw new Error('EMPTY_RESPONSE');
+    }
+
+    console.log('Response length:', textContent.length, 'characters');
 
     const jsonMatch = textContent.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
+      console.error('No JSON object found in response');
       throw new Error('INVALID_JSON');
     }
 
-    const parsedScript = JSON.parse(jsonMatch[0]);
+    let jsonString = jsonMatch[0];
+
+    if (!isJsonComplete(jsonString)) {
+      console.warn('Detected incomplete JSON, attempting repair...');
+      const repaired = tryRepairTruncatedJson(jsonString);
+      if (repaired) {
+        console.log('JSON repair successful');
+        jsonString = repaired;
+      } else {
+        console.error('JSON repair failed - response appears truncated');
+        throw new Error('TRUNCATED_RESPONSE');
+      }
+    }
+
+    let parsedScript;
+    try {
+      parsedScript = JSON.parse(jsonString);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      throw new Error('TRUNCATED_RESPONSE');
+    }
 
     const generatedScript: GeneratedScript = convertLegacyScript(parsedScript);
 
