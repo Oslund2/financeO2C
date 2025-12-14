@@ -14,7 +14,8 @@ interface TranslationProgress {
 
 interface DialogueLine {
   character?: string;
-  text: string;
+  text?: string;
+  line?: string;
   [key: string]: any;
 }
 
@@ -117,8 +118,9 @@ async function translateDialogueBatch(
   if (dialogueLines.length === 0) return [];
 
   if (dialogueLines.length === 1) {
+    const dialogueText = dialogueLines[0].text || dialogueLines[0].line || '';
     const translatedText = await translateWithRetry(
-      dialogueLines[0].text,
+      dialogueText,
       targetLanguage,
       `Dialogue spoken by character: ${dialogueLines[0].character || 'unknown'}`,
       organizationId,
@@ -128,7 +130,10 @@ async function translateDialogueBatch(
   }
 
   const batchText = dialogueLines
-    .map((line, idx) => `[LINE ${idx + 1}] ${line.character || 'NARRATOR'}: ${line.text}`)
+    .map((line, idx) => {
+      const dialogueText = line.text || line.line || '';
+      return `[LINE ${idx + 1}] ${line.character || 'NARRATOR'}: ${dialogueText}`;
+    })
     .join('\n\n');
 
   const prompt = `Translate the following dialogue lines to ${targetLanguage}.
@@ -170,8 +175,9 @@ ${batchText}`;
     console.warn('Batch translation failed, falling back to individual translation:', error);
     const results: DialogueLine[] = [];
     for (const line of dialogueLines) {
+      const dialogueText = line.text || line.line || '';
       const translatedText = await translateWithRetry(
-        line.text,
+        dialogueText,
         targetLanguage,
         `Dialogue spoken by character: ${line.character || 'unknown'}`,
         organizationId,
@@ -389,8 +395,10 @@ export class ScriptTranslationService {
           if (scene.dialogue && typeof scene.dialogue === 'object') {
             if (Array.isArray(scene.dialogue)) {
               const dialogueLines: DialogueLine[] = scene.dialogue.filter(
-                (line: any) => typeof line === 'object' && line.text
+                (line: any) => typeof line === 'object' && (line.text || line.line)
               );
+
+              console.log(`Scene ${scene.scene_number}: Found ${dialogueLines.length} dialogue lines out of ${scene.dialogue.length} total`);
 
               if (dialogueLines.length > 0) {
                 const batches: DialogueLine[][] = [];
@@ -403,6 +411,9 @@ export class ScriptTranslationService {
                 );
 
                 translatedDialogue = translatedBatches.flat();
+                console.log(`Scene ${scene.scene_number}: Successfully translated ${translatedDialogue.length} dialogue lines`);
+              } else if (scene.dialogue.length > 0) {
+                console.warn(`Scene ${scene.scene_number}: No dialogue lines found with valid text/line properties. Original data:`, scene.dialogue[0]);
               }
             }
           }

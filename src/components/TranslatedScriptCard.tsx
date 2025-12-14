@@ -190,10 +190,11 @@ export function TranslatedScriptCard({ scriptId, scriptTitle, availableLanguages
           return (
             scene.setting.toLowerCase().includes(searchLower) ||
             scene.description.toLowerCase().includes(searchLower) ||
-            (Array.isArray(scene.dialogue) && scene.dialogue.some((line: any) =>
-              line.text?.toLowerCase().includes(searchLower) ||
-              line.character?.toLowerCase().includes(searchLower)
-            ))
+            (Array.isArray(scene.dialogue) && scene.dialogue.some((line: any) => {
+              const dialogueText = line.text || line.line || '';
+              return dialogueText.toLowerCase().includes(searchLower) ||
+                     line.character?.toLowerCase().includes(searchLower);
+            }))
           );
         })
       })).filter(act => act.scenes.length > 0)
@@ -429,7 +430,7 @@ export function TranslatedScriptCard({ scriptId, scriptTitle, availableLanguages
                                       {scene.dialogue.map((line: any, idx: number) => (
                                         <div key={idx} className="text-xs">
                                           <strong className="text-gray-900">{line.character}:</strong>{' '}
-                                          <span className="text-gray-700">{line.text}</span>
+                                          <span className="text-gray-700">{line.text || line.line}</span>
                                         </div>
                                       ))}
                                     </div>
