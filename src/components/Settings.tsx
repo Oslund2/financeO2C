@@ -701,6 +701,15 @@ export function Settings() {
                       <li>Specify facility costs including software, equipment, and studio space</li>
                       <li>View detailed phase-by-phase cost breakdowns</li>
                     </ul>
+                    <div className="mt-3 pt-3 border-t border-gray-300">
+                      <p className="text-sm text-gray-700 mb-2">
+                        <strong>Revenue Projections:</strong> Set a default episode count (0-100) per series in Series Management.
+                        This value automatically populates the Show Revenue Estimator for more accurate profit forecasting.
+                      </p>
+                      <p className="text-xs text-gray-600 italic">
+                        Default: 6 episodes. Adjust in Settings → Workspace & Series Management → Edit Series.
+                      </p>
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between p-4 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg">
@@ -1239,6 +1248,7 @@ export function Settings() {
                             'Voice Studio with Preview',
                             'Script Translation System',
                             'Episode Revenue & LTV Analytics',
+                            'Per-Series Episode Count Defaults for Profit Projections',
                             'Creator Cost Calculator',
                             'AI Cost Tracking & Monitoring',
                             'Dashboard IP Sections (Customizable)',
@@ -1394,7 +1404,9 @@ export function Settings() {
                             { name: 'Characters', path: 'src/components/Characters.tsx', desc: 'Character management with roles' },
                             { name: 'Scripts', path: 'src/components/Scripts.tsx', desc: 'Script browsing and viewing' },
                             { name: 'Episodes', path: 'src/components/Episodes.tsx', desc: 'Production tracking' },
-                            { name: 'EpisodeProfitAnalytics', path: 'src/components/EpisodeProfitAnalytics.tsx', desc: 'Revenue and LTV tracking' },
+                            { name: 'EpisodeProfitAnalytics', path: 'src/components/EpisodeProfitAnalytics.tsx', desc: 'Revenue, LTV tracking, and profit projections' },
+                            { name: 'ShowRevenueEstimator', path: 'src/components/ShowRevenueEstimator.tsx', desc: 'Multi-channel revenue calculator' },
+                            { name: 'SeriesManagementModal', path: 'src/components/SeriesManagementModal.tsx', desc: 'Series editing and profit defaults' },
                             { name: 'AIStudio', path: 'src/components/AIStudio.tsx', desc: 'AI generation interface' },
                             { name: 'VoiceGenerationTab', path: 'src/components/VoiceGenerationTab.tsx', desc: 'Voice studio and cloning' },
                             { name: 'VoiceCloningModal', path: 'src/components/VoiceCloningModal.tsx', desc: 'Custom voice cloning' },
@@ -1466,8 +1478,8 @@ export function Settings() {
                             },
                             {
                               table: 'series',
-                              desc: 'Series metadata, art style, production guidelines, and organization association',
-                              cols: 'id, organization_id, title, description, art_style, target_audience, archived_at',
+                              desc: 'Series metadata, art style, production guidelines, profit projection defaults, and organization association',
+                              cols: 'id, organization_id, title, description, art_style, target_audience, default_episode_count, archived_at',
                             },
                             {
                               table: 'dashboard_ip_sections',
