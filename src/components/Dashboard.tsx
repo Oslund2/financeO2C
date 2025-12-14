@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus, TrendingUp, Clock, CheckCircle, AlertCircle, Award, Globe, Sparkles, DollarSign, Languages, Tv, X, FileText, Film, ArrowRight, ChevronDown, ChevronUp, Edit2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { SystemHealthWidget } from './SystemHealthWidget';
 import { CastFilmStrip } from './CastFilmStrip';
 import { DashboardIPSectionEditor } from './DashboardIPSectionEditor';
 import { EpisodeProgressBreakdown } from './EpisodeProgressBreakdown';
+import { VideoTrailerShowcase } from './VideoTrailerShowcase';
+import { VideoSelectorModal } from './VideoSelectorModal';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -109,12 +111,39 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
   const [editorInitialTab, setEditorInitialTab] = useState<'main' | 'card1' | 'card2' | 'card3'>('main');
   const [seriesName, setSeriesName] = useState<string>('');
   const [expandedEpisodeId, setExpandedEpisodeId] = useState<string | null>(null);
+  const [showVideoSelector, setShowVideoSelector] = useState(false);
+  const [trailerRefreshKey, setTrailerRefreshKey] = useState(0);
+  const [currentTrailerId, setCurrentTrailerId] = useState<string | null>(null);
 
   useEffect(() => {
     loadDashboardData();
     loadIPSectionData();
     loadSeriesName();
+    loadCurrentTrailerId();
   }, [seriesId, currentOrganization]);
+
+  const loadCurrentTrailerId = async () => {
+    if (!seriesId) {
+      setCurrentTrailerId(null);
+      return;
+    }
+    try {
+      const { data, error } = await supabase
+        .from('series')
+        .select('featured_trailer_id')
+        .eq('id', seriesId)
+        .maybeSingle();
+      if (error) throw error;
+      setCurrentTrailerId(data?.featured_trailer_id || null);
+    } catch (error) {
+      console.error('Error loading current trailer ID:', error);
+    }
+  };
+
+  const handleTrailerSaved = useCallback(() => {
+    setTrailerRefreshKey(prev => prev + 1);
+    loadCurrentTrailerId();
+  }, [seriesId]);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -399,6 +428,15 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
         </div>
 
         <CastFilmStrip seriesId={seriesId} onNavigate={onNavigate} seriesName={seriesName} />
+
+        {seriesId && (
+          <VideoTrailerShowcase
+            key={trailerRefreshKey}
+            seriesId={seriesId}
+            onNavigate={onNavigate}
+            onOpenSelector={() => setShowVideoSelector(true)}
+          />
+        )}
 
         <div className="mb-6 sm:mb-8 bg-gradient-to-br from-scripps-navy via-scripps-blue to-scripps-light-blue rounded-xl sm:rounded-2xl shadow-2xl overflow-hidden border border-scripps-blue transition-all">
           <div className="p-6 sm:p-8 lg:p-10">
@@ -963,6 +1001,17 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
         seriesId={seriesId}
         initialTab={editorInitialTab}
       />
+
+      {seriesId && (
+        <VideoSelectorModal
+          seriesId={seriesId}
+          isOpen={showVideoSelector}
+          onClose={() => setShowVideoSelector(false)}
+          onSave={handleTrailerSaved}
+          currentTrailerId={currentTrailerId}
+          onNavigate={onNavigate}
+        />
+      )}
     </div>
   );
 }

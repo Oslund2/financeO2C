@@ -85,6 +85,10 @@ export interface Database {
           archived_at: string | null
           archived_by: string | null
           default_episode_count: number
+          featured_trailer_id: string | null
+          featured_trailer_title: string | null
+          featured_trailer_association_type: string | null
+          featured_trailer_association_id: string | null
           created_at: string
           updated_at: string
         }
@@ -99,6 +103,10 @@ export interface Database {
           archived_at?: string | null
           archived_by?: string | null
           default_episode_count?: number
+          featured_trailer_id?: string | null
+          featured_trailer_title?: string | null
+          featured_trailer_association_type?: string | null
+          featured_trailer_association_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -113,6 +121,10 @@ export interface Database {
           archived_at?: string | null
           archived_by?: string | null
           default_episode_count?: number
+          featured_trailer_id?: string | null
+          featured_trailer_title?: string | null
+          featured_trailer_association_type?: string | null
+          featured_trailer_association_id?: string | null
           created_at?: string
           updated_at?: string
         }
