@@ -11,6 +11,7 @@ interface Series {
   theme: string | null;
   style_guide: string | null;
   organization_id: string;
+  default_episode_count: number;
 }
 
 interface ContentCount {
@@ -39,6 +40,7 @@ export function SeriesManagementModal({ series, onClose, onUpdate }: SeriesManag
     description: series.description || '',
     theme: series.theme || '',
     style_guide: series.style_guide || '',
+    default_episode_count: series.default_episode_count || 6,
   });
 
   const [duplicateForm, setDuplicateForm] = useState({
@@ -82,6 +84,7 @@ export function SeriesManagementModal({ series, onClose, onUpdate }: SeriesManag
           description: editForm.description,
           theme: editForm.theme,
           style_guide: editForm.style_guide,
+          default_episode_count: editForm.default_episode_count,
           updated_at: new Date().toISOString(),
         })
         .eq('id', series.id);
@@ -294,6 +297,28 @@ export function SeriesManagementModal({ series, onClose, onUpdate }: SeriesManag
                   rows={4}
                   placeholder="Visual style guidelines, animation notes, etc."
                 />
+              </div>
+
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-lg p-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Default Episode Count for Profit Estimates
+                </label>
+                <div className="flex items-center gap-4 mb-2">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={editForm.default_episode_count}
+                    onChange={(e) => setEditForm({ ...editForm, default_episode_count: Number(e.target.value) })}
+                    className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600"
+                  />
+                  <span className="text-2xl font-bold text-green-700 min-w-[3rem] text-center">
+                    {editForm.default_episode_count}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-600">
+                  This value will be used as the default number of episodes in revenue projections and profit analytics for this series. Range: 0-100 episodes.
+                </p>
               </div>
             </div>
           )}

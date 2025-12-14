@@ -40,6 +40,7 @@ export interface RevenueCalculations {
 
 interface ShowRevenueEstimatorProps {
   initialProductionCost?: number;
+  initialEpisodeCount?: number;
   onCalculationsChange?: (calculations: RevenueCalculations) => void;
 }
 
@@ -75,8 +76,8 @@ interface Language {
   audienceMultiplier: number; // potential audience expansion
 }
 
-export function ShowRevenueEstimator({ initialProductionCost = 0, onCalculationsChange }: ShowRevenueEstimatorProps) {
-  const [numberOfEpisodes, setNumberOfEpisodes] = useState(1);
+export function ShowRevenueEstimator({ initialProductionCost = 0, initialEpisodeCount = 6, onCalculationsChange }: ShowRevenueEstimatorProps) {
+  const [numberOfEpisodes, setNumberOfEpisodes] = useState(initialEpisodeCount);
   const [programLength, setProgramLength] = useState(30);
   const [breaksPerEpisode, setBreaksPerEpisode] = useState(4);
   const [spotsPerBreak, setSpotsPerBreak] = useState(4);

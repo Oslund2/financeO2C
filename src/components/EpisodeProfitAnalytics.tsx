@@ -45,10 +45,12 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
   const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null);
   const [showCostHelp, setShowCostHelp] = useState(false);
   const [revenueCalculations, setRevenueCalculations] = useState<RevenueCalculations | null>(null);
+  const [defaultEpisodeCount, setDefaultEpisodeCount] = useState(6);
 
   useEffect(() => {
     loadEpisodes();
     loadCharacters();
+    loadSeriesDefaults();
   }, [seriesId]);
 
   useEffect(() => {
@@ -100,6 +102,29 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
       setCharacters(data || []);
     } catch (error) {
       console.error('Error loading characters:', error);
+    }
+  };
+
+  const loadSeriesDefaults = async () => {
+    if (!seriesId) {
+      setDefaultEpisodeCount(6);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('series')
+        .select('default_episode_count')
+        .eq('id', seriesId)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (data?.default_episode_count) {
+        setDefaultEpisodeCount(data.default_episode_count);
+      }
+    } catch (error) {
+      console.error('Error loading series defaults:', error);
+      setDefaultEpisodeCount(6);
     }
   };
 
@@ -1069,6 +1094,7 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
 
               <ShowRevenueEstimator
                 initialProductionCost={productionCost}
+                initialEpisodeCount={defaultEpisodeCount}
                 onCalculationsChange={handleRevenueCalculationsChange}
               />
 

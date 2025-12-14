@@ -84,6 +84,7 @@ export interface Database {
           archived: boolean
           archived_at: string | null
           archived_by: string | null
+          default_episode_count: number
           created_at: string
           updated_at: string
         }
@@ -97,6 +98,7 @@ export interface Database {
           archived?: boolean
           archived_at?: string | null
           archived_by?: string | null
+          default_episode_count?: number
           created_at?: string
           updated_at?: string
         }
@@ -110,6 +112,7 @@ export interface Database {
           archived?: boolean
           archived_at?: string | null
           archived_by?: string | null
+          default_episode_count?: number
           created_at?: string
           updated_at?: string
         }
