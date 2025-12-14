@@ -48,7 +48,7 @@ function getGeminiAPIKey(): string {
 
 async function callGemini(prompt: string): Promise<string> {
   const apiKey = getGeminiAPIKey();
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
   const response = await fetch(endpoint, {
     method: 'POST',

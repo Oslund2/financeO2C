@@ -1,5 +1,10 @@
 import { supabase } from '../lib/supabase';
 import { generateText } from './geminiService';
+import { trackGeminiUsage } from './geminiUsageTrackingService';
+
+const RATE_LIMIT_DELAY = parseInt(import.meta.env.VITE_GEMINI_RATE_LIMIT_DELAY || '100', 10);
+const MAX_RETRIES = 3;
+const BATCH_SIZE = 10;
 
 interface TranslationProgress {
   totalItems: number;
@@ -7,10 +12,166 @@ interface TranslationProgress {
   percentage: number;
 }
 
+interface DialogueLine {
+  character?: string;
+  text: string;
+  [key: string]: any;
+}
+
 export interface ScriptTranslationStatus {
   status: 'pending' | 'in_progress' | 'completed' | 'failed';
   progress: number;
   errorMessage?: string;
+}
+
+async function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function translateWithRetry(
+  text: string,
+  targetLanguage: string,
+  context?: string,
+  organizationId?: string,
+  scriptId?: string,
+  retries = MAX_RETRIES
+): Promise<string> {
+  const startTime = Date.now();
+
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      await delay(RATE_LIMIT_DELAY);
+
+      const prompt = `Translate the following text to ${targetLanguage}. ${
+        context ? `Context: ${context}. ` : ''
+      }Maintain the tone, style, and formatting. Only return the translated text, nothing else.
+
+Text to translate:
+${text}`;
+
+      const result = await generateText(prompt);
+      const latencyMs = Date.now() - startTime;
+
+      await trackGeminiUsage({
+        organizationId,
+        operationType: 'translation',
+        modelUsed: 'gemini-2.5-flash',
+        inputText: prompt,
+        outputText: result,
+        success: true,
+        latencyMs,
+        metadata: {
+          script_id: scriptId,
+          target_language: targetLanguage,
+          context
+        }
+      });
+
+      return result.trim();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const isQuotaError = errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('RESOURCE_EXHAUSTED');
+
+      if (isQuotaError && attempt < retries) {
+        const backoffDelay = RATE_LIMIT_DELAY * Math.pow(2, attempt);
+        console.log(`Quota error detected. Retrying in ${backoffDelay}ms (attempt ${attempt}/${retries})...`);
+        await delay(backoffDelay);
+        continue;
+      }
+
+      if (attempt === retries) {
+        const latencyMs = Date.now() - startTime;
+        await trackGeminiUsage({
+          organizationId,
+          operationType: 'translation',
+          modelUsed: 'gemini-2.5-flash',
+          inputText: text,
+          success: false,
+          errorMessage,
+          latencyMs,
+          metadata: {
+            script_id: scriptId,
+            target_language: targetLanguage,
+            context
+          }
+        });
+
+        throw new Error(`Translation failed after ${retries} attempts: ${errorMessage}`);
+      }
+    }
+  }
+
+  throw new Error('Translation failed: Maximum retries exceeded');
+}
+
+async function translateDialogueBatch(
+  dialogueLines: DialogueLine[],
+  targetLanguage: string,
+  organizationId?: string,
+  scriptId?: string
+): Promise<DialogueLine[]> {
+  if (dialogueLines.length === 0) return [];
+
+  if (dialogueLines.length === 1) {
+    const translatedText = await translateWithRetry(
+      dialogueLines[0].text,
+      targetLanguage,
+      `Dialogue spoken by character: ${dialogueLines[0].character || 'unknown'}`,
+      organizationId,
+      scriptId
+    );
+    return [{ ...dialogueLines[0], text: translatedText }];
+  }
+
+  const batchText = dialogueLines
+    .map((line, idx) => `[LINE ${idx + 1}] ${line.character || 'NARRATOR'}: ${line.text}`)
+    .join('\n\n');
+
+  const prompt = `Translate the following dialogue lines to ${targetLanguage}.
+Maintain the exact format: [LINE X] CHARACTER: translated dialogue
+Preserve character names exactly as shown.
+Only return the translated lines, nothing else.
+
+Dialogue to translate:
+${batchText}`;
+
+  try {
+    await delay(RATE_LIMIT_DELAY);
+    const result = await generateText(prompt);
+
+    const translatedLines = result.trim().split('\n\n');
+    const parsed: DialogueLine[] = [];
+
+    for (let i = 0; i < dialogueLines.length; i++) {
+      const translatedLine = translatedLines[i];
+      if (translatedLine) {
+        const match = translatedLine.match(/\[LINE \d+\]\s*([^:]+):\s*(.+)/);
+        if (match) {
+          parsed.push({ ...dialogueLines[i], text: match[2].trim() });
+        } else {
+          parsed.push({ ...dialogueLines[i], text: translatedLine });
+        }
+      } else {
+        parsed.push(dialogueLines[i]);
+      }
+    }
+
+    return parsed.length === dialogueLines.length ? parsed : dialogueLines;
+  } catch (error) {
+    console.warn('Batch translation failed, falling back to individual translation:', error);
+    const results: DialogueLine[] = [];
+    for (const line of dialogueLines) {
+      const translatedText = await translateWithRetry(
+        line.text,
+        targetLanguage,
+        `Dialogue spoken by character: ${line.character || 'unknown'}`,
+        organizationId,
+        scriptId
+      );
+      results.push({ ...line, text: translatedText });
+    }
+    return results;
+  }
 }
 
 export class ScriptTranslationService {
@@ -54,17 +215,11 @@ export class ScriptTranslationService {
   private static async translateText(
     text: string,
     targetLanguage: string,
-    context?: string
+    context?: string,
+    organizationId?: string,
+    scriptId?: string
   ): Promise<string> {
-    const prompt = `Translate the following text to ${targetLanguage}. ${
-      context ? `Context: ${context}. ` : ''
-    }Maintain the tone, style, and formatting. Only return the translated text, nothing else.
-
-Text to translate:
-${text}`;
-
-    const result = await generateText(prompt);
-    return result.trim();
+    return translateWithRetry(text, targetLanguage, context, organizationId, scriptId);
   }
 
   private static async updateTranslationProgress(
@@ -92,6 +247,7 @@ ${text}`;
   ): Promise<{ success: boolean; error?: string }> {
     try {
       const { script, acts } = await this.getScriptContent(scriptId);
+      const organizationId = script.organization_id || undefined;
 
       const { data: existingTranslation } = await supabase
         .from('script_translations')
@@ -144,7 +300,9 @@ ${text}`;
       const translatedTitle = await this.translateText(
         script.title,
         languageName,
-        'This is a script title for an animated series'
+        'This is a script title for an animated series',
+        organizationId,
+        scriptId
       );
       updateProgress();
 
@@ -152,7 +310,9 @@ ${text}`;
         ? await this.translateText(
             script.synopsis,
             languageName,
-            'This is a script synopsis'
+            'This is a script synopsis',
+            organizationId,
+            scriptId
           )
         : null;
       updateProgress();
@@ -161,7 +321,9 @@ ${text}`;
         ? await this.translateText(
             script.theme,
             languageName,
-            'This is a script theme'
+            'This is a script theme',
+            organizationId,
+            scriptId
           )
         : null;
       updateProgress();
@@ -179,11 +341,13 @@ ${text}`;
         const translatedContent = await this.translateText(
           act.content || '',
           languageName,
-          `This is Act ${act.act_number} of a script`
+          `This is Act ${act.act_number} of a script`,
+          organizationId,
+          scriptId
         );
 
         const translatedNotes = act.notes
-          ? await this.translateText(act.notes, languageName, 'These are act notes')
+          ? await this.translateText(act.notes, languageName, 'These are act notes', organizationId, scriptId)
           : null;
 
         await supabase.from('script_act_translations').upsert({
@@ -199,31 +363,38 @@ ${text}`;
           const translatedSetting = await this.translateText(
             scene.setting || '',
             languageName,
-            'This is a scene setting/location'
+            'This is a scene setting/location',
+            organizationId,
+            scriptId
           );
 
           const translatedDescription = await this.translateText(
             scene.description || '',
             languageName,
-            'This is a scene description'
+            'This is a scene description',
+            organizationId,
+            scriptId
           );
 
           let translatedDialogue = scene.dialogue;
           if (scene.dialogue && typeof scene.dialogue === 'object') {
             if (Array.isArray(scene.dialogue)) {
-              translatedDialogue = await Promise.all(
-                scene.dialogue.map(async (line: any) => {
-                  if (typeof line === 'object' && line.text) {
-                    const translatedText = await this.translateText(
-                      line.text,
-                      languageName,
-                      `Dialogue spoken by character: ${line.character || 'unknown'}`
-                    );
-                    return { ...line, text: translatedText };
-                  }
-                  return line;
-                })
+              const dialogueLines: DialogueLine[] = scene.dialogue.filter(
+                (line: any) => typeof line === 'object' && line.text
               );
+
+              if (dialogueLines.length > 0) {
+                const batches: DialogueLine[][] = [];
+                for (let i = 0; i < dialogueLines.length; i += BATCH_SIZE) {
+                  batches.push(dialogueLines.slice(i, i + BATCH_SIZE));
+                }
+
+                const translatedBatches = await Promise.all(
+                  batches.map(batch => translateDialogueBatch(batch, languageName, organizationId, scriptId))
+                );
+
+                translatedDialogue = translatedBatches.flat();
+              }
             }
           }
 
@@ -231,7 +402,9 @@ ${text}`;
             ? await this.translateText(
                 scene.stage_directions,
                 languageName,
-                'These are stage directions'
+                'These are stage directions',
+                organizationId,
+                scriptId
               )
             : null;
 
@@ -253,7 +426,13 @@ ${text}`;
       return { success: true };
     } catch (error) {
       console.error('Translation error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      let errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+
+      if (errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('RESOURCE_EXHAUSTED')) {
+        errorMessage = 'Translation failed: Gemini API quota exceeded. Please try again later or contact support if the issue persists. Using Gemini 2.5 Flash model.';
+      } else if (errorMessage.includes('API error')) {
+        errorMessage = `Translation service error: ${errorMessage}. Please check your API configuration.`;
+      }
 
       return { success: false, error: errorMessage };
     }

@@ -340,7 +340,7 @@ export async function generateScriptWithGemini(
     console.log('Prompt length:', prompt.length, 'characters');
     console.log('Characters:', characters.length);
 
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
     const requestBody = {
       contents: [{
@@ -648,7 +648,7 @@ export async function generateText(prompt: string): Promise<string> {
   try {
     const apiKey = getGeminiAPIKey();
 
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
     const requestBody = {
       contents: [{
