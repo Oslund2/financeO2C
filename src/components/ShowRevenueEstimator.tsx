@@ -379,7 +379,8 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, onCalculations
       lifetimeMargin: ltvCalculation.lifetimeMargin,
       paybackPeriodYears: ltvCalculation.paybackPeriodYears,
       averageAnnualProfit: ltvCalculation.averageAnnualProfit,
-      ltvCalculation
+      ltvCalculation,
+      costPerEp
     };
   }, [
     numberOfEpisodes,
@@ -394,7 +395,8 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, onCalculations
     enableMultiLanguage,
     yearsInService,
     decayRatePercent,
-    minimumRetentionPercent
+    minimumRetentionPercent,
+    dubbingTier
   ]);
 
   useEffect(() => {
@@ -1120,14 +1122,14 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, onCalculations
                         <div className="text-xs text-gray-600 mt-1">
                           {language.enabled ? (
                             <>
-                              Dubbing: {formatCurrency(costPerEp)} × {numberOfEpisodes} eps = {formatCurrency(costPerEp * numberOfEpisodes)}
+                              Dubbing: {formatCurrency(calculations.costPerEp)} × {numberOfEpisodes} eps = {formatCurrency(calculations.costPerEp * numberOfEpisodes)}
                               <span className="ml-2 text-green-600">
                                 | +{Math.round((language.audienceMultiplier - 1) * 100)}% potential reach
                               </span>
                             </>
                           ) : (
                             <>
-                              Est. dubbing: {formatCurrency(costPerEp)}/ep | Regional CPM: {(language.regionalCPM * 100).toFixed(0)}% | Audience: +{Math.round((language.audienceMultiplier - 1) * 100)}%
+                              Est. dubbing: {formatCurrency(calculations.costPerEp)}/ep | Regional CPM: {(language.regionalCPM * 100).toFixed(0)}% | Audience: +{Math.round((language.audienceMultiplier - 1) * 100)}%
                             </>
                           )}
                         </div>
