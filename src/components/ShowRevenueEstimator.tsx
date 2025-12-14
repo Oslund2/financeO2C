@@ -1,7 +1,15 @@
 import { useState, useMemo, useEffect } from 'react';
-import { DollarSign, Users, TrendingUp, BarChart3, Info, Plus, X, Globe, Tv, Monitor, Youtube, Baby, AlertTriangle, Eye, Clock, TrendingDown } from 'lucide-react';
+import { DollarSign, Users, TrendingUp, BarChart3, Info, Plus, X, Globe, Tv, Monitor, Youtube, Baby, AlertTriangle, Eye, Clock, TrendingDown, UserCog, ArrowDown } from 'lucide-react';
 import { LTVCalculationService, type LTVCalculation } from '../services/ltvCalculationService';
 import { YearByYearBreakdown } from './YearByYearBreakdown';
+import {
+  calculateSeasonHumanCosts,
+  getDecayCurvePreview,
+  HUMAN_COST_PROFILES,
+  type HumanCostProfile,
+  type CostConfig,
+  type HumanCostBreakdown
+} from '../services/costCalculationService';
 
 export interface RevenueCalculations {
   revenuePerEpisodePerRun: number;
@@ -84,6 +92,9 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, onCalculations
   const [dubbingTier, setDubbingTier] = useState<'ai' | 'bulk_professional' | 'premium_professional'>('bulk_professional');
 
   const [calculationMode, setCalculationMode] = useState<'impression' | 'spot'>('impression');
+
+  const [enableHumanCosts, setEnableHumanCosts] = useState(true);
+  const [humanCostProfile, setHumanCostProfile] = useState<HumanCostProfile>('standard');
 
   // Dubbing cost per episode based on research
   const dubbingCostPerEpisode = {
@@ -328,7 +339,31 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, onCalculations
       .filter(l => !l.isDefault)
       .reduce((sum, l) => sum + costPerEp, 0) * numberOfEpisodes;
 
-    const adjustedProductionCost = totalProductionCost + languageDubbingCost;
+    const profileSettings = HUMAN_COST_PROFILES[humanCostProfile];
+    const humanCostConfig: Partial<CostConfig> = {
+      human_editing_cost_per_minute: profileSettings.editingCostPerMinute,
+      human_scene_setup_cost_per_minute: profileSettings.sceneSetupCostPerMinute,
+      human_character_qc_cost_per_minute: profileSettings.characterQCCostPerMinute,
+      human_render_supervision_cost_per_minute: profileSettings.renderSupervisionCostPerMinute,
+      human_voice_direction_cost_per_session: profileSettings.voiceDirectionCostPerSession,
+      human_revision_rate_percentage: profileSettings.revisionRatePercentage,
+      asset_decay_rate: profileSettings.decayRate,
+      asset_decay_floor: profileSettings.decayFloor,
+    };
+
+    const seasonHumanCosts = enableHumanCosts
+      ? calculateSeasonHumanCosts(programLength, humanCostConfig as CostConfig, numberOfEpisodes)
+      : null;
+
+    const totalHumanCost = seasonHumanCosts?.totalSeasonCost ?? 0;
+
+    const decayCurve = getDecayCurvePreview(
+      profileSettings.decayRate,
+      profileSettings.decayFloor,
+      [1, 5, 10, 20]
+    );
+
+    const adjustedProductionCost = totalProductionCost + languageDubbingCost + totalHumanCost;
 
     const grossProfit = totalRevenue - adjustedProductionCost;
     const margin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
@@ -380,7 +415,11 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, onCalculations
       paybackPeriodYears: ltvCalculation.paybackPeriodYears,
       averageAnnualProfit: ltvCalculation.averageAnnualProfit,
       ltvCalculation,
-      costPerEp
+      costPerEp,
+      totalHumanCost,
+      seasonHumanCosts,
+      decayCurve,
+      profileSettings,
     };
   }, [
     numberOfEpisodes,
@@ -396,7 +435,10 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, onCalculations
     yearsInService,
     decayRatePercent,
     minimumRetentionPercent,
-    dubbingTier
+    dubbingTier,
+    enableHumanCosts,
+    humanCostProfile,
+    programLength
   ]);
 
   useEffect(() => {
@@ -872,6 +914,151 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, onCalculations
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="bg-white border-2 border-gray-200 rounded-xl p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <UserCog className="w-5 h-5 text-gray-700" />
+            <h4 className="text-lg font-bold text-gray-900">Human Labor Costs</h4>
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={enableHumanCosts}
+              onChange={(e) => setEnableHumanCosts(e.target.checked)}
+              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+            />
+            <span className="text-sm font-medium text-gray-700">Include Human Costs</span>
+          </label>
+        </div>
+
+        {enableHumanCosts && (
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Production Profile</label>
+              <select
+                value={humanCostProfile}
+                onChange={(e) => setHumanCostProfile(e.target.value as HumanCostProfile)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                {Object.entries(HUMAN_COST_PROFILES).map(([key, profile]) => (
+                  <option key={key} value={key}>
+                    {profile.name} - {profile.description}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <ArrowDown className="w-4 h-4 text-green-600" />
+                <span className="font-semibold text-gray-900 text-sm">Asset Reuse Decay Curve</span>
+              </div>
+              <p className="text-xs text-gray-600 mb-3">
+                Human labor costs decrease as you build up reusable assets (character models, backgrounds, shot compositions).
+              </p>
+              <div className="grid grid-cols-4 gap-2">
+                {calculations.decayCurve.map((point) => (
+                  <div key={point.episode} className="bg-white border border-green-200 rounded p-2 text-center">
+                    <div className="text-xs text-gray-600">Ep {point.episode}</div>
+                    <div className="font-bold text-green-700">{point.percentage}%</div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 text-xs text-gray-600">
+                <strong>Decay Rate:</strong> {Math.round((1 - calculations.profileSettings.decayRate) * 100)}% efficiency gain per episode |
+                <strong className="ml-2">Floor:</strong> {Math.round(calculations.profileSettings.decayFloor * 100)}% minimum (irreducible oversight)
+              </div>
+            </div>
+
+            {calculations.seasonHumanCosts && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                    <div className="text-xs text-gray-600">Episode 1 Cost</div>
+                    <div className="font-bold text-gray-900">
+                      {formatCurrency(calculations.seasonHumanCosts.perEpisodeCosts[0]?.totalHumanCost ?? 0)}
+                    </div>
+                    <div className="text-xs text-gray-500">100% base rate</div>
+                  </div>
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                    <div className="text-xs text-gray-600">
+                      Episode {numberOfEpisodes} Cost
+                    </div>
+                    <div className="font-bold text-green-700">
+                      {formatCurrency(calculations.seasonHumanCosts.perEpisodeCosts[numberOfEpisodes - 1]?.totalHumanCost ?? 0)}
+                    </div>
+                    <div className="text-xs text-green-600">
+                      {Math.round((calculations.seasonHumanCosts.perEpisodeCosts[numberOfEpisodes - 1]?.decayMultiplier ?? 1) * 100)}% of base
+                    </div>
+                  </div>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div className="text-xs text-gray-600">Avg per Episode</div>
+                    <div className="font-bold text-blue-700">
+                      {formatCurrency(calculations.seasonHumanCosts.averageCostPerEpisode)}
+                    </div>
+                    <div className="text-xs text-blue-600">across season</div>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-r from-teal-50 to-cyan-50 border border-teal-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-gray-900">Total Season Human Labor Cost</span>
+                    <span className="text-xl font-bold text-teal-700">
+                      {formatCurrency(calculations.totalHumanCost)}
+                    </span>
+                  </div>
+                  {numberOfEpisodes > 1 && (
+                    <div className="mt-2 text-xs text-teal-700">
+                      Saved {formatCurrency(
+                        (calculations.seasonHumanCosts.perEpisodeCosts[0]?.totalHumanCost ?? 0) * numberOfEpisodes - calculations.totalHumanCost
+                      )} vs fixed Episode 1 rates across all episodes
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                  <div className="text-xs font-medium text-gray-700 mb-2">Cost Breakdown (Episode 1 rates)</div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Editing:</span>
+                      <span className="font-medium">${calculations.profileSettings.editingCostPerMinute}/min</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Scene Setup:</span>
+                      <span className="font-medium">${calculations.profileSettings.sceneSetupCostPerMinute}/min</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Character QC:</span>
+                      <span className="font-medium">${calculations.profileSettings.characterQCCostPerMinute}/min</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Render QC:</span>
+                      <span className="font-medium">${calculations.profileSettings.renderSupervisionCostPerMinute}/min (flat)</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Voice Direction:</span>
+                      <span className="font-medium">${calculations.profileSettings.voiceDirectionCostPerSession}/session (flat)</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Revision Rate:</span>
+                      <span className="font-medium">{calculations.profileSettings.revisionRatePercentage}%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {!enableHumanCosts && (
+          <div className="text-center py-6 text-gray-500">
+            <UserCog className="w-8 h-8 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">Human labor costs disabled</p>
+            <p className="text-xs mt-1">Enable to factor in editing, QC, and oversight costs</p>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

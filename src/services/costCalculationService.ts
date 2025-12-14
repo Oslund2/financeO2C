@@ -17,6 +17,84 @@ export interface CostConfig {
   video_generation_cost_per_minute?: number;
   video_generation_provider?: string;
   video_generation_quality_tier?: string;
+  human_editing_cost_per_minute?: number;
+  human_scene_setup_cost_per_minute?: number;
+  human_character_qc_cost_per_minute?: number;
+  human_render_supervision_cost_per_minute?: number;
+  human_voice_direction_cost_per_session?: number;
+  human_revision_rate_percentage?: number;
+  asset_decay_rate?: number;
+  asset_decay_floor?: number;
+  human_cost_profile?: string;
+}
+
+export type HumanCostProfile = 'lean' | 'standard' | 'broadcast';
+
+export interface HumanCostProfileSettings {
+  name: string;
+  description: string;
+  editingCostPerMinute: number;
+  sceneSetupCostPerMinute: number;
+  characterQCCostPerMinute: number;
+  renderSupervisionCostPerMinute: number;
+  voiceDirectionCostPerSession: number;
+  revisionRatePercentage: number;
+  decayRate: number;
+  decayFloor: number;
+}
+
+export const HUMAN_COST_PROFILES: Record<HumanCostProfile, HumanCostProfileSettings> = {
+  lean: {
+    name: 'Lean Production',
+    description: 'Lower overhead, aggressive efficiency gains, smaller teams',
+    editingCostPerMinute: 35,
+    sceneSetupCostPerMinute: 18,
+    characterQCCostPerMinute: 7,
+    renderSupervisionCostPerMinute: 12,
+    voiceDirectionCostPerSession: 150,
+    revisionRatePercentage: 15,
+    decayRate: 0.92,
+    decayFloor: 0.35,
+  },
+  standard: {
+    name: 'Standard Production',
+    description: 'Industry-standard oversight, balanced efficiency gains',
+    editingCostPerMinute: 50,
+    sceneSetupCostPerMinute: 25,
+    characterQCCostPerMinute: 10,
+    renderSupervisionCostPerMinute: 15,
+    voiceDirectionCostPerSession: 200,
+    revisionRatePercentage: 20,
+    decayRate: 0.95,
+    decayFloor: 0.40,
+  },
+  broadcast: {
+    name: 'Broadcast Quality',
+    description: 'Premium oversight, conservative efficiency, higher QC standards',
+    editingCostPerMinute: 75,
+    sceneSetupCostPerMinute: 38,
+    characterQCCostPerMinute: 15,
+    renderSupervisionCostPerMinute: 22,
+    voiceDirectionCostPerSession: 300,
+    revisionRatePercentage: 25,
+    decayRate: 0.97,
+    decayFloor: 0.50,
+  },
+};
+
+export interface HumanCostBreakdown {
+  editingCost: number;
+  sceneSetupCost: number;
+  characterQCCost: number;
+  renderSupervisionCost: number;
+  voiceDirectionCost: number;
+  revisionCost: number;
+  decayMultiplier: number;
+  episodeNumber: number;
+  baseCostBeforeDecay: number;
+  totalHumanCost: number;
+  decayingCosts: number;
+  flatCosts: number;
 }
 
 export interface ScriptData {
@@ -39,6 +117,7 @@ export interface CostBreakdown {
   videoGenerationCost: number;
   lipSyncCost?: number;
   complexityAdjustment: number;
+  humanCosts?: HumanCostBreakdown;
   totalCost: number;
 }
 
@@ -98,7 +177,115 @@ function calculateComplexityMultiplier(
   return config.complexity_multiplier_medium;
 }
 
-function calculateAICost(scriptData: ScriptData, config: CostConfig): CostBreakdown {
+export function calculateDecayMultiplier(
+  episodeNumber: number,
+  decayRate: number,
+  decayFloor: number
+): number {
+  if (episodeNumber <= 1) return 1.0;
+  const rawDecay = Math.pow(decayRate, episodeNumber - 1);
+  return Math.max(decayFloor, rawDecay);
+}
+
+export function calculateHumanCosts(
+  runtimeMinutes: number,
+  config: CostConfig,
+  episodeNumber: number = 1
+): HumanCostBreakdown {
+  const editingRate = config.human_editing_cost_per_minute ?? 50;
+  const sceneSetupRate = config.human_scene_setup_cost_per_minute ?? 25;
+  const characterQCRate = config.human_character_qc_cost_per_minute ?? 10;
+  const renderSupervisionRate = config.human_render_supervision_cost_per_minute ?? 15;
+  const voiceDirectionPerSession = config.human_voice_direction_cost_per_session ?? 200;
+  const revisionRatePercent = config.human_revision_rate_percentage ?? 20;
+  const decayRate = config.asset_decay_rate ?? 0.95;
+  const decayFloor = config.asset_decay_floor ?? 0.40;
+
+  const decayMultiplier = calculateDecayMultiplier(episodeNumber, decayRate, decayFloor);
+
+  const baseEditingCost = runtimeMinutes * editingRate;
+  const baseSceneSetupCost = runtimeMinutes * sceneSetupRate;
+  const baseCharacterQCCost = runtimeMinutes * characterQCRate;
+
+  const editingCost = baseEditingCost * decayMultiplier;
+  const sceneSetupCost = baseSceneSetupCost * decayMultiplier;
+  const characterQCCost = baseCharacterQCCost * decayMultiplier;
+
+  const renderSupervisionCost = runtimeMinutes * renderSupervisionRate;
+  const voiceDirectionCost = voiceDirectionPerSession;
+
+  const revisionBase = editingCost * (revisionRatePercent / 100);
+  const flatRevisionPortion = 0.3;
+  const revisionCost = (revisionBase * flatRevisionPortion) + (revisionBase * (1 - flatRevisionPortion) * decayMultiplier);
+
+  const decayingCosts = editingCost + sceneSetupCost + characterQCCost + (revisionBase * (1 - flatRevisionPortion) * decayMultiplier);
+  const flatCosts = renderSupervisionCost + voiceDirectionCost + (revisionBase * flatRevisionPortion);
+
+  const baseCostBeforeDecay = (baseEditingCost + baseSceneSetupCost + baseCharacterQCCost) +
+    renderSupervisionCost + voiceDirectionCost +
+    (baseEditingCost * (revisionRatePercent / 100));
+
+  const totalHumanCost = editingCost + sceneSetupCost + characterQCCost +
+    renderSupervisionCost + voiceDirectionCost + revisionCost;
+
+  return {
+    editingCost,
+    sceneSetupCost,
+    characterQCCost,
+    renderSupervisionCost,
+    voiceDirectionCost,
+    revisionCost,
+    decayMultiplier,
+    episodeNumber,
+    baseCostBeforeDecay,
+    totalHumanCost,
+    decayingCosts,
+    flatCosts,
+  };
+}
+
+export function calculateSeasonHumanCosts(
+  runtimeMinutes: number,
+  config: CostConfig,
+  totalEpisodes: number
+): { perEpisodeCosts: HumanCostBreakdown[]; totalSeasonCost: number; averageCostPerEpisode: number } {
+  const perEpisodeCosts: HumanCostBreakdown[] = [];
+  let totalSeasonCost = 0;
+
+  for (let ep = 1; ep <= totalEpisodes; ep++) {
+    const episodeCost = calculateHumanCosts(runtimeMinutes, config, ep);
+    perEpisodeCosts.push(episodeCost);
+    totalSeasonCost += episodeCost.totalHumanCost;
+  }
+
+  return {
+    perEpisodeCosts,
+    totalSeasonCost,
+    averageCostPerEpisode: totalSeasonCost / totalEpisodes,
+  };
+}
+
+export function getDecayCurvePreview(
+  decayRate: number,
+  decayFloor: number,
+  milestones: number[] = [1, 5, 10, 20, 50]
+): { episode: number; multiplier: number; percentage: number }[] {
+  return milestones.map(episode => {
+    const multiplier = calculateDecayMultiplier(episode, decayRate, decayFloor);
+    return {
+      episode,
+      multiplier,
+      percentage: Math.round(multiplier * 100),
+    };
+  });
+}
+
+function calculateAICost(
+  scriptData: ScriptData,
+  config: CostConfig,
+  episodeNumber: number = 1,
+  includeHumanCosts: boolean = true
+): CostBreakdown {
   const actCount = scriptData.acts.length;
   const sceneCount = scriptData.acts.reduce((sum, act) => sum + act.scenes.length, 0);
   const dialogueCount = scriptData.acts.reduce(
@@ -125,7 +312,12 @@ function calculateAICost(scriptData: ScriptData, config: CostConfig): CostBreakd
     });
   });
 
-  const totalCost = baseCost + actsCost + scenesCost + charactersCost + voicesCost + videoGenerationCost + complexityAdjustment;
+  const humanCosts = includeHumanCosts
+    ? calculateHumanCosts(scriptData.runtime_minutes, config, episodeNumber)
+    : undefined;
+
+  const aiOnlyCost = baseCost + actsCost + scenesCost + charactersCost + voicesCost + videoGenerationCost + complexityAdjustment;
+  const totalCost = aiOnlyCost + (humanCosts?.totalHumanCost ?? 0);
 
   return {
     baseCost,
@@ -135,6 +327,7 @@ function calculateAICost(scriptData: ScriptData, config: CostConfig): CostBreakd
     voicesCost,
     videoGenerationCost,
     complexityAdjustment,
+    humanCosts,
     totalCost,
   };
 }
@@ -169,11 +362,13 @@ function calculateTraditionalCost(scriptData: ScriptData, config: CostConfig): C
 export async function calculateProductionCosts(
   scriptData: ScriptData,
   seriesId: string | null,
-  includeCreatorCosts: boolean = false
+  includeCreatorCosts: boolean = false,
+  episodeNumber: number = 1,
+  includeHumanCosts: boolean = true
 ): Promise<CostComparison> {
   const config = await getCostConfig(seriesId);
 
-  const aiCost = calculateAICost(scriptData, config);
+  const aiCost = calculateAICost(scriptData, config, episodeNumber, includeHumanCosts);
   const traditionalCost = calculateTraditionalCost(scriptData, config);
 
   const savings = traditionalCost.totalCost - aiCost.totalCost;
@@ -233,4 +428,8 @@ export async function createSeriesCostConfig(
 
   if (error) throw error;
   return data.id;
+}
+
+export async function fetchCostConfig(seriesId: string | null): Promise<CostConfig> {
+  return getCostConfig(seriesId);
 }

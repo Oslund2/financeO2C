@@ -1,12 +1,114 @@
-import { DollarSign, TrendingDown, Sparkles, ChevronDown, ChevronUp, Info, Users } from 'lucide-react';
+import { DollarSign, TrendingDown, Sparkles, ChevronDown, ChevronUp, Info, Users, ArrowDown, UserCog } from 'lucide-react';
 import { useState } from 'react';
-import type { CostComparison as CostComparisonType } from '../services/costCalculationService';
+import type { CostComparison as CostComparisonType, HumanCostBreakdown } from '../services/costCalculationService';
 import { InfoTooltip } from './InfoTooltip';
 import { formatCurrency } from '../services/creatorCostCalculationService';
 
 interface CostComparisonProps {
   comparison: CostComparisonType;
   showDetailed?: boolean;
+}
+
+function HumanCostSection({ humanCosts }: { humanCosts: HumanCostBreakdown }) {
+  const decayPercentage = Math.round(humanCosts.decayMultiplier * 100);
+  const savingsFromDecay = humanCosts.baseCostBeforeDecay - humanCosts.totalHumanCost;
+
+  return (
+    <div className="mt-4 pt-4 border-t border-green-200">
+      <div className="flex items-center gap-2 mb-3">
+        <UserCog className="w-4 h-4 text-green-700" />
+        <span className="font-semibold text-gray-900 text-sm">Human Labor Costs</span>
+        {humanCosts.episodeNumber > 1 && (
+          <span className="flex items-center gap-1 text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full">
+            <ArrowDown className="w-3 h-3" />
+            {decayPercentage}% of base
+          </span>
+        )}
+      </div>
+
+      {humanCosts.episodeNumber > 1 && savingsFromDecay > 0 && (
+        <div className="mb-3 p-2 bg-green-100 border border-green-200 rounded-lg">
+          <div className="text-xs text-green-800">
+            <span className="font-medium">Asset Reuse Savings:</span> {formatCurrency(savingsFromDecay)} saved vs Episode 1
+          </div>
+          <div className="text-xs text-green-700 mt-1">
+            Episode {humanCosts.episodeNumber}: Reusing established character models, backgrounds, and shot compositions
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-1.5">
+        <div className="flex justify-between text-gray-700 text-sm">
+          <span className="flex items-center">
+            Editing Labor:
+            <InfoTooltip content="Post-production editing, timeline assembly, pacing adjustments. Decays as templates and workflows become established." />
+            {humanCosts.episodeNumber > 1 && <ArrowDown className="w-3 h-3 text-green-600 ml-1" />}
+          </span>
+          <span className="font-medium">{formatCurrency(humanCosts.editingCost)}</span>
+        </div>
+
+        <div className="flex justify-between text-gray-700 text-sm">
+          <span className="flex items-center">
+            Scene Setup Review:
+            <InfoTooltip content="Shot composition verification, camera angles, background review. Decays as asset library grows." />
+            {humanCosts.episodeNumber > 1 && <ArrowDown className="w-3 h-3 text-green-600 ml-1" />}
+          </span>
+          <span className="font-medium">{formatCurrency(humanCosts.sceneSetupCost)}</span>
+        </div>
+
+        <div className="flex justify-between text-gray-700 text-sm">
+          <span className="flex items-center">
+            Character QC:
+            <InfoTooltip content="Character consistency checks, expression verification. Decays as models become established." />
+            {humanCosts.episodeNumber > 1 && <ArrowDown className="w-3 h-3 text-green-600 ml-1" />}
+          </span>
+          <span className="font-medium">{formatCurrency(humanCosts.characterQCCost)}</span>
+        </div>
+
+        <div className="flex justify-between text-gray-700 text-sm">
+          <span className="flex items-center">
+            Render Supervision:
+            <InfoTooltip content="Technical QC during render process. Flat cost - always required regardless of episode number." />
+            <span className="text-xs text-gray-500 ml-1">(flat)</span>
+          </span>
+          <span className="font-medium">{formatCurrency(humanCosts.renderSupervisionCost)}</span>
+        </div>
+
+        <div className="flex justify-between text-gray-700 text-sm">
+          <span className="flex items-center">
+            Voice Direction:
+            <InfoTooltip content="Director time for voice talent guidance. Flat cost per recording session." />
+            <span className="text-xs text-gray-500 ml-1">(flat)</span>
+          </span>
+          <span className="font-medium">{formatCurrency(humanCosts.voiceDirectionCost)}</span>
+        </div>
+
+        <div className="flex justify-between text-gray-700 text-sm">
+          <span className="flex items-center">
+            Revisions:
+            <InfoTooltip content="Rework allowance for feedback cycles. Partially decays with experience." />
+          </span>
+          <span className="font-medium">{formatCurrency(humanCosts.revisionCost)}</span>
+        </div>
+
+        <div className="flex justify-between text-gray-900 text-sm pt-2 border-t border-green-200">
+          <span className="font-semibold">Total Human Labor:</span>
+          <span className="font-bold text-green-700">{formatCurrency(humanCosts.totalHumanCost)}</span>
+        </div>
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+        <div className="bg-green-50 p-2 rounded">
+          <div className="text-gray-600">Decaying Costs</div>
+          <div className="font-semibold text-green-700">{formatCurrency(humanCosts.decayingCosts)}</div>
+        </div>
+        <div className="bg-gray-50 p-2 rounded">
+          <div className="text-gray-600">Flat Costs</div>
+          <div className="font-semibold text-gray-700">{formatCurrency(humanCosts.flatCosts)}</div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function CostComparison({ comparison, showDetailed = false }: CostComparisonProps) {
@@ -86,6 +188,10 @@ export function CostComparison({ comparison, showDetailed = false }: CostCompari
                     {formatCurrency(aiCost.complexityAdjustment)}
                   </span>
                 </div>
+              )}
+
+              {aiCost.humanCosts && (
+                <HumanCostSection humanCosts={aiCost.humanCosts} />
               )}
             </div>
           )}
