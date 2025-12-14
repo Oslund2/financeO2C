@@ -144,8 +144,8 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, initialEpisode
       icon: Tv,
       buyingModel: 'spot',
       rate: 350,
-      cpmRate: 7,
-      impressionsPerRun: 50000,
+      cpmRate: 28,
+      impressionsPerRun: 200000,
       enabled: true,
       recommendedCPMRange: { min: 16, max: 47 },
       description: 'Traditional broadcast TV - typically sold per spot'
@@ -382,6 +382,13 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, initialEpisode
           channel.cpmRate > channel.recommendedCPMRange.max
         ) {
           warning = `CPM outside typical range ($${channel.recommendedCPMRange.min}-$${channel.recommendedCPMRange.max})`;
+        }
+      } else if (channel.buyingModel === 'spot' && effectiveCPM > 0) {
+        if (
+          effectiveCPM < channel.recommendedCPMRange.min ||
+          effectiveCPM > channel.recommendedCPMRange.max
+        ) {
+          warning = `Implied CPM $${effectiveCPM.toFixed(0)} outside typical range ($${channel.recommendedCPMRange.min}-$${channel.recommendedCPMRange.max}). Adjust spot rate or impressions.`;
         }
       }
 
@@ -1472,8 +1479,13 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, initialEpisode
                                     step="1000"
                                     className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                   />
-                                  <p className="text-xs text-gray-500 mt-1">
+                                  <p className={`text-xs mt-1 ${
+                                    breakdown && (breakdown.effectiveCPM < channel.recommendedCPMRange.min || breakdown.effectiveCPM > channel.recommendedCPMRange.max)
+                                      ? 'text-orange-600 font-medium'
+                                      : 'text-gray-500'
+                                  }`}>
                                     Implied CPM: ${breakdown ? breakdown.effectiveCPM.toFixed(2) : '0'}
+                                    <span className="text-gray-400 ml-1">(target: ${channel.recommendedCPMRange.min}-${channel.recommendedCPMRange.max})</span>
                                   </p>
                                 </div>
                               </>
@@ -1482,14 +1494,22 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, initialEpisode
 
                           {breakdown && (
                             <div className="bg-white border border-gray-200 rounded p-2">
-                              <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div className="grid grid-cols-3 gap-2 text-xs">
                                 <div>
                                   <span className="text-gray-600">Annual Revenue:</span>
                                   <span className="font-bold text-green-600 ml-1">{formatCurrency(breakdown.revenue)}</span>
                                 </div>
                                 <div>
-                                  <span className="text-gray-600">Total Impressions:</span>
+                                  <span className="text-gray-600">Impressions:</span>
                                   <span className="font-bold text-blue-600 ml-1">{formatNumber(breakdown.impressions)}</span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-600">Eff. CPM:</span>
+                                  <span className={`font-bold ml-1 ${
+                                    breakdown.effectiveCPM < channel.recommendedCPMRange.min || breakdown.effectiveCPM > channel.recommendedCPMRange.max
+                                      ? 'text-orange-600'
+                                      : 'text-purple-600'
+                                  }`}>${breakdown.effectiveCPM.toFixed(2)}</span>
                                 </div>
                               </div>
                               {breakdown.warning && (
