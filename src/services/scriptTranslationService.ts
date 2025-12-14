@@ -44,7 +44,11 @@ async function translateWithRetry(
 
       const prompt = `Translate the following text to ${targetLanguage}. ${
         context ? `Context: ${context}. ` : ''
-      }Maintain the tone, style, and formatting. Only return the translated text, nothing else.
+      }Maintain the tone, style, and formatting.
+
+CRITICAL: Preserve ALL character names exactly as they appear in English (like Mrs. Higginbottom, Barnaby, Emma, Zora, etc.). DO NOT translate character names. Character names should remain unchanged.
+
+Only return the translated text, nothing else.
 
 Text to translate:
 ${text}`;
@@ -128,8 +132,13 @@ async function translateDialogueBatch(
     .join('\n\n');
 
   const prompt = `Translate the following dialogue lines to ${targetLanguage}.
-Maintain the exact format: [LINE X] CHARACTER: translated dialogue
-Preserve character names exactly as shown.
+
+CRITICAL RULES:
+1. Maintain the exact format: [LINE X] CHARACTER: translated dialogue
+2. Preserve ALL character names EXACTLY as shown (Mrs. Higginbottom, Barnaby, Zora, Emma, etc.) - DO NOT translate character names
+3. Only translate the dialogue text, NOT the character names
+4. Keep the line numbers and formatting identical
+
 Only return the translated lines, nothing else.
 
 Dialogue to translate:
