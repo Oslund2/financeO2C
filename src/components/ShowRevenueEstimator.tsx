@@ -1048,255 +1048,33 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, initialEpisode
 
         {enableHumanCosts && (
           <div className="space-y-4">
-            <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="costMode"
-                  checked={!useCustomRates}
-                  onChange={() => setUseCustomRates(false)}
-                  className="w-4 h-4 text-blue-600 focus:ring-2 focus:ring-blue-500"
-                />
-                <span className="text-sm font-medium text-gray-700">Use Profile</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="costMode"
-                  checked={useCustomRates}
-                  onChange={() => setUseCustomRates(true)}
-                  className="w-4 h-4 text-orange-600 focus:ring-2 focus:ring-orange-500"
-                />
-                <div className="flex items-center gap-1">
-                  <Sliders className="w-4 h-4 text-orange-600" />
-                  <span className="text-sm font-medium text-gray-700">Custom Rates</span>
-                </div>
-              </label>
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Base Profile</label>
+              <select
+                value={humanCostProfile}
+                onChange={(e) => {
+                  const newProfile = e.target.value as HumanCostProfile;
+                  setHumanCostProfile(newProfile);
+                  const profile = HUMAN_COST_PROFILES[newProfile];
+                  setCustomEditingRate(profile.editingCostPerMinute);
+                  setCustomSceneSetupRate(profile.sceneSetupCostPerMinute);
+                  setCustomCharacterQCRate(profile.characterQCCostPerMinute);
+                  setCustomRenderSupervisionRate(profile.renderSupervisionCostPerMinute);
+                  setCustomVoiceDirectionRate(profile.voiceDirectionCostPerSession);
+                  setCustomRevisionRate(profile.revisionRatePercentage);
+                  setCustomDecayRate(profile.decayRate);
+                  setCustomDecayFloor(profile.decayFloor);
+                  setUseCustomRates(false);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                {Object.entries(HUMAN_COST_PROFILES).map(([key, profile]) => (
+                  <option key={key} value={key}>
+                    {profile.name} - {profile.description}
+                  </option>
+                ))}
+              </select>
             </div>
-
-            {!useCustomRates && (
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-2 block">Production Profile</label>
-                <select
-                  value={humanCostProfile}
-                  onChange={(e) => setHumanCostProfile(e.target.value as HumanCostProfile)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  {Object.entries(HUMAN_COST_PROFILES).map(([key, profile]) => (
-                    <option key={key} value={key}>
-                      {profile.name} - {profile.description}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {useCustomRates && (
-              <div className="space-y-4 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Sliders className="w-4 h-4 text-orange-600" />
-                    <span className="font-semibold text-gray-900 text-sm">Custom Rate Configuration</span>
-                  </div>
-                  <button
-                    onClick={() => {
-                      const profile = HUMAN_COST_PROFILES[humanCostProfile];
-                      setCustomEditingRate(profile.editingCostPerMinute);
-                      setCustomSceneSetupRate(profile.sceneSetupCostPerMinute);
-                      setCustomCharacterQCRate(profile.characterQCCostPerMinute);
-                      setCustomRenderSupervisionRate(profile.renderSupervisionCostPerMinute);
-                      setCustomVoiceDirectionRate(profile.voiceDirectionCostPerSession);
-                      setCustomRevisionRate(profile.revisionRatePercentage);
-                      setCustomDecayRate(profile.decayRate);
-                      setCustomDecayFloor(profile.decayFloor);
-                    }}
-                    className="flex items-center gap-1 px-2 py-1 text-xs text-orange-700 hover:bg-orange-100 rounded transition-colors"
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                    Reset to {HUMAN_COST_PROFILES[humanCostProfile].name}
-                  </button>
-                </div>
-
-                <div className="text-xs text-gray-600 mb-2">
-                  Comparing against: <strong>{HUMAN_COST_PROFILES[humanCostProfile].name}</strong>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-3">
-                    <div className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Decaying Costs (per minute)</div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-sm text-gray-700">Editing Labor</label>
-                        <span className="text-sm font-bold text-orange-700">${customEditingRate}/min</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="10"
-                        max="100"
-                        step="1"
-                        value={customEditingRate}
-                        onChange={(e) => setCustomEditingRate(Number(e.target.value))}
-                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-600"
-                      />
-                      <div className="flex justify-between text-xs text-gray-500">
-                        <span>$10</span>
-                        <span>$100</span>
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-sm text-gray-700">Scene Setup</label>
-                        <span className="text-sm font-bold text-orange-700">${customSceneSetupRate}/min</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="5"
-                        max="60"
-                        step="1"
-                        value={customSceneSetupRate}
-                        onChange={(e) => setCustomSceneSetupRate(Number(e.target.value))}
-                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-600"
-                      />
-                      <div className="flex justify-between text-xs text-gray-500">
-                        <span>$5</span>
-                        <span>$60</span>
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-sm text-gray-700">Character QC</label>
-                        <span className="text-sm font-bold text-orange-700">${customCharacterQCRate}/min</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="2"
-                        max="30"
-                        step="1"
-                        value={customCharacterQCRate}
-                        onChange={(e) => setCustomCharacterQCRate(Number(e.target.value))}
-                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-600"
-                      />
-                      <div className="flex justify-between text-xs text-gray-500">
-                        <span>$2</span>
-                        <span>$30</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Flat Costs (no decay)</div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-sm text-gray-700">Render Supervision</label>
-                        <span className="text-sm font-bold text-gray-700">${customRenderSupervisionRate}/min</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="5"
-                        max="40"
-                        step="1"
-                        value={customRenderSupervisionRate}
-                        onChange={(e) => setCustomRenderSupervisionRate(Number(e.target.value))}
-                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-gray-600"
-                      />
-                      <div className="flex justify-between text-xs text-gray-500">
-                        <span>$5</span>
-                        <span>$40</span>
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-sm text-gray-700">Voice Direction</label>
-                        <span className="text-sm font-bold text-gray-700">${customVoiceDirectionRate}/session</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="50"
-                        max="500"
-                        step="25"
-                        value={customVoiceDirectionRate}
-                        onChange={(e) => setCustomVoiceDirectionRate(Number(e.target.value))}
-                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-gray-600"
-                      />
-                      <div className="flex justify-between text-xs text-gray-500">
-                        <span>$50</span>
-                        <span>$500</span>
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-sm text-gray-700">Revision Rate</label>
-                        <span className="text-sm font-bold text-gray-700">{customRevisionRate}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="5"
-                        max="40"
-                        step="1"
-                        value={customRevisionRate}
-                        onChange={(e) => setCustomRevisionRate(Number(e.target.value))}
-                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-gray-600"
-                      />
-                      <div className="flex justify-between text-xs text-gray-500">
-                        <span>5%</span>
-                        <span>40%</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-3 border-t border-orange-200">
-                  <div className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-3">Decay Curve Parameters</div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-sm text-gray-700">Efficiency Gain/Episode</label>
-                        <span className="text-sm font-bold text-green-700">{Math.round((1 - customDecayRate) * 100)}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0.85"
-                        max="0.98"
-                        step="0.01"
-                        value={customDecayRate}
-                        onChange={(e) => setCustomDecayRate(Number(e.target.value))}
-                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600"
-                      />
-                      <div className="flex justify-between text-xs text-gray-500">
-                        <span>15% (aggressive)</span>
-                        <span>2% (conservative)</span>
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-sm text-gray-700">Minimum Floor</label>
-                        <span className="text-sm font-bold text-green-700">{Math.round(customDecayFloor * 100)}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0.25"
-                        max="0.60"
-                        step="0.05"
-                        value={customDecayFloor}
-                        onChange={(e) => setCustomDecayFloor(Number(e.target.value))}
-                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600"
-                      />
-                      <div className="flex justify-between text-xs text-gray-500">
-                        <span>25% (lean)</span>
-                        <span>60% (high oversight)</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
 
             <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-3">
@@ -1390,35 +1168,163 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, initialEpisode
                   </div>
                 )}
 
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                  <div className="text-xs font-medium text-gray-700 mb-2">
-                    Cost Breakdown (Episode 1 rates)
-                    {useCustomRates && <span className="ml-2 text-orange-600">(Custom)</span>}
+                <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Sliders className="w-4 h-4 text-orange-600" />
+                      <span className="text-sm font-semibold text-gray-900">Adjust Cost Rates</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const profile = HUMAN_COST_PROFILES[humanCostProfile];
+                        setCustomEditingRate(profile.editingCostPerMinute);
+                        setCustomSceneSetupRate(profile.sceneSetupCostPerMinute);
+                        setCustomCharacterQCRate(profile.characterQCCostPerMinute);
+                        setCustomRenderSupervisionRate(profile.renderSupervisionCostPerMinute);
+                        setCustomVoiceDirectionRate(profile.voiceDirectionCostPerSession);
+                        setCustomRevisionRate(profile.revisionRatePercentage);
+                        setCustomDecayRate(profile.decayRate);
+                        setCustomDecayFloor(profile.decayFloor);
+                        setUseCustomRates(false);
+                      }}
+                      className="flex items-center gap-1 px-2 py-1 text-xs text-orange-700 hover:bg-orange-100 rounded transition-colors"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      Reset to Profile
+                    </button>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Editing:</span>
-                      <span className="font-medium">${calculations.profileSettings.editingCostPerMinute}/min</span>
+
+                  <div className="space-y-3">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-gray-600">Editing</span>
+                        <span className="text-xs font-bold text-orange-700">${customEditingRate}/min</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="10"
+                        max="100"
+                        step="1"
+                        value={customEditingRate}
+                        onChange={(e) => { setCustomEditingRate(Number(e.target.value)); setUseCustomRates(true); }}
+                        className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-600"
+                      />
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Scene Setup:</span>
-                      <span className="font-medium">${calculations.profileSettings.sceneSetupCostPerMinute}/min</span>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-gray-600">Scene Setup</span>
+                        <span className="text-xs font-bold text-orange-700">${customSceneSetupRate}/min</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="5"
+                        max="60"
+                        step="1"
+                        value={customSceneSetupRate}
+                        onChange={(e) => { setCustomSceneSetupRate(Number(e.target.value)); setUseCustomRates(true); }}
+                        className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-600"
+                      />
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Character QC:</span>
-                      <span className="font-medium">${calculations.profileSettings.characterQCCostPerMinute}/min</span>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-gray-600">Character QC</span>
+                        <span className="text-xs font-bold text-orange-700">${customCharacterQCRate}/min</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="2"
+                        max="30"
+                        step="1"
+                        value={customCharacterQCRate}
+                        onChange={(e) => { setCustomCharacterQCRate(Number(e.target.value)); setUseCustomRates(true); }}
+                        className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-600"
+                      />
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Render QC:</span>
-                      <span className="font-medium">${calculations.profileSettings.renderSupervisionCostPerMinute}/min (flat)</span>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-gray-600">Render QC <span className="text-gray-400">(flat)</span></span>
+                        <span className="text-xs font-bold text-gray-700">${customRenderSupervisionRate}/min</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="5"
+                        max="40"
+                        step="1"
+                        value={customRenderSupervisionRate}
+                        onChange={(e) => { setCustomRenderSupervisionRate(Number(e.target.value)); setUseCustomRates(true); }}
+                        className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-gray-500"
+                      />
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Voice Direction:</span>
-                      <span className="font-medium">${calculations.profileSettings.voiceDirectionCostPerSession}/session (flat)</span>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-gray-600">Voice Direction <span className="text-gray-400">(flat)</span></span>
+                        <span className="text-xs font-bold text-gray-700">${customVoiceDirectionRate}/session</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="50"
+                        max="500"
+                        step="25"
+                        value={customVoiceDirectionRate}
+                        onChange={(e) => { setCustomVoiceDirectionRate(Number(e.target.value)); setUseCustomRates(true); }}
+                        className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-gray-500"
+                      />
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Revision Rate:</span>
-                      <span className="font-medium">{calculations.profileSettings.revisionRatePercentage}%</span>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-gray-600">Revision Rate</span>
+                        <span className="text-xs font-bold text-gray-700">{customRevisionRate}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="5"
+                        max="40"
+                        step="1"
+                        value={customRevisionRate}
+                        onChange={(e) => { setCustomRevisionRate(Number(e.target.value)); setUseCustomRates(true); }}
+                        className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-gray-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-orange-200">
+                    <div className="text-xs font-semibold text-gray-700 mb-2">Decay Curve</div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-gray-600">Efficiency/Ep</span>
+                          <span className="text-xs font-bold text-green-700">{Math.round((1 - customDecayRate) * 100)}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0.85"
+                          max="0.98"
+                          step="0.01"
+                          value={customDecayRate}
+                          onChange={(e) => { setCustomDecayRate(Number(e.target.value)); setUseCustomRates(true); }}
+                          className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-gray-600">Min Floor</span>
+                          <span className="text-xs font-bold text-green-700">{Math.round(customDecayFloor * 100)}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0.25"
+                          max="0.60"
+                          step="0.05"
+                          value={customDecayFloor}
+                          onChange={(e) => { setCustomDecayFloor(Number(e.target.value)); setUseCustomRates(true); }}
+                          className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
