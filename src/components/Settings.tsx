@@ -1340,35 +1340,41 @@ export function Settings() {
                             <li className="flex gap-3">
                               <span className="font-bold text-scripps-blue">2.</span>
                               <div>
-                                <span className="font-semibold">Scene Breakdown:</span> Parse script into acts, scenes, and individual shots
+                                <span className="font-semibold">Script Translation:</span> Enable multi-language support and translate scripts into multiple languages (Spanish, Mandarin, Hindi, etc.) using Gemini 2.5 Flash
                               </div>
                             </li>
                             <li className="flex gap-3">
                               <span className="font-bold text-scripps-blue">3.</span>
                               <div>
-                                <span className="font-semibold">Storyboard Creation:</span> Generate visual storyboards for each scene with AI prompts
+                                <span className="font-semibold">Scene Breakdown:</span> Parse script into acts, scenes, and individual shots
                               </div>
                             </li>
                             <li className="flex gap-3">
                               <span className="font-bold text-scripps-blue">4.</span>
                               <div>
-                                <span className="font-semibold">Character Images:</span> Generate consistent character images for each shot
+                                <span className="font-semibold">Storyboard Creation:</span> Generate visual storyboards for each scene with AI prompts
                               </div>
                             </li>
                             <li className="flex gap-3">
                               <span className="font-bold text-scripps-blue">5.</span>
                               <div>
-                                <span className="font-semibold">Voice Recordings:</span> Generate dialogue audio using ElevenLabs or Chatterbox with character-specific voices, including custom cloned voices
+                                <span className="font-semibold">Character Images:</span> Generate consistent character images for each shot
                               </div>
                             </li>
                             <li className="flex gap-3">
                               <span className="font-bold text-scripps-blue">6.</span>
                               <div>
-                                <span className="font-semibold">Video Generation:</span> Create animated clips from static images using Veo 3
+                                <span className="font-semibold">Voice Recordings:</span> Generate dialogue audio using ElevenLabs or Chatterbox with character-specific voices, including custom cloned voices
                               </div>
                             </li>
                             <li className="flex gap-3">
                               <span className="font-bold text-scripps-blue">7.</span>
+                              <div>
+                                <span className="font-semibold">Video Generation:</span> Create animated clips from static images using Veo 3
+                              </div>
+                            </li>
+                            <li className="flex gap-3">
+                              <span className="font-bold text-scripps-blue">8.</span>
                               <div>
                                 <span className="font-semibold">Assembly & Export:</span> Combine all assets into final episode
                               </div>
