@@ -126,7 +126,15 @@ async function translateDialogueBatch(
       organizationId,
       scriptId
     );
-    return [{ ...dialogueLines[0], text: translatedText }];
+
+    // Preserve the original property name (text or line)
+    const result = { ...dialogueLines[0] };
+    if (dialogueLines[0].line !== undefined) {
+      result.line = translatedText;
+    } else {
+      result.text = translatedText;
+    }
+    return [result];
   }
 
   const batchText = dialogueLines
@@ -160,11 +168,16 @@ ${batchText}`;
       const translatedLine = translatedLines[i];
       if (translatedLine) {
         const match = translatedLine.match(/\[LINE \d+\]\s*([^:]+):\s*(.+)/);
-        if (match) {
-          parsed.push({ ...dialogueLines[i], text: match[2].trim() });
+        const translatedText = match ? match[2].trim() : translatedLine;
+
+        // Preserve the original property name (text or line)
+        const result = { ...dialogueLines[i] };
+        if (dialogueLines[i].line !== undefined) {
+          result.line = translatedText;
         } else {
-          parsed.push({ ...dialogueLines[i], text: translatedLine });
+          result.text = translatedText;
         }
+        parsed.push(result);
       } else {
         parsed.push(dialogueLines[i]);
       }
@@ -183,7 +196,15 @@ ${batchText}`;
         organizationId,
         scriptId
       );
-      results.push({ ...line, text: translatedText });
+
+      // Preserve the original property name (text or line)
+      const result = { ...line };
+      if (line.line !== undefined) {
+        result.line = translatedText;
+      } else {
+        result.text = translatedText;
+      }
+      results.push(result);
     }
     return results;
   }
