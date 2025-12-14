@@ -12,6 +12,8 @@ import { StoryboardGenerator } from './components/StoryboardGenerator';
 import { StoryboardViewer } from './components/StoryboardViewer';
 import { EpisodeProfitAnalytics } from './components/EpisodeProfitAnalytics';
 import ProductionWorkflow from './components/ProductionWorkflow';
+import { CommandPalette, useCommandPalette } from './components/CommandPalette';
+import { OnboardingFlow, useOnboarding } from './components/OnboardingFlow';
 import { supabase } from './lib/supabase';
 import { initializeSampleData } from './utils/sampleData';
 import { useAuth } from './contexts/AuthContext';
@@ -20,6 +22,8 @@ import { useOrganization } from './contexts/OrganizationContext';
 function App() {
   const { user, loading: authLoading } = useAuth();
   const { currentOrganization, loading: orgLoading, error: orgError, retryInitialization } = useOrganization();
+  const commandPalette = useCommandPalette();
+  const onboarding = useOnboarding();
   const [currentView, setCurrentView] = useState('dashboard');
   const [navigationData, setNavigationData] = useState<any>(null);
   const [seriesId, setSeriesId] = useState<string | null>(null);
@@ -219,26 +223,40 @@ function App() {
   };
 
   return (
-    <Layout
-      currentView={currentView}
-      onNavigate={handleNavigate}
-      currentSeriesId={seriesId}
-      onSeriesChange={handleSeriesChange}
-    >
-      {currentView === 'dashboard' && <Dashboard seriesId={seriesId} onNavigate={handleNavigate} />}
-      {currentView === 'characters' && <Characters seriesId={seriesId} />}
-      {currentView === 'scripts' && <Scripts seriesId={seriesId} onNavigate={handleNavigate} />}
-      {currentView === 'assets' && <Assets seriesId={seriesId} />}
-      {currentView === 'episodes' && <Episodes seriesId={seriesId} onNavigate={handleNavigate} navigationData={navigationData} />}
-      {currentView === 'profit-per-episode' && <EpisodeProfitAnalytics seriesId={seriesId} />}
-      {currentView === 'production' && <ProductionWorkflow seriesId={seriesId} navigationData={navigationData} />}
-      {currentView === 'ai-studio' && <AIStudio seriesId={seriesId} onNavigate={handleNavigate} />}
-      {currentView === 'storyboard-generator' && <StoryboardGenerator onNavigate={handleNavigate} />}
-      {currentView === 'storyboard-viewer' && navigationData?.storyboardId && (
-        <StoryboardViewer storyboardId={navigationData.storyboardId} onNavigate={handleNavigate} />
+    <>
+      <Layout
+        currentView={currentView}
+        onNavigate={handleNavigate}
+        currentSeriesId={seriesId}
+        onSeriesChange={handleSeriesChange}
+      >
+        {currentView === 'dashboard' && <Dashboard seriesId={seriesId} onNavigate={handleNavigate} />}
+        {currentView === 'characters' && <Characters seriesId={seriesId} />}
+        {currentView === 'scripts' && <Scripts seriesId={seriesId} onNavigate={handleNavigate} />}
+        {currentView === 'assets' && <Assets seriesId={seriesId} />}
+        {currentView === 'episodes' && <Episodes seriesId={seriesId} onNavigate={handleNavigate} navigationData={navigationData} />}
+        {currentView === 'profit-per-episode' && <EpisodeProfitAnalytics seriesId={seriesId} />}
+        {currentView === 'production' && <ProductionWorkflow seriesId={seriesId} navigationData={navigationData} />}
+        {currentView === 'ai-studio' && <AIStudio seriesId={seriesId} onNavigate={handleNavigate} />}
+        {currentView === 'storyboard-generator' && <StoryboardGenerator onNavigate={handleNavigate} />}
+        {currentView === 'storyboard-viewer' && navigationData?.storyboardId && (
+          <StoryboardViewer storyboardId={navigationData.storyboardId} onNavigate={handleNavigate} />
+        )}
+        {currentView === 'settings' && <Settings />}
+      </Layout>
+      <CommandPalette
+        isOpen={commandPalette.isOpen}
+        onClose={commandPalette.close}
+        onNavigate={handleNavigate}
+        seriesId={seriesId}
+      />
+      {onboarding.showOnboarding && (
+        <OnboardingFlow
+          onComplete={onboarding.completeOnboarding}
+          onSkip={onboarding.skipOnboarding}
+        />
       )}
-      {currentView === 'settings' && <Settings />}
-    </Layout>
+    </>
   );
 }
 

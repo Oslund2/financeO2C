@@ -8,6 +8,7 @@ import { getScriptLockInfo, type ScriptLockInfo } from '../services/scriptLockin
 import { createEpisodeFromScript, getScriptWithDetails, validateScriptForEpisode } from '../services/episodeCreationService';
 import { calculateProductionCosts, type CostComparison as CostComparisonType, type ScriptData } from '../services/costCalculationService';
 import { CostComparison } from './CostComparison';
+import { useNotification } from '../contexts/NotificationContext';
 
 type Script = Database['public']['Tables']['scripts']['Row'];
 
@@ -17,6 +18,7 @@ interface ScriptsProps {
 }
 
 export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
+  const { showSuccess, showError } = useNotification();
   const [scripts, setScripts] = useState<Script[]>([]);
   const [filteredScripts, setFilteredScripts] = useState<Script[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -209,9 +211,10 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
           s.id === scriptId ? { ...s, status: 'approved' } : s
         )
       );
+      showSuccess('Script Approved', 'Script is now ready for episode creation');
     } catch (error) {
       console.error('Error approving script:', error);
-      alert('Failed to approve script. Please try again.');
+      showError('Approval Failed', 'Could not approve script. Please try again.');
     }
   };
 
@@ -672,6 +675,7 @@ interface ScriptEditorProps {
 }
 
 function ScriptEditor({ script, onClose, onSave }: ScriptEditorProps) {
+  const { showSuccess, showError } = useNotification();
   const [editedScript, setEditedScript] = useState(script);
   const [acts, setActs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -779,10 +783,11 @@ function ScriptEditor({ script, onClose, onSave }: ScriptEditorProps) {
         }
       }
 
+      showSuccess('Script Saved', 'All changes have been saved');
       onSave();
     } catch (error) {
       console.error('Error saving script:', error);
-      alert('Failed to save script. Please try again.');
+      showError('Save Failed', 'Could not save script. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -837,9 +842,10 @@ function ScriptEditor({ script, onClose, onSave }: ScriptEditorProps) {
 
       setActs([...acts, { ...newAct, scenes: [] }]);
       setExpandedActs(new Set([...expandedActs, newAct.id]));
+      showSuccess('Act Created', `Act ${newActNumber} has been added`);
     } catch (error) {
       console.error('Error creating act:', error);
-      alert('Failed to create act. Please try again.');
+      showError('Creation Failed', 'Could not create act. Please try again.');
     }
   };
 
@@ -863,9 +869,10 @@ function ScriptEditor({ script, onClose, onSave }: ScriptEditorProps) {
       if (error) throw error;
 
       setActs(acts.filter(a => a.id !== actId));
+      showSuccess('Act Deleted', 'The act has been removed');
     } catch (error) {
       console.error('Error deleting act:', error);
-      alert('Failed to delete act. Please try again.');
+      showError('Deletion Failed', 'Could not delete act. Please try again.');
     }
   };
 

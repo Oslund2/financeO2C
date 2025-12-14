@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Edit2, Copy, Trash2, Sparkles, X, Volume2 } from 'lucide-react';
+import { Plus, Search, Edit2, Copy, Trash2, Sparkles, X, Volume2, Film } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
@@ -7,6 +7,7 @@ import { VoiceSelector } from './VoiceSelector';
 import { VoiceCloningModal } from './VoiceCloningModal';
 import type { VoiceProvider } from '../services/voiceService';
 import { useOrganization } from '../contexts/OrganizationContext';
+import { useNotification } from '../contexts/NotificationContext';
 
 type Character = Database['public']['Tables']['characters']['Row'];
 
@@ -553,6 +554,7 @@ interface CharacterFormProps {
 }
 
 function CharacterForm({ character, seriesId, onClose, onSave }: CharacterFormProps) {
+  const { showSuccess, showError } = useNotification();
   const [formData, setFormData] = useState({
     name: character?.name || '',
     age: character?.age?.toString() || '',
@@ -611,7 +613,7 @@ function CharacterForm({ character, seriesId, onClose, onSave }: CharacterFormPr
 
         if (uploadError) {
           console.error('Upload error:', uploadError);
-          alert('Failed to upload image. Please try again.');
+          showError('Upload Failed', 'Could not upload image. Please try again.');
           setSaving(false);
           return;
         }
@@ -650,10 +652,11 @@ function CharacterForm({ character, seriesId, onClose, onSave }: CharacterFormPr
         if (error) throw error;
       }
 
+      showSuccess('Character Saved', `${formData.name} has been ${character?.id ? 'updated' : 'created'}`);
       onSave();
     } catch (error) {
       console.error('Error saving character:', error);
-      alert('Failed to save character. Please try again.');
+      showError('Save Failed', 'Could not save character. Please try again.');
     } finally {
       setSaving(false);
     }

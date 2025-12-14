@@ -10,6 +10,7 @@ import type { CostComparison as CostComparisonType } from '../services/costCalcu
 import { LTVCalculationService } from '../services/ltvCalculationService';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { EpisodeProgressBreakdown } from './EpisodeProgressBreakdown';
+import { useNotification } from '../contexts/NotificationContext';
 
 type Episode = Database['public']['Tables']['episodes']['Row'];
 type Script = Database['public']['Tables']['scripts']['Row'];
@@ -22,6 +23,7 @@ interface EpisodesProps {
 
 export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps) {
   const { currentOrganization } = useOrganization();
+  const { showSuccess, showError } = useNotification();
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [loading, setLoading] = useState(true);
   const [scriptTitles, setScriptTitles] = useState<Map<string, string>>(new Map());
@@ -134,10 +136,10 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
     try {
       await syncEpisodeFromScript(episodeId);
       await loadEpisodes();
-      alert('Episode synced successfully with latest script changes!');
+      showSuccess('Episode Synced', 'Successfully synced with latest script changes');
     } catch (err) {
       console.error('Error syncing episode:', err);
-      alert(err instanceof Error ? err.message : 'Failed to sync episode');
+      showError('Sync Failed', err instanceof Error ? err.message : 'Failed to sync episode');
     } finally {
       setSyncing(null);
     }
@@ -153,10 +155,10 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
         createdBy: 'User',
       });
       await loadEpisodes();
-      alert('Episode created successfully!');
+      showSuccess('Episode Created', `"${scriptTitle}" is now ready for production`);
     } catch (err) {
       console.error('Error creating episode:', err);
-      alert(err instanceof Error ? err.message : 'Failed to create episode');
+      showError('Creation Failed', err instanceof Error ? err.message : 'Failed to create episode');
     } finally {
       setCreatingEpisode(null);
     }

@@ -14,7 +14,9 @@ import {
   X,
   TrendingUp,
   DollarSign,
-  HelpCircle
+  HelpCircle,
+  Command,
+  Search,
 } from 'lucide-react';
 import { Logo } from './Logo';
 import { OrganizationSwitcher } from './OrganizationSwitcher';
@@ -102,7 +104,7 @@ export function Layout({ children, currentView, onNavigate, currentSeriesId, onS
           })}
         </nav>
 
-        <div className="p-4 border-t border-blue-200">
+        <div className="p-4 border-t border-blue-200 space-y-2">
           <button
             onClick={() => onNavigate('settings')}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-blue-50 transition-all"
@@ -110,6 +112,20 @@ export function Layout({ children, currentView, onNavigate, currentSeriesId, onS
             <Settings className="w-5 h-5" />
             <span className="font-medium">Settings</span>
           </button>
+          <div className="px-4 py-2 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="flex items-center justify-between text-xs text-gray-500">
+              <div className="flex items-center gap-1.5">
+                <Search className="w-3.5 h-3.5" />
+                <span>Quick Search</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <kbd className="px-1.5 py-0.5 bg-white rounded border border-gray-300 text-[10px] font-medium">
+                  {navigator.platform.includes('Mac') ? <Command className="w-3 h-3 inline" /> : 'Ctrl'}
+                </kbd>
+                <kbd className="px-1.5 py-0.5 bg-white rounded border border-gray-300 text-[10px] font-medium">K</kbd>
+              </div>
+            </div>
+          </div>
         </div>
       </aside>
 
