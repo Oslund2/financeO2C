@@ -114,6 +114,7 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
   const [showVideoSelector, setShowVideoSelector] = useState(false);
   const [trailerRefreshKey, setTrailerRefreshKey] = useState(0);
   const [currentTrailerId, setCurrentTrailerId] = useState<string | null>(null);
+  const [trailerSectionCollapsed, setTrailerSectionCollapsed] = useState(true);
 
   useEffect(() => {
     loadDashboardData();
@@ -435,6 +436,8 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
             seriesId={seriesId}
             onNavigate={onNavigate}
             onOpenSelector={() => setShowVideoSelector(true)}
+            isCollapsed={trailerSectionCollapsed}
+            onToggleCollapse={() => setTrailerSectionCollapsed(!trailerSectionCollapsed)}
           />
         )}
 
