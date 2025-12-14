@@ -1,13 +1,42 @@
+/**
+ * CreateWorkspaceModal - Modal component for creating new workspaces/organizations
+ *
+ * This component provides a user-friendly interface for creating new workspaces with
+ * automatic slug generation, billing tier selection, and error handling.
+ *
+ * Features:
+ * - Automatic URL slug generation from workspace name
+ * - Four billing tier options (Free, Starter, Professional, Enterprise)
+ * - Real-time validation and character count
+ * - Error handling with user feedback
+ * - Timestamp-based unique slug generation to prevent conflicts
+ *
+ * @component
+ * @example
+ * ```tsx
+ * <CreateWorkspaceModal
+ *   onClose={() => setShowModal(false)}
+ *   onCreate={(orgId) => handleWorkspaceCreated(orgId)}
+ * />
+ * ```
+ */
+
 import { useState, useEffect } from 'react';
 import { X, Building2, Loader2, Check, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
 interface CreateWorkspaceModalProps {
+  /** Callback function called when the modal should close */
   onClose: () => void;
+  /** Callback function called when a workspace is successfully created, receives the organization ID */
   onCreate: (organizationId: string) => void;
 }
 
+/**
+ * Billing tier configuration options
+ * Each tier defines feature limits and pricing structure
+ */
 const BILLING_TIERS = [
   {
     value: 'free',
@@ -47,6 +76,16 @@ export function CreateWorkspaceModal({ onClose, onCreate }: CreateWorkspaceModal
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   * Generates a URL-friendly slug from a workspace name
+   * Includes timestamp and random suffix to ensure uniqueness
+   *
+   * @param name - The workspace name to convert to a slug
+   * @returns A unique, URL-safe slug string
+   *
+   * @example
+   * generateSlug("My Animation Studio") => "my-animation-studio-1234abc"
+   */
   const generateSlug = (name: string): string => {
     return name
       .toLowerCase()
@@ -59,6 +98,10 @@ export function CreateWorkspaceModal({ onClose, onCreate }: CreateWorkspaceModal
 
   const [slug, setSlug] = useState('');
 
+  /**
+   * Effect to automatically generate slug when workspace name changes
+   * Creates a unique slug by combining sanitized name with timestamp and random suffix
+   */
   useEffect(() => {
     if (workspaceName) {
       const baseSlug = generateSlug(workspaceName);
@@ -70,6 +113,13 @@ export function CreateWorkspaceModal({ onClose, onCreate }: CreateWorkspaceModal
     }
   }, [workspaceName]);
 
+  /**
+   * Handles workspace creation by calling the Supabase RPC function
+   * Creates organization record, adds user as owner, and initializes settings
+   *
+   * @async
+   * @throws {Error} If workspace creation fails
+   */
   const handleCreate = async () => {
     if (!user || !workspaceName.trim()) {
       setError('Please enter a workspace name');

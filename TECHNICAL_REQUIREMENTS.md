@@ -50,11 +50,14 @@ This is a comprehensive AI-powered animation production platform that enables cr
 - Creator cost breakdown
 - Revenue projections
 
-**Multi-Tenancy**
-- Organization management
-- Series and episode isolation
-- Role-based access control
+**Multi-Tenancy & Workspace Management**
+- Unlimited workspace creation per user
+- Organization management with billing tiers (Free, Starter, Professional, Enterprise)
+- Series and episode isolation per workspace
+- Role-based access control (owner, admin, member)
 - Cross-organization analytics
+- Automatic slug generation for workspace URLs
+- Workspace switcher for quick navigation
 
 ### Technology Stack
 
@@ -115,12 +118,15 @@ src/
 │   ├── Dashboard.tsx           # Overview with IP sections
 │   ├── Scripts.tsx             # Script management
 │   ├── Episodes.tsx            # Episode creation
-│   ├── Production.tsx          # Video production (NEW)
+│   ├── Production.tsx          # Video production workflow
 │   ├── Characters.tsx          # Character management
 │   ├── Assets.tsx              # Asset library
 │   ├── StoryboardViewer.tsx    # Storyboard review
 │   ├── Settings.tsx            # Organization settings
-│   └── OrganizationSwitcher.tsx # Org selector
+│   ├── OrganizationSwitcher.tsx # Workspace selector
+│   ├── CreateWorkspaceModal.tsx # Workspace creation
+│   ├── PromptLibrary.tsx       # Prompt template management
+│   └── [50+ other components]
 │
 ├── services/
 │   ├── vertexAIService.ts      # Veo 3.1 integration
@@ -128,8 +134,14 @@ src/
 │   ├── batchManagementService.ts    # Batch processing
 │   ├── geminiService.ts        # Script generation
 │   ├── elevenLabsService.ts    # Voice synthesis
+│   ├── chatterboxService.ts    # Alternative TTS
 │   ├── costCalculationService.ts    # Cost tracking
-│   └── [other services...]
+│   ├── ltvCalculationService.ts     # Lifetime value tracking
+│   ├── promptLibraryService.ts      # Prompt template service
+│   ├── promptEnhancementService.ts  # AI prompt optimization
+│   ├── scriptTranslationService.ts  # Multi-language support
+│   ├── lipSyncService.ts       # Lip sync management
+│   └── [20+ other services]
 │
 ├── contexts/
 │   ├── AuthContext.tsx         # Authentication state
@@ -269,6 +281,69 @@ CREATE TABLE rendering_jobs (
   started_at TIMESTAMPTZ,
   completed_at TIMESTAMPTZ,
   error_message TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### Prompt Library System
+
+#### prompt_templates
+```sql
+CREATE TABLE prompt_templates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID REFERENCES organizations(id),
+  prompt_key TEXT NOT NULL,
+  prompt_name TEXT NOT NULL,
+  category TEXT NOT NULL, -- script, video, voice, storyboard, style
+  description TEXT,
+  is_system_default BOOLEAN DEFAULT false,
+  is_active BOOLEAN DEFAULT true,
+  variables_schema JSONB DEFAULT '[]',
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(organization_id, prompt_key)
+);
+```
+
+**System Default Prompts:**
+- `script_generation` - Episode script generation with timing
+- `claymation_style_base` - Base claymation style description
+- `claymation_style_full` - Complete style guide
+- `video_negative_prompts` - Terms to exclude from generation
+- `audio_directives` - Audio generation instructions
+- `shot_description` - Storyboard shot descriptions
+- `storyboard_image` - Storyboard panel generation
+- `camera_shot_types` - Camera reference guide
+- `character_description` - Character template
+- `veo3_video_prompt` - Veo 3 video generation template
+
+#### prompt_template_versions
+```sql
+CREATE TABLE prompt_template_versions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  prompt_template_id UUID NOT NULL REFERENCES prompt_templates(id),
+  version_number INTEGER NOT NULL,
+  prompt_content TEXT NOT NULL,
+  variables_schema JSONB DEFAULT '[]',
+  created_by TEXT,
+  change_notes TEXT,
+  is_deployed BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(prompt_template_id, version_number)
+);
+```
+
+#### prompt_enhancement_history
+```sql
+CREATE TABLE prompt_enhancement_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  prompt_version_id UUID NOT NULL REFERENCES prompt_template_versions(id),
+  organization_id UUID REFERENCES organizations(id),
+  original_content TEXT NOT NULL,
+  enhanced_content TEXT NOT NULL,
+  enhancement_type TEXT DEFAULT 'clarity', -- clarity, detail, optimize, custom
+  custom_instruction TEXT,
+  accepted BOOLEAN,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 ```
@@ -530,25 +605,30 @@ vercel --prod
 
 ### Post-Deployment Setup
 
-1. **Create First Organization**
+1. **User Registration**
+   - Sign up via the authentication form
+   - Verify email if email confirmation is enabled
+
+2. **Create First Workspace**
+   - Click "Create Workspace" button in the workspace switcher
+   - Enter workspace name (e.g., "My Animation Studio")
+   - Select billing tier (Free, Starter, Professional, or Enterprise)
+   - The system automatically:
+     - Generates a unique slug for the workspace URL
+     - Creates the organization record
+     - Adds you as the owner
+     - Initializes default prompt templates
+
+3. **Initialize Prompt Library** (Optional)
    ```sql
-   INSERT INTO organizations (name, slug)
-   VALUES ('My Studio', 'my-studio');
+   -- Copy system default prompts to your organization
+   SELECT initialize_organization_prompts('<your-organization-id>');
    ```
 
-2. **Add Yourself as Member**
-   ```sql
-   INSERT INTO organization_members (organization_id, user_id, role)
-   VALUES (
-     '<organization-id>',
-     '<your-user-id>',
-     'owner'
-   );
-   ```
-
-3. **Test Production Flow**
-   - Create a series
+4. **Test Production Flow**
+   - Create a series within your workspace
    - Create an episode
+   - Upload or generate a script
    - Navigate to Production tab
    - Generate shot list
    - Submit a test batch
@@ -624,36 +704,46 @@ Variable Costs: Pay-per-use for video generation
 
 ```
 src/
-├── components/                 # React components
+├── components/                 # React components (50+ files)
 │   ├── Layout.tsx             # 580 lines - Main layout
-│   ├── Production.tsx         # 806 lines - Video production (NEW)
-│   ├── Dashboard.tsx          # 350 lines - Overview
+│   ├── Production.tsx         # 806 lines - Video production workflow
+│   ├── Dashboard.tsx          # 350 lines - Overview with IP sections
 │   ├── Scripts.tsx            # 450 lines - Script management
-│   ├── Episodes.tsx           # 400 lines - Episode creation
+│   ├── Episodes.tsx           # 400 lines - Episode creation & tracking
 │   ├── Characters.tsx         # 380 lines - Character library
 │   ├── Assets.tsx             # 420 lines - Asset management
 │   ├── StoryboardViewer.tsx   # 520 lines - Storyboard review
 │   ├── Settings.tsx           # 380 lines - App settings
-│   ├── OrganizationSwitcher.tsx # 180 lines - Org selector
+│   ├── OrganizationSwitcher.tsx # 180 lines - Workspace selector
+│   ├── CreateWorkspaceModal.tsx # 264 lines - Workspace creation
 │   ├── SeriesSwitcher.tsx     # 150 lines - Series selector
+│   ├── PromptLibrary.tsx      # 420 lines - Prompt management
 │   ├── VoiceGenerationTab.tsx # 380 lines - Voice synthesis
-│   ├── ScriptTranslationManager.tsx # 320 lines
-│   ├── ApprovalWorkflow.tsx   # 280 lines
-│   ├── CostComparison.tsx     # 250 lines
-│   └── [28 other components]
+│   ├── ScriptTranslationManager.tsx # 320 lines - Multi-language
+│   ├── LipSyncManager.tsx     # 280 lines - Lip sync tracking
+│   ├── ApprovalWorkflow.tsx   # 280 lines - Review workflow
+│   ├── CostComparison.tsx     # 250 lines - Cost analysis
+│   ├── EpisodeProfitAnalytics.tsx # 340 lines - LTV tracking
+│   └── [35+ other components]
 │
-├── services/                  # Business logic
+├── services/                  # Business logic (25+ files)
 │   ├── vertexAIService.ts    # 339 lines - Veo 3.1 integration
 │   ├── shotListGeneratorService.ts # 339 lines - Shot generation
 │   ├── batchManagementService.ts # 458 lines - Batch processing
 │   ├── geminiService.ts      # 245 lines - Script AI
 │   ├── elevenLabsService.ts  # 180 lines - Voice synthesis
 │   ├── chatterboxService.ts  # 220 lines - Alternative TTS
-│   ├── costCalculationService.ts # 195 lines
-│   ├── ltvCalculationService.ts # 280 lines
-│   ├── scriptTranslationService.ts # 160 lines
-│   ├── storyboardService.ts  # 320 lines
-│   └── [8 other services]
+│   ├── costCalculationService.ts # 195 lines - Cost tracking
+│   ├── ltvCalculationService.ts # 280 lines - Lifetime value
+│   ├── creatorCostCalculationService.ts # 250 lines - Creator costs
+│   ├── scriptTranslationService.ts # 160 lines - Multi-language
+│   ├── storyboardService.ts  # 320 lines - Storyboard generation
+│   ├── promptLibraryService.ts # 280 lines - Prompt management
+│   ├── promptEnhancementService.ts # 220 lines - AI optimization
+│   ├── lipSyncService.ts     # 240 lines - Lip sync management
+│   ├── dialogueAudioService.ts # 190 lines - Audio processing
+│   ├── episodeProgressService.ts # 210 lines - Progress tracking
+│   └── [12+ other services]
 │
 ├── contexts/                  # React contexts
 │   ├── AuthContext.tsx       # 120 lines
@@ -715,7 +805,37 @@ supabase/migrations/
 ├── 20251211180539_fix_delete_series_workflow_dependencies.sql
 ├── 20251211181326_fix_delete_series_column_names.sql
 ├── 20251211193833_create_dashboard_ip_sections.sql
-└── 20251211223945_create_vertex_ai_veo3_production_system.sql  # NEW
+├── 20251211223945_create_vertex_ai_veo3_production_system.sql
+├── 20251211231311_comprehensive_orphaned_asset_fix.sql
+├── 20251211233803_link_storyboards_to_episodes_v2.sql
+├── 20251211235528_create_script_to_shot_generation_functions.sql
+├── 20251212112334_add_standalone_shot_generation.sql
+├── 20251212113702_create_production_draft_sessions.sql
+├── 20251212143844_fix_episode_script_integrity.sql
+├── 20251212145511_comprehensive_organization_repair_v2.sql
+├── 20251212150040_remove_duplicate_anon_policies.sql
+├── 20251212151006_fix_script_analysis_multi_org_support.sql
+├── 20251212154541_add_scripts_content_and_organization.sql
+├── 20251212155245_add_episode_number_column.sql
+├── 20251212161646_add_dialogue_voice_trt_tracking.sql
+├── 20251212165927_create_lip_sync_system.sql
+├── 20251212172841_create_episode_progress_tracking.sql
+├── 20251212172910_add_episode_progress_triggers.sql
+├── 20251212172957_fix_progress_calculation_for_lip_sync_jobs.sql
+├── 20251212173302_backfill_existing_episode_progress.sql
+├── 20251212180147_create_workflow_progress_tracking.sql
+├── 20251212182641_create_optimized_episode_queries.sql
+├── 20251212182725_create_optimized_script_queries.sql
+├── 20251212191512_create_prompt_library_system.sql
+├── 20251212191851_seed_default_system_prompts.sql
+├── 20251214024352_create_gemini_api_usage_tracking.sql
+├── 20251214025737_create_translation_analytics_and_export_tracking.sql
+├── 20251214041112_add_human_editing_costs_with_asset_decay.sql
+├── 20251214042150_update_production_cost_defaults_2024_research.sql
+├── 20251214042208_update_creator_cost_defaults_2024_research.sql
+├── 20251214043944_add_series_default_episode_count.sql
+├── 20251214050833_add_traditional_animation_cost_breakdown.sql
+└── 20251214060901_add_stuck_translation_recovery.sql
 ```
 
 ### Configuration Files
@@ -758,16 +878,18 @@ supabase/migrations/
 - [ ] Clone repository
 - [ ] Install dependencies (`npm install`)
 - [ ] Create Supabase project
-- [ ] Configure `.env` file
-- [ ] Run database migrations
+- [ ] Configure `.env` file with Supabase URL and keys
+- [ ] Run database migrations (automatic via Supabase)
 - [ ] Update branding in `Logo.tsx`
 - [ ] Customize colors in `tailwind.config.js`
-- [ ] Deploy Edge Functions
+- [ ] Deploy Edge Functions (`npm run deploy:functions`)
 - [ ] Build frontend (`npm run build`)
-- [ ] Deploy to hosting platform
-- [ ] Create first organization
+- [ ] Deploy to hosting platform (Netlify/Vercel)
+- [ ] Sign up and create your first account
+- [ ] Create first workspace via UI
+- [ ] Set up prompt library templates
 - [ ] Test production workflow
-- [ ] Configure API keys in Supabase secrets
+- [ ] Configure API keys (Gemini, Vertex AI, ElevenLabs) in Settings
 
 ---
 
@@ -791,6 +913,15 @@ supabase/migrations/
 
 ---
 
-**Last Updated:** December 2024
-**Version:** 2.0.0
+**Last Updated:** December 14, 2024
+**Version:** 3.0.0
 **License:** MIT
+
+**Major Features:**
+- Multi-workspace support with billing tiers
+- Comprehensive prompt library system with 10 default templates
+- Episode progress tracking and analytics
+- Script translation system
+- Lip sync management
+- LTV and cost tracking
+- Gemini API usage monitoring
