@@ -12,6 +12,7 @@ import { StoryboardGenerator } from './components/StoryboardGenerator';
 import { StoryboardViewer } from './components/StoryboardViewer';
 import { EpisodeProfitAnalytics } from './components/EpisodeProfitAnalytics';
 import ProductionWorkflow from './components/ProductionWorkflow';
+import { PatentApplication } from './components/PatentApplication';
 import { CommandPalette, useCommandPalette } from './components/CommandPalette';
 import { OnboardingFlow, useOnboarding } from './components/OnboardingFlow';
 import { supabase } from './lib/supabase';
@@ -243,6 +244,7 @@ function App() {
           <StoryboardViewer storyboardId={navigationData.storyboardId} onNavigate={handleNavigate} />
         )}
         {currentView === 'settings' && <Settings />}
+        {currentView === 'ip-protection' && <PatentApplication />}
       </Layout>
       <CommandPalette
         isOpen={commandPalette.isOpen}

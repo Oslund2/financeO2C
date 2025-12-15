@@ -46,6 +46,7 @@ export function Layout({ children, currentView, onNavigate, currentSeriesId, onS
     { id: 'episodes', label: 'Episodes', icon: Film },
     { id: 'production', label: 'Production', icon: PlayCircle },
     { id: 'profit-per-episode', label: 'Profit Per Episode', icon: TrendingUp },
+    { id: 'ip-protection', label: 'IP Protection', icon: Shield },
   ];
 
   const handleNavigation = (view: string) => {
