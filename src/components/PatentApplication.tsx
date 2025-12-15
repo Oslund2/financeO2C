@@ -22,7 +22,10 @@ import {
   FileCheck,
   Scroll,
   X,
-  AlertTriangle
+  AlertTriangle,
+  ExternalLink,
+  Search,
+  Globe
 } from 'lucide-react';
 import { useOrganization } from '../contexts/OrganizationContext';
 import {
@@ -1188,6 +1191,59 @@ function AbstractTab({
 }
 
 function PriorArtTab({ application }: { application: PatentApplicationWithDetails }) {
+  const patentDatabases = [
+    {
+      name: 'Google Patents',
+      url: 'https://patents.google.com/',
+      description: 'User-friendly search across US, EU, WIPO, and other patent offices worldwide',
+      recommended: true
+    },
+    {
+      name: 'USPTO Patent Full-Text (PatFT)',
+      url: 'https://patft.uspto.gov/netahtml/PTO/search-bool.html',
+      description: 'Official US Patent and Trademark Office full-text patent search'
+    },
+    {
+      name: 'USPTO AppFT',
+      url: 'https://appft.uspto.gov/netahtml/PTO/search-bool.html',
+      description: 'Search published US patent applications (pending patents)'
+    },
+    {
+      name: 'Espacenet (EPO)',
+      url: 'https://worldwide.espacenet.com/',
+      description: 'European Patent Office database with 150+ million documents worldwide'
+    },
+    {
+      name: 'WIPO PatentScope',
+      url: 'https://patentscope.wipo.int/search/en/search.jsf',
+      description: 'World Intellectual Property Organization international patent database'
+    }
+  ];
+
+  const literatureDatabases = [
+    {
+      name: 'Google Scholar',
+      url: 'https://scholar.google.com/',
+      description: 'Academic papers, theses, books, and conference papers',
+      recommended: true
+    },
+    {
+      name: 'IEEE Xplore',
+      url: 'https://ieeexplore.ieee.org/',
+      description: 'Technical literature for engineering and technology inventions'
+    },
+    {
+      name: 'PubMed',
+      url: 'https://pubmed.ncbi.nlm.nih.gov/',
+      description: 'Biomedical and life sciences literature from NCBI'
+    },
+    {
+      name: 'arXiv',
+      url: 'https://arxiv.org/',
+      description: 'Preprints in physics, mathematics, computer science, and more'
+    }
+  ];
+
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-semibold text-gray-900">Prior Art References</h2>
@@ -1196,11 +1252,90 @@ function PriorArtTab({ application }: { application: PatentApplicationWithDetail
         <div className="flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="font-medium text-yellow-800">Placeholder Section</p>
+            <p className="font-medium text-yellow-800">Important Notice</p>
             <p className="text-sm text-yellow-700 mt-1">
-              Prior art references should be added by a patent attorney during the formal review process.
-              This section will contain patent references and non-patent literature citations.
+              Prior art references should be reviewed by a patent attorney during the formal filing process.
+              Use the search resources below to research existing patents and publications related to your invention.
             </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Search className="w-5 h-5 text-blue-600" />
+          <h3 className="font-semibold text-blue-900">Search Resources</h3>
+        </div>
+
+        <div className="space-y-5">
+          <div>
+            <h4 className="text-sm font-medium text-blue-800 mb-3 flex items-center gap-2">
+              <FileCheck className="w-4 h-4" />
+              Patent Databases
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {patentDatabases.map((db) => (
+                <a
+                  key={db.name}
+                  href={db.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`block p-3 bg-white rounded-lg border transition-all hover:shadow-md hover:border-blue-300 ${
+                    db.recommended ? 'ring-2 ring-blue-400 ring-offset-1' : 'border-gray-200'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-medium text-gray-900 text-sm">{db.name}</span>
+                        {db.recommended && (
+                          <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
+                            Recommended
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1 line-clamp-2">{db.description}</p>
+                    </div>
+                    <ExternalLink className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-sm font-medium text-blue-800 mb-3 flex items-center gap-2">
+              <BookOpen className="w-4 h-4" />
+              Non-Patent Literature Databases
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {literatureDatabases.map((db) => (
+                <a
+                  key={db.name}
+                  href={db.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`block p-3 bg-white rounded-lg border transition-all hover:shadow-md hover:border-blue-300 ${
+                    db.recommended ? 'ring-2 ring-blue-400 ring-offset-1' : 'border-gray-200'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-medium text-gray-900 text-sm">{db.name}</span>
+                        {db.recommended && (
+                          <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
+                            Recommended
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1 line-clamp-2">{db.description}</p>
+                    </div>
+                    <ExternalLink className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  </div>
+                </a>
+              ))}
+            </div>
           </div>
         </div>
       </div>
