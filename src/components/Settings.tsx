@@ -1430,11 +1430,13 @@ export function Settings() {
                             'Multi-Tenant Organization Management',
                             'Workspace & Team Collaboration',
                             'Series Management & Archiving',
+                            'Featured Video Trailers for Series',
                             'Character Management with Role Classification',
                             'Character Roles: Primary, Ensemble, Recurring, Cameo',
                             'AI-Powered Script Generation (Gemini 2.5 Flash)',
                             'Script Locking & Version Control',
                             'Episode Production Tracking',
+                            'Episode Progress Tracking with Visual Indicators',
                             'AI Storyboard Generation',
                             'Storyboard Editing & Approval Workflow',
                             'Asset Library & Management',
@@ -1442,12 +1444,18 @@ export function Settings() {
                             'Multi-Provider Voice Synthesis',
                             'Custom Voice Cloning (ElevenLabs & Chatterbox)',
                             'Voice Studio with Preview',
+                            'Lip Sync Management System',
                             'Script Translation System',
+                            'Translation Analytics & Export Tracking',
                             'Episode Revenue & LTV Analytics',
                             'Per-Series Episode Count Defaults for Profit Projections',
-                            'Creator Cost Calculator',
+                            'Traditional Animation Cost Breakdown',
+                            'Creator Cost Calculator with Asset Decay',
                             'AI Cost Tracking & Monitoring',
+                            'Gemini API Usage Tracking',
                             'Dashboard IP Sections (Customizable)',
+                            'Prompt Library System with Version Control',
+                            'Patent Application Management',
                             'Backup & Recovery System',
                             'System Health Monitoring',
                             'Approval Workflow System',
@@ -1611,6 +1619,10 @@ export function Settings() {
                             { name: 'ApprovalWorkflow', path: 'src/components/ApprovalWorkflow.tsx', desc: 'Approval workflow' },
                             { name: 'Assets', path: 'src/components/Assets.tsx', desc: 'Asset library with smart tags' },
                             { name: 'CreatorCostCalculator', path: 'src/components/CreatorCostCalculator.tsx', desc: 'Labor cost calculator' },
+                            { name: 'LipSyncManager', path: 'src/components/LipSyncManager.tsx', desc: 'Lip sync job tracking' },
+                            { name: 'PromptLibrary', path: 'src/components/PromptLibrary.tsx', desc: 'Prompt template management' },
+                            { name: 'PatentApplication', path: 'src/components/PatentApplication.tsx', desc: 'Patent application drafting' },
+                            { name: 'VideoTrailerShowcase', path: 'src/components/VideoTrailerShowcase.tsx', desc: 'Featured trailer display' },
                           ].map((comp) => (
                             <div key={comp.name} className="border border-gray-200 rounded-lg p-3">
                               <h4 className="font-semibold text-sm text-gray-900">{comp.name}</h4>
@@ -1674,8 +1686,8 @@ export function Settings() {
                             },
                             {
                               table: 'series',
-                              desc: 'Series metadata, art style, production guidelines, profit projection defaults, and organization association',
-                              cols: 'id, organization_id, title, description, art_style, target_audience, default_episode_count, archived_at',
+                              desc: 'Series metadata, art style, production guidelines, featured trailers, and organization association',
+                              cols: 'id, organization_id, title, description, art_style, featured_trailer_id, default_episode_count, archived_at',
                             },
                             {
                               table: 'dashboard_ip_sections',
@@ -1756,6 +1768,51 @@ export function Settings() {
                               table: 'brand_templates',
                               desc: 'Reusable templates for series and production settings',
                               cols: 'id, name, template_type, configuration, is_public, created_by',
+                            },
+                            {
+                              table: 'prompt_templates',
+                              desc: 'Customizable AI prompt templates with versioning',
+                              cols: 'id, organization_id, prompt_key, prompt_name, category, is_system_default, is_active',
+                            },
+                            {
+                              table: 'prompt_template_versions',
+                              desc: 'Version history for prompt templates',
+                              cols: 'id, prompt_template_id, version_number, prompt_content, is_deployed, change_notes',
+                            },
+                            {
+                              table: 'lip_sync_jobs',
+                              desc: 'Lip sync generation job tracking',
+                              cols: 'id, episode_id, dialogue_id, provider, status, video_url, created_at',
+                            },
+                            {
+                              table: 'episode_progress',
+                              desc: 'Real-time episode production progress tracking',
+                              cols: 'id, episode_id, script_progress, storyboard_progress, audio_progress, total_progress',
+                            },
+                            {
+                              table: 'gemini_api_usage',
+                              desc: 'Gemini API usage tracking and cost monitoring',
+                              cols: 'id, organization_id, request_type, model, tokens_used, cost_estimate, created_at',
+                            },
+                            {
+                              table: 'translation_export_history',
+                              desc: 'Export tracking for translated scripts',
+                              cols: 'id, translated_script_id, export_format, exported_by, created_at',
+                            },
+                            {
+                              table: 'patent_applications',
+                              desc: 'Patent application drafting and management',
+                              cols: 'id, organization_id, title, filing_type, status, inventor_name, specification, abstract',
+                            },
+                            {
+                              table: 'patent_claims',
+                              desc: 'Patent claims with independent/dependent hierarchy',
+                              cols: 'id, application_id, claim_number, claim_type, parent_claim_id, claim_text, category',
+                            },
+                            {
+                              table: 'patent_drawings',
+                              desc: 'Patent figures and technical drawings',
+                              cols: 'id, application_id, figure_number, title, description, svg_content, drawing_type',
                             },
                           ].map((table) => (
                             <div key={table.table} className="border border-gray-200 rounded-lg p-4">
@@ -2214,6 +2271,10 @@ colors: {
 │   │   ├── ApprovalWorkflow.tsx        # Approval system
 │   │   ├── EpisodeProfitAnalytics.tsx  # Revenue tracking
 │   │   ├── CreatorCostCalculator.tsx   # Labor cost calculator
+│   │   ├── LipSyncManager.tsx          # Lip sync tracking
+│   │   ├── PromptLibrary.tsx           # Prompt management
+│   │   ├── PatentApplication.tsx       # Patent drafting
+│   │   ├── VideoTrailerShowcase.tsx    # Featured trailers
 │   │   └── Layout.tsx                  # Main app layout
 │   ├── services/
 │   │   ├── geminiService.ts            # Vertex AI integration
@@ -2229,14 +2290,19 @@ colors: {
 │   │   ├── ltvCalculationService.ts    # LTV estimation
 │   │   ├── backupService.ts            # Backup system
 │   │   ├── monitoringService.ts        # Health monitoring
-│   │   └── settingsService.ts          # Settings management
+│   │   ├── settingsService.ts          # Settings management
+│   │   ├── lipSyncService.ts           # Lip sync processing
+│   │   ├── promptLibraryService.ts     # Prompt management
+│   │   ├── episodeProgressService.ts   # Progress tracking
+│   │   ├── geminiUsageTrackingService.ts # API usage tracking
+│   │   └── patentApplicationService.ts # Patent generation
 │   ├── lib/
 │   │   ├── supabase.ts                 # Supabase client
 │   │   └── database.types.ts           # TypeScript types
 │   └── utils/
 │       └── sampleData.ts               # Sample data
 ├── supabase/
-│   ├── migrations/                     # Database migrations (19 files)
+│   ├── migrations/                     # Database migrations (70+ files)
 │   └── functions/                      # Edge functions
 │       └── elevenlabs-proxy/           # ElevenLabs API proxy
 ├── python-tts-server/                  # Chatterbox TTS server
@@ -2315,6 +2381,10 @@ colors: {
                             { what: 'Setup voice providers', where: 'src/services/voiceService.ts & chatterboxService.ts' },
                             { what: 'Configure cost tracking', where: 'src/services/costCalculationService.ts' },
                             { what: 'Change app logo', where: 'src/components/Logo.tsx' },
+                            { what: 'Manage prompts', where: 'src/services/promptLibraryService.ts & PromptLibrary.tsx' },
+                            { what: 'Track lip sync jobs', where: 'src/services/lipSyncService.ts & LipSyncManager.tsx' },
+                            { what: 'Draft patent applications', where: 'src/components/PatentApplication.tsx' },
+                            { what: 'Configure featured trailers', where: 'src/components/VideoTrailerShowcase.tsx' },
                           ].map((item) => (
                             <div key={item.what} className="flex items-start gap-3 bg-gray-50 rounded p-3">
                               <FileCode className="w-4 h-4 text-scripps-blue mt-0.5 flex-shrink-0" />
