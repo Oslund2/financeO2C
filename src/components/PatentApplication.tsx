@@ -76,6 +76,31 @@ export function PatentApplication() {
   const [tempSpec, setTempSpec] = useState('');
   const [tempAbstract, setTempAbstract] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const convertSvgToPng = (svgContent: string, width: number = 800, height: number = 600): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Failed to get canvas context'));
+        return;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+
+      const img = new window.Image();
+      img.onload = () => {
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = () => reject(new Error('Failed to load SVG image'));
+      img.src = svgToDataUrl(svgContent);
+    });
+  };
 
   useEffect(() => {
     if (currentOrganization) {
@@ -207,107 +232,140 @@ export function PatentApplication() {
   const handleExportPDF = async () => {
     if (!selectedApp) return;
 
-    const pdf = new jsPDF('p', 'pt', 'letter');
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const margin = 72;
-    const maxWidth = pageWidth - margin * 2;
-    let yPos = margin;
-
-    pdf.setFont('times', 'bold');
-    pdf.setFontSize(14);
-    pdf.text(selectedApp.title.toUpperCase(), pageWidth / 2, yPos, { align: 'center' });
-    yPos += 30;
-
-    pdf.setFont('times', 'normal');
-    pdf.setFontSize(12);
-
-    if (selectedApp.inventor_name) {
-      pdf.text(`Inventor: ${selectedApp.inventor_name}`, margin, yPos);
-      yPos += 18;
-    }
-    pdf.text(`Citizenship: ${selectedApp.inventor_citizenship}`, margin, yPos);
-    yPos += 30;
-
-    if (selectedApp.abstract) {
-      pdf.setFont('times', 'bold');
-      pdf.text('ABSTRACT', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 20;
-      pdf.setFont('times', 'normal');
-      const abstractLines = pdf.splitTextToSize(selectedApp.abstract, maxWidth);
-      pdf.text(abstractLines, margin, yPos);
-      yPos += abstractLines.length * 14 + 30;
-    }
-
-    if (selectedApp.specification) {
-      if (yPos > 600) {
-        pdf.addPage();
-        yPos = margin;
-      }
-      const specLines = selectedApp.specification.split('\n');
-      for (const line of specLines) {
-        if (yPos > 700) {
-          pdf.addPage();
-          yPos = margin;
-        }
-        if (line.match(/^[A-Z\s]+$/) && line.trim().length > 0) {
-          pdf.setFont('times', 'bold');
-          yPos += 10;
-          pdf.text(line, margin, yPos);
-          pdf.setFont('times', 'normal');
-          yPos += 18;
-        } else {
-          const wrapped = pdf.splitTextToSize(line, maxWidth);
-          pdf.text(wrapped, margin, yPos);
-          yPos += wrapped.length * 14;
+    setExporting(true);
+    try {
+      const drawingsWithImages: Map<number, string> = new Map();
+      if (selectedApp.drawings.length > 0) {
+        for (const drawing of selectedApp.drawings) {
+          if (drawing.svg_content) {
+            try {
+              const pngDataUrl = await convertSvgToPng(drawing.svg_content, 800, 600);
+              drawingsWithImages.set(drawing.figure_number, pngDataUrl);
+            } catch {
+              console.warn(`Failed to convert drawing ${drawing.figure_number} to PNG`);
+            }
+          }
         }
       }
-    }
 
-    if (selectedApp.claims.length > 0) {
-      pdf.addPage();
-      yPos = margin;
+      const pdf = new jsPDF('p', 'pt', 'letter');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 72;
+      const maxWidth = pageWidth - margin * 2;
+      let yPos = margin;
+
       pdf.setFont('times', 'bold');
       pdf.setFontSize(14);
-      pdf.text('CLAIMS', pageWidth / 2, yPos, { align: 'center' });
+      pdf.text(selectedApp.title.toUpperCase(), pageWidth / 2, yPos, { align: 'center' });
       yPos += 30;
+
       pdf.setFont('times', 'normal');
       pdf.setFontSize(12);
 
-      for (const claim of selectedApp.claims.sort((a, b) => a.claim_number - b.claim_number)) {
-        if (yPos > 650) {
+      if (selectedApp.inventor_name) {
+        pdf.text(`Inventor: ${selectedApp.inventor_name}`, margin, yPos);
+        yPos += 18;
+      }
+      pdf.text(`Citizenship: ${selectedApp.inventor_citizenship}`, margin, yPos);
+      yPos += 30;
+
+      if (selectedApp.abstract) {
+        pdf.setFont('times', 'bold');
+        pdf.text('ABSTRACT', pageWidth / 2, yPos, { align: 'center' });
+        yPos += 20;
+        pdf.setFont('times', 'normal');
+        const abstractLines = pdf.splitTextToSize(selectedApp.abstract, maxWidth);
+        pdf.text(abstractLines, margin, yPos);
+        yPos += abstractLines.length * 14 + 30;
+      }
+
+      if (selectedApp.specification) {
+        if (yPos > 600) {
           pdf.addPage();
           yPos = margin;
         }
-        const claimText = `${claim.claim_number}. ${claim.claim_text}`;
-        const wrapped = pdf.splitTextToSize(claimText, maxWidth);
-        pdf.text(wrapped, margin, yPos);
-        yPos += wrapped.length * 14 + 20;
+        const specLines = selectedApp.specification.split('\n');
+        for (const line of specLines) {
+          if (yPos > 700) {
+            pdf.addPage();
+            yPos = margin;
+          }
+          if (line.match(/^[A-Z\s]+$/) && line.trim().length > 0) {
+            pdf.setFont('times', 'bold');
+            yPos += 10;
+            pdf.text(line, margin, yPos);
+            pdf.setFont('times', 'normal');
+            yPos += 18;
+          } else {
+            const wrapped = pdf.splitTextToSize(line, maxWidth);
+            pdf.text(wrapped, margin, yPos);
+            yPos += wrapped.length * 14;
+          }
+        }
       }
-    }
 
-    if (selectedApp.drawings.length > 0) {
-      for (const drawing of selectedApp.drawings.sort((a, b) => a.figure_number - b.figure_number)) {
+      if (selectedApp.claims.length > 0) {
         pdf.addPage();
+        yPos = margin;
         pdf.setFont('times', 'bold');
-        pdf.setFontSize(12);
-        pdf.text(`FIG. ${drawing.figure_number} - ${drawing.title}`, pageWidth / 2, margin, { align: 'center' });
-
-        if (drawing.svg_content) {
-          pdf.setFont('times', 'italic');
-          pdf.setFontSize(10);
-          pdf.text('[See SVG Drawing]', pageWidth / 2, margin + 300, { align: 'center' });
-        }
-
+        pdf.setFontSize(14);
+        pdf.text('CLAIMS', pageWidth / 2, yPos, { align: 'center' });
+        yPos += 30;
         pdf.setFont('times', 'normal');
-        pdf.setFontSize(10);
-        if (drawing.description) {
-          const descLines = pdf.splitTextToSize(drawing.description, maxWidth);
-          pdf.text(descLines, margin, 650);
+        pdf.setFontSize(12);
+
+        for (const claim of selectedApp.claims.sort((a, b) => a.claim_number - b.claim_number)) {
+          if (yPos > 650) {
+            pdf.addPage();
+            yPos = margin;
+          }
+          const claimText = `${claim.claim_number}. ${claim.claim_text}`;
+          const wrapped = pdf.splitTextToSize(claimText, maxWidth);
+          pdf.text(wrapped, margin, yPos);
+          yPos += wrapped.length * 14 + 20;
         }
       }
-    }
 
-    pdf.save(`${selectedApp.title.replace(/\s+/g, '_')}_Patent_Application.pdf`);
+      if (selectedApp.drawings.length > 0) {
+        for (const drawing of selectedApp.drawings.sort((a, b) => a.figure_number - b.figure_number)) {
+          pdf.addPage();
+          pdf.setFont('times', 'bold');
+          pdf.setFontSize(12);
+          pdf.text(`FIG. ${drawing.figure_number} - ${drawing.title}`, pageWidth / 2, margin, { align: 'center' });
+
+          const pngDataUrl = drawingsWithImages.get(drawing.figure_number);
+          if (pngDataUrl) {
+            const imgMaxWidth = maxWidth;
+            const imgMaxHeight = pageHeight - margin * 2 - 100;
+            const aspectRatio = 800 / 600;
+            let imgWidth = imgMaxWidth;
+            let imgHeight = imgWidth / aspectRatio;
+            if (imgHeight > imgMaxHeight) {
+              imgHeight = imgMaxHeight;
+              imgWidth = imgHeight * aspectRatio;
+            }
+            const imgX = (pageWidth - imgWidth) / 2;
+            const imgY = margin + 30;
+            pdf.addImage(pngDataUrl, 'PNG', imgX, imgY, imgWidth, imgHeight);
+          }
+
+          pdf.setFont('times', 'normal');
+          pdf.setFontSize(10);
+          if (drawing.description) {
+            const descLines = pdf.splitTextToSize(drawing.description, maxWidth);
+            const descY = pngDataUrl ? margin + 30 + (pageHeight - margin * 2 - 100) + 20 : margin + 50;
+            pdf.text(descLines, margin, Math.min(descY, 680));
+          }
+        }
+      }
+
+      pdf.save(`${selectedApp.title.replace(/\s+/g, '_')}_Patent_Application.pdf`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to export PDF');
+    } finally {
+      setExporting(false);
+    }
   };
 
   const tabs: { id: TabId; label: string; icon: React.ElementType }[] = [
@@ -499,6 +557,7 @@ export function PatentApplication() {
                   <ExportTab
                     application={selectedApp}
                     onExportPDF={handleExportPDF}
+                    exporting={exporting}
                   />
                 )}
               </div>
@@ -1189,10 +1248,12 @@ function PriorArtTab({ application }: { application: PatentApplicationWithDetail
 
 function ExportTab({
   application,
-  onExportPDF
+  onExportPDF,
+  exporting
 }: {
   application: PatentApplicationWithDetails;
   onExportPDF: () => void;
+  exporting: boolean;
 }) {
   const handleCopyText = () => {
     let text = `${application.title}\n\n`;
@@ -1218,12 +1279,21 @@ function ExportTab({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <button
           onClick={onExportPDF}
-          className="flex flex-col items-center gap-3 p-6 border-2 border-gray-200 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-colors"
+          disabled={exporting}
+          className={`flex flex-col items-center gap-3 p-6 border-2 rounded-xl transition-colors ${
+            exporting
+              ? 'border-gray-200 bg-gray-50 cursor-not-allowed'
+              : 'border-gray-200 hover:border-blue-400 hover:bg-blue-50'
+          }`}
         >
-          <Download className="w-10 h-10 text-blue-600" />
+          {exporting ? (
+            <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+          ) : (
+            <Download className="w-10 h-10 text-blue-600" />
+          )}
           <div className="text-center">
-            <p className="font-medium text-gray-900">Export PDF</p>
-            <p className="text-sm text-gray-500">Complete application document</p>
+            <p className="font-medium text-gray-900">{exporting ? 'Generating PDF...' : 'Export PDF'}</p>
+            <p className="text-sm text-gray-500">{exporting ? 'Converting drawings to images' : 'Complete application document'}</p>
           </div>
         </button>
 
