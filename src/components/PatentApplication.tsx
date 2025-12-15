@@ -1199,14 +1199,14 @@ function PriorArtTab({ application }: { application: PatentApplicationWithDetail
       recommended: true
     },
     {
-      name: 'USPTO Patent Full-Text (PatFT)',
-      url: 'https://patft.uspto.gov/netahtml/PTO/search-bool.html',
-      description: 'Official US Patent and Trademark Office full-text patent search'
+      name: 'USPTO Patent Public Search',
+      url: 'https://ppubs.uspto.gov/pubwebapp/',
+      description: 'Official USPTO search for all US patents and published applications'
     },
     {
-      name: 'USPTO AppFT',
-      url: 'https://appft.uspto.gov/netahtml/PTO/search-bool.html',
-      description: 'Search published US patent applications (pending patents)'
+      name: 'USPTO Basic Search',
+      url: 'https://ppubs.uspto.gov/pubwebapp/static/pages/ppubsbasic.html',
+      description: 'Simplified USPTO search by keywords, inventor, or patent number'
     },
     {
       name: 'Espacenet (EPO)',
