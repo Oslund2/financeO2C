@@ -622,8 +622,12 @@ function validateGeneratedScript(script: GeneratedScript): void {
     throw new Error(`Script is too long: ${totalScriptedDuration} seconds. Maximum is 1000 seconds (target: 870 seconds)`);
   }
 
-  if (totalDialogueLines < 80) {
-    throw new Error(`Script has too few dialogue lines: ${totalDialogueLines}. Minimum is 80 lines for proper pacing.`);
+  if (totalDialogueLines < 40) {
+    throw new Error(`Script has too few dialogue lines: ${totalDialogueLines}. Minimum is 40 lines for proper pacing.`);
+  }
+
+  if (totalDialogueLines < 60) {
+    console.warn(`Script has only ${totalDialogueLines} dialogue lines. Consider adding more for better pacing (recommended: 60+)`);
   }
 
   if (Math.abs(totalScriptedDuration - 870) > 60) {
