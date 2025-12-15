@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, TrendingUp, Clock, CheckCircle, AlertCircle, Award, Globe, Sparkles, DollarSign, Languages, Tv, X, FileText, Film, ArrowRight, ChevronDown, ChevronUp, Edit2 } from 'lucide-react';
+import { Plus, TrendingUp, Clock, CheckCircle, AlertCircle, Award, Globe, Sparkles, DollarSign, Languages, Tv, X, FileText, Film, ArrowRight, ChevronDown, ChevronUp, Edit2, Shield } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { SystemHealthWidget } from './SystemHealthWidget';
 import { CastFilmStrip } from './CastFilmStrip';
@@ -453,6 +453,14 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => onNavigate('ip-protection')}
+                  className="flex items-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-white text-sm font-medium"
+                  aria-label="Manage IP Protection"
+                >
+                  <Shield className="w-4 h-4" />
+                  <span className="hidden sm:inline">Manage IP Protection</span>
+                </button>
                 {!ipSectionCollapsed && (
                   <button
                     onClick={() => {
@@ -485,9 +493,17 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
                   <p className="text-sm sm:text-base lg:text-lg text-white/95 leading-relaxed mb-3 sm:mb-4">
                     {ipSectionData.section_description_1}
                   </p>
-                  <p className="text-xs sm:text-sm lg:text-base text-white/90 leading-relaxed">
+                  <p className="text-xs sm:text-sm lg:text-base text-white/90 leading-relaxed mb-4">
                     {ipSectionData.section_description_2}
                   </p>
+                  <button
+                    onClick={() => onNavigate('ip-protection')}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-scripps-yellow text-scripps-navy font-semibold rounded-lg hover:bg-yellow-400 transition-colors shadow-md"
+                  >
+                    <Shield className="w-4 h-4" />
+                    Manage IP Protection
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
