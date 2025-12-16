@@ -178,7 +178,7 @@ export function PromptLibrary({ expanded = false, onToggle }: PromptLibraryProps
                   onClick={() => setSelectedCategory(key as PromptCategory)}
                   className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
                     selectedCategory === key
-                      ? CATEGORY_CONFIG[key as PromptCategory].color
+                      ? (CATEGORY_CONFIG[key as PromptCategory] || CATEGORY_CONFIG['general']).color
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
@@ -220,7 +220,7 @@ export function PromptLibrary({ expanded = false, onToggle }: PromptLibraryProps
           ) : (
             <div className="space-y-6">
               {Object.entries(groupedPrompts).map(([category, categoryPrompts]) => {
-                const config = CATEGORY_CONFIG[category as PromptCategory];
+                const config = CATEGORY_CONFIG[category as PromptCategory] || CATEGORY_CONFIG['general'];
                 const Icon = config.icon;
 
                 return (
