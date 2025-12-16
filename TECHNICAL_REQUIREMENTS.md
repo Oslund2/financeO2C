@@ -58,6 +58,23 @@ This is a comprehensive AI-powered animation production platform that enables cr
 - Cross-organization analytics
 - Automatic slug generation for workspace URLs
 - Workspace switcher for quick navigation
+- Featured trailer showcase for series
+
+**Prompt Library & AI Enhancement**
+- 10+ system default prompts for all AI operations
+- Organization-specific prompt customization
+- Version control and deployment system
+- AI-powered prompt enhancement with Gemini
+- Prompt testing and validation
+- Category-based organization (script, video, voice, storyboard, style)
+
+**Patent Application System**
+- Draft provisional and non-provisional patent applications
+- Independent and dependent claims management
+- Technical drawings with SVG support
+- Prior art tracking and references
+- Version control for patent documents
+- Export to USPTO-ready formats
 
 ### Technology Stack
 
@@ -126,6 +143,8 @@ src/
 │   ├── OrganizationSwitcher.tsx # Workspace selector
 │   ├── CreateWorkspaceModal.tsx # Workspace creation
 │   ├── PromptLibrary.tsx       # Prompt template management
+│   ├── PromptEditorModal.tsx   # Prompt editing with AI enhancement
+│   ├── PatentApplication.tsx   # Patent drafting system
 │   └── [50+ other components]
 │
 ├── services/
@@ -141,6 +160,9 @@ src/
 │   ├── promptEnhancementService.ts  # AI prompt optimization
 │   ├── scriptTranslationService.ts  # Multi-language support
 │   ├── lipSyncService.ts       # Lip sync management
+│   ├── patentApplicationService.ts  # Patent generation
+│   ├── patentClaimsService.ts       # Patent claims management
+│   ├── patentDrawingsService.ts     # Patent drawing generation
 │   └── [20+ other services]
 │
 ├── contexts/
@@ -345,6 +367,62 @@ CREATE TABLE prompt_enhancement_history (
   custom_instruction TEXT,
   accepted BOOLEAN,
   created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### Patent Application Tables
+
+#### patent_applications
+```sql
+CREATE TABLE patent_applications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id),
+  title TEXT NOT NULL,
+  filing_type TEXT NOT NULL, -- provisional, non_provisional, continuation
+  status TEXT DEFAULT 'draft', -- draft, in_review, filed, pending, granted, rejected
+  inventor_name TEXT NOT NULL,
+  inventor_citizenship TEXT DEFAULT 'US Citizen',
+  specification TEXT,
+  abstract TEXT, -- 150 words max
+  prior_art_patents JSONB DEFAULT '[]',
+  prior_art_literature JSONB DEFAULT '[]',
+  metadata JSONB DEFAULT '{}',
+  version INTEGER DEFAULT 1,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+#### patent_claims
+```sql
+CREATE TABLE patent_claims (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  application_id UUID NOT NULL REFERENCES patent_applications(id),
+  claim_number INTEGER NOT NULL,
+  claim_type TEXT NOT NULL, -- independent, dependent
+  parent_claim_id UUID REFERENCES patent_claims(id),
+  claim_text TEXT NOT NULL,
+  status TEXT DEFAULT 'draft', -- draft, reviewed, finalized
+  category TEXT, -- method, system, apparatus, composition
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+#### patent_drawings
+```sql
+CREATE TABLE patent_drawings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  application_id UUID NOT NULL REFERENCES patent_applications(id),
+  figure_number INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  svg_content TEXT,
+  image_url TEXT,
+  drawing_type TEXT, -- block_diagram, flowchart, wireframe, schematic
+  callouts JSONB DEFAULT '[]',
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
 );
 ```
 
@@ -717,7 +795,9 @@ src/
 │   ├── OrganizationSwitcher.tsx # 180 lines - Workspace selector
 │   ├── CreateWorkspaceModal.tsx # 264 lines - Workspace creation
 │   ├── SeriesSwitcher.tsx     # 150 lines - Series selector
-│   ├── PromptLibrary.tsx      # 420 lines - Prompt management
+│   ├── PromptLibrary.tsx      # 343 lines - Prompt management
+│   ├── PromptEditorModal.tsx  # 280 lines - Prompt editing with AI
+│   ├── PatentApplication.tsx  # 520 lines - Patent drafting
 │   ├── VoiceGenerationTab.tsx # 380 lines - Voice synthesis
 │   ├── ScriptTranslationManager.tsx # 320 lines - Multi-language
 │   ├── LipSyncManager.tsx     # 280 lines - Lip sync tracking
@@ -726,7 +806,7 @@ src/
 │   ├── EpisodeProfitAnalytics.tsx # 340 lines - LTV tracking
 │   └── [35+ other components]
 │
-├── services/                  # Business logic (25+ files)
+├── services/                  # Business logic (30+ files)
 │   ├── vertexAIService.ts    # 339 lines - Veo 3.1 integration
 │   ├── shotListGeneratorService.ts # 339 lines - Shot generation
 │   ├── batchManagementService.ts # 458 lines - Batch processing
@@ -743,7 +823,10 @@ src/
 │   ├── lipSyncService.ts     # 240 lines - Lip sync management
 │   ├── dialogueAudioService.ts # 190 lines - Audio processing
 │   ├── episodeProgressService.ts # 210 lines - Progress tracking
-│   └── [12+ other services]
+│   ├── patentApplicationService.ts # 180 lines - Patent generation
+│   ├── patentClaimsService.ts # 140 lines - Claims management
+│   ├── patentDrawingsService.ts # 120 lines - Drawing generation
+│   └── [15+ other services]
 │
 ├── contexts/                  # React contexts
 │   ├── AuthContext.tsx       # 120 lines
@@ -835,7 +918,9 @@ supabase/migrations/
 ├── 20251214042208_update_creator_cost_defaults_2024_research.sql
 ├── 20251214043944_add_series_default_episode_count.sql
 ├── 20251214050833_add_traditional_animation_cost_breakdown.sql
-└── 20251214060901_add_stuck_translation_recovery.sql
+├── 20251214060901_add_stuck_translation_recovery.sql
+├── 20251214072033_add_featured_trailer_to_series.sql
+└── 20251215104915_create_patent_application_system.sql
 ```
 
 ### Configuration Files
@@ -913,15 +998,18 @@ supabase/migrations/
 
 ---
 
-**Last Updated:** December 14, 2024
-**Version:** 3.0.0
+**Last Updated:** December 16, 2024
+**Version:** 3.1.0
 **License:** MIT
 
 **Major Features:**
 - Multi-workspace support with billing tiers
-- Comprehensive prompt library system with 10 default templates
+- Comprehensive prompt library system with 10+ default templates
+- AI-powered prompt enhancement with version control
+- Patent application drafting and management system
 - Episode progress tracking and analytics
-- Script translation system
-- Lip sync management
-- LTV and cost tracking
+- Script translation system with export capabilities
+- Lip sync management with provider support
+- Featured trailer showcase for series
+- LTV and cost tracking with traditional animation comparisons
 - Gemini API usage monitoring
