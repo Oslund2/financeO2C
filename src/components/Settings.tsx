@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Key, Database, Sparkles, ExternalLink, CheckCircle, XCircle, Info, BookOpen, ChevronDown, ChevronUp, Copy, Code, Layers, FileCode, Palette, Rocket, DollarSign, FolderTree, Building2, Film, Shield, Clock, AlertTriangle, History, Download, RefreshCw, Archive, Activity, Video, Mic2, Image, Zap, Hammer, Briefcase, Sliders, Globe, Brain, Volume2, Monitor, Languages, FileSearch } from 'lucide-react';
+import { Key, Database, Sparkles, ExternalLink, CheckCircle, XCircle, Info, BookOpen, ChevronDown, ChevronUp, Copy, Code, Layers, FileCode, Palette, Rocket, DollarSign, FolderTree, Building2, Film, Shield, Clock, AlertTriangle, History, Download, RefreshCw, Archive, Activity, Video, Mic2, Image, Zap, Hammer, Briefcase, Sliders, Globe, Brain, Volume2, Monitor, Languages, FileSearch, FileText, Printer } from 'lucide-react';
 import { getAPIKeyStatus, getConfigurationInstructions, getUserSettings, updateUserSettings, type UserSettings } from '../services/settingsService';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { backupService } from '../services/backupService';
@@ -29,6 +29,7 @@ export function Settings() {
   const [videoSettingsExpanded, setVideoSettingsExpanded] = useState(false);
   const [translationExpanded, setTranslationExpanded] = useState(false);
   const [patentSettingsExpanded, setPatentSettingsExpanded] = useState(false);
+  const [releasesExpanded, setReleasesExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [copiedText, setCopiedText] = useState('');
 
@@ -1685,11 +1686,101 @@ export function Settings() {
 
           <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
             <button
+              onClick={() => setReleasesExpanded(!releasesExpanded)}
+              className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-lg flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <h2 className="text-xl font-bold text-gray-900">Releases</h2>
+                  <p className="text-sm text-gray-600">Companion letters and release documents for talent</p>
+                </div>
+              </div>
+              {releasesExpanded ? (
+                <ChevronUp className="w-6 h-6 text-gray-400" />
+              ) : (
+                <ChevronDown className="w-6 h-6 text-gray-400" />
+              )}
+            </button>
+
+            {releasesExpanded && (
+              <div className="border-t border-gray-200">
+                <div className="p-6">
+                  <div className="bg-teal-50 border border-teal-200 rounded-lg p-4 mb-6">
+                    <div className="flex items-start gap-3">
+                      <Info className="w-5 h-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                      <div className="text-sm text-teal-800">
+                        <p className="font-medium mb-1">Companion Letters & Release Documents</p>
+                        <p>Select and print release forms and companion letters for talent agreements, NIL releases, and other production documents.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Available Documents</h3>
+
+                    <div className="grid gap-4">
+                      <div className="bg-white border border-gray-200 rounded-lg p-4 hover:border-teal-300 hover:shadow-md transition-all">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 bg-teal-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <FileText className="w-5 h-5 text-teal-600" />
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-gray-900">NIL Release Agreement</h4>
+                              <p className="text-sm text-gray-600 mt-1">Standard Name, Image, and Likeness release form for Spelling Bee champions and talent appearances.</p>
+                              <div className="flex items-center gap-2 mt-2">
+                                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">DOCX Format</span>
+                                <span className="text-xs bg-teal-100 text-teal-700 px-2 py-1 rounded">Template</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <a
+                              href="/releases/sch-awesome!_nil_release.docx"
+                              download="NIL_Release_Agreement.docx"
+                              className="flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+                            >
+                              <Download className="w-4 h-4" />
+                              Download
+                            </a>
+                            <button
+                              onClick={() => {
+                                const printWindow = window.open('/releases/sch-awesome!_nil_release.docx', '_blank');
+                                if (printWindow) {
+                                  printWindow.focus();
+                                }
+                              }}
+                              className="flex items-center gap-2 px-3 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm font-medium"
+                            >
+                              <Printer className="w-4 h-4" />
+                              Print
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-gray-50 border border-dashed border-gray-300 rounded-lg p-6 text-center">
+                        <FileText className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm text-gray-500">Additional release templates coming soon</p>
+                        <p className="text-xs text-gray-400 mt-1">Talent agreements, production contracts, and more</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+            <button
               onClick={() => setBackupExpanded(!backupExpanded)}
               className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg flex items-center justify-center">
                   <Shield className="w-5 h-5 text-white" />
                 </div>
                 <div className="text-left">
