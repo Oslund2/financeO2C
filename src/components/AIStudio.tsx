@@ -409,6 +409,7 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
         ai_generated: true,
         generation_prompt: JSON.stringify(formData),
         status: 'draft',
+        runtime_minutes: selectedFormat.program_length_minutes,
         program_length_minutes: selectedFormat.program_length_minutes,
         total_episode_minutes: selectedFormat.total_episode_minutes,
         break_structure: selectedFormat.break_structure,
