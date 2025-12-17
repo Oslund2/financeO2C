@@ -1016,6 +1016,171 @@ export interface Database {
           completed_at?: string | null
         }
       }
+      patent_applications: {
+        Row: {
+          id: string
+          organization_id: string | null
+          title: string | null
+          status: string
+          abstract: string | null
+          specification: string | null
+          field_of_invention: string | null
+          background_art: string | null
+          summary_invention: string | null
+          detailed_description: string | null
+          prior_art_search_status: string
+          prior_art_search_completed_at: string | null
+          novelty_score: number | null
+          novelty_analysis: Json | null
+          differentiation_analysis: Json | null
+          claims_generation_status: string
+          claims_generation_completed_at: string | null
+          drawings_generation_status: string
+          drawings_generation_completed_at: string | null
+          specification_generation_status: string
+          specification_generation_completed_at: string | null
+          full_application_status: string
+          full_application_completed_at: string | null
+          metadata: Json | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id?: string | null
+          title?: string | null
+          status?: string
+          abstract?: string | null
+          specification?: string | null
+          field_of_invention?: string | null
+          background_art?: string | null
+          summary_invention?: string | null
+          detailed_description?: string | null
+          prior_art_search_status?: string
+          prior_art_search_completed_at?: string | null
+          novelty_score?: number | null
+          novelty_analysis?: Json | null
+          differentiation_analysis?: Json | null
+          claims_generation_status?: string
+          claims_generation_completed_at?: string | null
+          drawings_generation_status?: string
+          drawings_generation_completed_at?: string | null
+          specification_generation_status?: string
+          specification_generation_completed_at?: string | null
+          full_application_status?: string
+          full_application_completed_at?: string | null
+          metadata?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string | null
+          title?: string | null
+          status?: string
+          abstract?: string | null
+          specification?: string | null
+          field_of_invention?: string | null
+          background_art?: string | null
+          summary_invention?: string | null
+          detailed_description?: string | null
+          prior_art_search_status?: string
+          prior_art_search_completed_at?: string | null
+          novelty_score?: number | null
+          novelty_analysis?: Json | null
+          differentiation_analysis?: Json | null
+          claims_generation_status?: string
+          claims_generation_completed_at?: string | null
+          drawings_generation_status?: string
+          drawings_generation_completed_at?: string | null
+          specification_generation_status?: string
+          specification_generation_completed_at?: string | null
+          full_application_status?: string
+          full_application_completed_at?: string | null
+          metadata?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      patent_claims: {
+        Row: {
+          id: string
+          application_id: string
+          claim_number: number
+          claim_type: string
+          claim_text: string
+          parent_claim_id: string | null
+          status: string
+          category: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          application_id: string
+          claim_number: number
+          claim_type?: string
+          claim_text: string
+          parent_claim_id?: string | null
+          status?: string
+          category?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          application_id?: string
+          claim_number?: number
+          claim_type?: string
+          claim_text?: string
+          parent_claim_id?: string | null
+          status?: string
+          category?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      patent_drawings: {
+        Row: {
+          id: string
+          application_id: string
+          figure_number: number
+          title: string
+          description: string | null
+          svg_content: string | null
+          image_url: string | null
+          drawing_type: string
+          callouts: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          application_id: string
+          figure_number: number
+          title: string
+          description?: string | null
+          svg_content?: string | null
+          image_url?: string | null
+          drawing_type?: string
+          callouts?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          application_id?: string
+          figure_number?: number
+          title?: string
+          description?: string | null
+          svg_content?: string | null
+          image_url?: string | null
+          drawing_type?: string
+          callouts?: Json
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
   }
 }

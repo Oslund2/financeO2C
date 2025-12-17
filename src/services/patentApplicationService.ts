@@ -13,7 +13,7 @@ export interface PatentApplication {
   // Structured specification fields
   field_of_invention: string | null;
   background_art: string | null;
-  summary: string | null;
+  summary_invention: string | null;
   detailed_description: string | null;
   prior_art_patents: PriorArtReference[];
   prior_art_literature: PriorArtReference[];
@@ -66,9 +66,22 @@ export interface PriorArtReference {
   relevance?: string;
 }
 
+export interface PriorArtSearchResult {
+  id: string;
+  patent_application_id: string;
+  patent_number: string | null;
+  patent_title: string | null;
+  patent_abstract: string | null;
+  relevance_score: number | null;
+  similarity_explanation: string | null;
+  is_blocking: boolean;
+  created_at: string;
+}
+
 export interface PatentApplicationWithDetails extends PatentApplication {
   claims: PatentClaim[];
   drawings: PatentDrawing[];
+  priorArt?: PriorArtSearchResult[];
 }
 
 export async function getPatentApplications(organizationId: string): Promise<PatentApplication[]> {
@@ -85,7 +98,40 @@ export async function getPatentApplications(organizationId: string): Promise<Pat
 export async function getPatentApplication(applicationId: string): Promise<PatentApplicationWithDetails | null> {
   const { data: application, error: appError } = await supabase
     .from('patent_applications')
-    .select('*')
+    .select(`
+      id,
+      organization_id,
+      title,
+      filing_type,
+      status,
+      inventor_name,
+      inventor_citizenship,
+      specification,
+      abstract,
+      field_of_invention,
+      background_art,
+      summary_invention,
+      detailed_description,
+      prior_art_patents,
+      prior_art_literature,
+      metadata,
+      version,
+      created_at,
+      updated_at,
+      prior_art_search_status,
+      prior_art_search_completed_at,
+      novelty_score,
+      novelty_analysis,
+      differentiation_analysis,
+      claims_generation_status,
+      claims_generation_completed_at,
+      drawings_generation_status,
+      drawings_generation_completed_at,
+      specification_generation_status,
+      specification_generation_completed_at,
+      full_application_status,
+      full_application_completed_at
+    `)
     .eq('id', applicationId)
     .maybeSingle();
 
@@ -108,10 +154,19 @@ export async function getPatentApplication(applicationId: string): Promise<Paten
 
   if (drawingsError) throw drawingsError;
 
+  const { data: priorArt, error: priorArtError } = await supabase
+    .from('patent_prior_art_search_results')
+    .select('*')
+    .eq('patent_application_id', applicationId)
+    .order('relevance_score', { ascending: false });
+
+  if (priorArtError) console.error('Error loading prior art:', priorArtError);
+
   return {
     ...application,
     claims: claims || [],
-    drawings: drawings || []
+    drawings: drawings || [],
+    priorArt: priorArt || []
   };
 }
 

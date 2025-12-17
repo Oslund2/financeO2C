@@ -7,6 +7,28 @@ import { generateAIEnhancedClaims } from './patentClaimsService';
 import { extractCodebaseFeatures } from './patentFeatureExtractionService';
 import { generateDrawingsForApplication } from './patentDrawingsService';
 
+function formatSpecificationSections(spec: SpecificationSections): string {
+  const sections: string[] = [];
+
+  if (spec.field) {
+    sections.push('FIELD OF THE INVENTION\n\n' + spec.field);
+  }
+
+  if (spec.background) {
+    sections.push('BACKGROUND OF THE INVENTION\n\n' + spec.background);
+  }
+
+  if (spec.summary) {
+    sections.push('SUMMARY OF THE INVENTION\n\n' + spec.summary);
+  }
+
+  if (spec.detailedDescription) {
+    sections.push('DETAILED DESCRIPTION OF THE INVENTION\n\n' + spec.detailedDescription);
+  }
+
+  return sections.join('\n\n');
+}
+
 export interface PatentGenerationConfig {
   applicationId: string;
   organizationId: string;
@@ -102,6 +124,9 @@ export async function generateCompletePatentApplication(
       differentiationReports
     );
 
+    // Create concatenated specification for backward compatibility and UI display
+    const concatenatedSpecification = formatSpecificationSections(specification);
+
     await supabase
       .from('patent_applications')
       .update({
@@ -110,6 +135,7 @@ export async function generateCompletePatentApplication(
         summary_invention: specification.summary,
         detailed_description: specification.detailedDescription,
         abstract: specification.abstract,
+        specification: concatenatedSpecification,
         auto_generated: true,
         last_regenerated_at: new Date().toISOString()
       })
