@@ -17,6 +17,34 @@ export interface UserSettings {
     include_establishing?: boolean;
     [key: string]: any;
   };
+  voice_preferences: {
+    stability: number;
+    similarity_boost: number;
+    speed: number;
+    default_provider: 'elevenlabs' | 'chatterbox';
+    [key: string]: any;
+  };
+  video_preferences: {
+    default_resolution: '720p' | '1080p';
+    default_aspect_ratio: '16:9' | '9:16';
+    default_duration: 4 | 6 | 8;
+    sample_count: number;
+    generate_audio: boolean;
+    [key: string]: any;
+  };
+  translation_preferences: {
+    default_languages: string[];
+    auto_translate: boolean;
+    preserve_timing: boolean;
+    [key: string]: any;
+  };
+  patent_preferences: {
+    auto_prior_art_search: boolean;
+    prior_art_timeout: number;
+    include_default_patents: boolean;
+    analysis_target: 'video_production' | 'patent_management' | 'both';
+    [key: string]: any;
+  };
   vertex_ai_config?: {
     project_id?: string;
     location?: string;
@@ -38,6 +66,30 @@ const DEFAULT_SETTINGS: UserSettings = {
     tone: 'educational and entertaining',
     pacing: 'medium',
     include_establishing: true
+  },
+  voice_preferences: {
+    stability: 0.5,
+    similarity_boost: 0.5,
+    speed: 1.0,
+    default_provider: 'elevenlabs'
+  },
+  video_preferences: {
+    default_resolution: '1080p',
+    default_aspect_ratio: '16:9',
+    default_duration: 6,
+    sample_count: 2,
+    generate_audio: true
+  },
+  translation_preferences: {
+    default_languages: ['es', 'fr', 'de', 'ja', 'zh'],
+    auto_translate: false,
+    preserve_timing: true
+  },
+  patent_preferences: {
+    auto_prior_art_search: true,
+    prior_art_timeout: 30000,
+    include_default_patents: true,
+    analysis_target: 'both'
   },
   vertex_ai_config: {
     project_id: '',

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Key, Database, Sparkles, ExternalLink, CheckCircle, XCircle, Info, BookOpen, ChevronDown, ChevronUp, Copy, Code, Layers, FileCode, Palette, Rocket, DollarSign, FolderTree, Building2, Film, Shield, Clock, AlertTriangle, History, Download, RefreshCw, Archive, Activity, Video, Mic2, Image, Zap, Hammer, Briefcase } from 'lucide-react';
-import { getAPIKeyStatus, getConfigurationInstructions } from '../services/settingsService';
+import { Key, Database, Sparkles, ExternalLink, CheckCircle, XCircle, Info, BookOpen, ChevronDown, ChevronUp, Copy, Code, Layers, FileCode, Palette, Rocket, DollarSign, FolderTree, Building2, Film, Shield, Clock, AlertTriangle, History, Download, RefreshCw, Archive, Activity, Video, Mic2, Image, Zap, Hammer, Briefcase, Sliders, Globe, Brain, Volume2, Monitor, Languages, FileSearch } from 'lucide-react';
+import { getAPIKeyStatus, getConfigurationInstructions, getUserSettings, updateUserSettings, type UserSettings } from '../services/settingsService';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { backupService } from '../services/backupService';
 import type { RecoveryPoint, IntegrityCheck, BackupSchedule } from '../services/backupService';
@@ -24,8 +24,17 @@ export function Settings() {
   const [creatorCostExpanded, setCreatorCostExpanded] = useState(false);
   const [lipSyncExpanded, setLipSyncExpanded] = useState(false);
   const [productionCostExpanded, setProductionCostExpanded] = useState(false);
+  const [geminiExpanded, setGeminiExpanded] = useState(false);
+  const [voiceSettingsExpanded, setVoiceSettingsExpanded] = useState(false);
+  const [videoSettingsExpanded, setVideoSettingsExpanded] = useState(false);
+  const [translationExpanded, setTranslationExpanded] = useState(false);
+  const [patentSettingsExpanded, setPatentSettingsExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [copiedText, setCopiedText] = useState('');
+
+  const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
+  const [userSettingsLoading, setUserSettingsLoading] = useState(false);
+  const [userSettingsSaving, setUserSettingsSaving] = useState(false);
 
   const [costConfig, setCostConfig] = useState<CostConfig | null>(null);
   const [costConfigLoading, setCostConfigLoading] = useState(false);
@@ -45,6 +54,7 @@ export function Settings() {
 
   useEffect(() => {
     checkAPIStatus();
+    loadUserSettings();
   }, []);
 
   useEffect(() => {
@@ -58,6 +68,32 @@ export function Settings() {
       loadCostConfig();
     }
   }, [productionCostExpanded]);
+
+  const loadUserSettings = async () => {
+    setUserSettingsLoading(true);
+    try {
+      const settings = await getUserSettings();
+      setUserSettings(settings);
+    } catch (err) {
+      console.error('Failed to load user settings:', err);
+    } finally {
+      setUserSettingsLoading(false);
+    }
+  };
+
+  const handleUpdateUserSettings = async (updates: Partial<UserSettings>) => {
+    setUserSettingsSaving(true);
+    try {
+      const updated = await updateUserSettings(updates);
+      if (updated) {
+        setUserSettings(updated);
+      }
+    } catch (err) {
+      console.error('Failed to update user settings:', err);
+    } finally {
+      setUserSettingsSaving(false);
+    }
+  };
 
   const loadCostConfig = async () => {
     setCostConfigLoading(true);
@@ -687,6 +723,697 @@ export function Settings() {
                     Database is configured and ready to use
                   </p>
                 </div>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+            <button
+              onClick={() => setGeminiExpanded(!geminiExpanded)}
+              className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center">
+                  <Brain className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <h2 className="text-xl font-bold text-gray-900">Gemini AI Settings</h2>
+                  <p className="text-sm text-gray-600">Configure script generation parameters</p>
+                </div>
+              </div>
+              {geminiExpanded ? (
+                <ChevronUp className="w-6 h-6 text-gray-400" />
+              ) : (
+                <ChevronDown className="w-6 h-6 text-gray-400" />
+              )}
+            </button>
+
+            {geminiExpanded && (
+              <div className="border-t border-gray-200 p-6">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                  <div className="flex items-start gap-3">
+                    <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-blue-800">
+                      <p className="font-medium mb-1">Script Generation Settings</p>
+                      <p>These settings control how Gemini AI generates scripts, dialogue, and shot descriptions. Adjust temperature for creativity and max tokens for response length.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {userSettingsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <RefreshCw className="w-6 h-6 animate-spin text-gray-400" />
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Temperature (Creativity): {userSettings?.generation_preferences?.temperature ?? 0.7}
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.1"
+                        value={userSettings?.generation_preferences?.temperature ?? 0.7}
+                        onChange={(e) => handleUpdateUserSettings({
+                          generation_preferences: {
+                            ...userSettings?.generation_preferences!,
+                            temperature: parseFloat(e.target.value)
+                          }
+                        })}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                        disabled={userSettingsSaving}
+                      />
+                      <div className="flex justify-between text-xs text-gray-500 mt-1">
+                        <span>Conservative (0.0)</span>
+                        <span>Creative (1.0)</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Max Tokens: {userSettings?.generation_preferences?.max_tokens ?? 4000}
+                      </label>
+                      <input
+                        type="range"
+                        min="1000"
+                        max="32000"
+                        step="1000"
+                        value={userSettings?.generation_preferences?.max_tokens ?? 4000}
+                        onChange={(e) => handleUpdateUserSettings({
+                          generation_preferences: {
+                            ...userSettings?.generation_preferences!,
+                            max_tokens: parseInt(e.target.value)
+                          }
+                        })}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                        disabled={userSettingsSaving}
+                      />
+                      <div className="flex justify-between text-xs text-gray-500 mt-1">
+                        <span>1,000</span>
+                        <span>32,000</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Tone</label>
+                      <select
+                        value={userSettings?.generation_preferences?.tone ?? 'educational and entertaining'}
+                        onChange={(e) => handleUpdateUserSettings({
+                          generation_preferences: {
+                            ...userSettings?.generation_preferences!,
+                            tone: e.target.value
+                          }
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        disabled={userSettingsSaving}
+                      >
+                        <option value="educational and entertaining">Educational & Entertaining</option>
+                        <option value="professional and informative">Professional & Informative</option>
+                        <option value="casual and fun">Casual & Fun</option>
+                        <option value="dramatic and engaging">Dramatic & Engaging</option>
+                        <option value="whimsical and playful">Whimsical & Playful</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Pacing</label>
+                      <select
+                        value={userSettings?.generation_preferences?.pacing ?? 'medium'}
+                        onChange={(e) => handleUpdateUserSettings({
+                          generation_preferences: {
+                            ...userSettings?.generation_preferences!,
+                            pacing: e.target.value
+                          }
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        disabled={userSettingsSaving}
+                      >
+                        <option value="slow">Slow (More Detail)</option>
+                        <option value="medium">Medium (Balanced)</option>
+                        <option value="fast">Fast (Action-Packed)</option>
+                      </select>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="include_establishing"
+                        checked={userSettings?.generation_preferences?.include_establishing ?? true}
+                        onChange={(e) => handleUpdateUserSettings({
+                          generation_preferences: {
+                            ...userSettings?.generation_preferences!,
+                            include_establishing: e.target.checked
+                          }
+                        })}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        disabled={userSettingsSaving}
+                      />
+                      <label htmlFor="include_establishing" className="text-sm text-gray-700">
+                        Include establishing shots in generated scripts
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+            <button
+              onClick={() => setVoiceSettingsExpanded(!voiceSettingsExpanded)}
+              className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-rose-500 to-pink-600 rounded-lg flex items-center justify-center">
+                  <Volume2 className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <h2 className="text-xl font-bold text-gray-900">Voice Generation Settings</h2>
+                  <p className="text-sm text-gray-600">Configure voice synthesis parameters</p>
+                </div>
+              </div>
+              {voiceSettingsExpanded ? (
+                <ChevronUp className="w-6 h-6 text-gray-400" />
+              ) : (
+                <ChevronDown className="w-6 h-6 text-gray-400" />
+              )}
+            </button>
+
+            {voiceSettingsExpanded && (
+              <div className="border-t border-gray-200 p-6">
+                <div className="bg-rose-50 border border-rose-200 rounded-lg p-4 mb-6">
+                  <div className="flex items-start gap-3">
+                    <Info className="w-5 h-5 text-rose-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-rose-800">
+                      <p className="font-medium mb-1">Voice Quality Settings</p>
+                      <p>Adjust stability for consistent voice output and similarity boost to match the original voice more closely. Higher values may reduce naturalness.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {userSettingsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <RefreshCw className="w-6 h-6 animate-spin text-gray-400" />
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Default Voice Provider</label>
+                      <select
+                        value={userSettings?.voice_preferences?.default_provider ?? 'elevenlabs'}
+                        onChange={(e) => handleUpdateUserSettings({
+                          voice_preferences: {
+                            ...userSettings?.voice_preferences!,
+                            default_provider: e.target.value as 'elevenlabs' | 'chatterbox'
+                          }
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        disabled={userSettingsSaving}
+                      >
+                        <option value="elevenlabs">ElevenLabs (Cloud)</option>
+                        <option value="chatterbox">Chatterbox (Self-Hosted)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Voice Stability: {((userSettings?.voice_preferences?.stability ?? 0.5) * 100).toFixed(0)}%
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={userSettings?.voice_preferences?.stability ?? 0.5}
+                        onChange={(e) => handleUpdateUserSettings({
+                          voice_preferences: {
+                            ...userSettings?.voice_preferences!,
+                            stability: parseFloat(e.target.value)
+                          }
+                        })}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                        disabled={userSettingsSaving}
+                      />
+                      <div className="flex justify-between text-xs text-gray-500 mt-1">
+                        <span>Variable (0%)</span>
+                        <span>Stable (100%)</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Similarity Boost: {((userSettings?.voice_preferences?.similarity_boost ?? 0.5) * 100).toFixed(0)}%
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={userSettings?.voice_preferences?.similarity_boost ?? 0.5}
+                        onChange={(e) => handleUpdateUserSettings({
+                          voice_preferences: {
+                            ...userSettings?.voice_preferences!,
+                            similarity_boost: parseFloat(e.target.value)
+                          }
+                        })}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                        disabled={userSettingsSaving}
+                      />
+                      <div className="flex justify-between text-xs text-gray-500 mt-1">
+                        <span>Natural (0%)</span>
+                        <span>Precise (100%)</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Speech Speed: {(userSettings?.voice_preferences?.speed ?? 1.0).toFixed(1)}x
+                      </label>
+                      <input
+                        type="range"
+                        min="0.5"
+                        max="2.0"
+                        step="0.1"
+                        value={userSettings?.voice_preferences?.speed ?? 1.0}
+                        onChange={(e) => handleUpdateUserSettings({
+                          voice_preferences: {
+                            ...userSettings?.voice_preferences!,
+                            speed: parseFloat(e.target.value)
+                          }
+                        })}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                        disabled={userSettingsSaving}
+                      />
+                      <div className="flex justify-between text-xs text-gray-500 mt-1">
+                        <span>Slow (0.5x)</span>
+                        <span>Normal (1.0x)</span>
+                        <span>Fast (2.0x)</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+            <button
+              onClick={() => setVideoSettingsExpanded(!videoSettingsExpanded)}
+              className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
+                  <Monitor className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <h2 className="text-xl font-bold text-gray-900">Video Generation Settings</h2>
+                  <p className="text-sm text-gray-600">Configure Veo 3.1 video output options</p>
+                </div>
+              </div>
+              {videoSettingsExpanded ? (
+                <ChevronUp className="w-6 h-6 text-gray-400" />
+              ) : (
+                <ChevronDown className="w-6 h-6 text-gray-400" />
+              )}
+            </button>
+
+            {videoSettingsExpanded && (
+              <div className="border-t border-gray-200 p-6">
+                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-6">
+                  <div className="flex items-start gap-3">
+                    <Info className="w-5 h-5 text-emerald-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-emerald-800">
+                      <p className="font-medium mb-1">Video Output Configuration</p>
+                      <p>Configure default settings for Veo 3.1 video generation. Higher resolutions and more samples increase costs ($0.75/second).</p>
+                    </div>
+                  </div>
+                </div>
+
+                {userSettingsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <RefreshCw className="w-6 h-6 animate-spin text-gray-400" />
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Default Resolution</label>
+                        <select
+                          value={userSettings?.video_preferences?.default_resolution ?? '1080p'}
+                          onChange={(e) => handleUpdateUserSettings({
+                            video_preferences: {
+                              ...userSettings?.video_preferences!,
+                              default_resolution: e.target.value as '720p' | '1080p'
+                            }
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          disabled={userSettingsSaving}
+                        >
+                          <option value="720p">720p (Faster)</option>
+                          <option value="1080p">1080p (Higher Quality)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Aspect Ratio</label>
+                        <select
+                          value={userSettings?.video_preferences?.default_aspect_ratio ?? '16:9'}
+                          onChange={(e) => handleUpdateUserSettings({
+                            video_preferences: {
+                              ...userSettings?.video_preferences!,
+                              default_aspect_ratio: e.target.value as '16:9' | '9:16'
+                            }
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          disabled={userSettingsSaving}
+                        >
+                          <option value="16:9">16:9 (Landscape)</option>
+                          <option value="9:16">9:16 (Portrait)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Default Duration</label>
+                        <select
+                          value={userSettings?.video_preferences?.default_duration ?? 6}
+                          onChange={(e) => handleUpdateUserSettings({
+                            video_preferences: {
+                              ...userSettings?.video_preferences!,
+                              default_duration: parseInt(e.target.value) as 4 | 6 | 8
+                            }
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          disabled={userSettingsSaving}
+                        >
+                          <option value="4">4 seconds</option>
+                          <option value="6">6 seconds</option>
+                          <option value="8">8 seconds</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Sample Count</label>
+                        <select
+                          value={userSettings?.video_preferences?.sample_count ?? 2}
+                          onChange={(e) => handleUpdateUserSettings({
+                            video_preferences: {
+                              ...userSettings?.video_preferences!,
+                              sample_count: parseInt(e.target.value)
+                            }
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          disabled={userSettingsSaving}
+                        >
+                          <option value="1">1 (Fastest)</option>
+                          <option value="2">2 (Recommended)</option>
+                          <option value="3">3 (More Options)</option>
+                          <option value="4">4 (Maximum)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="generate_audio"
+                        checked={userSettings?.video_preferences?.generate_audio ?? true}
+                        onChange={(e) => handleUpdateUserSettings({
+                          video_preferences: {
+                            ...userSettings?.video_preferences!,
+                            generate_audio: e.target.checked
+                          }
+                        })}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        disabled={userSettingsSaving}
+                      />
+                      <label htmlFor="generate_audio" className="text-sm text-gray-700">
+                        Generate audio with video (sound effects, ambient sounds)
+                      </label>
+                    </div>
+
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Estimated Cost Per Shot</h4>
+                      <div className="text-2xl font-bold text-gray-900">
+                        ${((userSettings?.video_preferences?.default_duration ?? 6) * 0.75 * (userSettings?.video_preferences?.sample_count ?? 2)).toFixed(2)}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {userSettings?.video_preferences?.default_duration ?? 6}s x {userSettings?.video_preferences?.sample_count ?? 2} samples x $0.75/second
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+            <button
+              onClick={() => setTranslationExpanded(!translationExpanded)}
+              className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-600 rounded-lg flex items-center justify-center">
+                  <Languages className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <h2 className="text-xl font-bold text-gray-900">Translation Settings</h2>
+                  <p className="text-sm text-gray-600">Configure multi-language translation options</p>
+                </div>
+              </div>
+              {translationExpanded ? (
+                <ChevronUp className="w-6 h-6 text-gray-400" />
+              ) : (
+                <ChevronDown className="w-6 h-6 text-gray-400" />
+              )}
+            </button>
+
+            {translationExpanded && (
+              <div className="border-t border-gray-200 p-6">
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
+                  <div className="flex items-start gap-3">
+                    <Info className="w-5 h-5 text-orange-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-orange-800">
+                      <p className="font-medium mb-1">Script Translation Settings</p>
+                      <p>Configure default languages and behavior for AI-powered script translation. Translations preserve timing cues and character names.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {userSettingsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <RefreshCw className="w-6 h-6 animate-spin text-gray-400" />
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-3">Default Target Languages</label>
+                      <div className="grid grid-cols-3 gap-3">
+                        {[
+                          { code: 'es', name: 'Spanish' },
+                          { code: 'fr', name: 'French' },
+                          { code: 'de', name: 'German' },
+                          { code: 'ja', name: 'Japanese' },
+                          { code: 'zh', name: 'Chinese' },
+                          { code: 'ko', name: 'Korean' },
+                          { code: 'pt', name: 'Portuguese' },
+                          { code: 'it', name: 'Italian' },
+                          { code: 'ru', name: 'Russian' }
+                        ].map((lang) => (
+                          <label key={lang.code} className="flex items-center gap-2 p-2 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={(userSettings?.translation_preferences?.default_languages ?? []).includes(lang.code)}
+                              onChange={(e) => {
+                                const current = userSettings?.translation_preferences?.default_languages ?? [];
+                                const updated = e.target.checked
+                                  ? [...current, lang.code]
+                                  : current.filter(c => c !== lang.code);
+                                handleUpdateUserSettings({
+                                  translation_preferences: {
+                                    ...userSettings?.translation_preferences!,
+                                    default_languages: updated
+                                  }
+                                });
+                              }}
+                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                              disabled={userSettingsSaving}
+                            />
+                            <span className="text-sm text-gray-700">{lang.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="auto_translate"
+                        checked={userSettings?.translation_preferences?.auto_translate ?? false}
+                        onChange={(e) => handleUpdateUserSettings({
+                          translation_preferences: {
+                            ...userSettings?.translation_preferences!,
+                            auto_translate: e.target.checked
+                          }
+                        })}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        disabled={userSettingsSaving}
+                      />
+                      <label htmlFor="auto_translate" className="text-sm text-gray-700">
+                        Automatically translate scripts after generation
+                      </label>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="preserve_timing"
+                        checked={userSettings?.translation_preferences?.preserve_timing ?? true}
+                        onChange={(e) => handleUpdateUserSettings({
+                          translation_preferences: {
+                            ...userSettings?.translation_preferences!,
+                            preserve_timing: e.target.checked
+                          }
+                        })}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        disabled={userSettingsSaving}
+                      />
+                      <label htmlFor="preserve_timing" className="text-sm text-gray-700">
+                        Preserve timing cues and shot markers in translations
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+            <button
+              onClick={() => setPatentSettingsExpanded(!patentSettingsExpanded)}
+              className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-sky-500 to-blue-600 rounded-lg flex items-center justify-center">
+                  <FileSearch className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <h2 className="text-xl font-bold text-gray-900">Prior Art Search Settings</h2>
+                  <p className="text-sm text-gray-600">Configure patent prior art search behavior</p>
+                </div>
+              </div>
+              {patentSettingsExpanded ? (
+                <ChevronUp className="w-6 h-6 text-gray-400" />
+              ) : (
+                <ChevronDown className="w-6 h-6 text-gray-400" />
+              )}
+            </button>
+
+            {patentSettingsExpanded && (
+              <div className="border-t border-gray-200 p-6">
+                <div className="bg-sky-50 border border-sky-200 rounded-lg p-4 mb-6">
+                  <div className="flex items-start gap-3">
+                    <Info className="w-5 h-5 text-sky-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-sky-800">
+                      <p className="font-medium mb-1">Prior Art Search Configuration</p>
+                      <p>Configure how the AI searches for relevant prior art patents. These settings affect search thoroughness, timeout duration, and fallback behavior.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {userSettingsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <RefreshCw className="w-6 h-6 animate-spin text-gray-400" />
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Analysis Focus</label>
+                      <select
+                        value={userSettings?.patent_preferences?.analysis_target ?? 'both'}
+                        onChange={(e) => handleUpdateUserSettings({
+                          patent_preferences: {
+                            ...userSettings?.patent_preferences!,
+                            analysis_target: e.target.value as 'video_production' | 'patent_management' | 'both'
+                          }
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        disabled={userSettingsSaving}
+                      >
+                        <option value="video_production">Video Production Technology</option>
+                        <option value="patent_management">Patent Management Systems</option>
+                        <option value="both">Both (Comprehensive)</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">Determines which technology areas to prioritize in prior art searches</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Search Timeout: {(userSettings?.patent_preferences?.prior_art_timeout ?? 30000) / 1000} seconds
+                      </label>
+                      <input
+                        type="range"
+                        min="15000"
+                        max="60000"
+                        step="5000"
+                        value={userSettings?.patent_preferences?.prior_art_timeout ?? 30000}
+                        onChange={(e) => handleUpdateUserSettings({
+                          patent_preferences: {
+                            ...userSettings?.patent_preferences!,
+                            prior_art_timeout: parseInt(e.target.value)
+                          }
+                        })}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                        disabled={userSettingsSaving}
+                      />
+                      <div className="flex justify-between text-xs text-gray-500 mt-1">
+                        <span>15s (Fast)</span>
+                        <span>60s (Thorough)</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="auto_prior_art_search"
+                        checked={userSettings?.patent_preferences?.auto_prior_art_search ?? true}
+                        onChange={(e) => handleUpdateUserSettings({
+                          patent_preferences: {
+                            ...userSettings?.patent_preferences!,
+                            auto_prior_art_search: e.target.checked
+                          }
+                        })}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        disabled={userSettingsSaving}
+                      />
+                      <label htmlFor="auto_prior_art_search" className="text-sm text-gray-700">
+                        Automatically search prior art when creating new patent applications
+                      </label>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="include_default_patents"
+                        checked={userSettings?.patent_preferences?.include_default_patents ?? true}
+                        onChange={(e) => handleUpdateUserSettings({
+                          patent_preferences: {
+                            ...userSettings?.patent_preferences!,
+                            include_default_patents: e.target.checked
+                          }
+                        })}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        disabled={userSettingsSaving}
+                      />
+                      <label htmlFor="include_default_patents" className="text-sm text-gray-700">
+                        Include curated default patents if AI search fails or times out
+                      </label>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
