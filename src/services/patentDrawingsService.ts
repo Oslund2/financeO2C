@@ -1,4 +1,4 @@
-import { createPatentDrawing } from './patentApplicationService';
+import { createPatentDrawing, deleteAllDrawingsForApplication } from './patentApplicationService';
 import type { PatentDrawing, DrawingCallout } from './patentApplicationService';
 
 interface BlockElement {
@@ -431,6 +431,14 @@ export async function generateDrawingsForApplication(applicationId: string): Pro
 
   console.log(`Starting drawing generation for application ${applicationId}`);
 
+  // Delete existing drawings to avoid unique constraint violation
+  try {
+    await deleteAllDrawingsForApplication(applicationId);
+  } catch (error) {
+    console.error('Failed to delete existing drawings:', error);
+    // Continue anyway - they might not exist
+  }
+
   for (const def of FIGURE_DEFINITIONS) {
     try {
       console.log(`Generating Figure ${def.figureNumber}: ${def.title}`);
@@ -455,14 +463,33 @@ export async function generateDrawingsForApplication(applicationId: string): Pro
       drawings.push(drawing);
       console.log(`Successfully generated Figure ${def.figureNumber}`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      const errorDetails = error instanceof Error ? {
-        name: error.name,
-        stack: error.stack,
-        cause: (error as any).cause
-      } : error;
+      let errorMessage: string;
+      let errorDetails: any;
 
-      console.error(`Failed to generate Figure ${def.figureNumber}:`, errorMessage, errorDetails);
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        errorDetails = {
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+          cause: (error as any).cause
+        };
+      } else if (typeof error === 'object' && error !== null) {
+        // Handle Supabase errors and other object errors
+        errorMessage = JSON.stringify(error);
+        errorDetails = error;
+      } else {
+        errorMessage = String(error);
+        errorDetails = { rawError: error, type: typeof error };
+      }
+
+      console.error(`Failed to generate Figure ${def.figureNumber}:`, {
+        errorMessage,
+        errorDetails,
+        errorType: typeof error,
+        errorConstructor: error?.constructor?.name
+      });
+
       errors.push({
         figureNumber: def.figureNumber,
         error: errorMessage,

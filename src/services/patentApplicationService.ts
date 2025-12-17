@@ -203,6 +203,16 @@ export async function createPatentDrawing(
   applicationId: string,
   drawing: Omit<PatentDrawing, 'id' | 'application_id' | 'created_at' | 'updated_at'>
 ): Promise<PatentDrawing> {
+  console.log('createPatentDrawing called with:', {
+    applicationId,
+    figureNumber: drawing.figure_number,
+    title: drawing.title,
+    drawingType: drawing.drawing_type,
+    calloutsCount: drawing.callouts?.length || 0,
+    hasSvgContent: !!drawing.svg_content,
+    svgLength: drawing.svg_content?.length || 0
+  });
+
   const { data, error } = await supabase
     .from('patent_drawings')
     .insert([{
@@ -212,7 +222,24 @@ export async function createPatentDrawing(
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    console.error('Patent drawing insert failed:', {
+      error,
+      errorMessage: error.message,
+      errorCode: error.code,
+      errorDetails: error.details,
+      errorHint: error.hint,
+      applicationId,
+      figureNumber: drawing.figure_number
+    });
+    throw new Error(`Failed to create patent drawing: ${error.message} (Code: ${error.code})`);
+  }
+
+  console.log('Patent drawing created successfully:', {
+    id: data.id,
+    figureNumber: data.figure_number
+  });
+
   return data;
 }
 
@@ -235,6 +262,20 @@ export async function deletePatentDrawing(drawingId: string): Promise<void> {
     .eq('id', drawingId);
 
   if (error) throw error;
+}
+
+export async function deleteAllDrawingsForApplication(applicationId: string): Promise<void> {
+  console.log(`Deleting all existing drawings for application ${applicationId}`);
+  const { error } = await supabase
+    .from('patent_drawings')
+    .delete()
+    .eq('application_id', applicationId);
+
+  if (error) {
+    console.error('Failed to delete existing drawings:', error);
+    throw new Error(`Failed to delete existing drawings: ${error.message}`);
+  }
+  console.log('Existing drawings deleted successfully');
 }
 
 export function generateDefaultSpecification(): string {
