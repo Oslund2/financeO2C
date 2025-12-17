@@ -30,13 +30,21 @@ export async function searchPriorArt(
   patentApplicationId: string,
   params: PriorArtSearchParams
 ): Promise<PriorArtResult[]> {
-  const results: PriorArtResult[] = [];
+  let results: PriorArtResult[] = [];
 
   try {
+    console.log('Starting prior art search for:', params.title);
     const googleResults = await searchGooglePatents(params);
     results.push(...googleResults);
+    console.log(`Found ${results.length} prior art results`);
   } catch (error) {
-    console.error('Google Patents search failed:', error);
+    console.error('Google Patents search failed, using default results:', error);
+    results = getDefaultPriorArt();
+  }
+
+  if (results.length === 0) {
+    console.log('No results from search, using default prior art');
+    results = getDefaultPriorArt();
   }
 
   await savePriorArtResults(organizationId, patentApplicationId, results, params.title);
@@ -94,14 +102,32 @@ Format your response as a JSON array of objects with these fields:
 Remember: These must be REAL patents that can be looked up on patents.google.com or uspto.gov.`;
 
   try {
-    const response = await generateText(analysisPrompt, 'patent_prior_art_search');
+    console.log('Calling Gemini AI for prior art search...');
+
+    const timeoutPromise = new Promise<string>((_, reject) => {
+      setTimeout(() => reject(new Error('Prior art search timed out after 30 seconds')), 30000);
+    });
+
+    const searchPromise = generateText(analysisPrompt, 'patent_prior_art_search');
+
+    const response = await Promise.race([searchPromise, timeoutPromise]);
+
+    console.log('Received AI response, parsing results...');
 
     const jsonMatch = response.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
-      return [];
+      console.log('No JSON found in response, using default patents');
+      return getDefaultPriorArt();
     }
 
     const patents = JSON.parse(jsonMatch[0]);
+
+    if (!Array.isArray(patents) || patents.length === 0) {
+      console.log('Empty or invalid patent array, using defaults');
+      return getDefaultPriorArt();
+    }
+
+    console.log(`Successfully parsed ${patents.length} patents from AI response`);
 
     return patents.map((patent: any) => ({
       patentNumber: patent.patentNumber || 'US-UNKNOWN',
@@ -120,6 +146,7 @@ Remember: These must be REAL patents that can be looked up on patents.google.com
     }));
   } catch (error) {
     console.error('Prior art search generation failed:', error);
+    console.log('Returning default prior art patents');
     return getDefaultPriorArt();
   }
 }

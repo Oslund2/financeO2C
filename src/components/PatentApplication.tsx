@@ -1380,7 +1380,9 @@ function PriorArtTab({ application }: { application: PatentApplicationWithDetail
     setLoading(true);
     setError(null);
     try {
+      console.log('Loading prior art results for application:', application.id);
       const results = await getPriorArtResults(application.id);
+      console.log('Loaded prior art results:', results.length);
       setPriorArtResults(results);
     } catch (err) {
       console.error('Failed to load prior art results:', err);
