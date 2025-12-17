@@ -6,6 +6,7 @@ import { backupService } from '../services/backupService';
 import type { RecoveryPoint, IntegrityCheck, BackupSchedule } from '../services/backupService';
 import { LipSyncSettings } from './LipSyncSettings';
 import { PromptLibrary } from './PromptLibrary';
+import { PatentIntelligenceSettings } from './PatentIntelligenceSettings';
 import { ANIMATION_STYLE_MULTIPLIERS, PRODUCTION_TIER_PRESETS, FREELANCE_TIER_PRESETS, fetchCostConfig, updateCostConfig } from '../services/costCalculationService';
 import type { AnimationStyle, ProductionTier, FreelanceTier, CostConfig } from '../services/costCalculationService';
 
@@ -952,6 +953,8 @@ export function Settings() {
             expanded={promptLibraryExpanded}
             onToggle={() => setPromptLibraryExpanded(!promptLibraryExpanded)}
           />
+
+          <PatentIntelligenceSettings />
 
           <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
             <button

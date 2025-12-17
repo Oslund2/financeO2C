@@ -25,7 +25,13 @@ import {
   AlertTriangle,
   ExternalLink,
   Search,
-  Globe
+  Globe,
+  Sparkles,
+  TrendingUp,
+  Target,
+  Award,
+  BarChart3,
+  Lightbulb
 } from 'lucide-react';
 import { useOrganization } from '../contexts/OrganizationContext';
 import {
@@ -60,9 +66,21 @@ import {
   svgToDataUrl,
   formatDrawingsDescriptionSection
 } from '../services/patentDrawingsService';
+import {
+  generateCompletePatentApplication,
+  type WorkflowProgress
+} from '../services/patentWorkflowOrchestrator';
+import {
+  searchPriorArt,
+  getPriorArtResults
+} from '../services/patentPriorArtSearchService';
+import {
+  analyzeNovelty,
+  getNoveltyAnalysis
+} from '../services/patentNoveltyAnalysisService';
 import jsPDF from 'jspdf';
 
-type TabId = 'overview' | 'specification' | 'claims' | 'drawings' | 'abstract' | 'prior-art' | 'export';
+type TabId = 'overview' | 'specification' | 'claims' | 'drawings' | 'abstract' | 'prior-art' | 'analysis' | 'export';
 
 export function PatentApplication() {
   const { currentOrganization } = useOrganization();
@@ -80,6 +98,9 @@ export function PatentApplication() {
   const [tempAbstract, setTempAbstract] = useState('');
   const [generating, setGenerating] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiProgress, setAiProgress] = useState<WorkflowProgress | null>(null);
+  const [showAiModal, setShowAiModal] = useState(false);
 
   const convertSvgToPng = (svgContent: string, width: number = 800, height: number = 600): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -232,6 +253,31 @@ export function PatentApplication() {
     }
   };
 
+  const handleAIGeneration = async () => {
+    if (!selectedApp || !currentOrganization) return;
+    setAiGenerating(true);
+    setShowAiModal(true);
+    setError(null);
+
+    try {
+      const result = await generateCompletePatentApplication(
+        selectedApp.id,
+        currentOrganization.id,
+        (progress) => {
+          setAiProgress(progress);
+        }
+      );
+
+      await loadApplication(selectedApp.id);
+      setShowAiModal(false);
+      setAiProgress(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate patent application');
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
   const handleExportPDF = async () => {
     if (!selectedApp) return;
 
@@ -378,6 +424,7 @@ export function PatentApplication() {
     { id: 'drawings', label: 'Drawings', icon: Image },
     { id: 'abstract', label: 'Abstract', icon: BookOpen },
     { id: 'prior-art', label: 'Prior Art', icon: Scroll },
+    { id: 'analysis', label: 'AI Analysis', icon: BarChart3 },
     { id: 'export', label: 'Export', icon: Download }
   ];
 
@@ -501,6 +548,8 @@ export function PatentApplication() {
                       setSelectedApp({ ...selectedApp, ...updates });
                     }}
                     onDelete={() => setShowDeleteModal(true)}
+                    onAIGenerate={handleAIGeneration}
+                    aiGenerating={aiGenerating}
                   />
                 )}
 
@@ -556,6 +605,10 @@ export function PatentApplication() {
                   <PriorArtTab application={selectedApp} />
                 )}
 
+                {activeTab === 'analysis' && (
+                  <AnalysisTab application={selectedApp} />
+                )}
+
                 {activeTab === 'export' && (
                   <ExportTab
                     application={selectedApp}
@@ -598,6 +651,18 @@ export function PatentApplication() {
           onConfirm={handleDeleteApplication}
         />
       )}
+
+      {showAiModal && (
+        <AIGenerationProgressModal
+          progress={aiProgress}
+          onClose={() => {
+            if (!aiGenerating) {
+              setShowAiModal(false);
+              setAiProgress(null);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -605,11 +670,15 @@ export function PatentApplication() {
 function OverviewTab({
   application,
   onUpdate,
-  onDelete
+  onDelete,
+  onAIGenerate,
+  aiGenerating
 }: {
   application: PatentApplicationWithDetails;
   onUpdate: (updates: Partial<PatentApplication>) => Promise<void>;
   onDelete: () => void;
+  onAIGenerate: () => void;
+  aiGenerating: boolean;
 }) {
   const [editMode, setEditMode] = useState(false);
   const [title, setTitle] = useState(application.title);
@@ -636,6 +705,22 @@ function OverviewTab({
   const claimCounts = countClaimsByType(application.claims);
   const claimValidation = validateClaims(application.claims);
 
+  const getApprovalScoreColor = (score: number) => {
+    if (score >= 80) return 'text-green-600 bg-green-50';
+    if (score >= 60) return 'text-emerald-600 bg-emerald-50';
+    if (score >= 40) return 'text-yellow-600 bg-yellow-50';
+    if (score >= 20) return 'text-orange-600 bg-orange-50';
+    return 'text-red-600 bg-red-50';
+  };
+
+  const getApprovalLabel = (score: number) => {
+    if (score >= 80) return 'Very Strong';
+    if (score >= 60) return 'Strong';
+    if (score >= 40) return 'Moderate';
+    if (score >= 20) return 'Weak';
+    return 'Very Weak';
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -660,6 +745,23 @@ function OverviewTab({
             </>
           ) : (
             <>
+              <button
+                onClick={onAIGenerate}
+                disabled={aiGenerating}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 shadow-md"
+              >
+                {aiGenerating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    {application.auto_generated ? 'Regenerate with AI' : 'Generate with AI'}
+                  </>
+                )}
+              </button>
               <button
                 onClick={() => setEditMode(true)}
                 className="flex items-center gap-2 px-3 py-1.5 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg"
@@ -760,6 +862,69 @@ function OverviewTab({
         </div>
 
         <div className="space-y-4">
+          {application.approval_score !== null && application.approval_score !== undefined && (
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                  <Award className="w-5 h-5 text-blue-600" />
+                  Patent Strength
+                </h3>
+                {application.auto_generated && (
+                  <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded-full">
+                    AI Enhanced
+                  </span>
+                )}
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-gray-600">Approval Probability</span>
+                    <span className={`text-2xl font-bold ${getApprovalScoreColor(application.approval_score)}`}>
+                      {Math.round(application.approval_score)}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        application.approval_score >= 80 ? 'bg-green-500' :
+                        application.approval_score >= 60 ? 'bg-emerald-500' :
+                        application.approval_score >= 40 ? 'bg-yellow-500' :
+                        application.approval_score >= 20 ? 'bg-orange-500' : 'bg-red-500'
+                      }`}
+                      style={{ width: `${application.approval_score}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between mt-2">
+                    <span className={`text-sm font-medium ${getApprovalScoreColor(application.approval_score)}`}>
+                      {getApprovalLabel(application.approval_score)}
+                    </span>
+                    {application.approval_confidence && (
+                      <span className="text-xs text-gray-500">
+                        {Math.round(application.approval_confidence * 100)}% confidence
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-3 border-t border-blue-200">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {application.novelty_score ? Math.round(application.novelty_score) : '-'}
+                    </div>
+                    <div className="text-xs text-gray-600">Novelty Score</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {application.claims?.length || 0}
+                    </div>
+                    <div className="text-xs text-gray-600">Total Claims</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="bg-gray-50 rounded-lg p-4">
             <h3 className="font-medium text-gray-900 mb-3">Application Summary</h3>
             <div className="space-y-2 text-sm">
@@ -1191,6 +1356,53 @@ function AbstractTab({
 }
 
 function PriorArtTab({ application }: { application: PatentApplicationWithDetails }) {
+  const [priorArtResults, setPriorArtResults] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
+  const [expandedResult, setExpandedResult] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadPriorArtResults();
+  }, [application.id]);
+
+  const loadPriorArtResults = async () => {
+    setLoading(true);
+    try {
+      const results = await getPriorArtResults(application.id);
+      setPriorArtResults(results);
+    } catch (err) {
+      console.error('Failed to load prior art results:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearchPriorArt = async () => {
+    setSearching(true);
+    try {
+      await searchPriorArt(application.id);
+      await loadPriorArtResults();
+    } catch (err) {
+      console.error('Failed to search prior art:', err);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const getRelevanceColor = (score: number) => {
+    if (score >= 0.8) return 'text-red-600 bg-red-50';
+    if (score >= 0.6) return 'text-orange-600 bg-orange-50';
+    if (score >= 0.4) return 'text-yellow-600 bg-yellow-50';
+    return 'text-green-600 bg-green-50';
+  };
+
+  const getRelevanceLabel = (score: number) => {
+    if (score >= 0.8) return 'Very High';
+    if (score >= 0.6) return 'High';
+    if (score >= 0.4) return 'Moderate';
+    return 'Low';
+  };
+
   const patentDatabases = [
     {
       name: 'Google Patents',
@@ -1246,7 +1458,26 @@ function PriorArtTab({ application }: { application: PatentApplicationWithDetail
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold text-gray-900">Prior Art References</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-gray-900">Prior Art Analysis</h2>
+        <button
+          onClick={handleSearchPriorArt}
+          disabled={searching}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+        >
+          {searching ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Searching...
+            </>
+          ) : (
+            <>
+              <Search className="w-4 h-4" />
+              {priorArtResults.length > 0 ? 'Search Again' : 'Search Prior Art'}
+            </>
+          )}
+        </button>
+      </div>
 
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
         <div className="flex items-start gap-3">
@@ -1254,12 +1485,146 @@ function PriorArtTab({ application }: { application: PatentApplicationWithDetail
           <div>
             <p className="font-medium text-yellow-800">Important Notice</p>
             <p className="text-sm text-yellow-700 mt-1">
-              Prior art references should be reviewed by a patent attorney during the formal filing process.
-              Use the search resources below to research existing patents and publications related to your invention.
+              AI-discovered prior art should be reviewed by a patent attorney during the formal filing process.
+              These results help identify potential conflicts and inform differentiation strategies.
             </p>
           </div>
         </div>
       </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+        </div>
+      ) : priorArtResults.length > 0 ? (
+        <>
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
+            <div className="flex items-center gap-3">
+              <Sparkles className="w-5 h-5 text-blue-600" />
+              <div>
+                <h3 className="font-semibold text-blue-900">AI-Discovered Prior Art</h3>
+                <p className="text-sm text-blue-700">Found {priorArtResults.length} relevant patents</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {priorArtResults.map((result) => (
+              <div key={result.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                <div className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-mono text-sm font-medium text-gray-900">
+                          {result.patent_number}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getRelevanceColor(result.relevance_score)}`}>
+                          {getRelevanceLabel(result.relevance_score)}
+                        </span>
+                      </div>
+                      <h4 className="font-medium text-gray-900 line-clamp-2">{result.title}</h4>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-500">Relevance:</span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="flex-1 bg-gray-200 rounded-full h-2">
+                          <div
+                            className={`h-2 rounded-full ${
+                              result.relevance_score >= 0.8 ? 'bg-red-500' :
+                              result.relevance_score >= 0.6 ? 'bg-orange-500' :
+                              result.relevance_score >= 0.4 ? 'bg-yellow-500' : 'bg-green-500'
+                            }`}
+                            style={{ width: `${result.relevance_score * 100}%` }}
+                          />
+                        </div>
+                        <span className="font-medium">{Math.round(result.relevance_score * 100)}%</span>
+                      </div>
+                    </div>
+                    {result.similarity_score && (
+                      <div>
+                        <span className="text-gray-500">Similarity:</span>
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="flex-1 bg-gray-200 rounded-full h-2">
+                            <div
+                              className="h-2 rounded-full bg-blue-500"
+                              style={{ width: `${result.similarity_score * 100}%` }}
+                            />
+                          </div>
+                          <span className="font-medium">{Math.round(result.similarity_score * 100)}%</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <p className="text-sm text-gray-600 line-clamp-3">{result.abstract}</p>
+
+                  {result.key_claims && result.key_claims.length > 0 && (
+                    <div className="border-t border-gray-200 pt-3">
+                      <p className="text-xs font-medium text-gray-700 mb-2">Key Claims:</p>
+                      <ul className="text-xs text-gray-600 space-y-1">
+                        {result.key_claims.slice(0, 2).map((claim: string, i: number) => (
+                          <li key={i} className="line-clamp-1">• {claim}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => setExpandedResult(expandedResult === result.id ? null : result.id)}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  >
+                    {expandedResult === result.id ? (
+                      <>
+                        <ChevronUp className="w-4 h-4" />
+                        Show Less
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown className="w-4 h-4" />
+                        Show Details
+                      </>
+                    )}
+                  </button>
+
+                  {expandedResult === result.id && (
+                    <div className="border-t border-gray-200 pt-3 space-y-3">
+                      {result.filing_date && (
+                        <div>
+                          <span className="text-xs font-medium text-gray-700">Filing Date:</span>
+                          <p className="text-sm text-gray-600">{new Date(result.filing_date).toLocaleDateString()}</p>
+                        </div>
+                      )}
+                      {result.assignee && (
+                        <div>
+                          <span className="text-xs font-medium text-gray-700">Assignee:</span>
+                          <p className="text-sm text-gray-600">{result.assignee}</p>
+                        </div>
+                      )}
+                      {result.differentiation_analysis && (
+                        <div>
+                          <span className="text-xs font-medium text-gray-700">Differentiation Analysis:</span>
+                          <p className="text-sm text-gray-600 mt-1">{result.differentiation_analysis}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className="bg-gray-50 rounded-lg p-8 text-center">
+          <Search className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+          <h3 className="font-medium text-gray-900 mb-2">No Prior Art Results Yet</h3>
+          <p className="text-sm text-gray-600 mb-4">
+            Click "Search Prior Art" to automatically discover relevant patents using AI
+          </p>
+        </div>
+      )}
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-5">
         <div className="flex items-center gap-2 mb-4">
@@ -1590,6 +1955,316 @@ function DeleteConfirmModal({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function AIGenerationProgressModal({
+  progress,
+  onClose
+}: {
+  progress: WorkflowProgress | null;
+  onClose: () => void;
+}) {
+  const steps = [
+    { id: 'feature_extraction', label: 'Extracting Features', icon: Lightbulb },
+    { id: 'prior_art_search', label: 'Searching Prior Art', icon: Search },
+    { id: 'differentiation_analysis', label: 'Analyzing Differentiation', icon: Target },
+    { id: 'novelty_analysis', label: 'Analyzing Novelty', icon: BarChart3 },
+    { id: 'specification_generation', label: 'Generating Specification', icon: FileText },
+    { id: 'claims_generation', label: 'Generating Claims', icon: List },
+    { id: 'drawings_generation', label: 'Creating Drawings', icon: Image }
+  ];
+
+  const currentStepIndex = progress ? steps.findIndex(s => s.id === progress.current_step) : -1;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl max-w-2xl w-full p-6" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
+            <Sparkles className="w-5 h-5 text-white" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-xl font-semibold text-gray-900">Generating Patent Application</h2>
+            {progress && (
+              <p className="text-sm text-gray-600">
+                Step {currentStepIndex + 1} of {steps.length}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-3 mb-6">
+          {steps.map((step, index) => {
+            const Icon = step.icon;
+            const isComplete = currentStepIndex > index;
+            const isCurrent = currentStepIndex === index;
+            const isPending = currentStepIndex < index;
+
+            return (
+              <div
+                key={step.id}
+                className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
+                  isCurrent ? 'bg-blue-50 border border-blue-200' :
+                  isComplete ? 'bg-green-50 border border-green-200' :
+                  'bg-gray-50 border border-gray-200'
+                }`}
+              >
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                  isCurrent ? 'bg-blue-500' :
+                  isComplete ? 'bg-green-500' :
+                  'bg-gray-300'
+                }`}>
+                  {isComplete ? (
+                    <CheckCircle className="w-5 h-5 text-white" />
+                  ) : isCurrent ? (
+                    <Loader2 className="w-5 h-5 text-white animate-spin" />
+                  ) : (
+                    <Icon className="w-5 h-5 text-white" />
+                  )}
+                </div>
+                <span className={`text-sm font-medium ${
+                  isCurrent ? 'text-blue-900' :
+                  isComplete ? 'text-green-900' :
+                  'text-gray-500'
+                }`}>
+                  {step.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {progress?.error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertCircle className="w-5 h-5 text-red-600" />
+              <span className="font-medium text-red-900">Error</span>
+            </div>
+            <p className="text-sm text-red-700">{progress.error}</p>
+          </div>
+        )}
+
+        {progress?.completed && (
+          <div className="flex justify-end">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Close
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AnalysisTab({ application }: { application: PatentApplicationWithDetails }) {
+  const [noveltyAnalysis, setNoveltyAnalysis] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadNoveltyAnalysis();
+  }, [application.id]);
+
+  const loadNoveltyAnalysis = async () => {
+    setLoading(true);
+    try {
+      const analysis = await getNoveltyAnalysis(application.id);
+      setNoveltyAnalysis(analysis);
+    } catch (err) {
+      console.error('Failed to load novelty analysis:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return 'text-green-600 bg-green-50';
+    if (score >= 60) return 'text-blue-600 bg-blue-50';
+    if (score >= 40) return 'text-yellow-600 bg-yellow-50';
+    return 'text-red-600 bg-red-50';
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!noveltyAnalysis) {
+    return (
+      <div className="space-y-6">
+        <h2 className="text-xl font-semibold text-gray-900">AI Analysis</h2>
+        <div className="bg-gray-50 rounded-lg p-8 text-center">
+          <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+          <h3 className="font-medium text-gray-900 mb-2">No Analysis Available Yet</h3>
+          <p className="text-sm text-gray-600 mb-4">
+            Generate the patent application with AI to see detailed novelty and feature analysis
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-xl font-semibold text-gray-900">AI Analysis</h2>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+              <Award className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="text-sm text-blue-700 font-medium">Overall Novelty</p>
+              <p className="text-3xl font-bold text-blue-900">
+                {noveltyAnalysis.overall_novelty_score ? Math.round(noveltyAnalysis.overall_novelty_score) : '-'}
+              </p>
+            </div>
+          </div>
+          <div className="w-full bg-blue-200 rounded-full h-2 mt-3">
+            <div
+              className="h-2 rounded-full bg-blue-600"
+              style={{ width: `${noveltyAnalysis.overall_novelty_score || 0}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-6 border border-emerald-200">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center">
+              <TrendingUp className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="text-sm text-emerald-700 font-medium">Confidence</p>
+              <p className="text-3xl font-bold text-emerald-900">
+                {noveltyAnalysis.confidence_score ? Math.round(noveltyAnalysis.confidence_score * 100) : '-'}%
+              </p>
+            </div>
+          </div>
+          <div className="w-full bg-emerald-200 rounded-full h-2 mt-3">
+            <div
+              className="h-2 rounded-full bg-emerald-600"
+              style={{ width: `${(noveltyAnalysis.confidence_score || 0) * 100}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-200">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center">
+              <Lightbulb className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="text-sm text-purple-700 font-medium">Features Found</p>
+              <p className="text-3xl font-bold text-purple-900">
+                {noveltyAnalysis.key_features?.length || 0}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {noveltyAnalysis.patentability_assessment && (
+        <div className="bg-white rounded-xl p-6 border border-gray-200">
+          <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <FileCheck className="w-5 h-5 text-blue-600" />
+            Patentability Assessment
+          </h3>
+          <p className="text-gray-700 leading-relaxed">{noveltyAnalysis.patentability_assessment}</p>
+        </div>
+      )}
+
+      {noveltyAnalysis.key_features && noveltyAnalysis.key_features.length > 0 && (
+        <div className="bg-white rounded-xl p-6 border border-gray-200">
+          <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <Lightbulb className="w-5 h-5 text-blue-600" />
+            Key Features & Novelty Scores
+          </h3>
+          <div className="space-y-4">
+            {noveltyAnalysis.key_features.map((feature: any, index: number) => (
+              <div key={index} className="border border-gray-200 rounded-lg p-4">
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <h4 className="font-medium text-gray-900 flex-1">{feature.feature_name || `Feature ${index + 1}`}</h4>
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${getScoreColor(feature.novelty_score || 0)}`}>
+                    {feature.novelty_score ? Math.round(feature.novelty_score) : 0}/100
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600 mb-3">{feature.description}</p>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className={`h-2 rounded-full ${
+                      (feature.novelty_score || 0) >= 80 ? 'bg-green-500' :
+                      (feature.novelty_score || 0) >= 60 ? 'bg-blue-500' :
+                      (feature.novelty_score || 0) >= 40 ? 'bg-yellow-500' : 'bg-red-500'
+                    }`}
+                    style={{ width: `${feature.novelty_score || 0}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {noveltyAnalysis.strengths && noveltyAnalysis.strengths.length > 0 && (
+          <div className="bg-green-50 rounded-xl p-6 border border-green-200">
+            <h3 className="font-semibold text-green-900 mb-4 flex items-center gap-2">
+              <CheckCircle className="w-5 h-5" />
+              Strengths
+            </h3>
+            <ul className="space-y-2">
+              {noveltyAnalysis.strengths.map((strength: string, index: number) => (
+                <li key={index} className="flex items-start gap-2 text-sm text-green-800">
+                  <span className="text-green-600 mt-0.5">•</span>
+                  <span>{strength}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {noveltyAnalysis.weaknesses && noveltyAnalysis.weaknesses.length > 0 && (
+          <div className="bg-orange-50 rounded-xl p-6 border border-orange-200">
+            <h3 className="font-semibold text-orange-900 mb-4 flex items-center gap-2">
+              <AlertCircle className="w-5 h-5" />
+              Areas for Improvement
+            </h3>
+            <ul className="space-y-2">
+              {noveltyAnalysis.weaknesses.map((weakness: string, index: number) => (
+                <li key={index} className="flex items-start gap-2 text-sm text-orange-800">
+                  <span className="text-orange-600 mt-0.5">•</span>
+                  <span>{weakness}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+
+      {noveltyAnalysis.recommendations && noveltyAnalysis.recommendations.length > 0 && (
+        <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
+          <h3 className="font-semibold text-blue-900 mb-4 flex items-center gap-2">
+            <Target className="w-5 h-5" />
+            Recommendations
+          </h3>
+          <ul className="space-y-2">
+            {noveltyAnalysis.recommendations.map((rec: string, index: number) => (
+              <li key={index} className="flex items-start gap-2 text-sm text-blue-800">
+                <span className="text-blue-600 mt-0.5">→</span>
+                <span>{rec}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
