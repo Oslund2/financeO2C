@@ -10,6 +10,11 @@ export interface PatentApplication {
   inventor_citizenship: string;
   specification: string | null;
   abstract: string | null;
+  // Structured specification fields
+  field_of_invention: string | null;
+  background_art: string | null;
+  summary: string | null;
+  detailed_description: string | null;
   prior_art_patents: PriorArtReference[];
   prior_art_literature: PriorArtReference[];
   metadata: Record<string, unknown>;

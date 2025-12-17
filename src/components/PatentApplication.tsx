@@ -1013,19 +1013,36 @@ function SpecificationTab({
   onCancel: () => void;
   onRegenerate: () => void;
 }) {
+  const isTemplate = specification === generateDefaultSpecification();
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900">Specification</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-semibold text-gray-900">Specification</h2>
+          {isTemplate && !editing && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-100 text-amber-800 text-xs font-medium rounded-full border border-amber-200">
+              <Sparkles className="w-3 h-3" />
+              Template
+            </span>
+          )}
+        </div>
         <div className="flex gap-2">
           {editing ? (
             <>
+              <button
+                onClick={() => onChange('')}
+                className="flex items-center gap-2 px-3 py-1.5 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+                Clear
+              </button>
               <button
                 onClick={onRegenerate}
                 className="flex items-center gap-2 px-3 py-1.5 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg"
               >
                 <RefreshCw className="w-4 h-4" />
-                Reset to Default
+                Reset to Template
               </button>
               <button onClick={onCancel} className="px-3 py-1.5 text-gray-600 hover:text-gray-800">
                 Cancel
@@ -1305,20 +1322,36 @@ function AbstractTab({
   onRegenerate: () => void;
 }) {
   const validation = validateAbstract(abstract);
+  const isTemplate = abstract === generateDefaultAbstract();
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900">Abstract</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-semibold text-gray-900">Abstract</h2>
+          {isTemplate && !editing && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-100 text-amber-800 text-xs font-medium rounded-full border border-amber-200">
+              <Sparkles className="w-3 h-3" />
+              Template
+            </span>
+          )}
+        </div>
         <div className="flex gap-2">
           {editing ? (
             <>
+              <button
+                onClick={() => onChange('')}
+                className="flex items-center gap-2 px-3 py-1.5 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+                Clear
+              </button>
               <button
                 onClick={onRegenerate}
                 className="flex items-center gap-2 px-3 py-1.5 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg"
               >
                 <RefreshCw className="w-4 h-4" />
-                Reset
+                Reset to Template
               </button>
               <button onClick={onCancel} className="px-3 py-1.5 text-gray-600 hover:text-gray-800">
                 Cancel
