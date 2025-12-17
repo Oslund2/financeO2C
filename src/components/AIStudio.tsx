@@ -8,7 +8,7 @@ import { VoiceGenerationTab } from './VoiceGenerationTab';
 import { SpellingBeeWordSelector } from './SpellingBeeWordSelector';
 import { isSpellingBeeSeries, type SpellingBeeWord } from '../services/spellingBeeService';
 import { FormatSelector } from './FormatSelector';
-import { FORMAT_PRESETS } from '../types/formatConfig';
+import { FORMAT_PRESETS, type ProgramFormatConfig } from '../types/formatConfig';
 
 type Character = Database['public']['Tables']['characters']['Row'];
 
@@ -326,6 +326,16 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
         vocabulary_words: vocabularyWords
       };
 
+      const selectedPreset = FORMAT_PRESETS[formData.formatPreset];
+      const formatConfig: ProgramFormatConfig = {
+        program_length_minutes: selectedPreset.program_length_minutes,
+        total_episode_minutes: selectedPreset.total_episode_minutes,
+        break_structure: selectedPreset.break_structure,
+        format_type: selectedPreset.format_type,
+        content_only_seconds: selectedPreset.program_length_minutes * 60,
+        total_seconds: selectedPreset.total_episode_minutes * 60,
+      };
+
       const generatedScript = await generateScriptWithGemini(
         episodeData,
         selectedCharacters.map(c => ({
@@ -337,7 +347,8 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
           image_url: c.image_url
         })),
         settings.generation_preferences,
-        controller.signal
+        controller.signal,
+        formatConfig
       );
 
       clearTimeout(timeout);
