@@ -529,6 +529,41 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
         </div>
       </div>
 
+      {isSpellingBeeSeries(seriesTheme) && (
+        <div className="space-y-4">
+          <SpellingBeeWordSelector
+            selectedWord={selectedSpellingBeeWord}
+            onWordSelect={handleSpellingBeeWordSelect}
+          />
+          {selectedSpellingBeeWord && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <span className="text-amber-600 font-bold text-lg">{selectedSpellingBeeWord.year}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-amber-900 text-lg">{selectedSpellingBeeWord.winning_word}</p>
+                  {selectedSpellingBeeWord.pronunciation && (
+                    <p className="text-sm text-amber-700 italic">{selectedSpellingBeeWord.pronunciation}</p>
+                  )}
+                  {selectedSpellingBeeWord.definition && (
+                    <p className="text-sm text-amber-800 mt-1">{selectedSpellingBeeWord.definition}</p>
+                  )}
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {selectedSpellingBeeWord.part_of_speech && (
+                      <span className="text-xs px-2 py-1 bg-amber-200 text-amber-800 rounded-full">{selectedSpellingBeeWord.part_of_speech}</span>
+                    )}
+                    {selectedSpellingBeeWord.language_origin && (
+                      <span className="text-xs px-2 py-1 bg-amber-200 text-amber-800 rounded-full">{selectedSpellingBeeWord.language_origin}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -630,24 +665,7 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
         )}
       </div>
 
-      {isSpellingBeeSeries(seriesTheme) ? (
-        <div className="space-y-4">
-          <SpellingBeeWordSelector
-            selectedWord={selectedSpellingBeeWord}
-            onWordSelect={handleSpellingBeeWordSelect}
-          />
-          {selectedSpellingBeeWord && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-              <p className="text-sm text-amber-800">
-                <span className="font-semibold">Episode Vocabulary:</span> {selectedSpellingBeeWord.winning_word}
-                {selectedSpellingBeeWord.definition && (
-                  <span className="text-amber-600 ml-1">- {selectedSpellingBeeWord.definition.slice(0, 80)}...</span>
-                )}
-              </p>
-            </div>
-          )}
-        </div>
-      ) : (
+      {!isSpellingBeeSeries(seriesTheme) && (
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">
             Vocabulary Words
