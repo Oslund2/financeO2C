@@ -220,6 +220,7 @@ export interface HumanCostBreakdown {
 
 export interface ScriptData {
   runtime_minutes: number;
+  content_length_minutes?: number;
   acts: Array<{
     scenes: Array<{
       dialogue: Array<{ character: string; line: string }>;
@@ -447,12 +448,14 @@ function calculateAICost(
     0
   );
 
-  const baseCost = scriptData.runtime_minutes * config.cost_per_minute_ai;
+  const contentMinutes = scriptData.content_length_minutes ?? scriptData.runtime_minutes;
+
+  const baseCost = contentMinutes * config.cost_per_minute_ai;
   const actsCost = actCount * config.cost_per_act;
   const scenesCost = sceneCount * config.cost_per_scene;
   const charactersCost = scriptData.unique_characters.length * config.cost_per_character;
   const voicesCost = dialogueCount * config.cost_per_voice_line;
-  const videoGenerationCost = scriptData.runtime_minutes * (config.video_generation_cost_per_minute || 45);
+  const videoGenerationCost = contentMinutes * (config.video_generation_cost_per_minute || 45);
 
   let complexityAdjustment = 0;
   scriptData.acts.forEach(act => {
@@ -464,7 +467,7 @@ function calculateAICost(
   });
 
   const humanCosts = includeHumanCosts
-    ? calculateHumanCosts(scriptData.runtime_minutes, config, episodeNumber)
+    ? calculateHumanCosts(contentMinutes, config, episodeNumber)
     : undefined;
 
   const aiOnlyCost = baseCost + actsCost + scenesCost + charactersCost + voicesCost + videoGenerationCost + complexityAdjustment;
@@ -488,6 +491,8 @@ function calculateTraditionalCost(scriptData: ScriptData, config: CostConfig): C
   const characterCount = scriptData.unique_characters.length;
   const dialogueSessionCount = Math.ceil(characterCount / 3);
 
+  const contentMinutes = scriptData.content_length_minutes ?? scriptData.runtime_minutes;
+
   const animationStyle = config.animation_style || 'claymation';
   const productionTier = config.production_tier || 'mid_tier';
 
@@ -505,7 +510,7 @@ function calculateTraditionalCost(scriptData: ScriptData, config: CostConfig): C
   const styleMultiplier = styleSettings.laborMultiplier;
   const materialsMultiplier = styleSettings.materialsMultiplier;
 
-  const animatorHours = scriptData.runtime_minutes * baseHoursPerMinute * styleMultiplier;
+  const animatorHours = contentMinutes * baseHoursPerMinute * styleMultiplier;
   const animatorLaborCost = animatorHours * hourlyRate;
 
   const materialsCost = characterCount * materialsPerCharacter * materialsMultiplier;
@@ -553,6 +558,8 @@ function calculateTraditionalCost(scriptData: ScriptData, config: CostConfig): C
 }
 
 function calculateFreelanceCost(scriptData: ScriptData, config: CostConfig): FreelanceCostBreakdown {
+  const contentMinutes = scriptData.content_length_minutes ?? scriptData.runtime_minutes;
+
   const animationStyle = config.animation_style || 'claymation';
   const freelanceTier = config.freelance_tier || 'mid';
 
@@ -563,7 +570,7 @@ function calculateFreelanceCost(scriptData: ScriptData, config: CostConfig): Fre
   const platformFeePercentage = config.freelance_platform_fee_percentage ?? tierSettings.platformFeePercentage;
 
   const baseHoursPerMinute = styleSettings.baseHoursPerMinute * 0.6;
-  const laborHours = scriptData.runtime_minutes * baseHoursPerMinute * styleSettings.laborMultiplier;
+  const laborHours = contentMinutes * baseHoursPerMinute * styleSettings.laborMultiplier;
 
   const baseLaborCost = laborHours * hourlyRate;
   const platformFees = baseLaborCost * (platformFeePercentage / 100);

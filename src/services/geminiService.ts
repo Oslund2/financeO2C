@@ -1,3 +1,6 @@
+import type { ProgramFormatConfig } from '../types/formatConfig';
+import { calculateTotalBreakTime, formatTimecode as formatTimecodeUtil } from '../types/formatConfig';
+
 interface Character {
   id: string;
   name: string;
@@ -190,9 +193,82 @@ function getGeminiAPIKey() {
 function buildScriptGenerationPrompt(
   episode: Episode,
   characters: Character[],
-  options: GenerationOptions
+  options: GenerationOptions,
+  formatConfig?: ProgramFormatConfig
 ): string {
   const { tone, pacing } = { ...DEFAULT_OPTIONS, ...options };
+
+  const config = formatConfig || {
+    program_length_minutes: 22,
+    total_episode_minutes: 30,
+    break_structure: {
+      segment_count: 4,
+      break_positions: ['00:05:30', '00:11:00', '00:16:30'],
+      break_durations: [120, 120, 120],
+      break_types: ['commercial', 'commercial', 'commercial'],
+      end_break_duration: 120,
+    },
+    format_type: 'broadcast',
+    content_only_seconds: 22 * 60,
+    total_seconds: 30 * 60,
+  };
+
+  const totalBreakSeconds = calculateTotalBreakTime(config.break_structure);
+  const contentSeconds = config.content_only_seconds;
+  const contentMinutes = config.program_length_minutes;
+  const totalMinutes = config.total_episode_minutes;
+  const segmentCount = config.break_structure.segment_count;
+
+  const openingStingSeconds = 60;
+  const closingStingSeconds = 30;
+  const contentHoleSeconds = (totalMinutes * 60) - openingStingSeconds - closingStingSeconds;
+
+  const openTime = formatTimecodeUtil(openingStingSeconds);
+  const closeTime = formatTimecodeUtil((totalMinutes * 60) - closingStingSeconds);
+
+  const segmentDurations: number[] = [];
+  if (segmentCount === 1) {
+    segmentDurations.push(contentSeconds);
+  } else {
+    const baseSegmentSeconds = Math.floor(contentSeconds / segmentCount);
+    const lastSegmentExtra = contentSeconds - (baseSegmentSeconds * (segmentCount - 1));
+    for (let i = 0; i < segmentCount - 1; i++) {
+      segmentDurations.push(baseSegmentSeconds);
+    }
+    segmentDurations.push(lastSegmentExtra);
+  }
+
+  let currentTimecode = openingStingSeconds;
+  const segmentTimings: Array<{
+    segmentNumber: number;
+    startTimecode: string;
+    endTimecode: string;
+    durationSeconds: number;
+    breakAfter: boolean;
+    breakDuration?: number;
+  }> = [];
+
+  for (let i = 0; i < segmentCount; i++) {
+    const startTC = currentTimecode;
+    currentTimecode += segmentDurations[i];
+    const endTC = currentTimecode;
+
+    const hasBreak = i < config.break_structure.break_durations.length;
+    const breakDuration = hasBreak ? config.break_structure.break_durations[i] : 0;
+
+    segmentTimings.push({
+      segmentNumber: i + 1,
+      startTimecode: formatTimecodeUtil(startTC),
+      endTimecode: formatTimecodeUtil(endTC),
+      durationSeconds: segmentDurations[i],
+      breakAfter: hasBreak,
+      breakDuration,
+    });
+
+    if (hasBreak) {
+      currentTimecode += breakDuration;
+    }
+  }
 
   const characterDescriptions = characters
     .map(c => `- ${c.name} (${c.role}): ${c.personality_traits.join(', ')}`)
@@ -227,43 +303,31 @@ SHOW PREMISE & CHARACTER PORTRAYAL:
 - Other students should be clever, quick-witted, and demonstrate genuine intelligence and humor
 
 ================================================================================
-BROADCAST TIMING STRUCTURE (CRITICAL - MUST FOLLOW EXACTLY)
+EPISODE TIMING STRUCTURE (CRITICAL - MUST FOLLOW EXACTLY)
 ================================================================================
 
-Total Episode TRT: 22:00 (1,320 seconds)
-- Opening Sting: 1:00 (60 seconds) - NOT part of script
-- Closing Sting: 0:30 (30 seconds) - NOT part of script
-- Content Hole: 20:30 (1,230 seconds) - YOUR SCRIPT FILLS THIS
+Total Episode TRT: ${formatTimecodeUtil(totalMinutes * 60)} (${totalMinutes * 60} seconds)
+- Opening Sting: ${formatTimecodeUtil(openingStingSeconds)} (${openingStingSeconds} seconds) - NOT part of script
+- Closing Sting: ${formatTimecodeUtil(closingStingSeconds)} (${closingStingSeconds} seconds) - NOT part of script
+- Content Hole: ${formatTimecodeUtil(contentHoleSeconds)} (${contentHoleSeconds} seconds) - YOUR SCRIPT FILLS THIS
 
 CONTENT HOLE BREAKDOWN:
-- OPEN TIME: 00:01:00 (script content begins after opening sting)
-- CLOSE TIME: 00:21:30 (script content ends before closing sting)
+- OPEN TIME: ${openTime} (script content begins after opening sting)
+- CLOSE TIME: ${closeTime} (script content ends before closing sting)
 
-The content hole includes THREE 2-MINUTE COMMERCIAL BREAKS (6:00 total).
-Your scripted content must be 14:30 (870 seconds) of actual dialogue and action.
+${segmentCount > 1 ? `The content hole includes ${config.break_structure.break_durations.length} BREAK${config.break_structure.break_durations.length > 1 ? 'S' : ''} (${Math.floor(totalBreakSeconds / 60)}:${(totalBreakSeconds % 60).toString().padStart(2, '0')} total).` : 'This is a CONTINUOUS format with NO commercial breaks.'}
+Your scripted content must be ${formatTimecodeUtil(contentSeconds)} (${contentSeconds} seconds) of actual dialogue and action.
 
-FOUR SEGMENT STRUCTURE:
-1. SEGMENT 1: ~3:30 (210 seconds) - Setup/Introduction
-   - Timecode: 00:01:00 to 00:04:30
-   - [BREAK 1: 2 minutes - 00:04:30 to 00:06:30]
+${segmentCount === 1 ? 'SINGLE CONTINUOUS SEGMENT:' : `${segmentCount}-SEGMENT STRUCTURE:`}
+${segmentTimings.map((seg, idx) => `${idx + 1}. SEGMENT ${seg.segmentNumber}: ~${formatTimecodeUtil(seg.durationSeconds)} (${seg.durationSeconds} seconds) - ${idx === 0 ? 'Setup/Introduction' : idx === segmentCount - 1 ? 'Resolution/Conclusion' : idx === 1 ? 'Rising Action' : 'Climax/Confrontation'}
+   - Timecode: ${seg.startTimecode} to ${seg.endTimecode}${seg.breakAfter ? `\n   - [BREAK ${idx + 1}: ${Math.floor(seg.breakDuration! / 60)} minutes - ${seg.endTimecode} to ${formatTimecodeUtil(parseInt(seg.endTimecode.split(':')[0]) * 3600 + parseInt(seg.endTimecode.split(':')[1]) * 60 + parseInt(seg.endTimecode.split(':')[2]) + seg.breakDuration!)}]` : ''}`).join('\n\n')}
 
-2. SEGMENT 2: ~3:30 (210 seconds) - Rising Action
-   - Timecode: 00:06:30 to 00:10:00
-   - [BREAK 2: 2 minutes - 00:10:00 to 00:12:00]
-
-3. SEGMENT 3: ~3:30 (210 seconds) - Climax/Confrontation
-   - Timecode: 00:12:00 to 00:15:30
-   - [BREAK 3: 2 minutes - 00:15:30 to 00:17:30]
-
-4. SEGMENT 4: ~4:00 (240 seconds) - Resolution/Conclusion
-   - Timecode: 00:17:30 to 00:21:30
-
-BREAK POINT REQUIREMENTS:
+${segmentCount > 1 ? `BREAK POINT REQUIREMENTS:
 - Each segment should end at a natural transition or mini-cliffhanger
 - Segment 1 end: Hook the viewer - introduce the problem/mystery
-- Segment 2 end: Raise the stakes - complicate the situation
-- Segment 3 end: Peak tension - just before resolution
-- Segment 4: Resolve everything satisfyingly
+${segmentCount > 2 ? '- Segment 2 end: Raise the stakes - complicate the situation' : ''}
+${segmentCount > 3 ? '- Segment 3 end: Peak tension - just before resolution' : ''}
+- Final Segment: Resolve everything satisfyingly` : 'CONTINUOUS FORMAT:\n- No break points needed\n- Tell the story in one smooth, continuous narrative\n- Maintain pacing without artificial cliffhangers'}
 
 ================================================================================
 SCENE REQUIREMENTS FOR AI VIDEO GENERATION (Veo 3 Optimization)
@@ -289,8 +353,8 @@ SCRIPT REQUIREMENTS
 
 - Tone: ${tone}
 - Pacing: ${pacing}
-- Format: 4-segment structure with commercial breaks in TABLE READ FORMAT
-- Runtime: EXACTLY 870 SECONDS (14:30) of scripted content
+- Format: ${segmentCount}-segment structure ${segmentCount > 1 ? 'with breaks' : 'continuous'} in TABLE READ FORMAT
+- Runtime: EXACTLY ${contentSeconds} SECONDS (${formatTimecodeUtil(contentSeconds)}) of scripted content
 - Write in Table Read format suitable for printing and production use:
   * Use proper scene headings (INT./EXT., LOCATION, TIME OF DAY)
   * Character names should be clear and consistent
@@ -313,27 +377,27 @@ Generate a complete script in the following JSON format:
 {
   "title": "Episode title",
   "synopsis": "Brief episode summary (2-3 sentences)",
-  "open_time": "00:01:00",
-  "close_time": "00:21:30",
-  "total_scripted_duration_seconds": 870,
+  "open_time": "${openTime}",
+  "close_time": "${closeTime}",
+  "total_scripted_duration_seconds": ${contentSeconds},
   "segments": [
-    {
-      "segment_number": 1,
-      "title": "Segment 1: Setup",
+${segmentTimings.map((seg, idx) => `    {
+      "segment_number": ${seg.segmentNumber},
+      "title": "Segment ${seg.segmentNumber}: ${idx === 0 ? 'Setup' : idx === segmentCount - 1 ? 'Resolution' : idx === 1 ? 'Rising Action' : 'Climax'}",
       "description": "What happens in this segment",
-      "start_timecode": "00:01:00",
-      "end_timecode": "00:04:30",
-      "duration_seconds": 210,
-      "break_after": true,
-      "scenes": [
+      "start_timecode": "${seg.startTimecode}",
+      "end_timecode": "${seg.endTimecode}",
+      "duration_seconds": ${seg.durationSeconds},
+      "break_after": ${seg.breakAfter},
+      "scenes": [${idx === 0 ? `
         {
           "scene_number": 1,
           "title": "INT. CLASSROOM - MORNING",
           "location": "CLASSROOM",
           "time_of_day": "MORNING",
           "description": "Scene description and setting for table read",
-          "start_timecode": "00:01:00",
-          "end_timecode": "00:02:30",
+          "start_timecode": "${seg.startTimecode}",
+          "end_timecode": "...",
           "duration_seconds": 90,
           "characters_present": ["Mrs. Higginbottom", "Emma", "Marcus", "Lily"],
           "reusable_setup": true,
@@ -351,38 +415,8 @@ Generate a complete script in the following JSON format:
           ],
           "claymation_notes": "Wide establishing shot of classroom, then medium shots for dialogue. Show clay texture on desk surfaces."
         }
-      ]
-    },
-    {
-      "segment_number": 2,
-      "title": "Segment 2: Rising Action",
-      "description": "Complications arise",
-      "start_timecode": "00:06:30",
-      "end_timecode": "00:10:00",
-      "duration_seconds": 210,
-      "break_after": true,
-      "scenes": []
-    },
-    {
-      "segment_number": 3,
-      "title": "Segment 3: Climax",
-      "description": "Peak conflict/tension",
-      "start_timecode": "00:12:00",
-      "end_timecode": "00:15:30",
-      "duration_seconds": 210,
-      "break_after": true,
-      "scenes": []
-    },
-    {
-      "segment_number": 4,
-      "title": "Segment 4: Resolution",
-      "description": "Satisfying conclusion",
-      "start_timecode": "00:17:30",
-      "end_timecode": "00:21:30",
-      "duration_seconds": 240,
-      "break_after": false,
-      "scenes": []
-    }
+      ` : ' /* Add scenes here */ '}]
+    }${idx < segmentCount - 1 ? ',' : ''}`).join('\n')}
   ],
   "location_summary": [
     {
@@ -402,15 +436,15 @@ Generate a complete script in the following JSON format:
 CRITICAL REMINDERS
 ================================================================================
 
-1. TIMING IS NON-NEGOTIABLE: Total scripted content must be 870 seconds (14:30)
+1. TIMING IS NON-NEGOTIABLE: Total scripted content must be ${contentSeconds} seconds (${formatTimecodeUtil(contentSeconds)})
 2. Each segment must have multiple scenes with 8+ dialogue exchanges each
-3. Include ALL four segments with scenes filled in (not empty arrays)
+3. Include ALL ${segmentCount} segment${segmentCount > 1 ? 's' : ''} with scenes filled in (not empty arrays)
 4. Use "Mrs. Higginbottom" (no S) or "Mrs. H" - this is critical
 5. Make the kids genuinely smart, cool, and funny through their dialogue
 6. Chad and antagonist characters are the exception - they can be portrayed differently
 7. Each scene must have accurate timecodes that add up correctly
 8. Location_summary must reflect actual locations used in the script
-9. End each segment (except the last) with a hook or mini-cliffhanger
+9. ${segmentCount > 1 ? 'End each segment (except the last) with a hook or mini-cliffhanger' : 'Maintain smooth pacing throughout the continuous segment'}
 
 Generate the complete script now with ALL segments and scenes filled in:`;
 }
@@ -419,13 +453,14 @@ export async function generateScriptWithGemini(
   episode: Episode,
   characters: Character[],
   options: GenerationOptions = {},
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  formatConfig?: ProgramFormatConfig
 ): Promise<GeneratedScript> {
   try {
     const apiKey = getGeminiAPIKey();
     const mergedOptions = { ...DEFAULT_OPTIONS, ...options };
 
-    const prompt = buildScriptGenerationPrompt(episode, characters, mergedOptions);
+    const prompt = buildScriptGenerationPrompt(episode, characters, mergedOptions, formatConfig);
 
     console.log('Starting script generation...');
     console.log('Prompt length:', prompt.length, 'characters');
@@ -533,13 +568,13 @@ export async function generateScriptWithGemini(
       throw new Error('TRUNCATED_RESPONSE');
     }
 
-    const generatedScript: GeneratedScript = convertLegacyScript(parsedScript);
+    const generatedScript: GeneratedScript = convertLegacyScript(parsedScript, formatConfig);
 
     console.log('Script generated successfully');
     console.log('Segments:', generatedScript.segments.length);
     console.log('Total duration:', generatedScript.total_scripted_duration_seconds, 'seconds');
 
-    validateGeneratedScript(generatedScript);
+    validateGeneratedScript(generatedScript, formatConfig);
 
     return generatedScript;
 
@@ -563,7 +598,7 @@ export async function generateScriptWithGemini(
   }
 }
 
-function validateGeneratedScript(script: GeneratedScript): void {
+function validateGeneratedScript(script: GeneratedScript, formatConfig?: ProgramFormatConfig): void {
   if (!script.title || !script.synopsis || !script.segments) {
     throw new Error('Invalid script structure: missing required fields');
   }
@@ -572,8 +607,26 @@ function validateGeneratedScript(script: GeneratedScript): void {
     throw new Error('Script must include open_time and close_time');
   }
 
-  if (script.segments.length !== 4) {
-    throw new Error('Script must have exactly 4 segments (with 3 commercial breaks)');
+  const config = formatConfig || {
+    program_length_minutes: 22,
+    total_episode_minutes: 30,
+    break_structure: {
+      segment_count: 4,
+      break_positions: ['00:05:30', '00:11:00', '00:16:30'],
+      break_durations: [120, 120, 120],
+      break_types: ['commercial', 'commercial', 'commercial'],
+      end_break_duration: 120,
+    },
+    format_type: 'broadcast',
+    content_only_seconds: 22 * 60,
+    total_seconds: 30 * 60,
+  };
+
+  const expectedSegments = config.break_structure.segment_count;
+  const targetSeconds = config.content_only_seconds;
+
+  if (script.segments.length !== expectedSegments) {
+    throw new Error(`Script must have exactly ${expectedSegments} segment${expectedSegments > 1 ? 's' : ''}`);
   }
 
   let totalScriptedDuration = 0;
@@ -609,33 +662,39 @@ function validateGeneratedScript(script: GeneratedScript): void {
 
     totalScriptedDuration += segmentDuration;
 
-    if (index < 3 && !segment.break_after) {
+    if (index < expectedSegments - 1 && !segment.break_after && expectedSegments > 1) {
       console.warn(`Segment ${index + 1} should have break_after: true`);
     }
   });
 
-  if (totalScriptedDuration < 700) {
-    throw new Error(`Script is too short: ${totalScriptedDuration} seconds. Minimum is 700 seconds (target: 870 seconds)`);
+  const minDuration = Math.max(30, targetSeconds * 0.8);
+  const maxDuration = targetSeconds * 1.15;
+
+  if (totalScriptedDuration < minDuration) {
+    throw new Error(`Script is too short: ${totalScriptedDuration} seconds. Minimum is ${Math.floor(minDuration)} seconds (target: ${targetSeconds} seconds)`);
   }
 
-  if (totalScriptedDuration > 1000) {
-    throw new Error(`Script is too long: ${totalScriptedDuration} seconds. Maximum is 1000 seconds (target: 870 seconds)`);
+  if (totalScriptedDuration > maxDuration) {
+    throw new Error(`Script is too long: ${totalScriptedDuration} seconds. Maximum is ${Math.floor(maxDuration)} seconds (target: ${targetSeconds} seconds)`);
   }
 
-  if (totalDialogueLines < 40) {
-    throw new Error(`Script has too few dialogue lines: ${totalDialogueLines}. Minimum is 40 lines for proper pacing.`);
+  const minDialogueLines = Math.max(10, Math.floor(targetSeconds / 22));
+  const recommendedDialogueLines = Math.floor(targetSeconds / 15);
+
+  if (totalDialogueLines < minDialogueLines) {
+    throw new Error(`Script has too few dialogue lines: ${totalDialogueLines}. Minimum is ${minDialogueLines} lines for proper pacing.`);
   }
 
-  if (totalDialogueLines < 60) {
-    console.warn(`Script has only ${totalDialogueLines} dialogue lines. Consider adding more for better pacing (recommended: 60+)`);
+  if (totalDialogueLines < recommendedDialogueLines) {
+    console.warn(`Script has only ${totalDialogueLines} dialogue lines. Consider adding more for better pacing (recommended: ${recommendedDialogueLines}+)`);
   }
 
-  if (Math.abs(totalScriptedDuration - 870) > 60) {
-    console.warn(`Script duration (${totalScriptedDuration}s) differs from target (870s) by more than 60 seconds`);
+  if (Math.abs(totalScriptedDuration - targetSeconds) > 60) {
+    console.warn(`Script duration (${totalScriptedDuration}s) differs from target (${targetSeconds}s) by more than 60 seconds`);
   }
 }
 
-function convertLegacyScript(legacyScript: any): GeneratedScript {
+function convertLegacyScript(legacyScript: any, formatConfig?: ProgramFormatConfig): GeneratedScript {
   if (legacyScript.segments) {
     return legacyScript as GeneratedScript;
   }
@@ -644,13 +703,37 @@ function convertLegacyScript(legacyScript: any): GeneratedScript {
     throw new Error('Invalid script format: no acts or segments found');
   }
 
+  const config = formatConfig || {
+    program_length_minutes: 22,
+    total_episode_minutes: 30,
+    break_structure: {
+      segment_count: 4,
+      break_positions: ['00:05:30', '00:11:00', '00:16:30'],
+      break_durations: [120, 120, 120],
+      break_types: ['commercial', 'commercial', 'commercial'],
+      end_break_duration: 120,
+    },
+    format_type: 'broadcast',
+    content_only_seconds: 22 * 60,
+    total_seconds: 30 * 60,
+  };
+
+  const segmentCount = config.break_structure.segment_count;
+  const contentSeconds = config.content_only_seconds;
+  const segmentDuration = Math.floor(contentSeconds / segmentCount);
+
   let globalSceneNumber = 1;
   let currentTimecode = 60;
 
   const segments: GeneratedSegment[] = [];
   const locationMap = new Map<string, { scene_count: number; total_duration_seconds: number }>();
 
-  const segmentTargets = [210, 210, 210, 240];
+  const segmentTargets: number[] = [];
+  for (let i = 0; i < segmentCount - 1; i++) {
+    segmentTargets.push(segmentDuration);
+  }
+  segmentTargets.push(contentSeconds - (segmentDuration * (segmentCount - 1)));
+
   const segmentNames = ['Setup', 'Rising Action', 'Climax', 'Resolution'];
 
   legacyScript.acts.forEach((act: any, actIndex: number) => {
@@ -689,36 +772,41 @@ function convertLegacyScript(legacyScript: any): GeneratedScript {
       };
     });
 
-    const breakTimecodes = [270, 600, 930];
-    if (actIndex < 3) {
-      currentTimecode = breakTimecodes[actIndex] + 120;
+    const hasBreak = actIndex < config.break_structure.break_durations.length;
+    const breakDuration = hasBreak ? config.break_structure.break_durations[actIndex] : 0;
+
+    if (hasBreak) {
+      currentTimecode += breakDuration;
     }
 
     segments.push({
       segment_number: actIndex + 1,
-      title: `Segment ${actIndex + 1}: ${segmentNames[actIndex]}`,
+      title: `Segment ${actIndex + 1}: ${segmentNames[actIndex] || 'Continuation'}`,
       description: act.description || '',
       start_timecode: formatTimecode(startTimecode),
       end_timecode: formatTimecode(startTimecode + segmentDuration),
       duration_seconds: segmentDuration,
       scenes,
-      break_after: actIndex < 3
+      break_after: hasBreak
     });
   });
 
-  if (segments.length < 4) {
-    for (let i = segments.length; i < 4; i++) {
+  if (segments.length < segmentCount) {
+    for (let i = segments.length; i < segmentCount; i++) {
+      const hasBreak = i < config.break_structure.break_durations.length;
+      const breakDuration = hasBreak ? config.break_structure.break_durations[i] : 0;
+
       segments.push({
         segment_number: i + 1,
-        title: `Segment ${i + 1}: ${segmentNames[i]}`,
+        title: `Segment ${i + 1}: ${segmentNames[i] || 'Continuation'}`,
         description: 'Additional segment',
         start_timecode: formatTimecode(currentTimecode),
         end_timecode: formatTimecode(currentTimecode + segmentTargets[i]),
         duration_seconds: segmentTargets[i],
         scenes: [],
-        break_after: i < 3
+        break_after: hasBreak
       });
-      currentTimecode += segmentTargets[i] + (i < 3 ? 120 : 0);
+      currentTimecode += segmentTargets[i] + (hasBreak ? breakDuration : 0);
     }
   }
 
