@@ -9,6 +9,7 @@ import { createEpisodeFromScript, getScriptWithDetails, validateScriptForEpisode
 import { calculateProductionCosts, type CostComparison as CostComparisonType, type ScriptData } from '../services/costCalculationService';
 import { CostComparison } from './CostComparison';
 import { useNotification } from '../contexts/NotificationContext';
+import { FormatBadge } from './FormatSelector';
 
 type Script = Database['public']['Tables']['scripts']['Row'];
 
@@ -96,6 +97,8 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
         generation_prompt: s.generation_prompt,
         content: s.content,
         format: s.format,
+        format_type: s.format_type,
+        program_length_minutes: s.program_length_minutes,
         version: s.version,
         locked: s.locked,
         locked_by: s.locked_by,
@@ -491,6 +494,12 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
                         <span>S{script.season_number}E{script.episode_number}</span>
                       )}
                       <span>{script.runtime_minutes} min</span>
+                      {(script as any).format_type && (
+                        <FormatBadge
+                          formatType={(script as any).format_type}
+                          programMinutes={(script as any).program_length_minutes || script.runtime_minutes}
+                        />
+                      )}
                       {script.theme && (
                         <span className="px-2 py-0.5 bg-gray-100 rounded-full text-xs hidden sm:inline">{script.theme}</span>
                       )}

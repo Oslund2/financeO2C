@@ -7,6 +7,8 @@ import { getUserSettings } from '../services/settingsService';
 import { VoiceGenerationTab } from './VoiceGenerationTab';
 import { SpellingBeeWordSelector } from './SpellingBeeWordSelector';
 import { isSpellingBeeSeries, type SpellingBeeWord } from '../services/spellingBeeService';
+import { FormatSelector } from './FormatSelector';
+import { FORMAT_PRESETS } from '../types/formatConfig';
 
 type Character = Database['public']['Tables']['characters']['Row'];
 
@@ -88,6 +90,7 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
     title: '',
     episodeNumber: '',
     theme: '',
+    formatPreset: 'broadcast',
     mainCharacters: [] as string[],
     vocabularyWords: '',
     plotSummary: '',
@@ -384,6 +387,7 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
         .map((w) => w.trim())
         .filter(Boolean);
 
+      const selectedFormat = FORMAT_PRESETS[formData.formatPreset];
       const scriptData = {
         series_id: seriesId,
         title: generatedData.script.title,
@@ -394,6 +398,10 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
         ai_generated: true,
         generation_prompt: JSON.stringify(formData),
         status: 'draft',
+        program_length_minutes: selectedFormat.program_length_minutes,
+        total_episode_minutes: selectedFormat.total_episode_minutes,
+        break_structure: selectedFormat.break_structure,
+        format_type: selectedFormat.format_type,
       };
 
       const { data: script, error: scriptError } = await supabase
@@ -603,6 +611,19 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
           placeholder="e.g., Overcoming anxiety in competition"
         />
+      </div>
+
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          Episode Format *
+        </label>
+        <FormatSelector
+          value={formData.formatPreset}
+          onChange={(presetId) => setFormData({ ...formData, formatPreset: presetId })}
+        />
+        <p className="text-xs text-gray-600 mt-2">
+          Select the target length and distribution format for this episode
+        </p>
       </div>
 
       <div>
@@ -906,6 +927,7 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
                       title: '',
                       episodeNumber: '',
                       theme: '',
+                      formatPreset: 'broadcast',
                       mainCharacters: [],
                       vocabularyWords: '',
                       plotSummary: '',
