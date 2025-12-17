@@ -5,6 +5,7 @@ import { generateComprehensiveDifferentiation, getDifferentiationReports } from 
 import { generateIntelligentSpecification, type SpecificationSections } from './patentSpecificationGenerationService';
 import { generateAIEnhancedClaims } from './patentClaimsService';
 import { extractCodebaseFeatures } from './patentFeatureExtractionService';
+import { generateDrawingsForApplication } from './patentDrawingsService';
 
 export interface PatentGenerationConfig {
   applicationId: string;
@@ -38,7 +39,10 @@ export async function generateCompletePatentApplication(
   config: PatentGenerationConfig,
   onProgress?: (progress: PatentGenerationProgress) => void
 ): Promise<PatentGenerationResult> {
-  const totalSteps = config.skipPriorArtSearch ? 5 : 7;
+  // Calculate total steps based on configuration
+  let totalSteps = config.skipPriorArtSearch ? 3 : 5; // Base steps (feature extraction, novelty analysis, spec generation + optional prior art and differentiation)
+  if (config.useAIClaims) totalSteps++; // Add claims generation if enabled
+  totalSteps++; // Always add drawings generation
   let currentStep = 0;
 
   const updateProgress = (stepName: string, status: 'in_progress' | 'completed' = 'in_progress', data?: any) => {
@@ -122,6 +126,10 @@ export async function generateCompletePatentApplication(
       );
       updateProgress('Claims generation completed', 'completed', { claimsCount: claims.length });
     }
+
+    updateProgress('Generating patent drawings...');
+    const drawings = await generateDrawingsForApplication(config.applicationId);
+    updateProgress('Drawings generation completed', 'completed', { drawingsCount: drawings.length });
 
     return {
       success: true,

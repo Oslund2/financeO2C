@@ -33,6 +33,7 @@ import {
   BarChart3,
   Lightbulb
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
 import {
   getPatentApplications,
@@ -68,7 +69,7 @@ import {
 } from '../services/patentDrawingsService';
 import {
   generateCompletePatentApplication,
-  type WorkflowProgress
+  type PatentGenerationProgress
 } from '../services/patentWorkflowOrchestrator';
 import {
   searchPriorArt,
@@ -83,6 +84,7 @@ import jsPDF from 'jspdf';
 type TabId = 'overview' | 'specification' | 'claims' | 'drawings' | 'abstract' | 'prior-art' | 'analysis' | 'export';
 
 export function PatentApplication() {
+  const { user } = useAuth();
   const { currentOrganization } = useOrganization();
   const [applications, setApplications] = useState<PatentApplication[]>([]);
   const [selectedApp, setSelectedApp] = useState<PatentApplicationWithDetails | null>(null);
@@ -99,7 +101,7 @@ export function PatentApplication() {
   const [generating, setGenerating] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
-  const [aiProgress, setAiProgress] = useState<WorkflowProgress | null>(null);
+  const [aiProgress, setAiProgress] = useState<PatentGenerationProgress | null>(null);
   const [showAiModal, setShowAiModal] = useState(false);
 
   const convertSvgToPng = (svgContent: string, width: number = 800, height: number = 600): Promise<string> => {
@@ -254,15 +256,22 @@ export function PatentApplication() {
   };
 
   const handleAIGeneration = async () => {
-    if (!selectedApp || !currentOrganization) return;
+    if (!selectedApp || !currentOrganization || !user) return;
     setAiGenerating(true);
     setShowAiModal(true);
     setError(null);
 
     try {
       const result = await generateCompletePatentApplication(
-        selectedApp.id,
-        currentOrganization.id,
+        {
+          applicationId: selectedApp.id,
+          organizationId: currentOrganization.id,
+          userId: user.id,
+          title: selectedApp.title,
+          description: selectedApp.summary_invention || '',
+          skipPriorArtSearch: false,
+          useAIClaims: true
+        },
         (progress) => {
           setAiProgress(progress);
         }
@@ -1963,20 +1972,20 @@ function AIGenerationProgressModal({
   progress,
   onClose
 }: {
-  progress: WorkflowProgress | null;
+  progress: PatentGenerationProgress | null;
   onClose: () => void;
 }) {
   const steps = [
-    { id: 'feature_extraction', label: 'Extracting Features', icon: Lightbulb },
-    { id: 'prior_art_search', label: 'Searching Prior Art', icon: Search },
-    { id: 'differentiation_analysis', label: 'Analyzing Differentiation', icon: Target },
-    { id: 'novelty_analysis', label: 'Analyzing Novelty', icon: BarChart3 },
-    { id: 'specification_generation', label: 'Generating Specification', icon: FileText },
-    { id: 'claims_generation', label: 'Generating Claims', icon: List },
-    { id: 'drawings_generation', label: 'Creating Drawings', icon: Image }
+    { label: 'Extracting Features', icon: Lightbulb },
+    { label: 'Searching Prior Art', icon: Search },
+    { label: 'Analyzing Differentiation', icon: Target },
+    { label: 'Analyzing Novelty', icon: BarChart3 },
+    { label: 'Generating Specification', icon: FileText },
+    { label: 'Generating Claims', icon: List },
+    { label: 'Creating Drawings', icon: Image }
   ];
 
-  const currentStepIndex = progress ? steps.findIndex(s => s.id === progress.current_step) : -1;
+  const currentStepIndex = progress ? progress.step : -1;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -2004,7 +2013,7 @@ function AIGenerationProgressModal({
 
             return (
               <div
-                key={step.id}
+                key={index}
                 className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
                   isCurrent ? 'bg-blue-50 border border-blue-200' :
                   isComplete ? 'bg-green-50 border border-green-200' :
@@ -2036,17 +2045,17 @@ function AIGenerationProgressModal({
           })}
         </div>
 
-        {progress?.error && (
+        {progress?.status === 'error' && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
             <div className="flex items-center gap-2 mb-2">
               <AlertCircle className="w-5 h-5 text-red-600" />
               <span className="font-medium text-red-900">Error</span>
             </div>
-            <p className="text-sm text-red-700">{progress.error}</p>
+            <p className="text-sm text-red-700">An error occurred during generation. Please try again.</p>
           </div>
         )}
 
-        {progress?.completed && (
+        {progress?.status === 'completed' && (
           <div className="flex justify-end">
             <button
               onClick={onClose}
