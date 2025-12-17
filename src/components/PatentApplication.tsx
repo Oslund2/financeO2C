@@ -243,10 +243,10 @@ export function PatentApplication() {
   };
 
   const handleGenerateDrawings = async () => {
-    if (!selectedApp) return;
+    if (!selectedApp || !currentOrganization) return;
     setGenerating(true);
     try {
-      const drawings = await generateDrawingsForApplication(selectedApp.id);
+      const drawings = await generateDrawingsForApplication(selectedApp.id, currentOrganization.id);
       setSelectedApp({ ...selectedApp, drawings });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate drawings');

@@ -154,7 +154,7 @@ export async function generateCompletePatentApplication(
     }
 
     updateProgress('Generating patent drawings...');
-    const drawings = await generateDrawingsForApplication(config.applicationId);
+    const drawings = await generateDrawingsForApplication(config.applicationId, config.organizationId);
     updateProgress('Drawings generation completed', 'completed', { drawingsCount: drawings.length });
 
     return {

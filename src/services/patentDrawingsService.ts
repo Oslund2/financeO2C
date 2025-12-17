@@ -1,5 +1,15 @@
 import { createPatentDrawing, deleteAllDrawingsForApplication } from './patentApplicationService';
 import type { PatentDrawing, DrawingCallout } from './patentApplicationService';
+import { extractCodebaseFeatures, type ExtractedFeature } from './patentFeatureExtractionService';
+import { analyzeDomain, planDrawingFigures, type DrawingSpec } from './dynamicPatentDrawingsService';
+import { generateSystemArchitecture } from './architectureDiagramGenerator';
+import {
+  generateAlgorithmFlowchart,
+  generateDataStructureDiagram,
+  generateIntegrationDiagram,
+  generateWorkflowDiagram,
+  generateUIWireframe
+} from './featureSpecificDiagramGenerator';
 
 interface BlockElement {
   id: string;
@@ -425,29 +435,124 @@ export function generateDrawing(figureNumber: number): { svg: string; definition
   };
 }
 
-export async function generateDrawingsForApplication(applicationId: string): Promise<PatentDrawing[]> {
+export async function generateDrawingsForApplication(
+  applicationId: string,
+  organizationId: string
+): Promise<PatentDrawing[]> {
   const drawings: PatentDrawing[] = [];
-  const errors: Array<{ figureNumber: number; error: string; details?: any }> = [];
+  const errors: Array<{ figureNumber: string; error: string; details?: any }> = [];
 
-  console.log(`Starting drawing generation for application ${applicationId}`);
+  console.log(`Starting dynamic drawing generation for application ${applicationId}`);
 
-  // Delete existing drawings to avoid unique constraint violation
   try {
     await deleteAllDrawingsForApplication(applicationId);
   } catch (error) {
     console.error('Failed to delete existing drawings:', error);
-    // Continue anyway - they might not exist
   }
+
+  try {
+    const featureAnalysis = await extractCodebaseFeatures(organizationId, 'both');
+    const features = featureAnalysis.features;
+
+    console.log(`Extracted ${features.length} features from codebase`);
+
+    if (features.length === 0) {
+      console.warn('No features found, using fallback static drawings');
+      return await generateStaticDrawings(applicationId);
+    }
+
+    const domainAnalysis = analyzeDomain(features);
+    console.log(`Domain analysis: ${domainAnalysis.domainType}, ${domainAnalysis.coreInnovationCount} core innovations`);
+
+    const drawingSpecs = planDrawingFigures(features, domainAnalysis);
+    console.log(`Planned ${drawingSpecs.length} figures for this application`);
+
+    for (const spec of drawingSpecs) {
+      await sleep(100);
+
+      try {
+        const figureNum = spec.subFigureLetter ? `${spec.figureNumber}${spec.subFigureLetter}` : spec.figureNumber.toString();
+        console.log(`Generating Figure ${figureNum}: ${spec.title}`);
+
+        const result = await generateDiagramForSpec(spec, features, domainAnalysis);
+
+        if (!result.svg || result.svg.length === 0) {
+          throw new Error(`SVG generation failed: empty SVG output`);
+        }
+
+        const drawing = await createPatentDrawing(applicationId, {
+          figure_number: spec.figureNumber,
+          title: spec.title,
+          description: spec.description,
+          svg_content: result.svg,
+          image_url: null,
+          drawing_type: spec.drawingType,
+          callouts: result.callouts
+        });
+
+        drawings.push(drawing);
+        console.log(`Successfully generated Figure ${figureNum}`);
+      } catch (error) {
+        const errorInfo = extractErrorInfo(error);
+        const figureId = spec.subFigureLetter ? `${spec.figureNumber}${spec.subFigureLetter}` : spec.figureNumber.toString();
+
+        console.error(`Failed to generate Figure ${figureId}:`, errorInfo);
+
+        errors.push({
+          figureNumber: figureId,
+          error: errorInfo.message,
+          details: errorInfo.details
+        });
+
+        await sleep(200);
+
+        console.log(`Retrying Figure ${figureId}...`);
+        try {
+          const result = await generateDiagramForSpec(spec, features, domainAnalysis);
+          const drawing = await createPatentDrawing(applicationId, {
+            figure_number: spec.figureNumber,
+            title: spec.title,
+            description: spec.description,
+            svg_content: result.svg,
+            image_url: null,
+            drawing_type: spec.drawingType,
+            callouts: result.callouts
+          });
+          drawings.push(drawing);
+          console.log(`Retry successful for Figure ${figureId}`);
+        } catch (retryError) {
+          console.error(`Retry failed for Figure ${figureId}:`, retryError);
+        }
+      }
+    }
+
+    console.log(`Drawing generation complete: ${drawings.length} successful, ${errors.length} failed`);
+
+    if (drawings.length === 0) {
+      const detailedErrors = errors.map(e => `Fig ${e.figureNumber}: ${e.error}`).join('; ');
+      throw new Error(`All drawing generation attempts failed. Errors: ${detailedErrors}`);
+    }
+
+    if (errors.length > 0) {
+      console.warn(`Some drawings failed to generate:`, errors);
+    }
+
+    return drawings;
+
+  } catch (error) {
+    console.error('Feature extraction or planning failed, falling back to static drawings:', error);
+    return await generateStaticDrawings(applicationId);
+  }
+}
+
+async function generateStaticDrawings(applicationId: string): Promise<PatentDrawing[]> {
+  const drawings: PatentDrawing[] = [];
+
+  console.log('Generating fallback static drawings');
 
   for (const def of FIGURE_DEFINITIONS) {
     try {
-      console.log(`Generating Figure ${def.figureNumber}: ${def.title}`);
-
       const svg = generateSVG(def);
-      if (!svg || svg.length === 0) {
-        throw new Error(`SVG generation failed: empty SVG output`);
-      }
-
       const callouts = extractCallouts(def);
 
       const drawing = await createPatentDrawing(applicationId, {
@@ -461,55 +566,85 @@ export async function generateDrawingsForApplication(applicationId: string): Pro
       });
 
       drawings.push(drawing);
-      console.log(`Successfully generated Figure ${def.figureNumber}`);
     } catch (error) {
-      let errorMessage: string;
-      let errorDetails: any;
-
-      if (error instanceof Error) {
-        errorMessage = error.message;
-        errorDetails = {
-          name: error.name,
-          message: error.message,
-          stack: error.stack,
-          cause: (error as any).cause
-        };
-      } else if (typeof error === 'object' && error !== null) {
-        // Handle Supabase errors and other object errors
-        errorMessage = JSON.stringify(error);
-        errorDetails = error;
-      } else {
-        errorMessage = String(error);
-        errorDetails = { rawError: error, type: typeof error };
-      }
-
-      console.error(`Failed to generate Figure ${def.figureNumber}:`, {
-        errorMessage,
-        errorDetails,
-        errorType: typeof error,
-        errorConstructor: error?.constructor?.name
-      });
-
-      errors.push({
-        figureNumber: def.figureNumber,
-        error: errorMessage,
-        details: errorDetails
-      });
+      console.error(`Failed to generate static Figure ${def.figureNumber}:`, error);
     }
   }
 
-  console.log(`Drawing generation complete: ${drawings.length} successful, ${errors.length} failed`);
-
-  if (drawings.length === 0) {
-    const detailedErrors = errors.map(e => `Fig ${e.figureNumber}: ${e.error}`).join('; ');
-    throw new Error(`All drawing generation attempts failed. Errors: ${detailedErrors}`);
-  }
-
-  if (errors.length > 0) {
-    console.warn(`Some drawings failed to generate:`, errors);
-  }
-
   return drawings;
+}
+
+async function generateDiagramForSpec(
+  spec: DrawingSpec,
+  features: ExtractedFeature[],
+  domainAnalysis: any
+): Promise<{ svg: string; callouts: DrawingCallout[] }> {
+  const baseCalloutNumber = spec.figureNumber * 100;
+
+  if (spec.figureNumber === 1) {
+    const isOverview = spec.subFigureLetter === 'a';
+    const arch = generateSystemArchitecture(
+      features,
+      spec.requiresSplit,
+      isOverview,
+      spec.subFigureLetter
+    );
+    return { svg: arch.svg, callouts: arch.callouts };
+  }
+
+  if (spec.drawingType === 'flowchart' && spec.sourceFeatures.length === 1) {
+    return generateAlgorithmFlowchart(spec.sourceFeatures[0], spec.figureNumber, baseCalloutNumber);
+  }
+
+  if (spec.drawingType === 'block_diagram') {
+    if (spec.title.includes('Data Structure')) {
+      return generateDataStructureDiagram(spec.sourceFeatures, spec.figureNumber, baseCalloutNumber);
+    }
+    if (spec.title.includes('Integration')) {
+      return generateIntegrationDiagram(spec.sourceFeatures, spec.figureNumber, baseCalloutNumber);
+    }
+    if (spec.sourceFeatures.length === 1 && spec.sourceFeatures[0].type === 'algorithm') {
+      return generateAlgorithmFlowchart(spec.sourceFeatures[0], spec.figureNumber, baseCalloutNumber);
+    }
+  }
+
+  if (spec.drawingType === 'wireframe') {
+    return generateUIWireframe(spec.sourceFeatures, spec.figureNumber, baseCalloutNumber);
+  }
+
+  if (spec.title.includes('Workflow')) {
+    return generateWorkflowDiagram(spec.sourceFeatures, spec.figureNumber, baseCalloutNumber);
+  }
+
+  return generateDataStructureDiagram(spec.sourceFeatures, spec.figureNumber, baseCalloutNumber);
+}
+
+function extractErrorInfo(error: any): { message: string; details: any } {
+  if (error instanceof Error) {
+    return {
+      message: error.message,
+      details: {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        cause: (error as any).cause
+      }
+    };
+  } else if (typeof error === 'object' && error !== null) {
+    return {
+      message: JSON.stringify(error),
+      details: error
+    };
+  } else {
+    return {
+      message: String(error),
+      details: { rawError: error, type: typeof error }
+    };
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 export function getDrawingDefinitions(): DiagramDefinition[] {
