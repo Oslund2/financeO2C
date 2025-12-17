@@ -44,14 +44,15 @@ export async function performNoveltyAnalysis(
   const overallScore = calculateNoveltyScore(features.features, priorArt);
   const approvalProbability = calculateApprovalProbability(overallScore, aiAssessment);
 
-  await updateAnalysisScores(analysisId, overallScore, approvalProbability);
+  await updateAnalysisScores(analysisId, overallScore, approvalProbability, aiAssessment);
 
   await supabase
     .from('patent_applications')
     .update({
       novelty_analysis_id: analysisId,
-      approval_score: overallScore,
-      approval_confidence: approvalProbability
+      approval_score: approvalProbability,
+      approval_confidence: approvalProbability,
+      novelty_score: overallScore
     })
     .eq('id', patentApplicationId);
 
@@ -187,24 +188,29 @@ function calculateFeatureScores(features: any[]): Record<string, number> {
 async function updateAnalysisScores(
   analysisId: string,
   noveltyScore: number,
-  approvalProbability: number
+  approvalProbability: number,
+  aiAssessment: any
 ): Promise<void> {
   await supabase
     .from('patent_novelty_analyses')
     .update({
       overall_novelty_score: noveltyScore,
       implementation_uniqueness_score: noveltyScore * 0.85,
-      commercial_viability_score: noveltyScore * 1.1
+      commercial_viability_score: noveltyScore * 1.1,
+      novelty_strengths: aiAssessment.strengths || [],
+      novelty_weaknesses: aiAssessment.weaknesses || [],
+      recommendations: aiAssessment.recommendations || [],
+      patentability_assessment: aiAssessment.assessment || ''
     })
     .eq('id', analysisId);
 }
 
 export async function getNoveltyAnalysis(
   patentApplicationId: string
-): Promise<NoveltyAnalysis | null> {
+): Promise<any | null> {
   const { data: app } = await supabase
     .from('patent_applications')
-    .select('novelty_analysis_id, approval_score, approval_confidence')
+    .select('novelty_analysis_id, approval_score, approval_confidence, novelty_score')
     .eq('id', patentApplicationId)
     .maybeSingle();
 
@@ -222,14 +228,50 @@ export async function getNoveltyAnalysis(
     return null;
   }
 
+  const { data: featureMappings } = await supabase
+    .from('patent_feature_mappings')
+    .select('*')
+    .eq('novelty_analysis_id', app.novelty_analysis_id)
+    .order('feature_name');
+
+  const keyFeatures = (featureMappings || []).map((mapping: any) => ({
+    feature_name: mapping.feature_name,
+    description: mapping.technical_description || '',
+    novelty_score: calculateIndividualFeatureScore(mapping.novelty_strength)
+  }));
+
+  const extractedFeatures = analysis.extracted_features || [];
+  if (keyFeatures.length === 0 && extractedFeatures.length > 0) {
+    extractedFeatures.forEach((feature: any) => {
+      keyFeatures.push({
+        feature_name: feature.name,
+        description: feature.description,
+        novelty_score: calculateIndividualFeatureScore(feature.noveltyStrength)
+      });
+    });
+  }
+
   return {
-    analysisId: analysis.id,
-    overallScore: analysis.overall_novelty_score || 0,
-    approvalProbability: app.approval_confidence || 0,
-    strengths: analysis.novelty_strengths || [],
-    weaknesses: analysis.novelty_weaknesses || [],
-    recommendations: [],
-    featureNoveltyScores: analysis.feature_novelty_scores || {},
-    patentabilityAssessment: analysis.patentability_assessment || ''
+    id: analysis.id,
+    overall_novelty_score: analysis.overall_novelty_score || app.novelty_score || 0,
+    confidence_score: (app.approval_confidence || 0) / 100,
+    technical_depth_score: analysis.technical_depth_score || 0,
+    implementation_uniqueness_score: analysis.implementation_uniqueness_score || 0,
+    commercial_viability_score: analysis.commercial_viability_score || 0,
+    patentability_assessment: analysis.patentability_assessment || '',
+    novelty_strengths: analysis.novelty_strengths || [],
+    novelty_weaknesses: analysis.novelty_weaknesses || [],
+    recommendations: analysis.recommendations || [],
+    key_features: keyFeatures,
+    extracted_features: extractedFeatures
   };
+}
+
+function calculateIndividualFeatureScore(noveltyStrength: string): number {
+  const scoreMap: Record<string, number> = {
+    'strong': 85,
+    'moderate': 65,
+    'weak': 40
+  };
+  return scoreMap[noveltyStrength] || 50;
 }

@@ -20,7 +20,7 @@ export interface FeatureAnalysisResult {
   technicalSummary: string;
 }
 
-const CORE_FEATURES = [
+const VIDEO_PRODUCTION_FEATURES = [
   {
     name: 'Hierarchical Asset Decay System',
     type: 'algorithm' as const,
@@ -131,28 +131,152 @@ const CORE_FEATURES = [
   }
 ];
 
+const PATENT_MANAGEMENT_FEATURES = [
+  {
+    name: 'AI-Powered Patent Specification Generation System',
+    type: 'algorithm' as const,
+    description: 'Automated patent specification generation using AI language models with structured section templating and technical detail extraction',
+    technicalDetails: 'Orchestrates multi-stage patent document generation: (1) Feature extraction from codebase, (2) Prior art analysis integration, (3) Differentiation report synthesis, (4) Section-by-section specification writing (background, summary, detailed description, claims, abstract). Uses prompt templates with variable substitution and AI content generation. Supports multiple output formats and revision tracking.',
+    sourceFile: 'src/services/patentSpecificationGenerationService.ts',
+    noveltyStrength: 'strong' as const,
+    isCoreInnovation: true
+  },
+  {
+    name: 'Real-Time Prior Art Search and Analysis Engine',
+    type: 'integration' as const,
+    description: 'Integrated patent database search system connecting to USPTO, Google Patents, and EPO databases with relevance scoring and similarity analysis',
+    technicalDetails: 'Performs multi-database patent searches using title, description, and keyword queries. Extracts patent metadata (number, title, abstract, CPC classifications, filing dates). Calculates relevance scores (0-100) and technical similarity scores. Identifies potential blocking patents and relationship types (similar, improvement, different_approach). Caches results to avoid duplicate searches.',
+    sourceFile: 'src/services/patentPriorArtSearchService.ts',
+    noveltyStrength: 'strong' as const,
+    isCoreInnovation: true
+  },
+  {
+    name: 'Feature-Based Novelty Scoring Algorithm',
+    type: 'algorithm' as const,
+    description: 'Multi-factor novelty assessment system comparing extracted features against prior art to generate patentability scores',
+    technicalDetails: 'Analyzes each extracted feature against prior art corpus: (1) Calculates feature uniqueness scores, (2) Weights core innovations higher than supporting features, (3) Assesses technical depth, implementation uniqueness, and commercial viability, (4) Generates overall novelty score (0-100) and approval probability percentage. Provides detailed breakdown of strengths, weaknesses, and recommendations.',
+    sourceFile: 'src/services/patentNoveltyAnalysisService.ts',
+    noveltyStrength: 'strong' as const,
+    isCoreInnovation: true
+  },
+  {
+    name: 'Codebase Feature Extraction with Technical Mapping',
+    type: 'algorithm' as const,
+    description: 'Automated extraction of patentable features from source code with classification by type (algorithm, data structure, integration, UI pattern, optimization)',
+    technicalDetails: 'Scans service files and components to identify: algorithms (cost calculation, progress tracking, script parsing), data structures (prompt versioning, character profiles, multi-tenant isolation), integrations (multi-provider APIs, lip sync orchestration), UI patterns (selective regeneration, workflow management), and optimizations (batch processing, token accounting). Maps features to source files and generates technical descriptions.',
+    sourceFile: 'src/services/patentFeatureExtractionService.ts',
+    noveltyStrength: 'strong' as const,
+    isCoreInnovation: true
+  },
+  {
+    name: 'Intelligent Patent Claims Generation',
+    type: 'algorithm' as const,
+    description: 'AI-assisted patent claims drafting system generating independent and dependent claims with proper legal structure and differentiation from prior art',
+    technicalDetails: 'Uses AI to generate patent claims following USPTO format: (1) Identifies core inventive concepts from features, (2) Drafts independent claims covering broadest scope, (3) Generates dependent claims adding specific limitations, (4) Ensures differentiation from identified prior art, (5) Validates claim structure and dependency relationships. Supports multiple claim sets and iterative refinement.',
+    sourceFile: 'src/services/patentClaimsService.ts',
+    noveltyStrength: 'strong' as const,
+    isCoreInnovation: true
+  },
+  {
+    name: 'Automated Patent Drawing Generation',
+    type: 'integration' as const,
+    description: 'Programmatic technical drawing generation system creating USPTO-compliant patent figures with numbered callouts and descriptions',
+    technicalDetails: 'Generates SVG-based patent drawings: block diagrams, flowcharts, system architecture diagrams, data flow diagrams. Each figure includes: numbered reference callouts (100, 102, 104, etc.), clear component labels, directional arrows, legend and conventions. Supports multiple figure types with customizable layouts. Exports to formats suitable for patent filing.',
+    sourceFile: 'src/services/patentDrawingsService.ts',
+    noveltyStrength: 'moderate' as const,
+    isCoreInnovation: true
+  },
+  {
+    name: 'Patent Workflow Orchestration System',
+    type: 'integration' as const,
+    description: 'End-to-end patent application workflow management coordinating feature extraction, prior art search, novelty analysis, specification generation, and drawing creation',
+    technicalDetails: 'Coordinates complex patent generation workflow: (1) Triggers feature extraction, (2) Launches parallel prior art searches, (3) Performs novelty analysis with scoring, (4) Generates differentiation reports, (5) Creates specification sections, (6) Produces patent drawings, (7) Compiles final application package. Tracks progress across all stages and handles error recovery.',
+    sourceFile: 'src/services/patentWorkflowOrchestrator.ts',
+    noveltyStrength: 'moderate' as const,
+    isCoreInnovation: true
+  },
+  {
+    name: 'Patent Strength Assessment Matrix',
+    type: 'algorithm' as const,
+    description: 'Multi-dimensional patent strength evaluation calculating approval probability based on novelty, technical depth, implementation uniqueness, and commercial viability',
+    technicalDetails: 'Computes patent strength metrics: (1) Overall novelty score weighted by feature importance, (2) Technical depth score assessing implementation complexity, (3) Implementation uniqueness measuring differentiation from prior art, (4) Commercial viability evaluating market potential. Combines scores to generate approval probability percentage and strength rating (Very Strong, Strong, Moderate, Weak).',
+    sourceFile: 'src/services/patentNoveltyAnalysisService.ts',
+    noveltyStrength: 'strong' as const,
+    isCoreInnovation: true
+  },
+  {
+    name: 'Multi-Organization IP Portfolio Management',
+    type: 'data_structure' as const,
+    description: 'Organization-isolated patent application management system with complete data separation using Row Level Security',
+    technicalDetails: 'Implements secure multi-tenant IP portfolio management: Each organization has isolated patent applications, analyses, prior art results, and drawings. RLS policies enforce organization_id filtering on all patent-related tables. Supports role-based access within organizations. Tracks application status (draft, under_review, filed, granted, rejected) with audit trails.',
+    sourceFile: 'Database RLS Policies + src/components/PatentApplication.tsx',
+    noveltyStrength: 'moderate' as const,
+    isCoreInnovation: false
+  },
+  {
+    name: 'Prior Art Differentiation Report Generator',
+    type: 'algorithm' as const,
+    description: 'Automated generation of differentiation reports comparing invention features against each identified prior art patent with AI-powered analysis',
+    technicalDetails: 'For each prior art patent found: (1) Extracts key claims and technical features, (2) Compares against invention features, (3) Identifies unique aspects and improvements, (4) Generates differentiation narrative explaining how invention differs, (5) Assesses blocking potential, (6) Suggests claim strategies to avoid infringement. Uses AI language models for analysis quality.',
+    sourceFile: 'src/services/patentDifferentiationService.ts',
+    noveltyStrength: 'strong' as const,
+    isCoreInnovation: true
+  },
+  {
+    name: 'Patent Application Status Tracking Workflow',
+    type: 'ui_pattern' as const,
+    description: 'Comprehensive patent application lifecycle management with status transitions, review workflows, and approval tracking',
+    technicalDetails: 'Manages patent application through stages: draft creation, AI generation, under review, filed, granted/rejected. Tracks timestamps for each stage transition. Supports approval workflows with review comments and revision history. Provides dashboard views of application portfolio with filtering by status, organization, and date ranges.',
+    sourceFile: 'src/components/PatentApplication.tsx',
+    noveltyStrength: 'weak' as const,
+    isCoreInnovation: false
+  }
+];
+
 export async function extractCodebaseFeatures(
-  organizationId: string
+  organizationId: string,
+  analysisTarget: 'video_production' | 'patent_management' | 'both' = 'both'
 ): Promise<FeatureAnalysisResult> {
-  const serviceFiles = [
-    'costCalculationService.ts',
-    'promptLibraryService.ts',
-    'consistencyManagementService.ts',
-    'episodeProgressService.ts',
-    'dialogueExtractionService.ts',
-    'lipSyncService.ts',
-    'translationExportService.ts',
-    'batchRecommendationService.ts',
-    'geminiUsageTrackingService.ts'
-  ];
+  let features: ExtractedFeature[] = [];
+  let serviceFiles: string[] = [];
 
-  const features: ExtractedFeature[] = CORE_FEATURES;
+  if (analysisTarget === 'video_production' || analysisTarget === 'both') {
+    features = [...features, ...VIDEO_PRODUCTION_FEATURES];
+    serviceFiles = [
+      ...serviceFiles,
+      'costCalculationService.ts',
+      'promptLibraryService.ts',
+      'consistencyManagementService.ts',
+      'episodeProgressService.ts',
+      'dialogueExtractionService.ts',
+      'lipSyncService.ts',
+      'translationExportService.ts',
+      'batchRecommendationService.ts',
+      'geminiUsageTrackingService.ts'
+    ];
+  }
 
-  const algorithms = CORE_FEATURES.filter(f => f.type === 'algorithm');
-  const dataStructures = CORE_FEATURES.filter(f => f.type === 'data_structure');
-  const integrations = CORE_FEATURES.filter(f => f.type === 'integration');
+  if (analysisTarget === 'patent_management' || analysisTarget === 'both') {
+    features = [...features, ...PATENT_MANAGEMENT_FEATURES];
+    serviceFiles = [
+      ...serviceFiles,
+      'patentApplicationService.ts',
+      'patentPriorArtSearchService.ts',
+      'patentNoveltyAnalysisService.ts',
+      'patentFeatureExtractionService.ts',
+      'patentClaimsService.ts',
+      'patentDrawingsService.ts',
+      'patentWorkflowOrchestrator.ts',
+      'patentDifferentiationService.ts',
+      'patentSpecificationGenerationService.ts'
+    ];
+  }
 
-  const technicalSummary = generateTechnicalSummary(features);
+  const algorithms = features.filter(f => f.type === 'algorithm');
+  const dataStructures = features.filter(f => f.type === 'data_structure');
+  const integrations = features.filter(f => f.type === 'integration');
+
+  const technicalSummary = generateTechnicalSummary(features, analysisTarget);
 
   return {
     features,
@@ -164,19 +288,31 @@ export async function extractCodebaseFeatures(
   };
 }
 
-function generateTechnicalSummary(features: ExtractedFeature[]): string {
+function generateTechnicalSummary(
+  features: ExtractedFeature[],
+  analysisTarget: 'video_production' | 'patent_management' | 'both' = 'both'
+): string {
   const strongFeatures = features.filter(f => f.noveltyStrength === 'strong');
   const coreFeatures = features.filter(f => f.isCoreInnovation);
 
-  return `The codebase contains ${features.length} distinct technical features, of which ${strongFeatures.length} demonstrate strong novelty and ${coreFeatures.length} are core innovations. Key innovations include: hierarchical cost modeling with asset decay, multi-version prompt management with atomic deployment, character consistency tracking with reference-based generation, and script-to-shot extraction with automated dialogue mapping. The system implements a comprehensive AI-assisted animation production pipeline with granular cost tracking, progress monitoring, and multi-provider integration capabilities.`;
+  if (analysisTarget === 'video_production') {
+    return `The AI video production system contains ${features.length} distinct technical features, of which ${strongFeatures.length} demonstrate strong novelty and ${coreFeatures.length} are core innovations. Key innovations include: hierarchical cost modeling with asset decay, multi-version prompt management with atomic deployment, character consistency tracking with reference-based generation, script-to-shot extraction with automated dialogue mapping, multi-provider lip sync orchestration, and episode progress tracking with real-time aggregation. The system implements a comprehensive AI-assisted animation production pipeline with granular cost tracking, progress monitoring, and multi-provider integration capabilities.`;
+  }
+
+  if (analysisTarget === 'patent_management') {
+    return `The patent management system contains ${features.length} distinct technical features, of which ${strongFeatures.length} demonstrate strong novelty and ${coreFeatures.length} are core innovations. Key innovations include: AI-powered patent specification generation, real-time prior art search and analysis engine, feature-based novelty scoring algorithm, codebase feature extraction with technical mapping, intelligent patent claims generation, automated patent drawing generation, patent workflow orchestration, and patent strength assessment matrix. The system implements a comprehensive IP protection platform with automated patent application generation, prior art analysis, and multi-organization portfolio management.`;
+  }
+
+  return `The integrated system contains ${features.length} distinct technical features across video production and patent management domains, of which ${strongFeatures.length} demonstrate strong novelty and ${coreFeatures.length} are core innovations. The platform combines AI-assisted animation production capabilities (including hierarchical cost modeling, character consistency tracking, script-to-shot extraction, and multi-provider integrations) with advanced patent management features (including AI-powered specification generation, prior art search and analysis, novelty scoring, claims generation, and automated drawing creation). This dual-purpose system enables both efficient video content production and comprehensive intellectual property protection for the innovations it contains.`;
 }
 
 export async function createFeatureAnalysis(
   organizationId: string,
   patentApplicationId: string | null,
-  userId: string
+  userId: string,
+  analysisTarget: 'video_production' | 'patent_management' | 'both' = 'both'
 ): Promise<string> {
-  const analysisResult = await extractCodebaseFeatures(organizationId);
+  const analysisResult = await extractCodebaseFeatures(organizationId, analysisTarget);
 
   const { data, error } = await supabase
     .from('patent_novelty_analyses')

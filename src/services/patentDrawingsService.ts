@@ -32,33 +32,58 @@ interface DiagramDefinition {
 const FIGURE_DEFINITIONS: DiagramDefinition[] = [
   {
     figureNumber: 1,
-    title: 'High-Level System Architecture',
-    description: 'FIG. 1 is a block diagram illustrating the high-level system architecture of the automated animation production system according to an embodiment of the present invention.',
+    title: 'Integrated System Architecture',
+    description: 'FIG. 1 is a block diagram illustrating the high-level system architecture of the integrated AI video production and patent management system according to an embodiment of the present invention.',
     drawingType: 'block_diagram',
-    width: 800,
-    height: 600,
+    width: 900,
+    height: 680,
     blocks: [
-      { id: 'client', label: 'Client Application\n(Web Browser)', x: 325, y: 20, width: 150, height: 60, calloutNumber: 100 },
-      { id: 'frontend', label: 'Frontend\n(React UI)', x: 325, y: 120, width: 150, height: 60, calloutNumber: 102 },
-      { id: 'orchestrator', label: 'Production\nOrchestrator', x: 325, y: 240, width: 150, height: 70, calloutNumber: 104 },
-      { id: 'database', label: 'Database\n(Supabase)', x: 50, y: 240, width: 140, height: 60, calloutNumber: 106 },
-      { id: 'prompt', label: 'Prompt\nResolution\nEngine', x: 610, y: 220, width: 130, height: 70, calloutNumber: 108 },
-      { id: 'image', label: 'Image\nGeneration\nService', x: 50, y: 400, width: 130, height: 70, calloutNumber: 110 },
-      { id: 'voice', label: 'Voice\nSynthesis\nService', x: 220, y: 400, width: 130, height: 70, calloutNumber: 112 },
-      { id: 'lipsync', label: 'Lip Sync\nService', x: 390, y: 400, width: 130, height: 70, calloutNumber: 114 },
-      { id: 'video', label: 'Video\nGeneration\nService', x: 560, y: 400, width: 130, height: 70, calloutNumber: 116 },
-      { id: 'cost', label: 'Cost\nCalculation\nEngine', x: 610, y: 320, width: 130, height: 60, calloutNumber: 118 }
+      { id: 'client', label: 'Client\nApplication', x: 375, y: 20, width: 150, height: 50, calloutNumber: 100 },
+      { id: 'frontend', label: 'User Interface\nLayer', x: 375, y: 100, width: 150, height: 50, calloutNumber: 102 },
+      { id: 'auth', label: 'Authentication\n& RLS', x: 50, y: 180, width: 140, height: 60, calloutNumber: 104 },
+      { id: 'database', label: 'Multi-Tenant\nDatabase', x: 50, y: 270, width: 140, height: 70, calloutNumber: 106 },
+      { id: 'video_orch', label: 'Video Production\nOrchestrator', x: 230, y: 180, width: 140, height: 60, calloutNumber: 108 },
+      { id: 'patent_orch', label: 'Patent\nWorkflow\nOrchestrator', x: 520, y: 180, width: 140, height: 60, calloutNumber: 110 },
+      { id: 'prompt', label: 'Prompt\nLibrary\nSystem', x: 700, y: 180, width: 150, height: 60, calloutNumber: 112 },
+      { id: 'image', label: 'Image\nGeneration', x: 50, y: 400, width: 120, height: 60, calloutNumber: 114 },
+      { id: 'voice', label: 'Voice\nSynthesis', x: 190, y: 400, width: 120, height: 60, calloutNumber: 116 },
+      { id: 'lipsync', label: 'Lip Sync\nEngine', x: 330, y: 400, width: 120, height: 60, calloutNumber: 118 },
+      { id: 'video', label: 'Video\nGeneration', x: 50, y: 490, width: 120, height: 60, calloutNumber: 120 },
+      { id: 'feature', label: 'Feature\nExtraction', x: 480, y: 400, width: 130, height: 60, calloutNumber: 122 },
+      { id: 'prior_art', label: 'Prior Art\nSearch', x: 630, y: 400, width: 110, height: 60, calloutNumber: 124 },
+      { id: 'novelty', label: 'Novelty\nAnalysis', x: 760, y: 400, width: 110, height: 60, calloutNumber: 126 },
+      { id: 'spec_gen', label: 'Specification\nGenerator', x: 480, y: 490, width: 130, height: 60, calloutNumber: 128 },
+      { id: 'drawings', label: 'Drawing\nGenerator', x: 630, y: 490, width: 110, height: 60, calloutNumber: 130 },
+      { id: 'claims', label: 'Claims\nEngine', x: 760, y: 490, width: 110, height: 60, calloutNumber: 132 },
+      { id: 'cost', label: 'Cost\nCalculation\nEngine', x: 375, y: 580, width: 150, height: 70, calloutNumber: 134 },
+      { id: 'ai', label: 'AI Model\nServices\n(Gemini, GPT)', x: 375, y: 280, width: 150, height: 70, calloutNumber: 136 }
     ],
     arrows: [
       { from: 'client', to: 'frontend' },
-      { from: 'frontend', to: 'orchestrator', bidirectional: true },
-      { from: 'orchestrator', to: 'database', bidirectional: true },
-      { from: 'orchestrator', to: 'prompt', bidirectional: true },
-      { from: 'orchestrator', to: 'image' },
-      { from: 'orchestrator', to: 'voice' },
-      { from: 'orchestrator', to: 'lipsync' },
-      { from: 'orchestrator', to: 'video' },
-      { from: 'prompt', to: 'cost' }
+      { from: 'frontend', to: 'video_orch' },
+      { from: 'frontend', to: 'patent_orch' },
+      { from: 'auth', to: 'frontend' },
+      { from: 'auth', to: 'database' },
+      { from: 'video_orch', to: 'database', bidirectional: true },
+      { from: 'patent_orch', to: 'database', bidirectional: true },
+      { from: 'video_orch', to: 'ai' },
+      { from: 'patent_orch', to: 'ai' },
+      { from: 'video_orch', to: 'prompt' },
+      { from: 'patent_orch', to: 'prompt' },
+      { from: 'video_orch', to: 'image' },
+      { from: 'video_orch', to: 'voice' },
+      { from: 'video_orch', to: 'lipsync' },
+      { from: 'lipsync', to: 'video' },
+      { from: 'patent_orch', to: 'feature' },
+      { from: 'patent_orch', to: 'prior_art' },
+      { from: 'patent_orch', to: 'novelty' },
+      { from: 'feature', to: 'spec_gen' },
+      { from: 'prior_art', to: 'novelty' },
+      { from: 'novelty', to: 'spec_gen' },
+      { from: 'novelty', to: 'claims' },
+      { from: 'spec_gen', to: 'drawings' },
+      { from: 'video_orch', to: 'cost' },
+      { from: 'patent_orch', to: 'cost' }
     ]
   },
   {
@@ -245,21 +270,24 @@ const FIGURE_DEFINITIONS: DiagramDefinition[] = [
   },
   {
     figureNumber: 8,
-    title: 'User Interface Wireframe',
-    description: 'FIG. 8 is a simplified wireframe illustration of the production dashboard user interface according to an embodiment of the present invention.',
+    title: 'Integrated Dashboard Interface',
+    description: 'FIG. 8 is a simplified wireframe illustration of the integrated production and IP protection dashboard user interface according to an embodiment of the present invention.',
     drawingType: 'wireframe',
-    width: 800,
-    height: 550,
+    width: 900,
+    height: 600,
     blocks: [
-      { id: 'header', label: 'Navigation Header', x: 50, y: 20, width: 700, height: 40, calloutNumber: 800 },
-      { id: 'sidebar', label: 'Side\nNavigation\nMenu', x: 50, y: 80, width: 120, height: 400, calloutNumber: 802 },
-      { id: 'series', label: 'Series\nSelector', x: 190, y: 80, width: 200, height: 50, calloutNumber: 804 },
-      { id: 'stats', label: 'Production Statistics Dashboard', x: 410, y: 80, width: 340, height: 50, calloutNumber: 806 },
-      { id: 'episodes', label: 'Episode\nList\nPanel', x: 190, y: 150, width: 200, height: 180, calloutNumber: 808 },
-      { id: 'preview', label: 'Storyboard\nPreview\nArea', x: 410, y: 150, width: 340, height: 180, calloutNumber: 810 },
-      { id: 'actions', label: 'Action Buttons', x: 190, y: 350, width: 200, height: 50, calloutNumber: 812 },
-      { id: 'progress', label: 'Progress Tracker', x: 410, y: 350, width: 340, height: 50, calloutNumber: 814 },
-      { id: 'cost', label: 'Cost Summary Panel', x: 190, y: 420, width: 560, height: 60, calloutNumber: 816 }
+      { id: 'header', label: 'Global Navigation Bar with Organization Selector', x: 50, y: 20, width: 800, height: 35, calloutNumber: 800 },
+      { id: 'sidebar', label: 'Main\nNavigation\nMenu', x: 50, y: 75, width: 120, height: 475, calloutNumber: 802 },
+      { id: 'production_tab', label: 'Production\nMode', x: 190, y: 75, width: 150, height: 35, calloutNumber: 804 },
+      { id: 'ip_tab', label: 'IP Protection\nMode', x: 360, y: 75, width: 150, height: 35, calloutNumber: 806 },
+      { id: 'series', label: 'Series/\nProject\nSelector', x: 190, y: 125, width: 200, height: 50, calloutNumber: 808 },
+      { id: 'stats', label: 'Analytics Dashboard\n(Production Stats / Patent Status)', x: 410, y: 125, width: 440, height: 50, calloutNumber: 810 },
+      { id: 'list_panel', label: 'Content List\n(Episodes /\nPatent Apps)', x: 190, y: 195, width: 200, height: 190, calloutNumber: 812 },
+      { id: 'preview', label: 'Preview Area\n(Storyboard / Patent Spec)', x: 410, y: 195, width: 220, height: 190, calloutNumber: 814 },
+      { id: 'details', label: 'Details Panel\n(Metadata /\nAnalysis)', x: 650, y: 195, width: 200, height: 190, calloutNumber: 816 },
+      { id: 'actions', label: 'Action Button Bar', x: 190, y: 405, width: 660, height: 45, calloutNumber: 818 },
+      { id: 'workflow', label: 'Workflow Progress Tracker', x: 190, y: 470, width: 320, height: 80, calloutNumber: 820 },
+      { id: 'cost', label: 'Cost/Budget Summary', x: 530, y: 470, width: 320, height: 80, calloutNumber: 822 }
     ],
     arrows: []
   }
@@ -399,22 +427,51 @@ export function generateDrawing(figureNumber: number): { svg: string; definition
 
 export async function generateDrawingsForApplication(applicationId: string): Promise<PatentDrawing[]> {
   const drawings: PatentDrawing[] = [];
+  const errors: Array<{ figureNumber: number; error: string }> = [];
+
+  console.log(`Starting drawing generation for application ${applicationId}`);
 
   for (const def of FIGURE_DEFINITIONS) {
-    const svg = generateSVG(def);
-    const callouts = extractCallouts(def);
+    try {
+      console.log(`Generating Figure ${def.figureNumber}: ${def.title}`);
 
-    const drawing = await createPatentDrawing(applicationId, {
-      figure_number: def.figureNumber,
-      title: def.title,
-      description: def.description,
-      svg_content: svg,
-      image_url: null,
-      drawing_type: def.drawingType,
-      callouts
-    });
+      const svg = generateSVG(def);
+      if (!svg || svg.length === 0) {
+        throw new Error(`SVG generation failed: empty SVG output`);
+      }
 
-    drawings.push(drawing);
+      const callouts = extractCallouts(def);
+
+      const drawing = await createPatentDrawing(applicationId, {
+        figure_number: def.figureNumber,
+        title: def.title,
+        description: def.description,
+        svg_content: svg,
+        image_url: null,
+        drawing_type: def.drawingType,
+        callouts
+      });
+
+      drawings.push(drawing);
+      console.log(`Successfully generated Figure ${def.figureNumber}`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error(`Failed to generate Figure ${def.figureNumber}:`, errorMessage);
+      errors.push({
+        figureNumber: def.figureNumber,
+        error: errorMessage
+      });
+    }
+  }
+
+  console.log(`Drawing generation complete: ${drawings.length} successful, ${errors.length} failed`);
+
+  if (drawings.length === 0) {
+    throw new Error(`All drawing generation attempts failed. Errors: ${JSON.stringify(errors)}`);
+  }
+
+  if (errors.length > 0) {
+    console.warn(`Some drawings failed to generate:`, errors);
   }
 
   return drawings;
