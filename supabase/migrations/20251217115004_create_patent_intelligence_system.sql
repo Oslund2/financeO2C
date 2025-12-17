@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS patent_novelty_analyses (
   patentability_assessment text,
   novelty_strengths jsonb DEFAULT '[]'::jsonb,
   novelty_weaknesses jsonb DEFAULT '[]'::jsonb,
+  recommendations jsonb DEFAULT '[]'::jsonb,
 
   -- Technical Metrics
   technical_depth_score numeric(5,2) DEFAULT 0,
@@ -225,6 +226,42 @@ BEGIN
     WHERE table_name = 'patent_applications' AND column_name = 'approval_confidence'
   ) THEN
     ALTER TABLE patent_applications ADD COLUMN approval_confidence numeric(5,2) DEFAULT 0;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'patent_applications' AND column_name = 'novelty_score'
+  ) THEN
+    ALTER TABLE patent_applications ADD COLUMN novelty_score numeric(5,2) DEFAULT 0;
+  END IF;
+
+  -- Detailed Specification Sections
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'patent_applications' AND column_name = 'field_of_invention'
+  ) THEN
+    ALTER TABLE patent_applications ADD COLUMN field_of_invention text;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'patent_applications' AND column_name = 'background_art'
+  ) THEN
+    ALTER TABLE patent_applications ADD COLUMN background_art text;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'patent_applications' AND column_name = 'summary_invention'
+  ) THEN
+    ALTER TABLE patent_applications ADD COLUMN summary_invention text;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'patent_applications' AND column_name = 'detailed_description'
+  ) THEN
+    ALTER TABLE patent_applications ADD COLUMN detailed_description text;
   END IF;
 
   -- Search Status

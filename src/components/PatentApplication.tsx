@@ -76,7 +76,7 @@ import {
   getPriorArtResults
 } from '../services/patentPriorArtSearchService';
 import {
-  analyzeNovelty,
+  performNoveltyAnalysis,
   getNoveltyAnalysis
 } from '../services/patentNoveltyAnalysisService';
 import jsPDF from 'jspdf';
@@ -1365,10 +1365,12 @@ function AbstractTab({
 }
 
 function PriorArtTab({ application }: { application: PatentApplicationWithDetails }) {
+  const { currentOrganization } = useOrganization();
   const [priorArtResults, setPriorArtResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [expandedResult, setExpandedResult] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadPriorArtResults();
@@ -1376,23 +1378,40 @@ function PriorArtTab({ application }: { application: PatentApplicationWithDetail
 
   const loadPriorArtResults = async () => {
     setLoading(true);
+    setError(null);
     try {
       const results = await getPriorArtResults(application.id);
       setPriorArtResults(results);
     } catch (err) {
       console.error('Failed to load prior art results:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load prior art results');
     } finally {
       setLoading(false);
     }
   };
 
   const handleSearchPriorArt = async () => {
+    if (!currentOrganization) {
+      setError('No organization selected');
+      return;
+    }
+
     setSearching(true);
+    setError(null);
     try {
-      await searchPriorArt(application.id);
+      await searchPriorArt(
+        currentOrganization.id,
+        application.id,
+        {
+          title: application.title,
+          description: application.summary_invention || application.abstract || 'AI-powered animation production and patent management system',
+          maxResults: 10
+        }
+      );
       await loadPriorArtResults();
     } catch (err) {
       console.error('Failed to search prior art:', err);
+      setError(err instanceof Error ? err.message : 'Failed to search prior art');
     } finally {
       setSearching(false);
     }
@@ -1500,6 +1519,21 @@ function PriorArtTab({ application }: { application: PatentApplicationWithDetail
           </div>
         </div>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-medium text-red-800">Search Failed</p>
+              <p className="text-sm text-red-700 mt-1">{error}</p>
+            </div>
+            <button onClick={() => setError(null)} className="text-red-600 hover:text-red-800">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-12">

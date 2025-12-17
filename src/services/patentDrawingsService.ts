@@ -427,7 +427,7 @@ export function generateDrawing(figureNumber: number): { svg: string; definition
 
 export async function generateDrawingsForApplication(applicationId: string): Promise<PatentDrawing[]> {
   const drawings: PatentDrawing[] = [];
-  const errors: Array<{ figureNumber: number; error: string }> = [];
+  const errors: Array<{ figureNumber: number; error: string; details?: any }> = [];
 
   console.log(`Starting drawing generation for application ${applicationId}`);
 
@@ -456,10 +456,17 @@ export async function generateDrawingsForApplication(applicationId: string): Pro
       console.log(`Successfully generated Figure ${def.figureNumber}`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      console.error(`Failed to generate Figure ${def.figureNumber}:`, errorMessage);
+      const errorDetails = error instanceof Error ? {
+        name: error.name,
+        stack: error.stack,
+        cause: (error as any).cause
+      } : error;
+
+      console.error(`Failed to generate Figure ${def.figureNumber}:`, errorMessage, errorDetails);
       errors.push({
         figureNumber: def.figureNumber,
-        error: errorMessage
+        error: errorMessage,
+        details: errorDetails
       });
     }
   }
@@ -467,7 +474,8 @@ export async function generateDrawingsForApplication(applicationId: string): Pro
   console.log(`Drawing generation complete: ${drawings.length} successful, ${errors.length} failed`);
 
   if (drawings.length === 0) {
-    throw new Error(`All drawing generation attempts failed. Errors: ${JSON.stringify(errors)}`);
+    const detailedErrors = errors.map(e => `Fig ${e.figureNumber}: ${e.error}`).join('; ');
+    throw new Error(`All drawing generation attempts failed. Errors: ${detailedErrors}`);
   }
 
   if (errors.length > 0) {
