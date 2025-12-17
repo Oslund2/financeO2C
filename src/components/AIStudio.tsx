@@ -137,7 +137,7 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
       setFormData(prev => ({
         ...prev,
         vocabularyWords: word.winning_word,
-        title: prev.title || `The ${word.winning_word.charAt(0).toUpperCase() + word.winning_word.slice(1)} Challenge`
+        title: `The ${word.winning_word.charAt(0).toUpperCase() + word.winning_word.slice(1)} Challenge`
       }));
     } else {
       setFormData(prev => ({
