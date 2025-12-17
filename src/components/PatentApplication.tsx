@@ -31,7 +31,8 @@ import {
   Target,
   Award,
   BarChart3,
-  Lightbulb
+  Lightbulb,
+  FileImage
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
@@ -63,7 +64,6 @@ import {
 } from '../services/patentClaimsService';
 import {
   generateDrawingsForApplication,
-  generateAllDrawings,
   svgToDataUrl,
   formatDrawingsDescriptionSection
 } from '../services/patentDrawingsService';
@@ -1191,7 +1191,6 @@ function DrawingsTab({
   const [selectedDrawing, setSelectedDrawing] = useState<PatentDrawing | null>(null);
 
   const sortedDrawings = [...drawings].sort((a, b) => a.figure_number - b.figure_number);
-  const previewDrawings = drawings.length === 0 ? generateAllDrawings() : [];
 
   return (
     <div className="space-y-4">
@@ -1217,44 +1216,12 @@ function DrawingsTab({
       </div>
 
       {drawings.length === 0 ? (
-        <div className="space-y-4">
-          <div className="text-center py-6 bg-yellow-50 rounded-lg border border-yellow-200">
-            <AlertTriangle className="w-8 h-8 mx-auto mb-2 text-yellow-600" />
-            <p className="text-yellow-800">Drawings not saved yet. Preview shown below.</p>
-            <button
-              onClick={onGenerate}
-              className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700"
-            >
-              Save Drawings to Application
-            </button>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {previewDrawings.map(({ svg, definition }) => (
-              <div
-                key={definition.figureNumber}
-                className="border border-gray-200 rounded-lg p-3 hover:border-blue-400 cursor-pointer transition-colors"
-                onClick={() => setSelectedDrawing({
-                  id: `preview-${definition.figureNumber}`,
-                  application_id: '',
-                  figure_number: definition.figureNumber,
-                  title: definition.title,
-                  description: definition.description,
-                  svg_content: svg,
-                  image_url: null,
-                  drawing_type: definition.drawingType,
-                  callouts: [],
-                  created_at: '',
-                  updated_at: ''
-                })}
-              >
-                <div className="aspect-[4/3] bg-white rounded overflow-hidden mb-2">
-                  <img src={svgToDataUrl(svg)} alt={`FIG. ${definition.figureNumber}`} className="w-full h-full object-contain" />
-                </div>
-                <p className="text-sm font-medium text-gray-900">FIG. {definition.figureNumber}</p>
-                <p className="text-xs text-gray-600 truncate">{definition.title}</p>
-              </div>
-            ))}
-          </div>
+        <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+          <FileImage className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+          <p className="text-lg font-medium text-gray-900 mb-2">No Patent Drawings Yet</p>
+          <p className="text-sm text-gray-600 mb-4">
+            Click "Generate Drawings" to automatically create technical diagrams for your patent application
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

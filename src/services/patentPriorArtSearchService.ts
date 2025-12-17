@@ -302,7 +302,17 @@ export async function getPriorArtResults(
     .order('relevance_score', { ascending: false });
 
   if (error) throw error;
-  return data || [];
+
+  // Map database columns to UI-expected field names and normalize scores
+  return (data || []).map(result => ({
+    ...result,
+    title: result.patent_title,
+    abstract: result.patent_abstract,
+    assignee: result.patent_assignee,
+    // Normalize scores from 0-100 range to 0-1 range
+    relevance_score: result.relevance_score / 100,
+    similarity_score: result.technical_similarity_score / 100
+  }));
 }
 
 export async function addManualPriorArt(

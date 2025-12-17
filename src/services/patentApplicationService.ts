@@ -286,110 +286,31 @@ export async function deleteAllDrawingsForApplication(applicationId: string): Pr
 export function generateDefaultSpecification(): string {
   return `FIELD OF THE INVENTION
 
-The present invention relates generally to computer-implemented methods and systems for automated animation production, and more particularly to an integrated artificial intelligence pipeline for generating animated content from scripts with minimal human intervention.
+[To be completed. Describe the technical field and general area of the invention.]
 
 BACKGROUND OF THE INVENTION
 
-Traditional animation production requires extensive manual effort across multiple disciplines including character design, storyboard creation, voice recording, lip synchronization, and final video rendering. This process typically involves large teams of specialized artists and technicians working over extended periods, resulting in high costs and long production timelines.
-
-Recent advances in artificial intelligence have enabled automation of individual tasks within the animation pipeline. However, existing solutions typically address isolated components without providing an integrated end-to-end workflow. Furthermore, maintaining visual consistency across generated content remains a significant challenge.
-
-There exists a need for a comprehensive system that integrates multiple AI services into a cohesive animation production pipeline while maintaining character consistency, optimizing costs, and enabling rapid iteration.
+[To be completed. Describe existing solutions, their limitations, and the problems they fail to solve.]
 
 SUMMARY OF THE INVENTION
 
-The present invention provides a computer-implemented system and method for automated animation production comprising an integrated AI pipeline that orchestrates multiple specialized services to transform scripts into completed animated episodes.
-
-In one aspect, the invention provides a method for automated animation production comprising: receiving a script input defining dialogue, scene descriptions, and stage directions; parsing the script into structured data including acts, scenes, and individual shots; generating visual storyboards using AI image generation with character consistency enforcement; synthesizing character voices using text-to-speech services with configurable voice profiles; generating lip-synchronized video sequences from still images and audio; and assembling the final animated episode with timing alignment.
-
-In another aspect, the invention provides a system comprising: a prompt resolution engine with multi-level caching for optimizing AI service calls; a character consistency manager maintaining visual coherence across generated assets; a cost calculation engine with asset decay modeling for production budgeting; a multi-provider abstraction layer supporting multiple AI service backends; and a workflow orchestration engine coordinating the production pipeline.
+[To be completed. Provide a concise overview of the invention and its key innovative aspects.]
 
 DETAILED DESCRIPTION OF THE INVENTION
 
-The following description sets forth specific embodiments of the invention. These embodiments are not intended to limit the scope of the invention but rather to provide examples of how the invention may be practiced.
-
-System Architecture Overview
-
-The system comprises a web-based application with a React frontend communicating with a Supabase backend database. The application orchestrates multiple external AI services through a unified abstraction layer.
-
-[Reference to FIG. 1 - High-Level System Architecture]
-
-The core components include:
-
-1. Script Processing Module - Parses uploaded scripts in various formats (PDF, DOCX, plain text) into structured data representing acts, scenes, dialogue, and stage directions. The module extracts character names, identifies vocabulary words for educational content, and estimates runtime based on dialogue density.
-
-2. Prompt Resolution Engine - Manages AI prompts through a versioned template system with organization-level customization. The engine implements multi-level caching with configurable TTL to minimize redundant API calls while ensuring prompt freshness.
-
-[Reference to FIG. 6 - Prompt Resolution System]
-
-3. Character Consistency Manager - Maintains reference images and detailed character profiles including physical descriptions, personality traits, and voice characteristics. The system enforces visual consistency across all generated assets by including reference data in generation prompts.
-
-[Reference to FIG. 3 - Character Consistency Pipeline]
-
-4. Storyboard Generation Module - Analyzes scenes to determine optimal shot composition including camera angles, shot types, and character positioning. The module generates image prompts incorporating style guides, character references, and scene-specific details.
-
-[Reference to FIG. 2 - Script-to-Storyboard Workflow]
-
-5. Voice Synthesis Integration - Supports multiple text-to-speech providers including ElevenLabs and Chatterbox. The system manages voice profiles, cloning capabilities, and emotion parameters to generate character-appropriate dialogue audio.
-
-[Reference to FIG. 4 - Voice Synthesis and Lip Sync Flow]
-
-6. Lip Synchronization Engine - Processes generated audio with still character images to produce lip-synchronized video sequences. The system supports multiple providers with automatic fallback capabilities.
-
-7. Video Generation Pipeline - Coordinates the assembly of storyboard images, audio tracks, and lip-sync videos into completed scene renders. The system manages render jobs, tracks progress, and handles retry logic for failed operations.
-
-[Reference to FIG. 5 - Video Generation and Assembly Workflow]
-
-8. Cost Calculation Engine - Implements comprehensive cost modeling including AI service costs, human editing costs with asset decay curves, and comparison against traditional animation methods.
-
-[Reference to FIG. 7 - Cost Calculation Flowchart]
-
-Prompt Resolution with Caching
-
-The prompt resolution system implements a hierarchical lookup strategy. When a prompt is requested, the system first checks the in-memory cache. If not found or expired, it queries the organization-specific prompt table. If no organization override exists, the system falls back to system default prompts.
-
-The caching layer implements a configurable TTL (default 5 minutes) and supports selective cache invalidation when prompts are updated. This architecture balances prompt freshness with API efficiency.
-
-Character Consistency Enforcement
-
-Visual consistency is maintained through a multi-pronged approach. Each character has associated reference images stored in the asset management system. When generating new images, the system constructs prompts that include:
-- Character physical descriptions from the consistency profile
-- Style guide specifications for the series
-- Reference image URLs for visual matching
-- Scene-specific positioning and emotional state
-
-Cost Modeling with Asset Decay
-
-The cost calculation engine implements an asset decay model that accounts for efficiency gains over time. As more episodes are produced, reusable assets (character models, backgrounds, props) reduce the marginal cost of new content.
-
-The decay function follows an exponential curve with a configurable floor:
-multiplier = max(floor, decay_rate^(episode_number - 1))
-
-This model reflects real-world observations that animation production becomes more efficient as asset libraries grow.
-
-Multi-Provider Abstraction
-
-The system implements provider abstraction layers for key services including:
-- Image generation (supporting multiple AI image services)
-- Voice synthesis (ElevenLabs, Chatterbox, extensible to others)
-- Lip synchronization (SyncLabs, Veed.io, extensible)
-- Video generation (Vertex AI Veo, extensible)
-
-This architecture enables flexibility in service selection based on quality, cost, and availability considerations.
-
-[Additional detailed descriptions would continue here for each subsystem]
+[To be completed. Provide comprehensive technical details, system architecture, embodiments, and operational descriptions. Reference patent drawings as appropriate.]
 
 CLAIMS
 
-[See claims section]
+[See Claims tab to generate and manage patent claims]
 
 ABSTRACT
 
-[See abstract section]`;
+[See Abstract tab to generate the patent abstract]`;
 }
 
 export function generateDefaultAbstract(): string {
-  return `A computer-implemented system and method for automated animation production using an integrated artificial intelligence pipeline. The system receives script inputs and automatically generates completed animated episodes through coordinated AI services including image generation, voice synthesis, and lip synchronization. Key innovations include a prompt resolution engine with multi-level caching, character consistency enforcement through reference image integration, cost modeling with asset decay curves, and multi-provider abstraction layers enabling flexible service selection. The system significantly reduces production time and cost compared to traditional animation methods while maintaining visual and audio quality suitable for broadcast distribution.`;
+  return `[Abstract to be generated. Should concisely describe the invention in 92-150 words, including the technical problem, solution, and key advantages.]`;
 }
 
 export function countWords(text: string): number {
