@@ -1,5 +1,6 @@
 import { createPatentClaim } from './patentApplicationService';
 import type { PatentClaim } from './patentApplicationService';
+import { generateText } from './geminiService';
 
 export interface ClaimTemplate {
   category: PatentClaim['category'];
@@ -301,4 +302,140 @@ export function countClaimsByType(claims: PatentClaim[]): { independent: number;
   const independent = claims.filter(c => c.claim_type === 'independent').length;
   const dependent = claims.filter(c => c.claim_type === 'dependent').length;
   return { independent, dependent, total: claims.length };
+}
+
+export async function generateAIEnhancedClaims(
+  applicationId: string,
+  features: any[],
+  noveltyAnalysis: any
+): Promise<PatentClaim[]> {
+  const claims: PatentClaim[] = [];
+
+  const independentClaims = await generateIndependentClaims(features, noveltyAnalysis);
+
+  for (let i = 0; i < independentClaims.length; i++) {
+    const claimText = independentClaims[i];
+    const claim = await createPatentClaim(applicationId, {
+      claim_number: i + 1,
+      claim_type: 'independent',
+      parent_claim_id: null,
+      claim_text: claimText,
+      status: 'draft',
+      category: i === 0 ? 'method' : 'system'
+    });
+    claims.push(claim);
+  }
+
+  const dependentClaims = await generateDependentClaims(features, claims);
+
+  for (let i = 0; i < dependentClaims.length; i++) {
+    const { claimText, parentClaimNumber } = dependentClaims[i];
+    const parentClaim = claims.find(c => c.claim_number === parentClaimNumber);
+
+    const claim = await createPatentClaim(applicationId, {
+      claim_number: claims.length + 1,
+      claim_type: 'dependent',
+      parent_claim_id: parentClaim?.id || null,
+      claim_text: claimText,
+      status: 'draft',
+      category: parentClaim?.category || 'method'
+    });
+    claims.push(claim);
+  }
+
+  return claims;
+}
+
+async function generateIndependentClaims(
+  features: any[],
+  noveltyAnalysis: any
+): Promise<string[]> {
+  const coreFeatures = features.filter(f => f.is_core_innovation);
+
+  const prompt = `Generate 2 independent patent claims for an AI animation production system.
+
+Core Novel Features:
+${coreFeatures.map((f, i) => `${i + 1}. ${f.feature_name}
+   Type: ${f.feature_type}
+   Description: ${f.technical_description}
+   Novelty: ${f.novelty_strength}`).join('\n\n')}
+
+Novelty Assessment:
+${noveltyAnalysis.patentabilityAssessment || 'Strong innovation in AI-assisted animation production'}
+
+Generate:
+1. One METHOD claim (computer-implemented method)
+2. One SYSTEM claim (system with processors and storage)
+
+Requirements:
+- Each claim should be ONE sentence with proper semicolon structure
+- Include the strongest novel features
+- Use proper patent claim language
+- Start method claims with "A computer-implemented method..."
+- Start system claims with "A system comprising..."
+- Be specific about technical implementations
+- Cover the end-to-end workflow
+
+Format as JSON array:
+["claim 1 text...", "claim 2 text..."]`;
+
+  try {
+    const response = await generateText(prompt, 'patent_claims_independent');
+    const jsonMatch = response.match(/\[[\s\S]*\]/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]);
+    }
+  } catch (error) {
+    console.error('AI independent claims generation failed:', error);
+  }
+
+  return [
+    `A computer-implemented method for automated animation production with cost optimization, comprising: receiving script input comprising dialogue and scene descriptions; parsing the script into structured data; generating image prompts using character consistency profiles with reference images; transmitting prompts to AI image generation services; synthesizing character dialogue using voice profiles; generating lip-synchronized videos; calculating production costs using hierarchical asset decay modeling; and assembling assets into completed episodes with progress tracking.`,
+    `A system for AI-assisted animation production, comprising: one or more processors; a non-transitory computer-readable storage medium storing instructions that cause the system to: maintain character consistency database with reference images and prompt templates; implement multi-version prompt management with atomic deployment; orchestrate multiple AI service providers through unified abstraction layer; apply cost calculation engine with configurable decay rates and floor values; track episode production progress across multiple job types; and coordinate assembly of generated assets into completed animated content.`
+  ];
+}
+
+async function generateDependentClaims(
+  features: any[],
+  independentClaims: PatentClaim[]
+): Promise<Array<{ claimText: string; parentClaimNumber: number }>> {
+  const prompt = `Generate 15-18 dependent patent claims based on these independent claims and features.
+
+Independent Claims:
+${independentClaims.map((c, i) => `Claim ${c.claim_number}: ${c.claim_text.substring(0, 200)}...`).join('\n\n')}
+
+Available Features to Cover:
+${features.map((f, i) => `${i + 1}. ${f.feature_name} (${f.feature_type}, ${f.novelty_strength} novelty)`).join('\n')}
+
+Generate dependent claims that:
+- Reference parent claims properly ("The method of claim X" or "The system of claim Y")
+- Cover specific implementations of features
+- Include algorithm details, data structures, and technical specifications
+- Provide fallback positions if independent claims are challenged
+- Cover variations and alternative embodiments
+
+Distribute claims across both independent claims (roughly 60% depending on claim 1, 40% on claim 2).
+
+Format as JSON array of objects:
+[
+  {"claimText": "The method of claim 1, wherein...", "parentClaimNumber": 1},
+  {"claimText": "The system of claim 2, wherein...", "parentClaimNumber": 2}
+]`;
+
+  try {
+    const response = await generateText(prompt, 'patent_claims_dependent');
+    const jsonMatch = response.match(/\[[\s\S]*\]/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]);
+    }
+  } catch (error) {
+    console.error('AI dependent claims generation failed:', error);
+  }
+
+  return [
+    { claimText: 'The method of claim 1, wherein the hierarchical asset decay modeling comprises: calculating decay multiplier as max(floor_value, decay_rate^(episode_number - 1)); applying decay to human editing costs; maintaining flat costs for supervision; and generating comparative cost analysis.', parentClaimNumber: 1 },
+    { claimText: 'The method of claim 1, wherein maintaining character consistency comprises: storing reference image URLs in cloud storage; generating prompts incorporating reference URLs; tracking consistency scores; and updating profiles based on usage patterns.', parentClaimNumber: 1 },
+    { claimText: 'The system of claim 2, wherein the multi-version prompt management comprises: storing multiple versions per prompt template; marking one version as deployed; enabling atomic deployment switching; and supporting organization-level overrides.', parentClaimNumber: 2 },
+    { claimText: 'The system of claim 2, wherein the unified abstraction layer comprises: provider interface defining common operations; provider-specific adapters; automatic failover on service errors; and cost-based provider selection.', parentClaimNumber: 2 }
+  ];
 }
