@@ -290,3 +290,19 @@ export async function getFormatUsageStats(organizationId: string): Promise<{
     avg_content_minutes: Math.round(totalMinutes / count),
   }));
 }
+
+export const formatConfigService = {
+  getPreset: (presetId: string) => FORMAT_PRESETS[presetId],
+  getAllPresets: () => Object.values(FORMAT_PRESETS),
+  validateConfig: (config: Partial<ProgramFormatConfig>) => {
+    const errors = validateFormatConfig(config);
+    return {
+      valid: errors.length === 0,
+      errors: errors.length > 0 ? errors : undefined
+    };
+  },
+  applyPreset: applyFormatPreset,
+  createCustom: createCustomFormat,
+  getSummary: getFormatSummary,
+  getDetails: getFormatDetails
+};
