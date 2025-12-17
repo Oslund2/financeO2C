@@ -33,7 +33,7 @@ async function generateFieldSection(
   title: string,
   features: any[]
 ): Promise<string> {
-  const prompt = `Generate a "Field of the Invention" section for a patent application.
+  const prompt = `Generate the content for a "Field of the Invention" section for a patent application.
 
 Title: ${title}
 
@@ -46,7 +46,9 @@ Write a concise 2-3 sentence field section that:
 3. Uses proper patent language
 
 Example format:
-"The present invention relates generally to [field], and more particularly to [specific area]."`;
+"The present invention relates generally to [field], and more particularly to [specific area]."
+
+IMPORTANT: Do NOT include the section heading "Field of the Invention" or any similar heading in your output. Only provide the paragraph content itself.`;
 
   const response = await generateText(prompt, 'patent_specification_field');
   return response.trim();
@@ -56,7 +58,7 @@ async function generateBackgroundSection(
   priorArt: any[],
   differentiationReports: any[]
 ): Promise<string> {
-  const prompt = `Generate a "Background of the Invention" section for a patent application.
+  const prompt = `Generate the content for a "Background of the Invention" section for a patent application.
 
 Prior Art Patents:
 ${priorArt.map((pa, i) => `${i + 1}. ${pa.patent_number} - ${pa.patent_title}
@@ -71,6 +73,8 @@ Write a comprehensive background section (3-5 paragraphs) that:
 3. Explains the gaps that prior art fails to address
 4. Sets up the need for the present invention
 5. Uses professional patent language without directly citing patent numbers
+
+IMPORTANT: Do NOT include the section heading "Background of the Invention" or any similar heading in your output. Only provide the paragraph content itself.
 
 Focus on technical problems, not business problems. Emphasize what prior art CAN'T do.`;
 
@@ -87,7 +91,7 @@ async function generateSummarySection(
     .flatMap(dr => dr.technical_advantages || [])
     .slice(0, 6);
 
-  const prompt = `Generate a "Summary of the Invention" section for a patent application.
+  const prompt = `Generate the content for a "Summary of the Invention" section for a patent application.
 
 Core Innovations:
 ${coreFeatures.map((f, i) => `${i + 1}. ${f.feature_name}
@@ -104,6 +108,8 @@ Write a comprehensive summary section (4-6 paragraphs) that:
 5. Describes how the components work together
 6. Uses proper patent language (e.g., "It is therefore an object of the invention to...")
 
+IMPORTANT: Do NOT include the section heading "Summary of the Invention" or any similar heading in your output. Only provide the paragraph content itself.
+
 Emphasize WHAT is novel and WHY it's beneficial.`;
 
   const response = await generateText(prompt, 'patent_specification_summary');
@@ -113,7 +119,7 @@ Emphasize WHAT is novel and WHY it's beneficial.`;
 async function generateDetailedDescriptionSection(
   features: any[]
 ): Promise<string> {
-  const prompt = `Generate a "Detailed Description of the Invention" section for a patent application.
+  const prompt = `Generate the content for a "Detailed Description of the Invention" section for a patent application.
 
 Features to Describe:
 ${features.map((f, i) => `${i + 1}. ${f.feature_name} (${f.feature_type})
@@ -141,6 +147,8 @@ For data structures, include:
 - Field names and data types
 - Relationships and constraints
 - Storage mechanisms
+
+IMPORTANT: Do NOT include the section heading "Detailed Description of the Invention" or any similar heading in your output. Only provide the paragraph content itself.
 
 This section should be the most technically detailed part of the patent.`;
 
