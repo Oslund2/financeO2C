@@ -5,6 +5,8 @@ import type { Database } from '../lib/database.types';
 import { generateScriptWithGemini, checkVertexAIConfiguration } from '../services/geminiService';
 import { getUserSettings } from '../services/settingsService';
 import { VoiceGenerationTab } from './VoiceGenerationTab';
+import { SpellingBeeWordSelector } from './SpellingBeeWordSelector';
+import { isSpellingBeeSeries, type SpellingBeeWord } from '../services/spellingBeeService';
 
 type Character = Database['public']['Tables']['characters']['Row'];
 
@@ -104,11 +106,46 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
     percentage: 0
   });
   const [abortController, setAbortController] = useState<AbortController | null>(null);
+  const [seriesTheme, setSeriesTheme] = useState<string | null>(null);
+  const [selectedSpellingBeeWord, setSelectedSpellingBeeWord] = useState<SpellingBeeWord | null>(null);
 
   useEffect(() => {
     loadCharacters();
+    loadSeriesTheme();
     checkConfiguration();
   }, [seriesId]);
+
+  const loadSeriesTheme = async () => {
+    if (!seriesId) {
+      setSeriesTheme(null);
+      return;
+    }
+
+    const { data } = await supabase
+      .from('series')
+      .select('theme')
+      .eq('id', seriesId)
+      .maybeSingle();
+
+    setSeriesTheme(data?.theme || null);
+  };
+
+  const handleSpellingBeeWordSelect = (word: SpellingBeeWord | null) => {
+    setSelectedSpellingBeeWord(word);
+
+    if (word) {
+      setFormData(prev => ({
+        ...prev,
+        vocabularyWords: word.winning_word,
+        title: prev.title || `The ${word.winning_word.charAt(0).toUpperCase() + word.winning_word.slice(1)} Challenge`
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        vocabularyWords: ''
+      }));
+    }
+  };
 
   const checkConfiguration = () => {
     const status = checkVertexAIConfiguration();
@@ -261,17 +298,29 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
 
       const settings = await getUserSettings();
 
+      const vocabularyWords = selectedSpellingBeeWord
+        ? [{
+            word: selectedSpellingBeeWord.winning_word,
+            definition: selectedSpellingBeeWord.definition,
+            example_sentence: selectedSpellingBeeWord.example_sentence || '',
+            part_of_speech: selectedSpellingBeeWord.part_of_speech || '',
+            language_origin: selectedSpellingBeeWord.language_origin || '',
+            pronunciation: selectedSpellingBeeWord.pronunciation || '',
+            year: selectedSpellingBeeWord.year
+          }]
+        : vocabularyArray.map(word => ({
+            word,
+            definition: '',
+            example_sentence: ''
+          }));
+
       const episodeData = {
         id: crypto.randomUUID(),
         title: formData.title,
         synopsis: formData.plotSummary,
         theme: formData.theme,
         target_age_group: '6-10 years',
-        vocabulary_words: vocabularyArray.map(word => ({
-          word,
-          definition: '',
-          example_sentence: ''
-        }))
+        vocabulary_words: vocabularyWords
       };
 
       const generatedScript = await generateScriptWithGemini(
@@ -581,21 +630,40 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
         )}
       </div>
 
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Vocabulary Words (Spelling Bee)
-        </label>
-        <input
-          type="text"
-          value={formData.vocabularyWords}
-          onChange={(e) => setFormData({ ...formData, vocabularyWords: e.target.value })}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
-          placeholder="Comma-separated words (e.g., sesquipedalian, onomatopoeia, cryptography)"
-        />
-        <p className="text-xs text-gray-600 mt-1">
-          These words will be naturally integrated into the script
-        </p>
-      </div>
+      {isSpellingBeeSeries(seriesTheme) ? (
+        <div className="space-y-4">
+          <SpellingBeeWordSelector
+            selectedWord={selectedSpellingBeeWord}
+            onWordSelect={handleSpellingBeeWordSelect}
+          />
+          {selectedSpellingBeeWord && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <p className="text-sm text-amber-800">
+                <span className="font-semibold">Episode Vocabulary:</span> {selectedSpellingBeeWord.winning_word}
+                {selectedSpellingBeeWord.definition && (
+                  <span className="text-amber-600 ml-1">- {selectedSpellingBeeWord.definition.slice(0, 80)}...</span>
+                )}
+              </p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            Vocabulary Words
+          </label>
+          <input
+            type="text"
+            value={formData.vocabularyWords}
+            onChange={(e) => setFormData({ ...formData, vocabularyWords: e.target.value })}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
+            placeholder="Comma-separated words (e.g., important, educational, fun)"
+          />
+          <p className="text-xs text-gray-600 mt-1">
+            These words will be naturally integrated into the script
+          </p>
+        </div>
+      )}
 
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -826,6 +894,7 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
                       tone: 'comedic',
                     });
                     setGeneratedData(null);
+                    setSelectedSpellingBeeWord(null);
                   }}
                   className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
                 >
