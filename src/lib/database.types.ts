@@ -1031,8 +1031,8 @@ export interface Database {
           prior_art_search_status: string
           prior_art_search_completed_at: string | null
           novelty_score: number | null
-          novelty_analysis: Json | null
-          differentiation_analysis: Json | null
+          novelty_analysis_id: string | null
+          differentiation_analysis: string | null
           claims_generation_status: string
           claims_generation_completed_at: string | null
           drawings_generation_status: string
@@ -1059,8 +1059,8 @@ export interface Database {
           prior_art_search_status?: string
           prior_art_search_completed_at?: string | null
           novelty_score?: number | null
-          novelty_analysis?: Json | null
-          differentiation_analysis?: Json | null
+          novelty_analysis_id?: string | null
+          differentiation_analysis?: string | null
           claims_generation_status?: string
           claims_generation_completed_at?: string | null
           drawings_generation_status?: string
@@ -1087,8 +1087,8 @@ export interface Database {
           prior_art_search_status?: string
           prior_art_search_completed_at?: string | null
           novelty_score?: number | null
-          novelty_analysis?: Json | null
-          differentiation_analysis?: Json | null
+          novelty_analysis_id?: string | null
+          differentiation_analysis?: string | null
           claims_generation_status?: string
           claims_generation_completed_at?: string | null
           drawings_generation_status?: string

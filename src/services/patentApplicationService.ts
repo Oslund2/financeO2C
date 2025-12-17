@@ -17,6 +17,20 @@ export interface PatentApplication {
   detailed_description: string | null;
   prior_art_patents: PriorArtReference[];
   prior_art_literature: PriorArtReference[];
+  // Patent intelligence fields
+  prior_art_search_status?: string;
+  prior_art_search_completed_at?: string | null;
+  novelty_score?: number | null;
+  novelty_analysis_id?: string | null;
+  differentiation_analysis?: string | null;
+  claims_generation_status?: string;
+  claims_generation_completed_at?: string | null;
+  drawings_generation_status?: string;
+  drawings_generation_completed_at?: string | null;
+  specification_generation_status?: string;
+  specification_generation_completed_at?: string | null;
+  full_application_status?: string;
+  full_application_completed_at?: string | null;
   metadata: Record<string, unknown>;
   version: number;
   created_at: string;
@@ -121,7 +135,7 @@ export async function getPatentApplication(applicationId: string): Promise<Paten
       prior_art_search_status,
       prior_art_search_completed_at,
       novelty_score,
-      novelty_analysis,
+      novelty_analysis_id,
       differentiation_analysis,
       claims_generation_status,
       claims_generation_completed_at,
