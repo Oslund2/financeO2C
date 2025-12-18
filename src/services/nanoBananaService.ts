@@ -161,11 +161,9 @@ export async function generateStoryboardImage(
       parts: [{ text: options.prompt }]
     }],
     generationConfig: {
-      temperature: 0.7,
-      responseModalities: ['image'],
-      imageGenerationConfig: {
-        aspectRatio: aspectRatioMap[options.aspectRatio || '16:9'],
-        numberOfImages: options.numberOfImages || 1
+      responseModalities: ['TEXT', 'IMAGE'],
+      imageConfig: {
+        aspectRatio: aspectRatioMap[options.aspectRatio || '16:9']
       }
     }
   };
