@@ -331,15 +331,25 @@ export async function generateStoryboardForScript(
 
     const { script, acts, characters } = await loadScriptWithDetails(scriptId);
 
-    const { data: existingStoryboard } = await supabase
+    const { data: existingStoryboards } = await supabase
       .from('storyboards')
-      .select('id')
-      .eq('script_id', scriptId)
-      .eq('status', 'completed')
-      .maybeSingle();
+      .select('id, status')
+      .eq('script_id', scriptId);
 
-    if (existingStoryboard) {
-      throw new Error('A completed storyboard already exists for this script');
+    if (existingStoryboards && existingStoryboards.length > 0) {
+      onProgress?.(2, 'Cleaning up previous storyboard...');
+
+      for (const oldStoryboard of existingStoryboards) {
+        await supabase
+          .from('storyboard_shots')
+          .delete()
+          .eq('storyboard_id', oldStoryboard.id);
+
+        await supabase
+          .from('storyboards')
+          .delete()
+          .eq('id', oldStoryboard.id);
+      }
     }
 
     onProgress?.(5, 'Creating storyboard...');
@@ -801,6 +811,71 @@ export async function generateSingleImage(
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
+}
+
+export async function cleanupOrphanStoryboards(scriptId: string): Promise<{ deleted: number }> {
+  const { data: storyboards } = await supabase
+    .from('storyboards')
+    .select('id, status')
+    .eq('script_id', scriptId);
+
+  if (!storyboards || storyboards.length === 0) {
+    return { deleted: 0 };
+  }
+
+  let deleted = 0;
+  for (const storyboard of storyboards) {
+    if (storyboard.status === 'generating' || storyboard.status === 'failed') {
+      await supabase
+        .from('storyboard_shots')
+        .delete()
+        .eq('storyboard_id', storyboard.id);
+
+      await supabase
+        .from('storyboards')
+        .delete()
+        .eq('id', storyboard.id);
+
+      deleted++;
+    }
+  }
+
+  return { deleted };
+}
+
+export async function getStoryboardStatus(scriptId: string): Promise<{
+  exists: boolean;
+  status: string | null;
+  shotCount: number;
+  shotsWithPrompts: number;
+  shotsWithImages: number;
+}> {
+  const { data: storyboard } = await supabase
+    .from('storyboards')
+    .select('id, status')
+    .eq('script_id', scriptId)
+    .maybeSingle();
+
+  if (!storyboard) {
+    return { exists: false, status: null, shotCount: 0, shotsWithPrompts: 0, shotsWithImages: 0 };
+  }
+
+  const { data: shots } = await supabase
+    .from('storyboard_shots')
+    .select('id, image_prompt, image_url')
+    .eq('storyboard_id', storyboard.id);
+
+  const shotCount = shots?.length || 0;
+  const shotsWithPrompts = shots?.filter(s => s.image_prompt && s.image_prompt.trim() !== '').length || 0;
+  const shotsWithImages = shots?.filter(s => s.image_url && s.image_url.trim() !== '').length || 0;
+
+  return {
+    exists: true,
+    status: storyboard.status,
+    shotCount,
+    shotsWithPrompts,
+    shotsWithImages
+  };
 }
 
 export { isNanoBananaAvailable, calculateEstimatedCost };

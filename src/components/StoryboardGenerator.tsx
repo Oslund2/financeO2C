@@ -565,6 +565,24 @@ export function StoryboardGenerator({ onNavigate }: StoryboardGeneratorProps) {
         </>
       ) : null}
 
+      {error && (
+        <div className="mx-6 mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <h4 className="font-semibold text-red-900 mb-1">Generation Error</h4>
+              <p className="text-sm text-red-800 mb-3">{error}</p>
+              <button
+                onClick={() => setError(null)}
+                className="text-sm text-red-700 hover:text-red-900 underline"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="border-t border-gray-200 px-6 py-4 bg-white flex justify-between items-center gap-3">
         <button
           onClick={() => setShowSettings(!showSettings)}
