@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
-import { generateStoryboardImage, isNanoBananaAvailable, calculateEstimatedCost } from './nanoBananaService';
+import { generateStoryboardImage, isNanoBananaAvailable, calculateEstimatedCost, clearImageCache } from './nanoBananaService';
+import type { CharacterReference } from './nanoBananaService';
 
 type Scene = Database['public']['Tables']['script_scenes']['Row'];
 type Act = Database['public']['Tables']['script_acts']['Row'];
@@ -635,6 +636,19 @@ export async function generateImagesForStoryboard(
 
   if (!storyboard) throw new Error('Storyboard not found');
 
+  const seriesId = (storyboard.scripts as any)?.series_id;
+  let characters: Character[] = [];
+
+  if (seriesId) {
+    const { data: seriesCharacters } = await supabase
+      .from('characters')
+      .select('*')
+      .eq('series_id', seriesId);
+    characters = seriesCharacters || [];
+  }
+
+  clearImageCache();
+
   let query = supabase
     .from('storyboard_shots')
     .select('*, script_scenes!inner(*, script_acts!inner(act_number))')
@@ -693,10 +707,30 @@ export async function generateImagesForStoryboard(
       const actNumber = (shot.script_scenes as any).script_acts.act_number;
       const genStartTime = Date.now();
 
+      const characterReferences: CharacterReference[] = [];
+      const positions = shot.character_positions as any[] || [];
+
+      for (const pos of positions) {
+        const charName = pos?.character || pos?.name;
+        if (!charName) continue;
+
+        const matchedChar = characters.find(c =>
+          c.name.toLowerCase() === charName.toLowerCase()
+        );
+
+        if (matchedChar?.reference_image_url) {
+          characterReferences.push({
+            name: matchedChar.name,
+            imageUrl: matchedChar.reference_image_url
+          });
+        }
+      }
+
       const result = await generateStoryboardImage(
         {
           prompt: shot.image_prompt || shot.shot_description || 'Storyboard panel',
-          aspectRatio: '16:9'
+          aspectRatio: '16:9',
+          characterReferences
         },
         storyboardId,
         actNumber,
@@ -714,7 +748,8 @@ export async function generateImagesForStoryboard(
           generation_metadata: {
             generationTime: result.generationTime,
             estimatedCost: result.estimatedCost,
-            generatedAt: new Date().toISOString()
+            generatedAt: new Date().toISOString(),
+            characterReferencesUsed: characterReferences.map(r => r.name)
           }
         })
         .eq('id', shot.id);

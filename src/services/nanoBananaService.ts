@@ -7,11 +7,17 @@ import {
   getRateLimitStatus
 } from './rateLimitingService';
 
+export interface CharacterReference {
+  name: string;
+  imageUrl: string;
+}
+
 export interface ImageGenerationOptions {
   prompt: string;
   aspectRatio?: '16:9' | '1:1' | '9:16';
   outputFormat?: 'image/png' | 'image/jpeg';
   numberOfImages?: number;
+  characterReferences?: CharacterReference[];
 }
 
 export interface ImageGenerationResult {
@@ -53,6 +59,44 @@ export function isNanoBananaAvailable(): boolean {
 
 async function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+const imageCache = new Map<string, { base64: string; mimeType: string }>();
+
+async function fetchImageAsBase64(imageUrl: string): Promise<{ base64: string; mimeType: string } | null> {
+  if (imageCache.has(imageUrl)) {
+    return imageCache.get(imageUrl)!;
+  }
+
+  try {
+    const response = await fetch(imageUrl);
+    if (!response.ok) {
+      console.warn(`Failed to fetch reference image: ${imageUrl}`);
+      return null;
+    }
+
+    const contentType = response.headers.get('content-type') || 'image/png';
+    const mimeType = contentType.split(';')[0].trim();
+
+    const arrayBuffer = await response.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    let binary = '';
+    for (let i = 0; i < uint8Array.length; i++) {
+      binary += String.fromCharCode(uint8Array[i]);
+    }
+    const base64 = btoa(binary);
+
+    const result = { base64, mimeType };
+    imageCache.set(imageUrl, result);
+    return result;
+  } catch (error) {
+    console.warn(`Error fetching reference image ${imageUrl}:`, error);
+    return null;
+  }
+}
+
+export function clearImageCache(): void {
+  imageCache.clear();
 }
 
 async function uploadImageToStorage(
@@ -155,10 +199,40 @@ export async function generateStoryboardImage(
     '9:16': '9:16'
   };
 
+  const parts: any[] = [];
+  const characterRefs = options.characterReferences || [];
+  const loadedReferences: { name: string; loaded: boolean }[] = [];
+
+  if (characterRefs.length > 0) {
+    for (const ref of characterRefs) {
+      const imageData = await fetchImageAsBase64(ref.imageUrl);
+      if (imageData) {
+        parts.push({
+          inlineData: {
+            mimeType: imageData.mimeType,
+            data: imageData.base64
+          }
+        });
+        loadedReferences.push({ name: ref.name, loaded: true });
+      } else {
+        loadedReferences.push({ name: ref.name, loaded: false });
+      }
+    }
+
+    const loadedNames = loadedReferences.filter(r => r.loaded).map(r => r.name);
+    if (loadedNames.length > 0) {
+      parts.push({
+        text: `Reference images provided for characters: ${loadedNames.join(', ')}. Use these as visual references to maintain character consistency in the generated image.\n\n`
+      });
+    }
+  }
+
+  parts.push({ text: options.prompt });
+
   const requestBody = {
     contents: [{
       role: 'user',
-      parts: [{ text: options.prompt }]
+      parts
     }],
     generationConfig: {
       responseModalities: ['TEXT', 'IMAGE'],
