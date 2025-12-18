@@ -195,7 +195,7 @@ export async function createPatentApplication(
       title: data.title || 'Untitled Patent Application',
       filing_type: data.filing_type || 'provisional',
       status: 'draft',
-      inventor_name: data.inventor_name || null,
+      inventor_name: data.inventor_name || 'Kerry G. Oslund',
       inventor_citizenship: data.inventor_citizenship || 'US Citizen',
       specification: data.specification || null,
       abstract: data.abstract || null,

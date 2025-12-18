@@ -26,3 +26,52 @@
     }
   }
 }
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  #patent-print-content,
+  #patent-print-content * {
+    visibility: visible !important;
+  }
+
+  #patent-print-content {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 1in;
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 12pt;
+    line-height: 1.5;
+    color: black;
+    background: white;
+  }
+
+  #patent-print-content h1 {
+    font-size: 16pt;
+    font-weight: bold;
+    margin-bottom: 12pt;
+  }
+
+  #patent-print-content h2 {
+    font-size: 14pt;
+    font-weight: bold;
+    margin-top: 24pt;
+    margin-bottom: 12pt;
+    border-bottom: 1px solid black;
+    padding-bottom: 6pt;
+  }
+
+  #patent-print-content p {
+    text-align: justify;
+    margin-bottom: 12pt;
+  }
+
+  @page {
+    margin: 1in;
+    size: letter;
+  }
+}

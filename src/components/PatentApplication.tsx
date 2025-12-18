@@ -32,7 +32,8 @@ import {
   Award,
   BarChart3,
   Lightbulb,
-  FileImage
+  FileImage,
+  Printer
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
@@ -1800,6 +1801,8 @@ function ExportTab({
   onExportPDF: () => void;
   exporting: boolean;
 }) {
+  const [showPrintPreview, setShowPrintPreview] = useState(false);
+
   const handleCopyText = () => {
     let text = `${application.title}\n\n`;
     text += `Inventor: ${application.inventor_name || 'Not specified'}\n`;
@@ -1815,13 +1818,32 @@ function ExportTab({
     navigator.clipboard.writeText(text);
   };
 
+  const handlePrint = () => {
+    setShowPrintPreview(true);
+    setTimeout(() => {
+      window.print();
+    }, 100);
+  };
+
   const drawingsDescription = formatDrawingsDescriptionSection(application.drawings);
+  const sortedClaims = [...application.claims].sort((a, b) => a.claim_number - b.claim_number);
 
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-semibold text-gray-900">Export Application</h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <button
+          onClick={handlePrint}
+          className="flex flex-col items-center gap-3 p-6 border-2 border-gray-200 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-colors"
+        >
+          <Printer className="w-10 h-10 text-blue-600" />
+          <div className="text-center">
+            <p className="font-medium text-gray-900">Print Application</p>
+            <p className="text-sm text-gray-500">Print complete filing document</p>
+          </div>
+        </button>
+
         <button
           onClick={onExportPDF}
           disabled={exporting}
@@ -1874,11 +1896,23 @@ function ExportTab({
       </div>
 
       <div className="bg-gray-50 rounded-lg p-4">
-        <h3 className="font-medium text-gray-900 mb-2">Application Contents</h3>
+        <h3 className="font-medium text-gray-900 mb-2">Elements Included in Print/Export</h3>
         <ul className="space-y-1 text-sm text-gray-600">
           <li className="flex items-center gap-2">
             <CheckCircle className="w-4 h-4 text-green-500" />
-            Title and inventor information
+            Title: {application.title}
+          </li>
+          <li className="flex items-center gap-2">
+            {application.inventor_name ? (
+              <CheckCircle className="w-4 h-4 text-green-500" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-yellow-500" />
+            )}
+            Inventor: {application.inventor_name || 'Not specified'}
+          </li>
+          <li className="flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 text-green-500" />
+            Citizenship: {application.inventor_citizenship}
           </li>
           <li className="flex items-center gap-2">
             {application.abstract ? (
@@ -1913,6 +1947,49 @@ function ExportTab({
             Drawings ({application.drawings.length} figures)
           </li>
         </ul>
+      </div>
+
+      <div id="patent-print-content" className="hidden print:block print:!visible">
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-bold mb-2">{application.title}</h1>
+          <p className="text-lg">Inventor: {application.inventor_name || 'Not specified'}</p>
+          <p>Citizenship: {application.inventor_citizenship}</p>
+          <p className="text-sm text-gray-600 mt-2">Filing Type: {application.filing_type === 'provisional' ? 'Provisional Patent Application' : 'Non-Provisional Patent Application'}</p>
+        </div>
+
+        {application.abstract && (
+          <div className="mb-8">
+            <h2 className="text-xl font-bold mb-4 border-b-2 border-black pb-2">ABSTRACT</h2>
+            <p className="text-justify whitespace-pre-wrap">{application.abstract}</p>
+          </div>
+        )}
+
+        {application.specification && (
+          <div className="mb-8">
+            <h2 className="text-xl font-bold mb-4 border-b-2 border-black pb-2">SPECIFICATION</h2>
+            <div className="text-justify whitespace-pre-wrap">{application.specification}</div>
+          </div>
+        )}
+
+        {sortedClaims.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-xl font-bold mb-4 border-b-2 border-black pb-2">CLAIMS</h2>
+            <div className="space-y-4">
+              {sortedClaims.map(claim => (
+                <p key={claim.id} className="text-justify">
+                  <strong>{claim.claim_number}.</strong> {claim.claim_text}
+                </p>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {application.drawings.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-xl font-bold mb-4 border-b-2 border-black pb-2">BRIEF DESCRIPTION OF THE DRAWINGS</h2>
+            <div className="whitespace-pre-wrap">{drawingsDescription}</div>
+          </div>
+        )}
       </div>
     </div>
   );
