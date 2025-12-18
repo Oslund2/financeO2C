@@ -587,11 +587,30 @@ export async function generateStoryboardForScript(
           options
         );
 
-        const imagePrompt = buildImageGenerationPrompt(
-          shot,
-          enhancedDescription,
-          script,
-          options
+        const sceneContext: SceneContext = {
+          setting: scene.setting || scene.location,
+          description: scene.description,
+          actNumber: act.number
+        };
+
+        const shotDataForPrompt: ShotData = {
+          shot_type: shot.shotType,
+          camera_angle: shot.cameraAngle,
+          camera_movement: shot.cameraMovement,
+          shot_description: enhancedDescription,
+          composition_notes: shot.compositionNotes,
+          character_positions: shot.characterPositions,
+          lighting_notes: shot.lightingNotes,
+          props_needed: shot.propsNeeded,
+          dialogue_text: shot.dialogueText,
+          stage_directions: shot.stageDirections
+        };
+
+        const imagePrompt = buildComprehensiveImagePrompt(
+          shotDataForPrompt,
+          sceneContext,
+          characters,
+          options.claymationEmphasis
         );
 
         shotsToInsert.push({
@@ -1103,6 +1122,246 @@ export async function getStoryboardStatus(scriptId: string): Promise<{
     shotsWithPrompts,
     shotsWithImages
   };
+}
+
+export async function regenerateShotPrompt(
+  shotId: string,
+  useClaymation: boolean = true
+): Promise<{ success: boolean; newPrompt: string; error?: string }> {
+  try {
+    const { data: shot, error: shotError } = await supabase
+      .from('storyboard_shots')
+      .select(`
+        *,
+        storyboards!inner (
+          id,
+          script_id,
+          scripts!inner (
+            id,
+            series_id
+          )
+        )
+      `)
+      .eq('id', shotId)
+      .single();
+
+    if (shotError || !shot) {
+      return { success: false, newPrompt: '', error: 'Shot not found' };
+    }
+
+    const scriptId = shot.storyboards?.scripts?.id;
+    const seriesId = shot.storyboards?.scripts?.series_id;
+
+    if (!scriptId) {
+      return { success: false, newPrompt: '', error: 'Script not found' };
+    }
+
+    const { data: scene } = await supabase
+      .from('script_scenes')
+      .select('*, script_acts!inner(act_number)')
+      .eq('id', shot.scene_id)
+      .single();
+
+    const { data: characters } = await supabase
+      .from('characters')
+      .select('*')
+      .eq('series_id', seriesId);
+
+    const sceneContext: SceneContext = {
+      setting: scene?.setting || scene?.location || '',
+      description: scene?.description || '',
+      actNumber: scene?.script_acts?.act_number
+    };
+
+    const shotData: ShotData = {
+      shot_type: shot.shot_type,
+      camera_angle: shot.camera_angle,
+      camera_movement: shot.camera_movement,
+      shot_description: shot.shot_description,
+      composition_notes: shot.composition_notes,
+      character_positions: shot.character_positions,
+      lighting_notes: shot.lighting_notes,
+      props_needed: shot.props_needed,
+      dialogue_text: shot.dialogue_text,
+      stage_directions: shot.stage_directions
+    };
+
+    const newPrompt = buildComprehensiveImagePrompt(
+      shotData,
+      sceneContext,
+      characters || [],
+      useClaymation
+    );
+
+    const { error: updateError } = await supabase
+      .from('storyboard_shots')
+      .update({ image_prompt: newPrompt })
+      .eq('id', shotId);
+
+    if (updateError) {
+      return { success: false, newPrompt: '', error: updateError.message };
+    }
+
+    return { success: true, newPrompt };
+  } catch (error) {
+    return {
+      success: false,
+      newPrompt: '',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
+
+export async function regenerateAllPromptsForStoryboard(
+  storyboardId: string,
+  useClaymation: boolean = true,
+  onProgress?: (progress: number, status: string) => void
+): Promise<{ successCount: number; failCount: number }> {
+  const { data: shots, error: shotsError } = await supabase
+    .from('storyboard_shots')
+    .select('id')
+    .eq('storyboard_id', storyboardId)
+    .order('shot_number', { ascending: true });
+
+  if (shotsError || !shots) {
+    throw new Error('Failed to fetch shots');
+  }
+
+  let successCount = 0;
+  let failCount = 0;
+
+  for (let i = 0; i < shots.length; i++) {
+    const shot = shots[i];
+    const progress = ((i + 1) / shots.length) * 100;
+    onProgress?.(progress, `Regenerating prompt for shot ${i + 1} of ${shots.length}...`);
+
+    const result = await regenerateShotPrompt(shot.id, useClaymation);
+    if (result.success) {
+      successCount++;
+    } else {
+      failCount++;
+    }
+  }
+
+  onProgress?.(100, `Complete: ${successCount} regenerated, ${failCount} failed`);
+  return { successCount, failCount };
+}
+
+export function mergeUserEditsWithMetadata(
+  userEditedPrompt: string,
+  shotData: ShotData,
+  sceneContext: SceneContext,
+  characters: Character[],
+  useClaymation: boolean = true
+): string {
+  const freshPrompt = buildComprehensiveImagePrompt(shotData, sceneContext, characters, useClaymation);
+
+  const sectionMap: Record<string, string> = {};
+  const freshSections = freshPrompt.split('\n\n');
+  for (const section of freshSections) {
+    const colonIndex = section.indexOf(':');
+    if (colonIndex > 0) {
+      const key = section.substring(0, colonIndex).trim();
+      sectionMap[key] = section;
+    }
+  }
+
+  const userSections = userEditedPrompt.split('\n\n');
+  const mergedSections: string[] = [];
+  const preserveFromUser = new Set(['VISUAL', 'ACTION', 'CHARACTERS']);
+  const updateFromMetadata = new Set(['STYLE', 'FRAMING', 'TECHNICAL', 'FORMAT', 'SCENE']);
+
+  for (const section of userSections) {
+    const colonIndex = section.indexOf(':');
+    if (colonIndex > 0) {
+      const key = section.substring(0, colonIndex).trim();
+
+      if (updateFromMetadata.has(key) && sectionMap[key]) {
+        mergedSections.push(sectionMap[key]);
+        delete sectionMap[key];
+      } else {
+        mergedSections.push(section);
+        delete sectionMap[key];
+      }
+    } else {
+      mergedSections.push(section);
+    }
+  }
+
+  for (const [key, section] of Object.entries(sectionMap)) {
+    if (!preserveFromUser.has(key)) {
+      mergedSections.push(section);
+    }
+  }
+
+  return mergedSections.join('\n\n');
+}
+
+export async function getShotMetadata(shotId: string): Promise<{
+  shot: ShotData | null;
+  sceneContext: SceneContext | null;
+  characters: Character[];
+  error?: string;
+}> {
+  try {
+    const { data: shot, error: shotError } = await supabase
+      .from('storyboard_shots')
+      .select(`
+        *,
+        storyboards!inner (
+          script_id,
+          scripts!inner (
+            series_id
+          )
+        )
+      `)
+      .eq('id', shotId)
+      .single();
+
+    if (shotError || !shot) {
+      return { shot: null, sceneContext: null, characters: [], error: 'Shot not found' };
+    }
+
+    const { data: scene } = await supabase
+      .from('script_scenes')
+      .select('*, script_acts!inner(act_number)')
+      .eq('id', shot.scene_id)
+      .single();
+
+    const seriesId = shot.storyboards?.scripts?.series_id;
+    const { data: characters } = await supabase
+      .from('characters')
+      .select('*')
+      .eq('series_id', seriesId);
+
+    return {
+      shot: {
+        shot_type: shot.shot_type,
+        camera_angle: shot.camera_angle,
+        camera_movement: shot.camera_movement,
+        shot_description: shot.shot_description,
+        composition_notes: shot.composition_notes,
+        character_positions: shot.character_positions,
+        lighting_notes: shot.lighting_notes,
+        props_needed: shot.props_needed,
+        dialogue_text: shot.dialogue_text,
+        stage_directions: shot.stage_directions
+      },
+      sceneContext: {
+        setting: scene?.setting || scene?.location || '',
+        description: scene?.description || '',
+        actNumber: scene?.script_acts?.act_number
+      },
+      characters: characters || []
+    };
+  } catch (error) {
+    return {
+      shot: null,
+      sceneContext: null,
+      characters: [],
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
 }
 
 export { isNanoBananaAvailable, calculateEstimatedCost };
