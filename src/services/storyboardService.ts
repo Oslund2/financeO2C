@@ -588,11 +588,35 @@ export function selectShotsForImageGeneration(
   return selectedShotIds;
 }
 
+export interface GenerationProgressInfo {
+  progress: number;
+  status: string;
+  shotNumber?: number;
+  currentIndex: number;
+  totalShots: number;
+  successCount: number;
+  failCount: number;
+  estimatedTimeRemaining?: number;
+}
+
+export interface GenerationOptions {
+  delayBetweenShots?: number;
+  stopOnError?: boolean;
+  onDetailedProgress?: (info: GenerationProgressInfo) => void;
+}
+
+const DEFAULT_DELAY_BETWEEN_SHOTS = 4000;
+
+async function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 export async function generateImagesForStoryboard(
   storyboardId: string,
   shotIds?: string[],
-  onProgress?: (progress: number, status: string, shotNumber?: number) => void
-): Promise<void> {
+  onProgress?: (progress: number, status: string, shotNumber?: number) => void,
+  options?: GenerationOptions
+): Promise<{ successCount: number; failCount: number; totalCost: number }> {
   const { data: storyboard } = await supabase
     .from('storyboards')
     .select('*, scripts(*)')
@@ -617,17 +641,39 @@ export async function generateImagesForStoryboard(
     throw new Error('No shots found for image generation');
   }
 
+  const delayBetweenShots = options?.delayBetweenShots ?? DEFAULT_DELAY_BETWEEN_SHOTS;
+  const stopOnError = options?.stopOnError ?? false;
+
   let completedShots = 0;
+  let successCount = 0;
+  let failCount = 0;
   const totalShots = shots.length;
   let totalCost = 0;
+  const generationTimes: number[] = [];
 
-  for (const shot of shots) {
+  for (let i = 0; i < shots.length; i++) {
+    const shot = shots[i];
+    const isLastShot = i === shots.length - 1;
+
     try {
-      onProgress?.(
-        (completedShots / totalShots) * 100,
-        `Generating image for shot ${shot.shot_number}...`,
-        shot.shot_number
-      );
+      const avgTime = generationTimes.length > 0
+        ? generationTimes.reduce((a, b) => a + b, 0) / generationTimes.length
+        : 15000;
+      const estimatedTimeRemaining = Math.round(((totalShots - completedShots) * (avgTime + delayBetweenShots)) / 1000);
+
+      const progressInfo: GenerationProgressInfo = {
+        progress: (completedShots / totalShots) * 100,
+        status: `Generating shot ${shot.shot_number} (${completedShots + 1} of ${totalShots})...`,
+        shotNumber: shot.shot_number,
+        currentIndex: i,
+        totalShots,
+        successCount,
+        failCount,
+        estimatedTimeRemaining
+      };
+
+      onProgress?.(progressInfo.progress, progressInfo.status, shot.shot_number);
+      options?.onDetailedProgress?.(progressInfo);
 
       await supabase
         .from('storyboard_shots')
@@ -635,6 +681,7 @@ export async function generateImagesForStoryboard(
         .eq('id', shot.id);
 
       const actNumber = (shot.script_scenes as any).script_acts.act_number;
+      const genStartTime = Date.now();
 
       const result = await generateStoryboardImage(
         {
@@ -645,6 +692,8 @@ export async function generateImagesForStoryboard(
         actNumber,
         shot.shot_number
       );
+
+      generationTimes.push(Date.now() - genStartTime);
 
       await supabase
         .from('storyboard_shots')
@@ -661,6 +710,7 @@ export async function generateImagesForStoryboard(
         .eq('id', shot.id);
 
       totalCost += result.estimatedCost;
+      successCount++;
       completedShots++;
 
       await supabase
@@ -683,6 +733,21 @@ export async function generateImagesForStoryboard(
           completed_at: new Date().toISOString()
         });
 
+      onProgress?.(
+        (completedShots / totalShots) * 100,
+        `Shot ${shot.shot_number} completed successfully`,
+        shot.shot_number
+      );
+
+      if (!isLastShot && delayBetweenShots > 0) {
+        onProgress?.(
+          (completedShots / totalShots) * 100,
+          `Waiting ${Math.round(delayBetweenShots / 1000)}s before next shot...`,
+          shot.shot_number
+        );
+        await sleep(delayBetweenShots);
+      }
+
     } catch (error) {
       console.error(`Failed to generate image for shot ${shot.shot_number}:`, error);
 
@@ -697,11 +762,45 @@ export async function generateImagesForStoryboard(
         })
         .eq('id', shot.id);
 
+      failCount++;
       completedShots++;
+
+      onProgress?.(
+        (completedShots / totalShots) * 100,
+        `Shot ${shot.shot_number} failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        shot.shot_number
+      );
+
+      if (stopOnError) {
+        throw new Error(`Generation stopped: Shot ${shot.shot_number} failed - ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+
+      if (!isLastShot && delayBetweenShots > 0) {
+        await sleep(delayBetweenShots);
+      }
     }
   }
 
-  onProgress?.(100, `Image generation complete! Generated ${completedShots} images. Total cost: $${totalCost.toFixed(2)}`);
+  const finalStatus = failCount > 0
+    ? `Complete: ${successCount} succeeded, ${failCount} failed. Cost: $${totalCost.toFixed(2)}`
+    : `All ${successCount} images generated successfully! Cost: $${totalCost.toFixed(2)}`;
+
+  onProgress?.(100, finalStatus);
+
+  return { successCount, failCount, totalCost };
+}
+
+export async function generateSingleImage(
+  storyboardId: string,
+  shotId: string,
+  onProgress?: (progress: number, status: string) => void
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const result = await generateImagesForStoryboard(storyboardId, [shotId], onProgress);
+    return { success: result.successCount > 0, error: result.failCount > 0 ? 'Generation failed' : undefined };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
 }
 
 export { isNanoBananaAvailable, calculateEstimatedCost };

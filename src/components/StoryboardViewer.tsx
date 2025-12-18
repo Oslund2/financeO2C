@@ -906,18 +906,21 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
       )}
 
       {generating && (
-        <div className="fixed bottom-4 right-4 bg-white rounded-lg shadow-xl border-2 border-blue-500 p-4 max-w-md z-40">
-          <div className="flex items-start gap-3">
-            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-            <div className="flex-1">
-              <p className="font-semibold text-gray-900 mb-1">Generating Images</p>
-              <p className="text-sm text-gray-600">{generationStatus}</p>
-              <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+        <div className="fixed bottom-4 right-4 bg-white rounded-xl shadow-2xl border-2 border-blue-500 p-5 max-w-sm z-40">
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 border-3 border-blue-600 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-gray-900 mb-1">Generating Image</p>
+              <p className="text-sm text-gray-600 truncate">{generationStatus}</p>
+              <div className="mt-3 w-full bg-gray-200 rounded-full h-2.5">
                 <div
-                  className="h-full bg-blue-600 rounded-full transition-all duration-300"
+                  className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full transition-all duration-500"
                   style={{ width: `${generationProgress}%` }}
                 />
               </div>
+              <p className="text-xs text-gray-500 mt-2">
+                {generationProgress < 100 ? 'Please wait, this may take up to 30 seconds...' : 'Finalizing...'}
+              </p>
             </div>
           </div>
         </div>

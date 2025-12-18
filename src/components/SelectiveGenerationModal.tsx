@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { X, Wand2, DollarSign, Image as ImageIcon, CheckCircle, AlertCircle } from 'lucide-react';
-import { calculateEstimatedCost } from '../services/nanoBananaService';
-import { generateImagesForStoryboard } from '../services/storyboardService';
+import { useState, useEffect } from 'react';
+import { X, Wand2, DollarSign, Image as ImageIcon, CheckCircle, AlertCircle, Clock, Settings, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { calculateEstimatedCost, getRateLimitStatus } from '../services/nanoBananaService';
+import { generateImagesForStoryboard, GenerationProgressInfo } from '../services/storyboardService';
+import { loadGenerationSettings, saveGenerationSettings, GenerationSettings, DEFAULT_GENERATION_SETTINGS } from '../services/rateLimitingService';
 import type { Database } from '../lib/database.types';
 
 type StoryboardShot = Database['public']['Tables']['storyboard_shots']['Row'];
@@ -11,6 +12,13 @@ interface SelectiveGenerationModalProps {
   shots: StoryboardShot[];
   onClose: () => void;
   onGenerationComplete: () => void;
+}
+
+interface GenerationLog {
+  shotNumber: number;
+  status: 'pending' | 'generating' | 'success' | 'failed';
+  message?: string;
+  timestamp: Date;
 }
 
 export function SelectiveGenerationModal({
@@ -24,14 +32,30 @@ export function SelectiveGenerationModal({
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('');
   const [filterAct, setFilterAct] = useState<number | 'all'>('all');
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState<GenerationSettings>(loadGenerationSettings);
+  const [progressInfo, setProgressInfo] = useState<GenerationProgressInfo | null>(null);
+  const [generationLogs, setGenerationLogs] = useState<GenerationLog[]>([]);
+  const [showLogs, setShowLogs] = useState(false);
+  const [generationResult, setGenerationResult] = useState<{ successCount: number; failCount: number; totalCost: number } | null>(null);
 
   const availableShots = shots.filter(shot => !shot.image_url);
-
   const acts = Array.from(new Set(availableShots.map(shot => 1))).sort((a, b) => a - b);
 
   const filteredShots = filterAct === 'all'
     ? availableShots
     : availableShots.filter(shot => 1 === filterAct);
+
+  useEffect(() => {
+    if (generating) {
+      const selectedShotsList = shots.filter(s => selectedShots.has(s.id));
+      setGenerationLogs(selectedShotsList.map(shot => ({
+        shotNumber: shot.shot_number,
+        status: 'pending',
+        timestamp: new Date()
+      })));
+    }
+  }, [generating]);
 
   const handleToggleShot = (shotId: string) => {
     const newSelected = new Set(selectedShots);
@@ -54,7 +78,6 @@ export function SelectiveGenerationModal({
   const handleSelectByType = (type: string) => {
     const shotsOfType = filteredShots.filter(s => s.shot_type === type).map(s => s.id);
     const newSelected = new Set(selectedShots);
-
     const allSelected = shotsOfType.every(id => newSelected.has(id));
 
     if (allSelected) {
@@ -66,36 +89,70 @@ export function SelectiveGenerationModal({
     setSelectedShots(newSelected);
   };
 
+  const handleSettingsChange = (key: keyof GenerationSettings, value: number | boolean) => {
+    const newSettings = { ...settings, [key]: value };
+    setSettings(newSettings);
+    saveGenerationSettings(newSettings);
+  };
+
   const handleGenerate = async () => {
     if (selectedShots.size === 0) return;
 
     setGenerating(true);
+    setGenerationResult(null);
 
     try {
-      await generateImagesForStoryboard(
+      const result = await generateImagesForStoryboard(
         storyboardId,
         Array.from(selectedShots),
-        (prog, stat) => {
+        (prog, stat, shotNumber) => {
           setProgress(prog);
           setStatus(stat);
+
+          if (shotNumber) {
+            setGenerationLogs(prev => prev.map(log => {
+              if (log.shotNumber === shotNumber) {
+                const isSuccess = stat.toLowerCase().includes('completed successfully');
+                const isFailed = stat.toLowerCase().includes('failed');
+                const isGenerating = stat.toLowerCase().includes('generating');
+
+                return {
+                  ...log,
+                  status: isSuccess ? 'success' : isFailed ? 'failed' : isGenerating ? 'generating' : log.status,
+                  message: stat,
+                  timestamp: new Date()
+                };
+              }
+              return log;
+            }));
+          }
+        },
+        {
+          delayBetweenShots: settings.delayBetweenRequests,
+          onDetailedProgress: (info) => {
+            setProgressInfo(info);
+          }
         }
       );
 
-      setTimeout(() => {
-        onGenerationComplete();
-        onClose();
-      }, 1000);
+      setGenerationResult(result);
+
+      if (result.failCount === 0) {
+        setTimeout(() => {
+          onGenerationComplete();
+          onClose();
+        }, 2000);
+      }
     } catch (error) {
       console.error('Generation error:', error);
-      alert(error instanceof Error ? error.message : 'Failed to generate images');
+      setStatus(error instanceof Error ? error.message : 'Failed to generate images');
     } finally {
       setGenerating(false);
-      setProgress(0);
-      setStatus('');
     }
   };
 
   const estimatedCost = calculateEstimatedCost(selectedShots.size);
+  const estimatedTime = Math.ceil(selectedShots.size * (15 + settings.delayBetweenRequests / 1000));
 
   const shotTypeGroups = filteredShots.reduce((acc, shot) => {
     const type = shot.shot_type;
@@ -103,6 +160,13 @@ export function SelectiveGenerationModal({
     acc[type].push(shot);
     return acc;
   }, {} as Record<string, StoryboardShot[]>);
+
+  const formatTime = (seconds: number): string => {
+    if (seconds < 60) return `${seconds}s`;
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
@@ -143,15 +207,67 @@ export function SelectiveGenerationModal({
                       <option key={act} value={act}>Act {act}</option>
                     ))}
                   </select>
+
+                  <button
+                    onClick={() => setShowSettings(!showSettings)}
+                    className={`flex items-center gap-2 px-3 py-2 text-sm border rounded-lg transition-colors ${
+                      showSettings ? 'bg-blue-100 border-blue-300 text-blue-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Settings className="w-4 h-4" />
+                    Settings
+                  </button>
                 </div>
 
-                <div className="flex items-center gap-2 bg-blue-100 px-4 py-2 rounded-lg">
-                  <DollarSign className="w-4 h-4 text-blue-600" />
-                  <span className="text-sm font-semibold text-blue-900">
-                    Est. Cost: ${estimatedCost.toFixed(2)}
-                  </span>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 bg-amber-100 px-4 py-2 rounded-lg">
+                    <Clock className="w-4 h-4 text-amber-600" />
+                    <span className="text-sm font-semibold text-amber-900">
+                      ~{formatTime(estimatedTime)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 bg-blue-100 px-4 py-2 rounded-lg">
+                    <DollarSign className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm font-semibold text-blue-900">
+                      Est. Cost: ${estimatedCost.toFixed(2)}
+                    </span>
+                  </div>
                 </div>
               </div>
+
+              {showSettings && (
+                <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Generation Settings</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">Delay Between Shots</label>
+                      <select
+                        value={settings.delayBetweenRequests}
+                        onChange={(e) => handleSettingsChange('delayBetweenRequests', parseInt(e.target.value))}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value={2000}>2 seconds (Fast)</option>
+                        <option value={4000}>4 seconds (Recommended)</option>
+                        <option value={6000}>6 seconds (Safe)</option>
+                        <option value={10000}>10 seconds (Conservative)</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">Longer delays help avoid rate limits</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="autoRetry"
+                        checked={settings.autoRetryOnRateLimit}
+                        onChange={(e) => handleSettingsChange('autoRetryOnRateLimit', e.target.checked)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <label htmlFor="autoRetry" className="text-sm text-gray-700">
+                        Auto-retry on rate limit errors
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex-1 overflow-y-auto p-6">
@@ -218,7 +334,7 @@ export function SelectiveGenerationModal({
 
                                 <div className="flex items-center gap-2 text-xs text-gray-500">
                                   <span className="capitalize">{shot.camera_angle?.replace('_', ' ')}</span>
-                                  <span>•</span>
+                                  <span>-</span>
                                   <span className="capitalize">{shot.camera_movement}</span>
                                 </div>
                               </div>
@@ -241,11 +357,11 @@ export function SelectiveGenerationModal({
                 <span className="font-semibold text-gray-900">{selectedShots.size}</span> shots selected
                 {selectedShots.size > 0 && (
                   <>
-                    {' • '}
+                    {' - '}
                     <span className="font-semibold text-gray-900">
-                      ~{Math.ceil(selectedShots.size * 30)}s
+                      ~{formatTime(estimatedTime)}
                     </span>
-                    {' generation time'}
+                    {' estimated'}
                   </>
                 )}
               </div>
@@ -268,18 +384,148 @@ export function SelectiveGenerationModal({
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center p-12">
-            <div className="text-center max-w-md">
-              <div className="w-20 h-20 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Generating Images</h3>
-              <p className="text-gray-600 mb-4">{status}</p>
-              <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
-                <div
-                  className="h-full bg-blue-600 rounded-full transition-all duration-300"
-                  style={{ width: `${progress}%` }}
-                />
+          <div className="flex-1 p-6 overflow-y-auto">
+            <div className="max-w-2xl mx-auto">
+              <div className="text-center mb-8">
+                {generationResult ? (
+                  generationResult.failCount === 0 ? (
+                    <CheckCircle className="w-20 h-20 text-green-500 mx-auto mb-4" />
+                  ) : (
+                    <AlertCircle className="w-20 h-20 text-amber-500 mx-auto mb-4" />
+                  )
+                ) : (
+                  <div className="w-20 h-20 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                )}
+
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  {generationResult ? 'Generation Complete' : 'Generating Images'}
+                </h3>
+                <p className="text-gray-600 mb-4">{status}</p>
+
+                <div className="w-full bg-gray-200 rounded-full h-3 mb-3">
+                  <div
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      generationResult?.failCount ? 'bg-amber-500' : 'bg-blue-600'
+                    }`}
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+
+                <div className="flex items-center justify-center gap-6 text-sm">
+                  <span className="text-gray-600">{Math.round(progress)}% complete</span>
+                  {progressInfo && !generationResult && (
+                    <>
+                      <span className="text-gray-400">|</span>
+                      <span className="text-gray-600">
+                        {progressInfo.currentIndex + 1} of {progressInfo.totalShots} shots
+                      </span>
+                      {progressInfo.estimatedTimeRemaining && (
+                        <>
+                          <span className="text-gray-400">|</span>
+                          <span className="text-gray-600">
+                            ~{formatTime(progressInfo.estimatedTimeRemaining)} remaining
+                          </span>
+                        </>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {generationResult && (
+                  <div className="flex items-center justify-center gap-6 mt-4">
+                    <div className="flex items-center gap-2 text-green-600">
+                      <CheckCircle className="w-5 h-5" />
+                      <span className="font-medium">{generationResult.successCount} succeeded</span>
+                    </div>
+                    {generationResult.failCount > 0 && (
+                      <div className="flex items-center gap-2 text-red-600">
+                        <XCircle className="w-5 h-5" />
+                        <span className="font-medium">{generationResult.failCount} failed</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 text-blue-600">
+                      <DollarSign className="w-5 h-5" />
+                      <span className="font-medium">${generationResult.totalCost.toFixed(2)}</span>
+                    </div>
+                  </div>
+                )}
               </div>
-              <p className="text-sm text-gray-500">{Math.round(progress)}% complete</p>
+
+              <div className="bg-gray-50 rounded-lg border border-gray-200">
+                <button
+                  onClick={() => setShowLogs(!showLogs)}
+                  className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-100 transition-colors rounded-lg"
+                >
+                  <span className="font-medium text-gray-900">Generation Log</span>
+                  {showLogs ? <ChevronUp className="w-5 h-5 text-gray-500" /> : <ChevronDown className="w-5 h-5 text-gray-500" />}
+                </button>
+
+                {showLogs && (
+                  <div className="border-t border-gray-200 max-h-64 overflow-y-auto">
+                    {generationLogs.map((log, index) => (
+                      <div
+                        key={index}
+                        className={`px-4 py-3 flex items-center gap-3 ${
+                          index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                        }`}
+                      >
+                        {log.status === 'pending' && (
+                          <div className="w-5 h-5 border-2 border-gray-300 rounded-full" />
+                        )}
+                        {log.status === 'generating' && (
+                          <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                        )}
+                        {log.status === 'success' && (
+                          <CheckCircle className="w-5 h-5 text-green-500" />
+                        )}
+                        {log.status === 'failed' && (
+                          <XCircle className="w-5 h-5 text-red-500" />
+                        )}
+
+                        <span className="font-medium text-gray-900">Shot #{log.shotNumber}</span>
+                        <span className={`text-sm ${
+                          log.status === 'success' ? 'text-green-600' :
+                          log.status === 'failed' ? 'text-red-600' :
+                          log.status === 'generating' ? 'text-blue-600' :
+                          'text-gray-500'
+                        }`}>
+                          {log.status === 'pending' ? 'Waiting...' :
+                           log.status === 'generating' ? 'Generating...' :
+                           log.status === 'success' ? 'Completed' :
+                           'Failed'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {generationResult && (
+                <div className="mt-6 flex justify-center gap-3">
+                  {generationResult.failCount > 0 && (
+                    <button
+                      onClick={() => {
+                        setGenerating(false);
+                        setGenerationResult(null);
+                        setProgress(0);
+                        setStatus('');
+                      }}
+                      className="px-6 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium"
+                    >
+                      Retry Failed Shots
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      onGenerationComplete();
+                      onClose();
+                    }}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  >
+                    Done
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}

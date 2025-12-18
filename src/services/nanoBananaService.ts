@@ -1,4 +1,11 @@
 import { supabase } from '../lib/supabase';
+import {
+  isRateLimitError,
+  recordSuccessfulRequest,
+  recordFailedRequest,
+  waitForRateLimit,
+  getRateLimitStatus
+} from './rateLimitingService';
 
 export interface ImageGenerationOptions {
   prompt: string;
@@ -14,10 +21,18 @@ export interface ImageGenerationResult {
   estimatedCost: number;
 }
 
+export interface GenerationError {
+  type: 'rate_limit' | 'api_error' | 'network' | 'unknown';
+  message: string;
+  retryable: boolean;
+  retryAfterMs?: number;
+}
+
 const NANO_BANANA_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent';
 const ESTIMATED_COST_PER_IMAGE = 0.02;
 const MAX_RETRIES = 3;
-const RETRY_DELAY = 2000;
+const RETRY_DELAY = 4000;
+const RATE_LIMIT_RETRY_DELAY = 10000;
 
 export function checkNanoBananaConfiguration(): { configured: boolean; missing: string[] } {
   const missing: string[] = [];
@@ -72,6 +87,51 @@ async function uploadImageToStorage(
   };
 }
 
+export function parseGenerationError(error: unknown): GenerationError {
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+
+    if (message.includes('429') || message.includes('rate limit') || message.includes('quota') || message.includes('resource_exhausted')) {
+      return {
+        type: 'rate_limit',
+        message: 'API rate limit reached. Please wait before generating more images.',
+        retryable: true,
+        retryAfterMs: RATE_LIMIT_RETRY_DELAY
+      };
+    }
+
+    if (message.includes('network') || message.includes('fetch') || message.includes('connection')) {
+      return {
+        type: 'network',
+        message: 'Network error. Please check your connection and try again.',
+        retryable: true,
+        retryAfterMs: RETRY_DELAY
+      };
+    }
+
+    if (message.includes('api error') || message.includes('500') || message.includes('503')) {
+      return {
+        type: 'api_error',
+        message: 'The image generation service is temporarily unavailable. Please try again later.',
+        retryable: true,
+        retryAfterMs: RETRY_DELAY * 2
+      };
+    }
+
+    return {
+      type: 'unknown',
+      message: error.message,
+      retryable: false
+    };
+  }
+
+  return {
+    type: 'unknown',
+    message: 'An unexpected error occurred',
+    retryable: false
+  };
+}
+
 export async function generateStoryboardImage(
   options: ImageGenerationOptions,
   storyboardId: string,
@@ -80,6 +140,8 @@ export async function generateStoryboardImage(
   retryCount = 0
 ): Promise<ImageGenerationResult> {
   const startTime = Date.now();
+
+  await waitForRateLimit();
 
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
@@ -119,7 +181,14 @@ export async function generateStoryboardImage(
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Nano Banana API error: ${response.status} - ${errorText}`);
+      const errorMessage = `API error: ${response.status} - ${errorText}`;
+
+      if (response.status === 429) {
+        recordFailedRequest();
+        throw new Error(`Rate limit exceeded: ${errorText}`);
+      }
+
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();
@@ -145,6 +214,8 @@ export async function generateStoryboardImage(
 
     const generationTime = Date.now() - startTime;
 
+    recordSuccessfulRequest();
+
     return {
       imageUrl,
       thumbnailUrl,
@@ -155,16 +226,25 @@ export async function generateStoryboardImage(
   } catch (error) {
     console.error(`Image generation failed (attempt ${retryCount + 1}):`, error);
 
-    if (retryCount < MAX_RETRIES) {
-      const delay = RETRY_DELAY * Math.pow(2, retryCount);
-      console.log(`Retrying in ${delay}ms...`);
+    const parsedError = parseGenerationError(error);
+
+    if (parsedError.retryable && retryCount < MAX_RETRIES) {
+      recordFailedRequest();
+
+      const delay = parsedError.type === 'rate_limit'
+        ? RATE_LIMIT_RETRY_DELAY * Math.pow(1.5, retryCount)
+        : RETRY_DELAY * Math.pow(2, retryCount);
+
+      console.log(`Retrying in ${Math.round(delay / 1000)}s (${parsedError.type} error)...`);
       await sleep(delay);
       return generateStoryboardImage(options, storyboardId, actNumber, shotNumber, retryCount + 1);
     }
 
-    throw error;
+    throw new Error(parsedError.message);
   }
 }
+
+export { getRateLimitStatus };
 
 export async function uploadManualImage(
   file: File,
