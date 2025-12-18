@@ -80,6 +80,11 @@ import {
   performNoveltyAnalysis,
   getNoveltyAnalysis
 } from '../services/patentNoveltyAnalysisService';
+import {
+  generateSelfPatentApplication,
+  checkExistingSelfPatent,
+  type SelfPatentProgress
+} from '../services/selfPatentGenerationService';
 import jsPDF from 'jspdf';
 
 type TabId = 'overview' | 'specification' | 'claims' | 'drawings' | 'abstract' | 'prior-art' | 'analysis' | 'export';
@@ -104,6 +109,9 @@ export function PatentApplication() {
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiProgress, setAiProgress] = useState<PatentGenerationProgress | null>(null);
   const [showAiModal, setShowAiModal] = useState(false);
+  const [selfPatentGenerating, setSelfPatentGenerating] = useState(false);
+  const [selfPatentProgress, setSelfPatentProgress] = useState<SelfPatentProgress | null>(null);
+  const [showSelfPatentModal, setShowSelfPatentModal] = useState(false);
 
   const convertSvgToPng = (svgContent: string, width: number = 800, height: number = 600): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -296,6 +304,47 @@ export function PatentApplication() {
     }
   };
 
+  const handleSelfPatentGeneration = async () => {
+    if (!currentOrganization || !user) return;
+
+    setSelfPatentGenerating(true);
+    setShowSelfPatentModal(true);
+    setError(null);
+
+    try {
+      // Check if self-patent already exists
+      const existingId = await checkExistingSelfPatent(currentOrganization.id);
+      if (existingId) {
+        setError('A patent for this application already exists. Loading it now...');
+        await loadApplication(existingId);
+        setShowSelfPatentModal(false);
+        setSelfPatentProgress(null);
+        return;
+      }
+
+      const result = await generateSelfPatentApplication(
+        currentOrganization.id,
+        user.id,
+        (progress) => {
+          setSelfPatentProgress(progress);
+        }
+      );
+
+      if (result.success && result.applicationId) {
+        await loadApplications();
+        await loadApplication(result.applicationId);
+        setShowSelfPatentModal(false);
+        setSelfPatentProgress(null);
+      } else {
+        throw new Error(result.error || 'Failed to generate self-patent application');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate self-patent application');
+    } finally {
+      setSelfPatentGenerating(false);
+    }
+  };
+
   const handleExportPDF = async () => {
     if (!selectedApp) return;
 
@@ -467,13 +516,32 @@ export function PatentApplication() {
           </h1>
           <p className="text-gray-600 mt-1">Manage patent applications and intellectual property documentation</p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          New Application
-        </button>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button
+            onClick={handleSelfPatentGeneration}
+            disabled={selfPatentGenerating}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg hover:from-emerald-700 hover:to-teal-700 transition-all disabled:opacity-50 shadow-lg"
+          >
+            {selfPatentGenerating ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-5 h-5" />
+                Generate Patent for This App
+              </>
+            )}
+          </button>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            New Application
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -677,6 +745,18 @@ export function PatentApplication() {
             if (!aiGenerating) {
               setShowAiModal(false);
               setAiProgress(null);
+            }
+          }}
+        />
+      )}
+
+      {showSelfPatentModal && (
+        <SelfPatentProgressModal
+          progress={selfPatentProgress}
+          onClose={() => {
+            if (!selfPatentGenerating) {
+              setShowSelfPatentModal(false);
+              setSelfPatentProgress(null);
             }
           }}
         />
@@ -2546,6 +2626,145 @@ function AnalysisTab({ application }: { application: PatentApplicationWithDetail
           </ul>
         </div>
       )}
+    </div>
+  );
+}
+
+function SelfPatentProgressModal({
+  progress,
+  onClose
+}: {
+  progress: SelfPatentProgress | null;
+  onClose: () => void;
+}) {
+  const getStageIcon = (stage: SelfPatentProgress['stage']) => {
+    switch (stage) {
+      case 'analyzing': return FileText;
+      case 'extracting': return Search;
+      case 'generating': return Sparkles;
+      case 'creating': return Plus;
+      case 'processing': return Loader2;
+      case 'complete': return CheckCircle;
+      default: return FileText;
+    }
+  };
+
+  const getStageColor = (stage: SelfPatentProgress['stage']) => {
+    switch (stage) {
+      case 'analyzing': return 'from-blue-500 to-cyan-500';
+      case 'extracting': return 'from-cyan-500 to-teal-500';
+      case 'generating': return 'from-teal-500 to-emerald-500';
+      case 'creating': return 'from-emerald-500 to-green-500';
+      case 'processing': return 'from-green-500 to-lime-500';
+      case 'complete': return 'from-lime-500 to-green-600';
+      default: return 'from-gray-400 to-gray-500';
+    }
+  };
+
+  const Icon = progress ? getStageIcon(progress.stage) : Sparkles;
+  const colorGradient = progress ? getStageColor(progress.stage) : 'from-emerald-500 to-teal-500';
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl max-w-3xl w-full p-8" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-4 mb-8">
+          <div className={`w-16 h-16 bg-gradient-to-br ${colorGradient} rounded-2xl flex items-center justify-center shadow-lg`}>
+            <Icon className="w-8 h-8 text-white" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-2xl font-bold text-gray-900">Self-Examining Patent Generator</h2>
+            <p className="text-sm text-gray-600 mt-1">
+              Analyzing the entire codebase to generate a comprehensive patent application
+            </p>
+          </div>
+        </div>
+
+        {progress && (
+          <>
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex-1">
+                  <div className="text-lg font-semibold text-gray-900 mb-1">
+                    {progress.message}
+                  </div>
+                  {progress.details && (
+                    <div className="text-sm text-gray-600">
+                      {progress.details}
+                    </div>
+                  )}
+                </div>
+                <div className="text-2xl font-bold text-emerald-600 ml-4">
+                  {progress.percentage}%
+                </div>
+              </div>
+
+              <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden shadow-inner">
+                <div
+                  className={`h-full bg-gradient-to-r ${colorGradient} transition-all duration-500 ease-out rounded-full`}
+                  style={{ width: `${progress.percentage}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-6 border border-emerald-200">
+              <div className="flex gap-4">
+                <div className="flex-shrink-0">
+                  <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md">
+                    <Lightbulb className="w-6 h-6 text-emerald-600" />
+                  </div>
+                </div>
+                <div className="flex-1 space-y-3">
+                  <h3 className="font-semibold text-emerald-900 text-lg">
+                    What's happening?
+                  </h3>
+                  <div className="text-sm text-emerald-800 space-y-2 leading-relaxed">
+                    <p>
+                      The system is performing a comprehensive self-examination of the entire application:
+                    </p>
+                    <ul className="space-y-1.5 ml-4">
+                      <li className="flex items-start gap-2">
+                        <span className="text-emerald-600 mt-1">✓</span>
+                        <span>Scanning <strong>132 TypeScript files</strong> containing all source code</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-emerald-600 mt-1">✓</span>
+                        <span>Analyzing <strong>83 database migrations</strong> covering the entire schema</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-emerald-600 mt-1">✓</span>
+                        <span>Extracting technical features from <strong>40+ specialized services</strong></span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-emerald-600 mt-1">✓</span>
+                        <span>Identifying novel algorithms, data structures, and integrations</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-emerald-600 mt-1">✓</span>
+                        <span>Generating specification, claims, and drawings automatically</span>
+                      </li>
+                    </ul>
+                    <p className="pt-2 font-medium">
+                      This process typically takes 2-3 minutes and requires no manual input.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {progress.stage === 'complete' && (
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={onClose}
+                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg hover:from-emerald-700 hover:to-teal-700 shadow-lg font-medium"
+                >
+                  <CheckCircle className="w-5 h-5" />
+                  View Patent Application
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
