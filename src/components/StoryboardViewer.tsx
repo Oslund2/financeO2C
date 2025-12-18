@@ -873,16 +873,33 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
             <button
               key={shot.id}
               onClick={() => setCurrentShotIndex(index)}
-              className={`aspect-video rounded-lg border-2 transition-all flex items-center justify-center ${
+              className={`aspect-video rounded-lg border-2 transition-all overflow-hidden relative ${
                 index === currentShotIndex
-                  ? 'border-scripps-blue bg-blue-50'
-                  : 'border-gray-200 bg-gray-50 hover:border-gray-300'
+                  ? 'border-scripps-blue ring-2 ring-scripps-blue ring-offset-1'
+                  : 'border-gray-200 hover:border-gray-300'
               }`}
             >
-              <div className="text-center">
-                <div className="text-xs font-bold text-gray-600">#{shot.shot_number}</div>
-                <div className="text-xs text-gray-500 capitalize">{shot.shot_type}</div>
-              </div>
+              {shot.image_url || shot.thumbnail_url ? (
+                <>
+                  <img
+                    src={shot.thumbnail_url || shot.image_url || ''}
+                    alt={`Shot ${shot.shot_number}`}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                  <div className="absolute bottom-1 left-1 right-1 text-center">
+                    <div className="text-xs font-bold text-white drop-shadow">#{shot.shot_number}</div>
+                    <div className="text-xs text-white/80 capitalize drop-shadow">{shot.shot_type}</div>
+                  </div>
+                </>
+              ) : (
+                <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="text-xs font-bold text-gray-600">#{shot.shot_number}</div>
+                    <div className="text-xs text-gray-500 capitalize">{shot.shot_type}</div>
+                  </div>
+                </div>
+              )}
             </button>
           ))}
         </div>
