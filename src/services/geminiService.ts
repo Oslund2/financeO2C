@@ -863,11 +863,37 @@ function formatTimecode(seconds: number): string {
   return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
-export async function generateText(prompt: string): Promise<string> {
+export interface GenerateTextOptions {
+  maxTokens?: number;
+  temperature?: number;
+}
+
+const PATENT_TOKEN_LIMITS: Record<string, number> = {
+  'patent_specification_field': 1000,
+  'patent_specification_background': 3000,
+  'patent_specification_summary': 4000,
+  'patent_specification_detailed': 8192,
+  'patent_abstract_generation': 1000,
+  'patent_section_regeneration': 8192,
+  'patent_claims_generation': 6000,
+};
+
+export async function generateText(
+  prompt: string,
+  featureArea?: string,
+  options?: GenerateTextOptions
+): Promise<string> {
   try {
     const apiKey = getGeminiAPIKey();
 
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+
+    const defaultMaxTokens = featureArea && PATENT_TOKEN_LIMITS[featureArea]
+      ? PATENT_TOKEN_LIMITS[featureArea]
+      : 2000;
+
+    const maxTokens = options?.maxTokens ?? defaultMaxTokens;
+    const temperature = options?.temperature ?? 0.3;
 
     const requestBody = {
       contents: [{
@@ -875,8 +901,8 @@ export async function generateText(prompt: string): Promise<string> {
         parts: [{ text: prompt }]
       }],
       generationConfig: {
-        temperature: 0.3,
-        maxOutputTokens: 2000,
+        temperature,
+        maxOutputTokens: maxTokens,
         topP: 0.95,
         topK: 40
       }
