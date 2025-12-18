@@ -264,7 +264,7 @@ Create a detailed shot description (2-3 sentences) that includes:
 
 Shot description:`;
 
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
   const response = await fetch(endpoint, {
     method: 'POST',
@@ -449,7 +449,7 @@ export async function generateStoryboardForScript(
           scene_shot_number: shot.sceneShotNumber,
           shot_type: shot.shotType,
           camera_angle: shot.cameraAngle,
-          shot_movement: shot.cameraMovement,
+          camera_movement: shot.cameraMovement,
           shot_description: shot.shotDescription,
           composition_notes: shot.compositionNotes,
           character_positions: shot.characterPositions,
