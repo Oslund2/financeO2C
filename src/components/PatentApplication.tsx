@@ -168,12 +168,20 @@ export function PatentApplication() {
     }
   };
 
-  const handleCreateApplication = async (title: string) => {
+  const handleCreateApplication = async (data: {
+    title: string;
+    inventionDescription: string;
+    technicalField: string;
+    problemSolved: string;
+  }) => {
     if (!currentOrganization) return;
     setSaving(true);
     try {
       const app = await createPatentApplication(currentOrganization.id, {
-        title,
+        title: data.title,
+        inventionDescription: data.inventionDescription,
+        technicalField: data.technicalField,
+        problemSolved: data.problemSolved,
         specification: generateDefaultSpecification(),
         abstract: generateDefaultAbstract()
       });
@@ -695,6 +703,9 @@ function OverviewTab({
   const [inventorName, setInventorName] = useState(application.inventor_name || '');
   const [filingType, setFilingType] = useState(application.filing_type);
   const [status, setStatus] = useState(application.status);
+  const [inventionDescription, setInventionDescription] = useState(application.invention_description || '');
+  const [technicalField, setTechnicalField] = useState(application.technical_field || '');
+  const [problemSolved, setProblemSolved] = useState(application.problem_solved || '');
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
@@ -704,7 +715,10 @@ function OverviewTab({
         title,
         inventor_name: inventorName || null,
         filing_type: filingType,
-        status
+        status,
+        invention_description: inventionDescription || null,
+        technical_field: technicalField || null,
+        problem_solved: problemSolved || null
       });
       setEditMode(false);
     } finally {
@@ -988,6 +1002,71 @@ function OverviewTab({
           <div className="text-sm text-gray-500">
             <p>Created: {new Date(application.created_at).toLocaleString()}</p>
             <p>Updated: {new Date(application.updated_at).toLocaleString()}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="border-t border-gray-200 pt-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Lightbulb className="w-5 h-5 text-amber-500" />
+          <h3 className="text-lg font-semibold text-gray-900">Invention Details</h3>
+          {!application.invention_description && (
+            <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-full">Required for AI generation</span>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Invention Description</label>
+            {editMode ? (
+              <textarea
+                value={inventionDescription}
+                onChange={e => setInventionDescription(e.target.value)}
+                rows={5}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Describe your invention in detail - what it does, how it works, what makes it novel..."
+              />
+            ) : (
+              <div className={`p-3 rounded-lg ${application.invention_description ? 'bg-gray-50' : 'bg-amber-50 border border-amber-200'}`}>
+                {application.invention_description ? (
+                  <p className="text-gray-700 whitespace-pre-wrap">{application.invention_description}</p>
+                ) : (
+                  <p className="text-amber-700 text-sm">No invention description provided. Click Edit to add one for accurate AI generation.</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Technical Field</label>
+              {editMode ? (
+                <input
+                  type="text"
+                  value={technicalField}
+                  onChange={e => setTechnicalField(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="e.g., Computer-implemented methods, Data processing"
+                />
+              ) : (
+                <p className="text-gray-700">{application.technical_field || 'Not specified'}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Problem Solved</label>
+              {editMode ? (
+                <input
+                  type="text"
+                  value={problemSolved}
+                  onChange={e => setProblemSolved(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="What technical problem does this invention solve?"
+                />
+              ) : (
+                <p className="text-gray-700">{application.problem_solved || 'Not specified'}</p>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -2002,36 +2081,116 @@ function CreateApplicationModal({
 }: {
   saving: boolean;
   onClose: () => void;
-  onCreate: (title: string) => void;
+  onCreate: (data: {
+    title: string;
+    inventionDescription: string;
+    technicalField: string;
+    problemSolved: string;
+  }) => void;
 }) {
-  const [title, setTitle] = useState('AI-Powered Animation Production System and Method');
+  const [title, setTitle] = useState('');
+  const [inventionDescription, setInventionDescription] = useState('');
+  const [technicalField, setTechnicalField] = useState('');
+  const [problemSolved, setProblemSolved] = useState('');
+
+  const canCreate = title.trim() && inventionDescription.trim().length >= 100;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Create Patent Application</h2>
-        <div className="space-y-4">
+      <div className="bg-white rounded-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Application Title</label>
+            <h2 className="text-xl font-semibold text-gray-900">Create Patent Application</h2>
+            <p className="text-sm text-gray-500 mt-1">Describe your invention to generate an accurate patent specification</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        <div className="space-y-5">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Invention Title <span className="text-red-500">*</span>
+            </label>
             <input
               type="text"
               value={title}
               onChange={e => setTitle(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Enter patent title"
+              placeholder="e.g., System and Method for Automated Document Processing"
             />
+            <p className="text-xs text-gray-500 mt-1">A concise title describing your invention</p>
           </div>
-          <div className="flex justify-end gap-3">
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Invention Description <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={inventionDescription}
+              onChange={e => setInventionDescription(e.target.value)}
+              rows={6}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Describe your invention in detail. Include:
+- What it does and how it works
+- The key technical components or steps
+- What makes it novel or different from existing solutions
+- Any specific algorithms, data structures, or methods used"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              {inventionDescription.length} characters (minimum 100 required)
+              {inventionDescription.length < 100 && inventionDescription.length > 0 && (
+                <span className="text-amber-600 ml-2">Need {100 - inventionDescription.length} more</span>
+              )}
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Technical Field</label>
+            <input
+              type="text"
+              value={technicalField}
+              onChange={e => setTechnicalField(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="e.g., Computer-implemented methods, Data processing systems"
+            />
+            <p className="text-xs text-gray-500 mt-1">The technical domain of your invention</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Problem Solved</label>
+            <textarea
+              value={problemSolved}
+              onChange={e => setProblemSolved(e.target.value)}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="What technical problem does your invention solve? What limitations of existing solutions does it address?"
+            />
+            <p className="text-xs text-gray-500 mt-1">The technical problem your invention addresses</p>
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex gap-3">
+              <Lightbulb className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-blue-800">
+                <p className="font-medium mb-1">Important</p>
+                <p>The patent specification will be generated based on your invention description. Be as detailed and specific as possible to ensure accurate results.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
             <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:text-gray-800">
               Cancel
             </button>
             <button
-              onClick={() => onCreate(title)}
-              disabled={saving || !title.trim()}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              onClick={() => onCreate({ title, inventionDescription, technicalField, problemSolved })}
+              disabled={saving || !canCreate}
+              className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-              Create
+              Create Application
             </button>
           </div>
         </div>

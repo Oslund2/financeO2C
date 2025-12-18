@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { generateText } from './geminiService';
 
 export interface ExtractedFeature {
   name: string;
@@ -9,6 +10,14 @@ export interface ExtractedFeature {
   codeSnippet?: string;
   noveltyStrength: 'strong' | 'moderate' | 'weak';
   isCoreInnovation: boolean;
+}
+
+export interface InventionInput {
+  title: string;
+  description: string;
+  technicalField?: string;
+  problemSolved?: string;
+  keyFeatures?: string[];
 }
 
 export interface FeatureAnalysisResult {
@@ -304,6 +313,126 @@ function generateTechnicalSummary(
   }
 
   return `The integrated system contains ${features.length} distinct technical features across video production and patent management domains, of which ${strongFeatures.length} demonstrate strong novelty and ${coreFeatures.length} are core innovations. The platform combines AI-assisted animation production capabilities (including hierarchical cost modeling, character consistency tracking, script-to-shot extraction, and multi-provider integrations) with advanced patent management features (including AI-powered specification generation, prior art search and analysis, novelty scoring, claims generation, and automated drawing creation). This dual-purpose system enables both efficient video content production and comprehensive intellectual property protection for the innovations it contains.`;
+}
+
+export async function extractFeaturesFromInvention(
+  invention: InventionInput
+): Promise<FeatureAnalysisResult> {
+  const prompt = `You are a patent attorney analyzing an invention to identify patentable technical features.
+
+INVENTION TITLE: ${invention.title}
+
+INVENTION DESCRIPTION:
+${invention.description}
+
+${invention.technicalField ? `TECHNICAL FIELD: ${invention.technicalField}` : ''}
+
+${invention.problemSolved ? `PROBLEM SOLVED: ${invention.problemSolved}` : ''}
+
+${invention.keyFeatures && invention.keyFeatures.length > 0 ? `KEY FEATURES PROVIDED BY INVENTOR:
+${invention.keyFeatures.map((f, i) => `${i + 1}. ${f}`).join('\n')}` : ''}
+
+Analyze this invention and extract 4-8 distinct patentable technical features. For each feature, provide:
+
+1. A clear, technical name for the feature
+2. The type of feature (algorithm, data_structure, integration, ui_pattern, or optimization)
+3. A brief description (1-2 sentences)
+4. Detailed technical explanation (2-4 sentences with specific technical details)
+5. Novelty strength assessment (strong, moderate, or weak)
+6. Whether this is a core innovation (true/false)
+
+Focus on:
+- Novel algorithms or methods
+- Unique data structures or architectures
+- Innovative integrations or system designs
+- Novel user interface patterns
+- Performance optimizations
+
+Respond in this exact JSON format (no additional text):
+{
+  "features": [
+    {
+      "name": "Feature Name",
+      "type": "algorithm",
+      "description": "Brief description",
+      "technicalDetails": "Detailed technical explanation",
+      "noveltyStrength": "strong",
+      "isCoreInnovation": true
+    }
+  ],
+  "technicalSummary": "A 2-3 sentence summary of the invention's key technical innovations"
+}`;
+
+  const response = await generateText(prompt, 'patent_feature_extraction');
+
+  let parsed;
+  try {
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      parsed = JSON.parse(jsonMatch[0]);
+    } else {
+      throw new Error('No JSON found in response');
+    }
+  } catch {
+    return createFallbackFeatures(invention);
+  }
+
+  const features: ExtractedFeature[] = (parsed.features || []).map((f: any) => ({
+    name: f.name || 'Unnamed Feature',
+    type: f.type || 'algorithm',
+    description: f.description || '',
+    technicalDetails: f.technicalDetails || f.description || '',
+    noveltyStrength: f.noveltyStrength || 'moderate',
+    isCoreInnovation: f.isCoreInnovation ?? true
+  }));
+
+  const algorithms = features.filter(f => f.type === 'algorithm');
+  const dataStructures = features.filter(f => f.type === 'data_structure');
+  const integrations = features.filter(f => f.type === 'integration');
+
+  return {
+    features,
+    algorithmsIdentified: algorithms,
+    dataStructuresIdentified: dataStructures,
+    integrationPatterns: integrations,
+    serviceFilesAnalyzed: [],
+    technicalSummary: parsed.technicalSummary || `The invention "${invention.title}" contains ${features.length} distinct technical features.`
+  };
+}
+
+function createFallbackFeatures(invention: InventionInput): FeatureAnalysisResult {
+  const baseFeature: ExtractedFeature = {
+    name: invention.title,
+    type: 'algorithm',
+    description: invention.description.slice(0, 200),
+    technicalDetails: invention.description,
+    noveltyStrength: 'moderate',
+    isCoreInnovation: true
+  };
+
+  const features = [baseFeature];
+
+  if (invention.keyFeatures) {
+    invention.keyFeatures.forEach((kf, index) => {
+      features.push({
+        name: `Feature ${index + 2}: ${kf.slice(0, 50)}`,
+        type: 'algorithm',
+        description: kf,
+        technicalDetails: kf,
+        noveltyStrength: 'moderate',
+        isCoreInnovation: index < 2
+      });
+    });
+  }
+
+  return {
+    features,
+    algorithmsIdentified: features,
+    dataStructuresIdentified: [],
+    integrationPatterns: [],
+    serviceFilesAnalyzed: [],
+    technicalSummary: `The invention "${invention.title}" has been analyzed for patentable features.`
+  };
 }
 
 export async function createFeatureAnalysis(

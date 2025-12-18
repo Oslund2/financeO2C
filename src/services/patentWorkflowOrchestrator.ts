@@ -2,9 +2,9 @@ import { supabase } from '../lib/supabase';
 import { searchPriorArt, getPriorArtResults, type PriorArtSearchParams } from './patentPriorArtSearchService';
 import { performNoveltyAnalysis, getNoveltyAnalysis, type NoveltyAnalysis } from './patentNoveltyAnalysisService';
 import { generateComprehensiveDifferentiation, getDifferentiationReports } from './patentDifferentiationService';
-import { generateIntelligentSpecification, type SpecificationSections } from './patentSpecificationGenerationService';
+import { generateIntelligentSpecification, type SpecificationSections, type InventionContext } from './patentSpecificationGenerationService';
 import { generateAIEnhancedClaims } from './patentClaimsService';
-import { extractCodebaseFeatures } from './patentFeatureExtractionService';
+import { extractCodebaseFeatures, extractFeaturesFromInvention, type InventionInput } from './patentFeatureExtractionService';
 import { generateDrawingsForApplication } from './patentDrawingsService';
 
 function formatSpecificationSections(spec: SpecificationSections): string {
@@ -79,17 +79,38 @@ export async function generateCompletePatentApplication(
   };
 
   try {
+    const { data: appData } = await supabase
+      .from('patent_applications')
+      .select('invention_description, technical_field, problem_solved, key_features')
+      .eq('id', config.applicationId)
+      .single();
+
+    const hasInventionDescription = appData?.invention_description && appData.invention_description.trim().length > 0;
+
     if (!config.skipPriorArtSearch) {
       updateProgress('Searching for prior art patents...');
       await searchPriorArt(config.organizationId, config.applicationId, {
         title: config.title,
-        description: config.description
+        description: hasInventionDescription ? appData.invention_description : config.description
       });
       updateProgress('Prior art search completed', 'completed');
     }
 
-    updateProgress('Extracting features from codebase...');
-    const features = await extractCodebaseFeatures(config.organizationId);
+    updateProgress('Analyzing invention features...');
+
+    let features;
+    if (hasInventionDescription) {
+      const inventionInput: InventionInput = {
+        title: config.title,
+        description: appData.invention_description,
+        technicalField: appData.technical_field || undefined,
+        problemSolved: appData.problem_solved || undefined,
+        keyFeatures: appData.key_features || undefined
+      };
+      features = await extractFeaturesFromInvention(inventionInput);
+    } else {
+      features = await extractCodebaseFeatures(config.organizationId);
+    }
     updateProgress('Feature extraction completed', 'completed', { featureCount: features.features.length });
 
     updateProgress('Performing novelty analysis...');
@@ -117,11 +138,18 @@ export async function generateCompletePatentApplication(
     const priorArt = await getPriorArtResults(config.applicationId);
     const differentiationReports = await getDifferentiationReports(config.applicationId);
 
+    const inventionContext: InventionContext | undefined = hasInventionDescription ? {
+      description: appData.invention_description,
+      technicalField: appData.technical_field || undefined,
+      problemSolved: appData.problem_solved || undefined
+    } : undefined;
+
     const specification = await generateIntelligentSpecification(
       config.title,
       features.features,
       priorArt,
-      differentiationReports
+      differentiationReports,
+      inventionContext
     );
 
     // Create concatenated specification for backward compatibility and UI display

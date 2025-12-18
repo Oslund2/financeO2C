@@ -10,6 +10,11 @@ export interface PatentApplication {
   inventor_citizenship: string;
   specification: string | null;
   abstract: string | null;
+  // User-provided invention details
+  invention_description: string | null;
+  technical_field: string | null;
+  problem_solved: string | null;
+  key_features: string[];
   // Structured specification fields
   field_of_invention: string | null;
   background_art: string | null;
@@ -122,6 +127,10 @@ export async function getPatentApplication(applicationId: string): Promise<Paten
       inventor_citizenship,
       specification,
       abstract,
+      invention_description,
+      technical_field,
+      problem_solved,
+      key_features,
       field_of_invention,
       background_art,
       summary_invention,
@@ -184,24 +193,41 @@ export async function getPatentApplication(applicationId: string): Promise<Paten
   };
 }
 
+export interface CreatePatentInput {
+  title: string;
+  inventionDescription?: string;
+  technicalField?: string;
+  problemSolved?: string;
+  keyFeatures?: string[];
+  specification?: string;
+  abstract?: string;
+}
+
 export async function createPatentApplication(
   organizationId: string,
-  data: Partial<PatentApplication>
+  data: CreatePatentInput | Partial<PatentApplication>
 ): Promise<PatentApplication> {
+  const input = data as CreatePatentInput;
+  const appData = data as Partial<PatentApplication>;
+
   const { data: application, error } = await supabase
     .from('patent_applications')
     .insert([{
       organization_id: organizationId,
-      title: data.title || 'Untitled Patent Application',
-      filing_type: data.filing_type || 'provisional',
+      title: input.title || appData.title || 'Untitled Patent Application',
+      filing_type: appData.filing_type || 'provisional',
       status: 'draft',
-      inventor_name: data.inventor_name || 'Kerry G. Oslund',
-      inventor_citizenship: data.inventor_citizenship || 'US Citizen',
-      specification: data.specification || null,
-      abstract: data.abstract || null,
-      prior_art_patents: data.prior_art_patents || [],
-      prior_art_literature: data.prior_art_literature || [],
-      metadata: data.metadata || {},
+      inventor_name: appData.inventor_name || 'Kerry G. Oslund',
+      inventor_citizenship: appData.inventor_citizenship || 'US Citizen',
+      invention_description: input.inventionDescription || appData.invention_description || null,
+      technical_field: input.technicalField || appData.technical_field || null,
+      problem_solved: input.problemSolved || appData.problem_solved || null,
+      key_features: input.keyFeatures || appData.key_features || [],
+      specification: input.specification || appData.specification || null,
+      abstract: input.abstract || appData.abstract || null,
+      prior_art_patents: appData.prior_art_patents || [],
+      prior_art_literature: appData.prior_art_literature || [],
+      metadata: appData.metadata || {},
       version: 1
     }])
     .select()
