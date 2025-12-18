@@ -290,7 +290,7 @@ export function Settings() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full font-medium">3 integrations needed</span>
+                <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full font-medium">2 integrations needed</span>
                 {nextStepsExpanded ? (
                   <ChevronUp className="w-6 h-6 text-gray-400" />
                 ) : (
@@ -408,26 +408,29 @@ export function Settings() {
                     </div>
                   </div>
 
-                  <div className="border border-gray-200 rounded-lg p-5 hover:border-blue-300 transition-colors">
+                  <div className="border border-green-300 bg-green-50/50 rounded-lg p-5">
                     <div className="flex items-start gap-4">
                       <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center flex-shrink-0">
                         <Image className="w-6 h-6 text-white" />
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-bold text-gray-900">Image Generation API</h3>
-                          <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">Optional</span>
-                          <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">Lower Priority</span>
+                          <h3 className="font-bold text-gray-900">Image Generation API (Vertex AI Imagen)</h3>
+                          <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded font-medium">Active</span>
+                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Part of Veo 3.1 Config</span>
                         </div>
                         <p className="text-sm text-gray-600 mb-3">
-                          Generates storyboard frames, character poses, and background images. Currently using Vertex AI Imagen, but can be replaced with alternatives like DALL-E 3 or Stable Diffusion.
+                          Generates storyboard frames, character poses, and background images using Vertex AI Imagen. Fully integrated with your Vertex AI Veo 3.1 configuration.
                         </p>
-                        <div className="bg-gray-50 rounded-lg p-3 mb-3">
-                          <div className="text-xs font-medium text-gray-700 mb-2">Uses same Vertex AI credentials as Video Generation</div>
-                          <div className="text-xs text-gray-500">No additional configuration needed if Vertex AI is set up</div>
+                        <div className="bg-green-100 rounded-lg p-3 mb-3">
+                          <div className="text-xs font-medium text-green-800 mb-1 flex items-center gap-2">
+                            <CheckCircle className="w-3.5 h-3.5" />
+                            Configured via Vertex AI Veo 3.1 Settings
+                          </div>
+                          <div className="text-xs text-green-700">Uses shared Vertex AI credentials - no additional setup required</div>
                         </div>
                         <div className="flex items-center gap-4 text-sm">
-                          <span className="text-gray-500">Est. Cost: ~$0.04 per image</span>
+                          <span className="text-green-700 font-medium">Est. Cost: ~$0.04 per image</span>
                           <a
                             href="https://cloud.google.com/vertex-ai/generative-ai/docs/image/overview"
                             target="_blank"
@@ -439,11 +442,7 @@ export function Settings() {
                         </div>
                       </div>
                       <div className="flex-shrink-0">
-                        {apiStatus?.vertexAI?.apiKey ? (
-                          <CheckCircle className="w-6 h-6 text-green-600" />
-                        ) : (
-                          <XCircle className="w-6 h-6 text-red-500" />
-                        )}
+                        <CheckCircle className="w-6 h-6 text-green-600" />
                       </div>
                     </div>
                   </div>
@@ -1029,8 +1028,8 @@ export function Settings() {
                   <Monitor className="w-5 h-5 text-white" />
                 </div>
                 <div className="text-left">
-                  <h2 className="text-xl font-bold text-gray-900">Video Generation Settings</h2>
-                  <p className="text-sm text-gray-600">Configure Veo 3.1 video output options</p>
+                  <h2 className="text-xl font-bold text-gray-900">Vertex AI Generation Settings</h2>
+                  <p className="text-sm text-gray-600">Configure Veo 3.1 video & Imagen image generation</p>
                 </div>
               </div>
               {videoSettingsExpanded ? (
@@ -1046,8 +1045,8 @@ export function Settings() {
                   <div className="flex items-start gap-3">
                     <Info className="w-5 h-5 text-emerald-600 mt-0.5 flex-shrink-0" />
                     <div className="text-sm text-emerald-800">
-                      <p className="font-medium mb-1">Video Output Configuration</p>
-                      <p>Configure default settings for Veo 3.1 video generation. Higher resolutions and more samples increase costs ($0.75/second).</p>
+                      <p className="font-medium mb-1">Vertex AI Configuration</p>
+                      <p>Configure settings for Veo 3.1 video generation and Imagen storyboard image generation. These settings use shared Vertex AI credentials. Video: ~$0.75/second, Images: ~$0.04/image.</p>
                     </div>
                   </div>
                 </div>
