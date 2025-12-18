@@ -322,6 +322,168 @@ Technical requirements: Clear character silhouettes, readable composition, produ
   return prompt;
 }
 
+interface SceneContext {
+  setting?: string;
+  description?: string;
+  actNumber?: number;
+}
+
+interface ShotData {
+  shot_type?: string;
+  camera_angle?: string;
+  camera_movement?: string;
+  shot_description?: string;
+  composition_notes?: string;
+  character_positions?: any[];
+  lighting_notes?: string;
+  props_needed?: string[];
+  dialogue_text?: string;
+  stage_directions?: string;
+  image_prompt?: string;
+}
+
+export function buildComprehensiveImagePrompt(
+  shot: ShotData,
+  sceneContext: SceneContext,
+  characters: Character[],
+  useClaymation: boolean = true
+): string {
+  const promptSections: string[] = [];
+
+  if (useClaymation) {
+    promptSections.push(
+      'STYLE: High-quality claymation animation, handcrafted clay characters with visible fingerprint textures, stop-motion aesthetic, tangible 3D miniature sets, soft studio lighting, colorful and whimsical design.'
+    );
+  } else {
+    promptSections.push(
+      'STYLE: Professional animation storyboard, clean lines, vibrant colors, production-ready reference.'
+    );
+  }
+
+  if (sceneContext.setting || sceneContext.description) {
+    const sceneLines: string[] = [];
+    if (sceneContext.setting) {
+      sceneLines.push(`Location: ${sceneContext.setting}`);
+    }
+    if (sceneContext.description) {
+      sceneLines.push(`Environment: ${sceneContext.description}`);
+    }
+    promptSections.push(`SCENE: ${sceneLines.join('. ')}`);
+  }
+
+  const framingParts: string[] = [];
+  if (shot.shot_type) {
+    const shotTypeDesc = SHOT_TYPES[shot.shot_type as keyof typeof SHOT_TYPES] || shot.shot_type;
+    framingParts.push(`${shot.shot_type} shot (${shotTypeDesc})`);
+  }
+  if (shot.camera_angle) {
+    const angleDesc = CAMERA_ANGLES[shot.camera_angle as keyof typeof CAMERA_ANGLES] || shot.camera_angle;
+    framingParts.push(`${shot.camera_angle} angle (${angleDesc})`);
+  }
+  if (shot.camera_movement && shot.camera_movement !== 'static') {
+    framingParts.push(`Camera movement: ${shot.camera_movement}`);
+  }
+  if (framingParts.length > 0) {
+    promptSections.push(`FRAMING: ${framingParts.join('. ')}`);
+  }
+
+  if (shot.shot_description) {
+    promptSections.push(`VISUAL: ${shot.shot_description}`);
+  }
+
+  if (shot.stage_directions) {
+    promptSections.push(`ACTION: ${shot.stage_directions}`);
+  }
+
+  const positions = shot.character_positions || [];
+  if (positions.length > 0 || shot.dialogue_text) {
+    const characterLines: string[] = [];
+
+    for (const pos of positions) {
+      const charName = pos?.character || pos?.name;
+      if (!charName) continue;
+
+      const matchedChar = characters.find(c =>
+        c.name.toLowerCase() === charName.toLowerCase()
+      );
+
+      const charParts: string[] = [charName];
+      if (pos.position) charParts.push(`positioned ${pos.position}`);
+      if (pos.expression) charParts.push(`expression: ${pos.expression}`);
+      if (matchedChar?.clay_features) {
+        charParts.push(`(${matchedChar.clay_features})`);
+      }
+      characterLines.push(charParts.join(', '));
+    }
+
+    if (shot.dialogue_text) {
+      const emotionHints = inferEmotionFromDialogue(shot.dialogue_text);
+      if (emotionHints) {
+        characterLines.push(`Emotional context: ${emotionHints}`);
+      }
+    }
+
+    if (characterLines.length > 0) {
+      promptSections.push(`CHARACTERS: ${characterLines.join('. ')}`);
+    }
+  }
+
+  const technicalParts: string[] = [];
+  if (shot.composition_notes) {
+    technicalParts.push(`Composition: ${shot.composition_notes}`);
+  }
+  if (shot.lighting_notes) {
+    technicalParts.push(`Lighting: ${shot.lighting_notes}`);
+  }
+  if (shot.props_needed && shot.props_needed.length > 0) {
+    technicalParts.push(`Props visible: ${shot.props_needed.join(', ')}`);
+  }
+  if (technicalParts.length > 0) {
+    promptSections.push(`TECHNICAL: ${technicalParts.join('. ')}`);
+  }
+
+  promptSections.push(
+    'FORMAT: Professional storyboard panel, 16:9 aspect ratio, clear character silhouettes, readable composition.'
+  );
+
+  return promptSections.join('\n\n');
+}
+
+function inferEmotionFromDialogue(dialogueText: string): string | null {
+  const lower = dialogueText.toLowerCase();
+  const emotions: string[] = [];
+
+  if (lower.includes('!') || lower.includes('wow') || lower.includes('amazing') || lower.includes('excited')) {
+    emotions.push('excited/enthusiastic');
+  }
+  if (lower.includes('?') && (lower.includes('why') || lower.includes('how') || lower.includes('what'))) {
+    emotions.push('curious/questioning');
+  }
+  if (lower.includes('oh no') || lower.includes('worry') || lower.includes('scared') || lower.includes('afraid')) {
+    emotions.push('worried/concerned');
+  }
+  if (lower.includes('happy') || lower.includes('glad') || lower.includes('great') || lower.includes('yay')) {
+    emotions.push('happy/joyful');
+  }
+  if (lower.includes('sad') || lower.includes('sorry') || lower.includes('miss')) {
+    emotions.push('sad/melancholy');
+  }
+  if (lower.includes('think') || lower.includes('hmm') || lower.includes('wonder') || lower.includes('maybe')) {
+    emotions.push('thoughtful/contemplative');
+  }
+  if (lower.includes('help') || lower.includes('together') || lower.includes('friend')) {
+    emotions.push('supportive/friendly');
+  }
+  if (lower.includes('angry') || lower.includes('mad') || lower.includes('upset')) {
+    emotions.push('angry/frustrated');
+  }
+  if (lower.includes('surprise') || lower.includes('unexpected') || lower.includes('suddenly')) {
+    emotions.push('surprised');
+  }
+
+  return emotions.length > 0 ? emotions.join(', ') : null;
+}
+
 export async function generateStoryboardForScript(
   scriptId: string,
   options: StoryboardGenerationOptions = {},
@@ -704,7 +866,8 @@ export async function generateImagesForStoryboard(
         .update({ generation_status: 'generating' })
         .eq('id', shot.id);
 
-      const actNumber = (shot.script_scenes as any).script_acts.act_number;
+      const sceneData = shot.script_scenes as any;
+      const actNumber = sceneData.script_acts.act_number;
       const genStartTime = Date.now();
 
       const characterReferences: CharacterReference[] = [];
@@ -726,9 +889,37 @@ export async function generateImagesForStoryboard(
         }
       }
 
+      const sceneContext: SceneContext = {
+        setting: sceneData.setting,
+        description: sceneData.description,
+        actNumber
+      };
+
+      const stylePrefs = storyboard.style_preferences as any;
+      const useClaymation = stylePrefs?.claymationEmphasis !== false;
+
+      const comprehensivePrompt = buildComprehensiveImagePrompt(
+        {
+          shot_type: shot.shot_type,
+          camera_angle: shot.camera_angle,
+          camera_movement: shot.camera_movement,
+          shot_description: shot.shot_description,
+          composition_notes: shot.composition_notes,
+          character_positions: shot.character_positions as any[],
+          lighting_notes: shot.lighting_notes,
+          props_needed: shot.props_needed as string[],
+          dialogue_text: shot.dialogue_text,
+          stage_directions: shot.stage_directions,
+          image_prompt: shot.image_prompt
+        },
+        sceneContext,
+        characters,
+        useClaymation
+      );
+
       const result = await generateStoryboardImage(
         {
-          prompt: shot.image_prompt || shot.shot_description || 'Storyboard panel',
+          prompt: comprehensivePrompt,
           aspectRatio: '16:9',
           characterReferences
         },
@@ -749,7 +940,8 @@ export async function generateImagesForStoryboard(
             generationTime: result.generationTime,
             estimatedCost: result.estimatedCost,
             generatedAt: new Date().toISOString(),
-            characterReferencesUsed: characterReferences.map(r => r.name)
+            characterReferencesUsed: characterReferences.map(r => r.name),
+            promptUsed: comprehensivePrompt
           }
         })
         .eq('id', shot.id);
