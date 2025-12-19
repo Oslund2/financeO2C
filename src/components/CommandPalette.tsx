@@ -116,8 +116,8 @@ export function CommandPalette({ isOpen, onClose, onNavigate, seriesId }: Comman
     },
     {
       id: 'profit',
-      label: 'Go to Profit Analytics',
-      description: 'View profit per episode',
+      label: 'Go to Production Economics',
+      description: 'View production costs, revenue, and break-even analysis',
       icon: TrendingUp,
       category: 'navigation',
       action: () => { onNavigate('profit-per-episode'); onClose(); },

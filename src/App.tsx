@@ -10,7 +10,7 @@ import { AIStudio } from './components/AIStudio';
 import { Settings } from './components/Settings';
 import { StoryboardGenerator } from './components/StoryboardGenerator';
 import { StoryboardViewer } from './components/StoryboardViewer';
-import { EpisodeProfitAnalytics } from './components/EpisodeProfitAnalytics';
+import { ProductionEconomics } from './components/ProductionEconomics';
 import ProductionWorkflow from './components/ProductionWorkflow';
 import { PatentApplication } from './components/PatentApplication';
 import { CommandPalette, useCommandPalette } from './components/CommandPalette';
@@ -236,7 +236,7 @@ function App() {
         {currentView === 'scripts' && <Scripts seriesId={seriesId} onNavigate={handleNavigate} />}
         {currentView === 'assets' && <Assets seriesId={seriesId} />}
         {currentView === 'episodes' && <Episodes seriesId={seriesId} onNavigate={handleNavigate} navigationData={navigationData} />}
-        {currentView === 'profit-per-episode' && <EpisodeProfitAnalytics seriesId={seriesId} />}
+        {currentView === 'profit-per-episode' && <ProductionEconomics seriesId={seriesId} />}
         {currentView === 'production' && <ProductionWorkflow seriesId={seriesId} navigationData={navigationData} />}
         {currentView === 'ai-studio' && <AIStudio seriesId={seriesId} onNavigate={handleNavigate} />}
         {currentView === 'storyboard-generator' && <StoryboardGenerator onNavigate={handleNavigate} />}
