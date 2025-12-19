@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   BarChart3,
   TrendingUp,
@@ -66,6 +66,8 @@ export function ProductionEconomics({ seriesId }: ProductionEconomicsProps) {
   const [yearsInService, setYearsInService] = useState(5);
   const [decayRatePercent, setDecayRatePercent] = useState(10);
   const [minimumRetentionPercent, setMinimumRetentionPercent] = useState(20);
+
+  const channelConfigRef = useRef<HTMLDivElement>(null);
 
   const selectedEpisode = useMemo(() => {
     return episodes.find(e => e.id === selectedEpisodeId) || null;
@@ -268,6 +270,14 @@ export function ProductionEconomics({ seriesId }: ProductionEconomicsProps) {
     );
     setChannels(newChannels);
   };
+
+  const handleSettingsClick = useCallback((episodeId: string) => {
+    setSelectedEpisodeId(episodeId);
+    setShowChannelConfig(true);
+    setTimeout(() => {
+      channelConfigRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  }, []);
 
   const formatBreakEvenTime = (months: number): string => {
     if (months >= 12) {
@@ -636,6 +646,7 @@ export function ProductionEconomics({ seriesId }: ProductionEconomicsProps) {
                 episodes={episodeCards}
                 selectedEpisodeId={selectedEpisodeId}
                 onSelectEpisode={setSelectedEpisodeId}
+                onSettingsClick={handleSettingsClick}
               />
             </div>
 
@@ -658,7 +669,7 @@ export function ProductionEconomics({ seriesId }: ProductionEconomicsProps) {
                   <YouTubeRevenueCalculator defaultMonthlyViews={100000} />
                 </div>
 
-                <div className="bg-white rounded-xl shadow-md border border-gray-200">
+                <div ref={channelConfigRef} className="bg-white rounded-xl shadow-md border border-gray-200">
                   <button
                     onClick={() => setShowChannelConfig(!showChannelConfig)}
                     className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"

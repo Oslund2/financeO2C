@@ -5,6 +5,7 @@ interface EpisodeEconomicsCardProps {
   metrics: EpisodeSummaryMetrics;
   isSelected: boolean;
   onClick: () => void;
+  onSettingsClick?: () => void;
   hasCustomSettings?: boolean;
   loading?: boolean;
 }
@@ -41,6 +42,7 @@ export function EpisodeEconomicsCard({
   metrics,
   isSelected,
   onClick,
+  onSettingsClick,
   hasCustomSettings = false,
   loading = false
 }: EpisodeEconomicsCardProps) {
@@ -92,16 +94,38 @@ export function EpisodeEconomicsCard({
             </div>
             <h3 className="font-semibold text-gray-900 truncate">{metrics.title}</h3>
           </div>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-            isProfitable ? 'bg-emerald-100' : 'bg-red-100'
-          }`}>
-            {isProfitable ? (
-              <TrendingUp className="w-4 h-4 text-emerald-600" />
-            ) : metrics.lifetimeProfit === 0 ? (
-              <Minus className="w-4 h-4 text-gray-400" />
-            ) : (
-              <TrendingDown className="w-4 h-4 text-red-600" />
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {onSettingsClick && (
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSettingsClick();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.stopPropagation();
+                    onSettingsClick();
+                  }
+                }}
+                className="w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 hover:bg-blue-100 transition-colors cursor-pointer group"
+                title="Configure distribution settings"
+              >
+                <Settings className="w-4 h-4 text-gray-400 group-hover:text-blue-600 transition-colors" />
+              </div>
             )}
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+              isProfitable ? 'bg-emerald-100' : 'bg-red-100'
+            }`}>
+              {isProfitable ? (
+                <TrendingUp className="w-4 h-4 text-emerald-600" />
+              ) : metrics.lifetimeProfit === 0 ? (
+                <Minus className="w-4 h-4 text-gray-400" />
+              ) : (
+                <TrendingDown className="w-4 h-4 text-red-600" />
+              )}
+            </div>
           </div>
         </div>
 
@@ -160,12 +184,14 @@ interface EpisodeEconomicsGridProps {
   }>;
   selectedEpisodeId: string | null;
   onSelectEpisode: (episodeId: string) => void;
+  onSettingsClick?: (episodeId: string) => void;
 }
 
 export function EpisodeEconomicsGrid({
   episodes,
   selectedEpisodeId,
-  onSelectEpisode
+  onSelectEpisode,
+  onSettingsClick
 }: EpisodeEconomicsGridProps) {
   if (episodes.length === 0) {
     return (
@@ -194,6 +220,7 @@ export function EpisodeEconomicsGrid({
             metrics={episode.metrics}
             isSelected={selectedEpisodeId === episode.id}
             onClick={() => onSelectEpisode(episode.id)}
+            onSettingsClick={onSettingsClick ? () => onSettingsClick(episode.id) : undefined}
             hasCustomSettings={episode.hasCustomSettings}
           />
         );
