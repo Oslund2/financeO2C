@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight, Film, Camera, Clock, MessageSquare, Lightbulb, Download, Grid3x3, List, Upload, Wand2, RefreshCw, ZoomIn, Layers, Sparkles, Trash2, Edit3, FileEdit, Filter, CheckCircle, History } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Film, Camera, Clock, MessageSquare, Lightbulb, Download, Grid3x3, List, Upload, Wand2, RefreshCw, ZoomIn, Layers, Sparkles, Trash2, Edit3, FileEdit, Filter, CheckCircle, History, Shield } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { uploadManualImage } from '../services/nanoBananaService';
@@ -12,6 +12,7 @@ import { ShotMetadataEditor } from './ShotMetadataEditor';
 import { PromptEditor } from './PromptEditor';
 import { ImageVersionHistory } from './ImageVersionHistory';
 import { ApprovalWorkflow } from './ApprovalWorkflow';
+import { ManualReferenceUploadModal } from './ManualReferenceUploadModal';
 
 type Storyboard = Database['public']['Tables']['storyboards']['Row'];
 type StoryboardShot = Database['public']['Tables']['storyboard_shots']['Row'];
@@ -41,6 +42,7 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
   const [showApprovalWorkflow, setShowApprovalWorkflow] = useState(false);
   const [filterApprovalStatus, setFilterApprovalStatus] = useState<string>('all');
   const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [showManualReferenceUpload, setShowManualReferenceUpload] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const singleUploadInputRef = useRef<HTMLInputElement>(null);
 
@@ -281,6 +283,11 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
     singleUploadInputRef.current?.click();
   };
 
+  const handleUploadManualReference = (shotId: string) => {
+    setCurrentActionShotId(shotId);
+    setShowManualReferenceUpload(true);
+  };
+
   const handleSingleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !currentActionShotId) return;
@@ -448,6 +455,12 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
                     <div className="absolute top-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
                       {shot.duration_seconds}s
                     </div>
+                    {shot.use_manual_reference && shot.manual_reference_image_url && (
+                      <div className="absolute bottom-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded flex items-center gap-1" title="Using manual reference for character consistency">
+                        <Shield className="w-3 h-3" />
+                        Manual Ref
+                      </div>
+                    )}
                     {shot.generation_status === 'generating' && (
                       <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
                         <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -497,6 +510,7 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
                     onDelete={() => handleDeleteImage(shot.id)}
                     onRegenerate={() => handleRegenerateImage(shot.id)}
                     onGenerateAI={() => handleGenerateSingleImage(shot.id)}
+                    onUploadReference={() => handleUploadManualReference(shot.id)}
                     disabled={generating || uploading}
                   />
                 </div>
@@ -642,6 +656,12 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
                       >
                         <ZoomIn className="w-5 h-5" />
                       </button>
+                      {currentShot.use_manual_reference && currentShot.manual_reference_image_url && (
+                        <div className="absolute bottom-3 left-3 bg-blue-600 text-white text-sm px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-lg" title={`Manual reference: ${currentShot.manual_upload_notes || 'For improved character consistency'}`}>
+                          <Shield className="w-4 h-4" />
+                          <span className="font-medium">Manual Reference</span>
+                        </div>
+                      )}
                     </>
                   ) : (
                     <div className="text-center">
@@ -1022,6 +1042,21 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
             />
           </div>
         </div>
+      )}
+
+      {showManualReferenceUpload && currentActionShotId && (
+        <ManualReferenceUploadModal
+          shotId={currentActionShotId}
+          shotNumber={shots.find(s => s.id === currentActionShotId)?.shot_number || 0}
+          currentImageUrl={shots.find(s => s.id === currentActionShotId)?.image_url}
+          onClose={() => {
+            setShowManualReferenceUpload(false);
+            setCurrentActionShotId(null);
+          }}
+          onSuccess={() => {
+            loadStoryboard();
+          }}
+        />
       )}
 
       <input

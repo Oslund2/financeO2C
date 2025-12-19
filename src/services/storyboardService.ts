@@ -398,6 +398,7 @@ export function buildComprehensiveImagePrompt(
   const positions = shot.character_positions || [];
   if (positions.length > 0 || shot.dialogue_text) {
     const characterLines: string[] = [];
+    const requiredCharacters: string[] = [];
 
     for (const pos of positions) {
       const charName = pos?.character || pos?.name;
@@ -407,6 +408,7 @@ export function buildComprehensiveImagePrompt(
         c.name.toLowerCase() === charName.toLowerCase()
       );
 
+      requiredCharacters.push(charName);
       const charParts: string[] = [charName];
       if (pos.position) charParts.push(`positioned ${pos.position}`);
       if (pos.expression) charParts.push(`expression: ${pos.expression}`);
@@ -424,7 +426,12 @@ export function buildComprehensiveImagePrompt(
     }
 
     if (characterLines.length > 0) {
-      promptSections.push(`CHARACTERS: ${characterLines.join('. ')}`);
+      if (requiredCharacters.length > 0) {
+        promptSections.push(
+          `REQUIRED CHARACTERS - MUST BE CLEARLY VISIBLE: ${requiredCharacters.join(', ')}. These specific characters MUST appear prominently in the image, matching their reference images exactly.`
+        );
+      }
+      promptSections.push(`CHARACTER DETAILS: ${characterLines.join('. ')}`);
     }
   }
 

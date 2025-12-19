@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { MoreVertical, Upload, Trash2, RefreshCw, Wand2 } from 'lucide-react';
+import { MoreVertical, Upload, Trash2, RefreshCw, Wand2, FileImage } from 'lucide-react';
 
 interface ImageActionsMenuProps {
   hasImage: boolean;
@@ -7,6 +7,7 @@ interface ImageActionsMenuProps {
   onDelete: () => void;
   onRegenerate: () => void;
   onGenerateAI: () => void;
+  onUploadReference?: () => void;
   disabled?: boolean;
 }
 
@@ -16,6 +17,7 @@ export function ImageActionsMenu({
   onDelete,
   onRegenerate,
   onGenerateAI,
+  onUploadReference,
   disabled = false
 }: ImageActionsMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -71,6 +73,15 @@ export function ImageActionsMenu({
                 <RefreshCw className="w-4 h-4" />
                 Regenerate AI
               </button>
+              {onUploadReference && (
+                <button
+                  onClick={() => handleAction(onUploadReference)}
+                  className="w-full px-4 py-2 text-left text-sm text-blue-600 hover:bg-blue-50 flex items-center gap-3"
+                >
+                  <FileImage className="w-4 h-4" />
+                  Upload Manual Reference
+                </button>
+              )}
               <div className="border-t border-gray-200 my-1"></div>
               <button
                 onClick={() => handleAction(onDelete)}

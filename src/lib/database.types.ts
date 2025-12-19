@@ -757,6 +757,9 @@ export interface Database {
           image_prompt: string | null
           image_url: string | null
           thumbnail_url: string | null
+          manual_reference_image_url: string | null
+          use_manual_reference: boolean
+          manual_upload_notes: string | null
           generation_status: string
           generation_metadata: Json
           revision_notes: string | null
@@ -792,6 +795,9 @@ export interface Database {
           image_prompt?: string | null
           image_url?: string | null
           thumbnail_url?: string | null
+          manual_reference_image_url?: string | null
+          use_manual_reference?: boolean
+          manual_upload_notes?: string | null
           generation_status?: string
           generation_metadata?: Json
           revision_notes?: string | null
@@ -827,6 +833,9 @@ export interface Database {
           image_prompt?: string | null
           image_url?: string | null
           thumbnail_url?: string | null
+          manual_reference_image_url?: string | null
+          use_manual_reference?: boolean
+          manual_upload_notes?: string | null
           generation_status?: string
           generation_metadata?: Json
           revision_notes?: string | null

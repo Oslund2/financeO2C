@@ -222,7 +222,7 @@ export async function generateStoryboardImage(
     const loadedNames = loadedReferences.filter(r => r.loaded).map(r => r.name);
     if (loadedNames.length > 0) {
       parts.push({
-        text: `Reference images provided for characters: ${loadedNames.join(', ')}. Use these as visual references to maintain character consistency in the generated image.\n\n`
+        text: `CRITICAL: Reference images provided for characters: ${loadedNames.join(', ')}. You MUST use these reference images to ensure EXACT visual consistency. Each character MUST match their reference image in appearance, proportions, colors, features, and style. The characters ${loadedNames.join(', ')} MUST be clearly visible and recognizable in the generated image. This is essential for animation production continuity.\n\n`
       });
     }
   }
@@ -356,6 +356,77 @@ export async function uploadManualImage(
   return {
     imageUrl: publicUrl,
     thumbnailUrl: publicUrl
+  };
+}
+
+export async function uploadManualReferenceImage(
+  file: File,
+  shotId: string,
+  notes?: string
+): Promise<{ imageUrl: string }> {
+  const validFormats = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+
+  if (!validFormats.includes(file.type)) {
+    throw new Error('Invalid file format. Please upload PNG, JPG, or WEBP images.');
+  }
+
+  const maxSize = 10 * 1024 * 1024;
+  if (file.size > maxSize) {
+    throw new Error('File size exceeds 10MB limit.');
+  }
+
+  const { data: shot, error: shotError } = await supabase
+    .from('storyboard_shots')
+    .select('storyboard_id, shot_number, scene_id')
+    .eq('id', shotId)
+    .single();
+
+  if (shotError || !shot) {
+    throw new Error('Shot not found');
+  }
+
+  const { data: scene } = await supabase
+    .from('script_scenes')
+    .select('script_acts(act_number)')
+    .eq('id', shot.scene_id)
+    .single();
+
+  const actNumber = (scene as any)?.script_acts?.act_number || 1;
+
+  const fileName = `act-${actNumber}/shot-${shot.shot_number.toString().padStart(3, '0')}-reference-manual.${file.type.split('/')[1]}`;
+  const filePath = `${shot.storyboard_id}/${fileName}`;
+
+  const { data: uploadData, error: uploadError } = await supabase.storage
+    .from('storyboard-images')
+    .upload(filePath, file, {
+      contentType: file.type,
+      upsert: true
+    });
+
+  if (uploadError) {
+    throw new Error(`Failed to upload reference image: ${uploadError.message}`);
+  }
+
+  const { data: { publicUrl } } = supabase.storage
+    .from('storyboard-images')
+    .getPublicUrl(filePath);
+
+  const { error: updateError } = await supabase
+    .from('storyboard_shots')
+    .update({
+      manual_reference_image_url: publicUrl,
+      use_manual_reference: true,
+      manual_upload_notes: notes || 'Manual reference uploaded for improved character consistency',
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', shotId);
+
+  if (updateError) {
+    throw new Error(`Failed to update shot with reference image: ${updateError.message}`);
+  }
+
+  return {
+    imageUrl: publicUrl
   };
 }
 
