@@ -232,11 +232,22 @@ export async function createEpisodeFromScript(
   const openingSting = 60;
   const closingSting = 30;
 
+  let organizationId: string | null = null;
+  if (script.series_id) {
+    const { data: seriesData } = await supabase
+      .from('series')
+      .select('organization_id')
+      .eq('id', script.series_id)
+      .single();
+    organizationId = seriesData?.organization_id || null;
+  }
+
   const { data: episode, error: episodeError } = await supabase
     .from('episodes')
     .insert([{
       script_id: scriptId,
       series_id: script.series_id,
+      organization_id: organizationId,
       title: finalTitle,
       status: 'planning',
       progress_percentage: 0,
@@ -282,14 +293,8 @@ export async function createEpisodeFromScript(
     .update({ status: 'in_production' })
     .eq('id', scriptId);
 
-  const { data: seriesData } = await supabase
-    .from('series')
-    .select('organization_id')
-    .eq('id', script.series_id)
-    .single();
-
-  if (seriesData?.organization_id) {
-    await EpisodeProgressService.initializeEpisodeProgress(episode.id, seriesData.organization_id);
+  if (organizationId) {
+    await EpisodeProgressService.initializeEpisodeProgress(episode.id, organizationId);
   }
 
   return episode.id;
