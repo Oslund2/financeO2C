@@ -19,7 +19,7 @@ export const FORMAT_PRESETS: FormatPreset[] = [
   {
     id: 'social-short',
     name: '5-min Social Short',
-    description: 'YouTube, TikTok, Instagram - no breaks, high impressions',
+    description: 'YouTube Shorts + TikTok - Ad revenue + sponsorship potential',
     icon: Play,
     runtimeMinutes: 5,
     breaksPerEpisode: 0,
@@ -27,15 +27,16 @@ export const FORMAT_PRESETS: FormatPreset[] = [
     impressionRange: { min: 50000, max: 500000 },
     bgGradient: 'from-red-500 to-pink-600',
     channels: [
-      { id: '1', name: 'Social (YouTube)', buyingModel: 'cpm', rate: 35, cpmRate: 0.35, impressionsPerRun: 100000, enabled: true },
-      { id: '2', name: 'TikTok', buyingModel: 'cpm', rate: 10, cpmRate: 0.10, impressionsPerRun: 250000, enabled: true },
-      { id: '3', name: 'Instagram Reels', buyingModel: 'cpm', rate: 15, cpmRate: 0.15, impressionsPerRun: 150000, enabled: true }
+      { id: '1', name: 'YouTube (Ad Revenue)', buyingModel: 'cpm', rate: 200, cpmRate: 2.00, impressionsPerRun: 100000, enabled: true },
+      { id: '2', name: 'YouTube (Sponsorship)', buyingModel: 'cpm', rate: 1500, cpmRate: 15.00, impressionsPerRun: 100000, enabled: true },
+      { id: '3', name: 'TikTok Creator Fund', buyingModel: 'cpm', rate: 20, cpmRate: 0.04, impressionsPerRun: 250000, enabled: true },
+      { id: '4', name: 'Instagram Reels Bonus', buyingModel: 'cpm', rate: 75, cpmRate: 0.50, impressionsPerRun: 150000, enabled: false }
     ]
   },
   {
     id: 'digital-11',
     name: '11-min Digital',
-    description: 'Streaming + social, 1 mid-roll break, moderate CPMs',
+    description: 'YouTube long-form with mid-roll ads + streaming',
     icon: Monitor,
     runtimeMinutes: 11,
     breaksPerEpisode: 1,
@@ -43,15 +44,16 @@ export const FORMAT_PRESETS: FormatPreset[] = [
     impressionRange: { min: 20000, max: 150000 },
     bgGradient: 'from-blue-500 to-cyan-600',
     channels: [
-      { id: '1', name: 'O&O Streaming', buyingModel: 'cpm', rate: 750, cpmRate: 18, impressionsPerRun: 25000, enabled: true },
-      { id: '2', name: 'Social (YouTube)', buyingModel: 'cpm', rate: 35, cpmRate: 0.35, impressionsPerRun: 75000, enabled: true },
-      { id: '3', name: 'Tablo Kids', buyingModel: 'cpm', rate: 300, cpmRate: 12, impressionsPerRun: 15000, enabled: true }
+      { id: '1', name: 'YouTube (Ad Revenue)', buyingModel: 'cpm', rate: 300, cpmRate: 4.00, impressionsPerRun: 75000, enabled: true },
+      { id: '2', name: 'YouTube (Sponsorship)', buyingModel: 'cpm', rate: 1500, cpmRate: 20.00, impressionsPerRun: 75000, enabled: true },
+      { id: '3', name: 'O&O Streaming', buyingModel: 'cpm', rate: 450, cpmRate: 18, impressionsPerRun: 25000, enabled: true },
+      { id: '4', name: 'Tablo Kids', buyingModel: 'cpm', rate: 180, cpmRate: 12, impressionsPerRun: 15000, enabled: true }
     ]
   },
   {
     id: 'broadcast-22',
     name: '22-min Broadcast',
-    description: 'Full distribution - TV, streaming, social with 3 breaks',
+    description: 'Full distribution - TV, streaming, YouTube with multiple ad breaks',
     icon: Tv,
     runtimeMinutes: 22,
     breaksPerEpisode: 3,
@@ -61,14 +63,15 @@ export const FORMAT_PRESETS: FormatPreset[] = [
     channels: [
       { id: '1', name: 'O&O TV', buyingModel: 'spot', rate: 350, cpmRate: 28, impressionsPerRun: 200000, enabled: true },
       { id: '2', name: 'O&O Streaming', buyingModel: 'cpm', rate: 750, cpmRate: 25, impressionsPerRun: 30000, enabled: true },
-      { id: '3', name: 'Social (YouTube)', buyingModel: 'cpm', rate: 35, cpmRate: 0.35, impressionsPerRun: 50000, enabled: true },
-      { id: '4', name: 'Tablo Kids', buyingModel: 'cpm', rate: 300, cpmRate: 15, impressionsPerRun: 20000, enabled: true }
+      { id: '3', name: 'YouTube (Ad Revenue)', buyingModel: 'cpm', rate: 250, cpmRate: 5.00, impressionsPerRun: 50000, enabled: true },
+      { id: '4', name: 'YouTube (Sponsorship)', buyingModel: 'cpm', rate: 1000, cpmRate: 20.00, impressionsPerRun: 50000, enabled: true },
+      { id: '5', name: 'Tablo Kids', buyingModel: 'cpm', rate: 300, cpmRate: 15, impressionsPerRun: 20000, enabled: true }
     ]
   },
   {
     id: 'premium-30',
     name: '30-min Premium',
-    description: 'Premium rates, all channels, 4 breaks, maximum revenue',
+    description: 'Premium rates, all channels, 4 ad breaks, maximum revenue',
     icon: Film,
     runtimeMinutes: 30,
     breaksPerEpisode: 4,
@@ -77,10 +80,11 @@ export const FORMAT_PRESETS: FormatPreset[] = [
     bgGradient: 'from-amber-500 to-orange-600',
     channels: [
       { id: '1', name: 'O&O TV', buyingModel: 'spot', rate: 450, cpmRate: 32, impressionsPerRun: 300000, enabled: true },
-      { id: '2', name: 'O&O Streaming', buyingModel: 'cpm', rate: 900, cpmRate: 28, impressionsPerRun: 50000, enabled: true },
-      { id: '3', name: 'Social (YouTube)', buyingModel: 'cpm', rate: 35, cpmRate: 0.40, impressionsPerRun: 75000, enabled: true },
-      { id: '4', name: 'Tablo Kids', buyingModel: 'cpm', rate: 400, cpmRate: 18, impressionsPerRun: 30000, enabled: true },
-      { id: '5', name: 'Syndication', buyingModel: 'spot', rate: 200, cpmRate: 12, impressionsPerRun: 150000, enabled: false }
+      { id: '2', name: 'O&O Streaming', buyingModel: 'cpm', rate: 1400, cpmRate: 28, impressionsPerRun: 50000, enabled: true },
+      { id: '3', name: 'YouTube (Ad Revenue)', buyingModel: 'cpm', rate: 450, cpmRate: 6.00, impressionsPerRun: 75000, enabled: true },
+      { id: '4', name: 'YouTube (Sponsorship)', buyingModel: 'cpm', rate: 2250, cpmRate: 30.00, impressionsPerRun: 75000, enabled: true },
+      { id: '5', name: 'Tablo Kids', buyingModel: 'cpm', rate: 540, cpmRate: 18, impressionsPerRun: 30000, enabled: true },
+      { id: '6', name: 'Syndication', buyingModel: 'spot', rate: 200, cpmRate: 12, impressionsPerRun: 150000, enabled: false }
     ]
   }
 ];

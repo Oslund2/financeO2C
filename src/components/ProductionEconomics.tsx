@@ -36,6 +36,7 @@ import { ProductionInvestmentCard } from './ProductionInvestmentCard';
 import { EpisodeFormatPresets, FORMAT_PRESETS, FormatPreset } from './EpisodeFormatPresets';
 import { EpisodeEconomicsCard, EpisodeEconomicsGrid } from './EpisodeEconomicsCard';
 import { SocialRevenueEducation } from './SocialRevenueEducation';
+import { YouTubeRevenueCalculator } from './YouTubeRevenueCalculator';
 import jsPDF from 'jspdf';
 
 type Episode = Database['public']['Tables']['episodes']['Row'];
@@ -626,7 +627,10 @@ export function ProductionEconomics({ seriesId }: ProductionEconomicsProps) {
                   />
                 </div>
 
-                <SocialRevenueEducation />
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <SocialRevenueEducation />
+                  <YouTubeRevenueCalculator defaultMonthlyViews={100000} />
+                </div>
 
                 <div className="bg-white rounded-xl shadow-md border border-gray-200">
                   <button

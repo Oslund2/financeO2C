@@ -72,15 +72,24 @@ const DEFAULT_DISTRIBUTION_CHANNELS: DistributionChannelSettings[] = [
   },
   {
     id: '3',
-    name: 'Social (YouTube)',
+    name: 'YouTube (Ad Revenue)',
     buyingModel: 'cpm',
-    rate: 35,
-    cpmRate: 0.35,
+    rate: 400,
+    cpmRate: 4.00,
     impressionsPerRun: 100000,
     enabled: true
   },
   {
     id: '4',
+    name: 'YouTube (Sponsorship)',
+    buyingModel: 'cpm',
+    rate: 2000,
+    cpmRate: 20.00,
+    impressionsPerRun: 100000,
+    enabled: true
+  },
+  {
+    id: '5',
     name: 'Tablo Kids',
     buyingModel: 'cpm',
     rate: 300,
@@ -93,30 +102,39 @@ const DEFAULT_DISTRIBUTION_CHANNELS: DistributionChannelSettings[] = [
 const SHORT_FORM_CHANNELS: DistributionChannelSettings[] = [
   {
     id: '1',
-    name: 'Social (YouTube)',
+    name: 'YouTube (Ad Revenue)',
     buyingModel: 'cpm',
-    rate: 35,
-    cpmRate: 0.35,
+    rate: 300,
+    cpmRate: 3.00,
     impressionsPerRun: 100000,
     enabled: true
   },
   {
     id: '2',
-    name: 'TikTok',
+    name: 'YouTube (Sponsorship)',
     buyingModel: 'cpm',
-    rate: 10,
-    cpmRate: 0.10,
-    impressionsPerRun: 500000,
+    rate: 2000,
+    cpmRate: 20.00,
+    impressionsPerRun: 100000,
     enabled: true
   },
   {
     id: '3',
-    name: 'Instagram Reels',
+    name: 'TikTok Creator Fund',
     buyingModel: 'cpm',
-    rate: 15,
-    cpmRate: 0.15,
-    impressionsPerRun: 250000,
+    rate: 20,
+    cpmRate: 0.04,
+    impressionsPerRun: 500000,
     enabled: true
+  },
+  {
+    id: '4',
+    name: 'Instagram Reels Bonus',
+    buyingModel: 'cpm',
+    rate: 75,
+    cpmRate: 0.50,
+    impressionsPerRun: 150000,
+    enabled: false
   }
 ];
 
