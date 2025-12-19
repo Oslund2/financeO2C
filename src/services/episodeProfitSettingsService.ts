@@ -1,13 +1,40 @@
 import { supabase } from '../lib/supabase';
 
+export type ChannelDistributionType = 'linear' | 'onDemand';
+
 export interface DistributionChannelSettings {
   id: string;
   name: string;
+  channelType: ChannelDistributionType;
   buyingModel: 'cpm' | 'spot';
   rate: number;
   cpmRate: number;
-  impressionsPerRun: number;
+  impressionsPerAiring: number;
+  airingsPerYear: number;
+  monthlyProjectedViews: number;
   enabled: boolean;
+}
+
+export function isLinearChannel(channel: DistributionChannelSettings): boolean {
+  return channel.channelType === 'linear';
+}
+
+export function isOnDemandChannel(channel: DistributionChannelSettings): boolean {
+  return channel.channelType === 'onDemand';
+}
+
+export function getChannelAnnualImpressions(channel: DistributionChannelSettings): number {
+  if (channel.channelType === 'linear') {
+    return channel.impressionsPerAiring * channel.airingsPerYear;
+  }
+  return channel.monthlyProjectedViews * 12;
+}
+
+export function getChannelMonthlyImpressions(channel: DistributionChannelSettings): number {
+  if (channel.channelType === 'linear') {
+    return (channel.impressionsPerAiring * channel.airingsPerYear) / 12;
+  }
+  return channel.monthlyProjectedViews;
 }
 
 export interface SponsorSettings {
@@ -56,46 +83,61 @@ const DEFAULT_DISTRIBUTION_CHANNELS: DistributionChannelSettings[] = [
   {
     id: '1',
     name: 'O&O TV',
+    channelType: 'linear',
     buyingModel: 'spot',
     rate: 350,
     cpmRate: 28,
-    impressionsPerRun: 200000,
+    impressionsPerAiring: 200000,
+    airingsPerYear: 4,
+    monthlyProjectedViews: 0,
     enabled: true
   },
   {
     id: '2',
-    name: 'O&O Streaming',
+    name: 'O&O Streaming (On-Demand)',
+    channelType: 'onDemand',
     buyingModel: 'cpm',
     rate: 750,
     cpmRate: 25,
-    impressionsPerRun: 30000,
+    impressionsPerAiring: 0,
+    airingsPerYear: 0,
+    monthlyProjectedViews: 30000,
     enabled: true
   },
   {
     id: '3',
     name: 'YouTube (Ad Revenue)',
+    channelType: 'onDemand',
     buyingModel: 'cpm',
     rate: 400,
     cpmRate: 4.00,
-    impressionsPerRun: 100000,
+    impressionsPerAiring: 0,
+    airingsPerYear: 0,
+    monthlyProjectedViews: 100000,
     enabled: true
   },
   {
     id: '4',
     name: 'YouTube (Sponsorship)',
+    channelType: 'onDemand',
     buyingModel: 'cpm',
     rate: 2000,
     cpmRate: 20.00,
-    impressionsPerRun: 100000,
+    impressionsPerAiring: 0,
+    airingsPerYear: 0,
+    monthlyProjectedViews: 100000,
     enabled: true
   },
   {
     id: '5',
     name: 'Tablo Kids',
+    channelType: 'onDemand',
     buyingModel: 'cpm',
     rate: 300,
     cpmRate: 15,
-    impressionsPerRun: 20000,
+    impressionsPerAiring: 0,
+    airingsPerYear: 0,
+    monthlyProjectedViews: 20000,
     enabled: true
   }
 ];
@@ -104,37 +146,49 @@ const SHORT_FORM_CHANNELS: DistributionChannelSettings[] = [
   {
     id: '1',
     name: 'YouTube (Ad Revenue)',
+    channelType: 'onDemand',
     buyingModel: 'cpm',
     rate: 300,
     cpmRate: 3.00,
-    impressionsPerRun: 100000,
+    impressionsPerAiring: 0,
+    airingsPerYear: 0,
+    monthlyProjectedViews: 100000,
     enabled: true
   },
   {
     id: '2',
     name: 'YouTube (Sponsorship)',
+    channelType: 'onDemand',
     buyingModel: 'cpm',
     rate: 2000,
     cpmRate: 20.00,
-    impressionsPerRun: 100000,
+    impressionsPerAiring: 0,
+    airingsPerYear: 0,
+    monthlyProjectedViews: 100000,
     enabled: true
   },
   {
     id: '3',
     name: 'TikTok Creator Fund',
+    channelType: 'onDemand',
     buyingModel: 'cpm',
     rate: 20,
     cpmRate: 0.04,
-    impressionsPerRun: 500000,
+    impressionsPerAiring: 0,
+    airingsPerYear: 0,
+    monthlyProjectedViews: 500000,
     enabled: true
   },
   {
     id: '4',
     name: 'Instagram Reels Bonus',
+    channelType: 'onDemand',
     buyingModel: 'cpm',
     rate: 75,
     cpmRate: 0.50,
-    impressionsPerRun: 150000,
+    impressionsPerAiring: 0,
+    airingsPerYear: 0,
+    monthlyProjectedViews: 150000,
     enabled: false
   }
 ];
@@ -255,7 +309,57 @@ export class EpisodeProfitSettingsService {
     return 4;
   }
 
+  private static inferChannelType(channelName: string): ChannelDistributionType {
+    const name = channelName.toLowerCase();
+    if (name.includes('tv') && !name.includes('on-demand')) return 'linear';
+    if (name.includes('fast')) return 'linear';
+    if (name.includes('broadcast')) return 'linear';
+    if (name.includes('syndication')) return 'linear';
+    return 'onDemand';
+  }
+
+  private static migrateChannel(channel: any, annualRuns: number): DistributionChannelSettings {
+    if (channel.channelType) {
+      return channel as DistributionChannelSettings;
+    }
+
+    const channelType = this.inferChannelType(channel.name);
+    const legacyImpressions = channel.impressionsPerRun || channel.impressionsPerAiring || 100000;
+
+    if (channelType === 'linear') {
+      return {
+        id: channel.id,
+        name: channel.name,
+        channelType: 'linear',
+        buyingModel: channel.buyingModel,
+        rate: channel.rate,
+        cpmRate: channel.cpmRate,
+        impressionsPerAiring: legacyImpressions,
+        airingsPerYear: annualRuns || 4,
+        monthlyProjectedViews: 0,
+        enabled: channel.enabled
+      };
+    }
+
+    return {
+      id: channel.id,
+      name: channel.name,
+      channelType: 'onDemand',
+      buyingModel: channel.buyingModel,
+      rate: channel.rate,
+      cpmRate: channel.cpmRate,
+      impressionsPerAiring: 0,
+      airingsPerYear: 0,
+      monthlyProjectedViews: legacyImpressions,
+      enabled: channel.enabled
+    };
+  }
+
   private static mapFromDatabase(data: any): EpisodeProfitSettings {
+    const annualRuns = data.annual_runs_per_episode || 4;
+    const rawChannels = data.distribution_channels || DEFAULT_DISTRIBUTION_CHANNELS;
+    const migratedChannels = rawChannels.map((ch: any) => this.migrateChannel(ch, annualRuns));
+
     return {
       id: data.id,
       episodeId: data.episode_id,
@@ -264,13 +368,13 @@ export class EpisodeProfitSettingsService {
       breaksPerEpisode: data.breaks_per_episode,
       spotsPerBreak: data.spots_per_break,
       spotLengthSeconds: data.spot_length_seconds,
-      annualRunsPerEpisode: data.annual_runs_per_episode,
+      annualRunsPerEpisode: annualRuns,
       yearsInService: data.years_in_service,
       decayRatePercent: parseFloat(data.decay_rate_percent),
       minimumRetentionPercent: parseFloat(data.minimum_retention_percent),
       targetCpm: parseFloat(data.target_cpm),
       baseProductionCost: parseFloat(data.base_production_cost || '0'),
-      distributionChannels: data.distribution_channels || DEFAULT_DISTRIBUTION_CHANNELS,
+      distributionChannels: migratedChannels,
       sponsors: data.sponsors || [],
       enableMultiLanguage: data.enable_multi_language,
       dubbingTier: data.dubbing_tier,

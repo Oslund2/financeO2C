@@ -1,18 +1,13 @@
-import { Target, TrendingUp, Clock, Eye, Tv, Play } from 'lucide-react';
+import { Target, TrendingUp, Clock, Eye, Tv, Play, Radio } from 'lucide-react';
 import { BreakEvenAnalysis, EpisodeEconomicsService } from '../services/episodeEconomicsService';
 
 interface BreakEvenAnalysisCardProps {
   breakEven: BreakEvenAnalysis;
-  runsPerYear: number;
 }
 
-export function BreakEvenAnalysisCard({ breakEven, runsPerYear }: BreakEvenAnalysisCardProps) {
+export function BreakEvenAnalysisCard({ breakEven }: BreakEvenAnalysisCardProps) {
   const formatCurrency = EpisodeEconomicsService.formatCurrency;
   const formatNumber = EpisodeEconomicsService.formatNumber;
-
-  const progressPercent = breakEven.breakEvenRuns > 0
-    ? Math.min((1 / breakEven.breakEvenRuns) * 100, 100)
-    : 0;
 
   const getTimelineLabel = () => {
     if (breakEven.breakEvenYears >= 1) {
@@ -23,11 +18,43 @@ export function BreakEvenAnalysisCard({ breakEven, runsPerYear }: BreakEvenAnaly
       }
       return `${years} year${years !== 1 ? 's' : ''}`;
     }
-    const months = Math.ceil(breakEven.breakEvenMonths);
+    const months = Math.max(1, Math.ceil(breakEven.breakEvenMonths));
     return `${months} month${months !== 1 ? 's' : ''}`;
   };
 
-  const isProfitable = breakEven.breakEvenRuns > 0 && breakEven.breakEvenRuns <= runsPerYear * 5;
+  const getShortTimelineLabel = () => {
+    if (breakEven.breakEvenYears >= 1) {
+      const years = Math.floor(breakEven.breakEvenYears);
+      const months = Math.round((breakEven.breakEvenYears - years) * 12);
+      if (months > 0) {
+        return `${years}y ${months}mo`;
+      }
+      return `${years}y`;
+    }
+    const months = Math.max(1, Math.ceil(breakEven.breakEvenMonths));
+    return `${months}mo`;
+  };
+
+  const progressPercent = breakEven.breakEvenMonths > 0
+    ? Math.min((1 / breakEven.breakEvenMonths) * 100, 100)
+    : 0;
+
+  const isProfitable = breakEven.breakEvenMonths > 0 && breakEven.breakEvenMonths <= 60;
+
+  const hasLinearChannels = breakEven.linearChannelBreakEven.length > 0;
+  const hasOnDemandChannels = breakEven.onDemandChannelBreakEven.length > 0;
+
+  const formatMonthsNeeded = (months: number) => {
+    if (months >= 12) {
+      const years = Math.floor(months / 12);
+      const remainingMonths = Math.round(months % 12);
+      if (remainingMonths > 0) {
+        return `~${years}y ${remainingMonths}mo`;
+      }
+      return `~${years}y`;
+    }
+    return `~${Math.ceil(months)}mo`;
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
@@ -44,9 +71,9 @@ export function BreakEvenAnalysisCard({ breakEven, runsPerYear }: BreakEvenAnaly
           </div>
           <div className="text-right">
             <div className="text-2xl font-bold text-white">
-              {breakEven.breakEvenRuns > 0 ? Math.ceil(breakEven.breakEvenRuns) : '--'}
+              {breakEven.breakEvenMonths > 0 ? getShortTimelineLabel() : '--'}
             </div>
-            <div className="text-white/80 text-sm">runs to break even</div>
+            <div className="text-white/80 text-sm">to break even</div>
           </div>
         </div>
       </div>
@@ -59,10 +86,10 @@ export function BreakEvenAnalysisCard({ breakEven, runsPerYear }: BreakEvenAnaly
               <span className="text-sm font-medium">Timeline</span>
             </div>
             <div className="text-xl font-bold text-gray-900">
-              {breakEven.breakEvenRuns > 0 ? getTimelineLabel() : 'N/A'}
+              {breakEven.breakEvenMonths > 0 ? getTimelineLabel() : 'N/A'}
             </div>
             <div className="text-xs text-gray-500 mt-1">
-              at {runsPerYear} runs/year
+              based on current distribution mix
             </div>
           </div>
 
@@ -96,7 +123,9 @@ export function BreakEvenAnalysisCard({ breakEven, runsPerYear }: BreakEvenAnaly
         <div>
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-gray-700">Progress to Break-Even</span>
-            <span className="text-sm text-gray-500">1 of {Math.ceil(breakEven.breakEvenRuns)} runs</span>
+            <span className="text-sm text-gray-500">
+              Month 1 of {Math.ceil(breakEven.breakEvenMonths)}
+            </span>
           </div>
           <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
             <div
@@ -105,50 +134,90 @@ export function BreakEvenAnalysisCard({ breakEven, runsPerYear }: BreakEvenAnaly
             />
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            After first run, {formatCurrency(breakEven.totalInvestment - (breakEven.breakEvenRuns > 0 ? breakEven.totalInvestment / breakEven.breakEvenRuns : 0))} remaining to recover
+            After first month, {formatCurrency(breakEven.totalInvestment - breakEven.totalMonthlyNetRevenue)} remaining to recover
           </p>
         </div>
 
-        {breakEven.channelBreakEven.length > 0 && (
-          <div>
-            <h4 className="text-sm font-semibold text-gray-700 mb-3">Break-Even by Channel (if sole distribution)</h4>
-            <div className="space-y-2">
-              {breakEven.channelBreakEven.map((channel) => (
-                <div key={channel.channelName} className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    {channel.channelName.toLowerCase().includes('youtube') || channel.channelName.toLowerCase().includes('social') ? (
-                      <Play className="w-4 h-4 text-red-500" />
-                    ) : channel.channelName.toLowerCase().includes('tv') ? (
-                      <Tv className="w-4 h-4 text-blue-500" />
-                    ) : (
-                      <Eye className="w-4 h-4 text-gray-500" />
-                    )}
-                    <span className="text-sm font-medium text-gray-700">{channel.channelName}</span>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm font-semibold text-gray-900">
-                      {formatNumber(channel.impressionsNeeded)} views
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      or {Math.ceil(channel.runsNeeded)} runs
-                    </div>
-                  </div>
+        {(hasLinearChannels || hasOnDemandChannels) && (
+          <div className="space-y-4">
+            <h4 className="text-sm font-semibold text-gray-700">Break-Even by Channel (if sole distribution)</h4>
+
+            {hasLinearChannels && (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Radio className="w-4 h-4 text-blue-600" />
+                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Linear Distribution</span>
                 </div>
-              ))}
-            </div>
+                <div className="space-y-2">
+                  {breakEven.linearChannelBreakEven.map((channel) => (
+                    <div key={channel.channelName} className="flex items-center justify-between bg-blue-50 rounded-lg px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <Tv className="w-4 h-4 text-blue-600" />
+                        <span className="text-sm font-medium text-gray-700">{channel.channelName}</span>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-semibold text-gray-900">
+                          {Math.ceil(channel.airingsNeeded)} airings
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {formatMonthsNeeded(channel.monthsNeeded)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {hasOnDemandChannels && (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Play className="w-4 h-4 text-red-500" />
+                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">On-Demand / Social</span>
+                </div>
+                <div className="space-y-2">
+                  {breakEven.onDemandChannelBreakEven.map((channel) => (
+                    <div key={channel.channelName} className="flex items-center justify-between bg-red-50 rounded-lg px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        {channel.channelName.toLowerCase().includes('youtube') ? (
+                          <Play className="w-4 h-4 text-red-500" />
+                        ) : channel.channelName.toLowerCase().includes('tiktok') ? (
+                          <Play className="w-4 h-4 text-gray-800" />
+                        ) : (
+                          <Eye className="w-4 h-4 text-gray-500" />
+                        )}
+                        <span className="text-sm font-medium text-gray-700">{channel.channelName}</span>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-semibold text-gray-900">
+                          {formatNumber(channel.viewsNeeded)} views
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {formatMonthsNeeded(channel.monthsNeeded)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
         <div className="bg-blue-50 rounded-lg p-4">
           <p className="text-sm text-blue-800">
-            <strong>How to read this:</strong> You need approximately{' '}
-            <strong>{Math.ceil(breakEven.breakEvenRuns)} broadcast runs</strong> or{' '}
-            <strong>{formatNumber(breakEven.breakEvenImpressions)} total impressions</strong>{' '}
-            across all your enabled distribution channels to recover your initial{' '}
-            <strong>{formatCurrency(breakEven.totalInvestment)}</strong> production investment.
-            {breakEven.breakEvenYears <= 1 && (
-              <> At your current run rate, this takes about <strong>{getTimelineLabel()}</strong>.</>
+            <strong>How to read this:</strong> Based on your current distribution mix, it will take approximately{' '}
+            <strong>{getTimelineLabel()}</strong> to recover your initial{' '}
+            <strong>{formatCurrency(breakEven.totalInvestment)}</strong> production investment
+            {hasLinearChannels && hasOnDemandChannels && (
+              <> through a combination of broadcast airings and on-demand views</>
             )}
+            {hasLinearChannels && !hasOnDemandChannels && (
+              <> through scheduled broadcast airings</>
+            )}
+            {!hasLinearChannels && hasOnDemandChannels && (
+              <> through accumulated on-demand views</>
+            )}.
           </p>
         </div>
       </div>

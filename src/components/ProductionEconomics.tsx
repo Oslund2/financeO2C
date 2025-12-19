@@ -29,7 +29,9 @@ import {
 } from '../services/episodeEconomicsService';
 import {
   EpisodeProfitSettingsService,
-  DistributionChannelSettings
+  DistributionChannelSettings,
+  isLinearChannel,
+  isOnDemandChannel
 } from '../services/episodeProfitSettingsService';
 import { BreakEvenAnalysisCard } from './BreakEvenAnalysisCard';
 import { ProductionInvestmentCard } from './ProductionInvestmentCard';
@@ -92,26 +94,28 @@ export function ProductionEconomics({ seriesId }: ProductionEconomicsProps) {
       return {
         totalInvestment: 0,
         totalAnnualNetRevenue: 0,
+        totalMonthlyNetRevenue: 0,
         totalLifetimeProfit: 0,
         averageRoiMultiple: 0,
-        seriesBreakEvenRuns: 0,
+        seriesBreakEvenMonths: 0,
         episodeCount: 0
       };
     }
 
     const totalInvestment = allEconomics.reduce((sum, e) => sum + e.costs.totalInitialInvestment, 0);
     const totalAnnualNetRevenue = allEconomics.reduce((sum, e) => sum + e.totalAnnualNetRevenue, 0);
+    const totalMonthlyNetRevenue = allEconomics.reduce((sum, e) => sum + e.totalMonthlyNetRevenue, 0);
     const totalLifetimeProfit = allEconomics.reduce((sum, e) => sum + e.lifetime.lifetimeProfit, 0);
     const averageRoiMultiple = allEconomics.reduce((sum, e) => sum + e.lifetime.roiMultiple, 0) / allEconomics.length;
-    const avgRevenuePerRun = allEconomics.reduce((sum, e) => sum + e.netRevenuePerRun, 0);
-    const seriesBreakEvenRuns = avgRevenuePerRun > 0 ? totalInvestment / avgRevenuePerRun : 0;
+    const seriesBreakEvenMonths = totalMonthlyNetRevenue > 0 ? totalInvestment / totalMonthlyNetRevenue : 0;
 
     return {
       totalInvestment,
       totalAnnualNetRevenue,
+      totalMonthlyNetRevenue,
       totalLifetimeProfit,
       averageRoiMultiple,
-      seriesBreakEvenRuns,
+      seriesBreakEvenMonths,
       episodeCount: allEconomics.length
     };
   }, [episodeEconomics]);
@@ -247,11 +251,34 @@ export function ProductionEconomics({ seriesId }: ProductionEconomicsProps) {
     setChannels(newChannels);
   };
 
-  const updateChannelImpressions = (channelId: string, impressions: number) => {
+  const updateChannelImpressions = (channelId: string, value: number) => {
+    const newChannels = channels.map(c => {
+      if (c.id !== channelId) return c;
+      if (isLinearChannel(c)) {
+        return { ...c, impressionsPerAiring: value };
+      }
+      return { ...c, monthlyProjectedViews: value };
+    });
+    setChannels(newChannels);
+  };
+
+  const updateChannelAirings = (channelId: string, airings: number) => {
     const newChannels = channels.map(c =>
-      c.id === channelId ? { ...c, impressionsPerRun: impressions } : c
+      c.id === channelId ? { ...c, airingsPerYear: airings } : c
     );
     setChannels(newChannels);
+  };
+
+  const formatBreakEvenTime = (months: number): string => {
+    if (months >= 12) {
+      const years = Math.floor(months / 12);
+      const remainingMonths = Math.round(months % 12);
+      if (remainingMonths > 0) {
+        return `${years}y ${remainingMonths}mo`;
+      }
+      return `${years}y`;
+    }
+    return `${Math.ceil(months)}mo`;
   };
 
   const formatCurrency = EpisodeEconomicsService.formatCurrency;
@@ -520,7 +547,7 @@ export function ProductionEconomics({ seriesId }: ProductionEconomicsProps) {
                   <span className="text-sm font-medium text-gray-500">Series Break-Even</span>
                 </div>
                 <div className="text-2xl font-bold text-gray-900">
-                  {seriesTotals.seriesBreakEvenRuns > 0 ? Math.ceil(seriesTotals.seriesBreakEvenRuns) : '--'} runs
+                  {seriesTotals.seriesBreakEvenMonths > 0 ? formatBreakEvenTime(seriesTotals.seriesBreakEvenMonths) : '--'}
                 </div>
                 <div className="text-xs text-gray-500 mt-1">to recover total investment</div>
               </div>
@@ -539,7 +566,7 @@ export function ProductionEconomics({ seriesId }: ProductionEconomicsProps) {
                         <th className="pb-3 pr-4">Episode</th>
                         <th className="pb-3 pr-4">Format</th>
                         <th className="pb-3 pr-4 text-right">Investment</th>
-                        <th className="pb-3 pr-4 text-right">Net Rev/Run</th>
+                        <th className="pb-3 pr-4 text-right">Monthly Net Rev</th>
                         <th className="pb-3 pr-4 text-right">Break-Even</th>
                         <th className="pb-3 pr-4 text-right">Lifetime Profit</th>
                         <th className="pb-3 text-right">ROI</th>
@@ -574,10 +601,10 @@ export function ProductionEconomics({ seriesId }: ProductionEconomicsProps) {
                               {formatCurrency(metrics.totalInvestment)}
                             </td>
                             <td className="py-4 pr-4 text-right text-sm font-medium text-gray-900">
-                              {formatCurrency(metrics.netRevenuePerRun)}
+                              {formatCurrency(metrics.monthlyNetRevenue)}
                             </td>
                             <td className="py-4 pr-4 text-right text-sm text-gray-600">
-                              {Math.ceil(metrics.breakEvenRuns)} runs
+                              {formatBreakEvenTime(metrics.breakEvenMonths)}
                             </td>
                             <td className={`py-4 pr-4 text-right text-sm font-medium ${
                               metrics.lifetimeProfit >= 0 ? 'text-emerald-600' : 'text-red-600'
@@ -618,12 +645,11 @@ export function ProductionEconomics({ seriesId }: ProductionEconomicsProps) {
                   <ProductionInvestmentCard
                     costs={selectedEconomics.costs}
                     yearsInService={selectedEconomics.lifetime.yearsInService}
-                    runsPerYear={runsPerYear}
+                    runsPerYear={yearsInService}
                     runtimeMinutes={selectedEconomics.format.runtimeMinutes}
                   />
                   <BreakEvenAnalysisCard
                     breakEven={selectedEconomics.breakEven}
-                    runsPerYear={runsPerYear}
                   />
                 </div>
 
@@ -660,19 +686,7 @@ export function ProductionEconomics({ seriesId }: ProductionEconomicsProps) {
                         onSelectPreset={handlePresetSelect}
                       />
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 rounded-lg p-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Runs per Year</label>
-                          <input
-                            type="number"
-                            value={runsPerYear}
-                            onChange={(e) => setRunsPerYear(parseInt(e.target.value) || 4)}
-                            onBlur={() => saveSettings()}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            min={1}
-                            max={52}
-                          />
-                        </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 rounded-lg p-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Years in Service</label>
                           <input
@@ -684,9 +698,10 @@ export function ProductionEconomics({ seriesId }: ProductionEconomicsProps) {
                             min={1}
                             max={20}
                           />
+                          <p className="text-xs text-gray-500 mt-1">How long this content will generate revenue</p>
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Annual Decay Rate %</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Annual View Decay %</label>
                           <input
                             type="number"
                             value={decayRatePercent}
@@ -696,111 +711,236 @@ export function ProductionEconomics({ seriesId }: ProductionEconomicsProps) {
                             min={0}
                             max={50}
                           />
+                          <p className="text-xs text-gray-500 mt-1">Rate at which viewership decreases each year</p>
                         </div>
                       </div>
 
                       <div>
                         <h4 className="text-sm font-semibold text-gray-900 mb-3">Channel Configuration</h4>
-                        <div className="space-y-3">
-                          {channels.map((channel) => {
-                            const platformFee = Object.entries(DEFAULT_PLATFORM_FEES).find(([key]) =>
-                              channel.name.toLowerCase().includes(key.replace(/([A-Z])/g, ' $1').toLowerCase())
-                            )?.[1] || 0.30;
 
-                            const grossRev = channel.buyingModel === 'cpm'
-                              ? (channel.cpmRate * channel.impressionsPerRun) / 1000
-                              : channel.rate * 4;
-                            const netRev = grossRev * (1 - platformFee);
+                        {channels.some(c => isLinearChannel(c)) && (
+                          <div className="mb-4">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Tv className="w-4 h-4 text-blue-600" />
+                              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Linear Distribution</span>
+                            </div>
+                            <div className="space-y-3">
+                              {channels.filter(c => isLinearChannel(c)).map((channel) => {
+                                const platformFee = Object.entries(DEFAULT_PLATFORM_FEES).find(([key]) =>
+                                  channel.name.toLowerCase().includes(key.replace(/([A-Z])/g, ' $1').toLowerCase())
+                                )?.[1] || 0;
 
-                            return (
-                              <div
-                                key={channel.id}
-                                className={`p-4 rounded-lg border transition-all ${
-                                  channel.enabled ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-100'
-                                }`}
-                              >
-                                <div className="flex items-center justify-between mb-3">
-                                  <div className="flex items-center gap-3">
-                                    <button
-                                      onClick={() => {
-                                        toggleChannel(channel.id);
-                                        setTimeout(() => saveSettings(), 100);
-                                      }}
-                                      className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
-                                        channel.enabled
-                                          ? 'bg-blue-500 border-blue-500'
-                                          : 'bg-white border-gray-300'
-                                      }`}
-                                    >
+                                const annualImpressions = channel.impressionsPerAiring * channel.airingsPerYear;
+                                const annualGrossRev = channel.buyingModel === 'cpm'
+                                  ? (channel.cpmRate * annualImpressions) / 1000
+                                  : channel.rate * channel.airingsPerYear;
+                                const monthlyNetRev = (annualGrossRev * (1 - platformFee)) / 12;
+
+                                return (
+                                  <div
+                                    key={channel.id}
+                                    className={`p-4 rounded-lg border transition-all ${
+                                      channel.enabled ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-100'
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between mb-3">
+                                      <div className="flex items-center gap-3">
+                                        <button
+                                          onClick={() => {
+                                            toggleChannel(channel.id);
+                                            setTimeout(() => saveSettings(), 100);
+                                          }}
+                                          className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                                            channel.enabled
+                                              ? 'bg-blue-500 border-blue-500'
+                                              : 'bg-white border-gray-300'
+                                          }`}
+                                        >
+                                          {channel.enabled && (
+                                            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                            </svg>
+                                          )}
+                                        </button>
+                                        <span className={`font-medium ${channel.enabled ? 'text-gray-900' : 'text-gray-400'}`}>
+                                          {channel.name}
+                                        </span>
+                                        <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
+                                          Linear
+                                        </span>
+                                      </div>
                                       {channel.enabled && (
-                                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                        </svg>
+                                        <div className="text-right">
+                                          <div className="text-sm font-semibold text-emerald-600">
+                                            {formatCurrency(monthlyNetRev)}/mo net
+                                          </div>
+                                          <div className="text-xs text-gray-500">
+                                            {channel.airingsPerYear} airings/year
+                                          </div>
+                                        </div>
                                       )}
-                                    </button>
-                                    <span className={`font-medium ${channel.enabled ? 'text-gray-900' : 'text-gray-400'}`}>
-                                      {channel.name}
-                                    </span>
-                                    {platformFee > 0 && (
-                                      <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full">
-                                        {(platformFee * 100).toFixed(0)}% platform fee
-                                      </span>
+                                    </div>
+
+                                    {channel.enabled && (
+                                      <div className="grid grid-cols-3 gap-4 mt-3">
+                                        <div>
+                                          <label className="block text-xs font-medium text-gray-500 mb-1">
+                                            CPM Rate ($)
+                                          </label>
+                                          <input
+                                            type="number"
+                                            value={channel.cpmRate}
+                                            onChange={(e) => updateChannelCpm(channel.id, parseFloat(e.target.value) || 0)}
+                                            onBlur={() => saveSettings()}
+                                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                            step="0.01"
+                                            min="0"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="block text-xs font-medium text-gray-500 mb-1">
+                                            Impressions/Airing
+                                          </label>
+                                          <input
+                                            type="number"
+                                            value={channel.impressionsPerAiring}
+                                            onChange={(e) => updateChannelImpressions(channel.id, parseInt(e.target.value) || 0)}
+                                            onBlur={() => saveSettings()}
+                                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                            step="1000"
+                                            min="0"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="block text-xs font-medium text-gray-500 mb-1">
+                                            Airings/Year
+                                          </label>
+                                          <input
+                                            type="number"
+                                            value={channel.airingsPerYear}
+                                            onChange={(e) => updateChannelAirings(channel.id, parseInt(e.target.value) || 0)}
+                                            onBlur={() => saveSettings()}
+                                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                            step="1"
+                                            min="0"
+                                            max="52"
+                                          />
+                                        </div>
+                                      </div>
                                     )}
                                   </div>
-                                  {channel.enabled && (
-                                    <div className="text-right">
-                                      <div className="text-sm font-semibold text-emerald-600">
-                                        {formatCurrency(netRev)} net/run
-                                      </div>
-                                      <div className="text-xs text-gray-500">
-                                        {formatCurrency(grossRev)} gross
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
 
-                                {channel.enabled && (
-                                  <div className="grid grid-cols-2 gap-4 mt-3">
-                                    <div>
-                                      <label className="block text-xs font-medium text-gray-500 mb-1">
-                                        CPM Rate ($)
-                                      </label>
-                                      <input
-                                        type="number"
-                                        value={channel.cpmRate}
-                                        onChange={(e) => updateChannelCpm(channel.id, parseFloat(e.target.value) || 0)}
-                                        onBlur={() => saveSettings()}
-                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                        step="0.01"
-                                        min="0"
-                                      />
-                                    </div>
-                                    <div>
-                                      <label className="block text-xs font-medium text-gray-500 mb-1">
-                                        Impressions/Run
-                                      </label>
-                                      <input
-                                        type="number"
-                                        value={channel.impressionsPerRun}
-                                        onChange={(e) => updateChannelImpressions(channel.id, parseInt(e.target.value) || 0)}
-                                        onBlur={() => saveSettings()}
-                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                        step="1000"
-                                        min="0"
-                                      />
-                                    </div>
-                                  </div>
-                                )}
+                        {channels.some(c => isOnDemandChannel(c)) && (
+                          <div>
+                            <div className="flex items-center gap-2 mb-2">
+                              <Play className="w-4 h-4 text-red-500" />
+                              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">On-Demand / Social</span>
+                            </div>
+                            <div className="space-y-3">
+                              {channels.filter(c => isOnDemandChannel(c)).map((channel) => {
+                                const platformFee = Object.entries(DEFAULT_PLATFORM_FEES).find(([key]) =>
+                                  channel.name.toLowerCase().includes(key.replace(/([A-Z])/g, ' $1').toLowerCase())
+                                )?.[1] || 0.30;
 
-                                {channel.enabled && (
-                                  <div className="mt-2 text-xs text-gray-500 bg-gray-50 rounded px-2 py-1">
-                                    Revenue = ({formatCurrency(channel.cpmRate)} CPM x {formatNumber(channel.impressionsPerRun)} impressions / 1000) x {((1 - platformFee) * 100).toFixed(0)}% creator share = <strong className="text-emerald-600">{formatCurrency(netRev)}</strong>
+                                const monthlyGrossRev = (channel.cpmRate * channel.monthlyProjectedViews) / 1000;
+                                const monthlyNetRev = monthlyGrossRev * (1 - platformFee);
+
+                                return (
+                                  <div
+                                    key={channel.id}
+                                    className={`p-4 rounded-lg border transition-all ${
+                                      channel.enabled ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-100'
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between mb-3">
+                                      <div className="flex items-center gap-3">
+                                        <button
+                                          onClick={() => {
+                                            toggleChannel(channel.id);
+                                            setTimeout(() => saveSettings(), 100);
+                                          }}
+                                          className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                                            channel.enabled
+                                              ? 'bg-red-500 border-red-500'
+                                              : 'bg-white border-gray-300'
+                                          }`}
+                                        >
+                                          {channel.enabled && (
+                                            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                            </svg>
+                                          )}
+                                        </button>
+                                        <span className={`font-medium ${channel.enabled ? 'text-gray-900' : 'text-gray-400'}`}>
+                                          {channel.name}
+                                        </span>
+                                        {platformFee > 0 && (
+                                          <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full">
+                                            {(platformFee * 100).toFixed(0)}% platform fee
+                                          </span>
+                                        )}
+                                      </div>
+                                      {channel.enabled && (
+                                        <div className="text-right">
+                                          <div className="text-sm font-semibold text-emerald-600">
+                                            {formatCurrency(monthlyNetRev)}/mo net
+                                          </div>
+                                          <div className="text-xs text-gray-500">
+                                            {formatNumber(channel.monthlyProjectedViews)} views/mo
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {channel.enabled && (
+                                      <div className="grid grid-cols-2 gap-4 mt-3">
+                                        <div>
+                                          <label className="block text-xs font-medium text-gray-500 mb-1">
+                                            CPM Rate ($)
+                                          </label>
+                                          <input
+                                            type="number"
+                                            value={channel.cpmRate}
+                                            onChange={(e) => updateChannelCpm(channel.id, parseFloat(e.target.value) || 0)}
+                                            onBlur={() => saveSettings()}
+                                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                            step="0.01"
+                                            min="0"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="block text-xs font-medium text-gray-500 mb-1">
+                                            Monthly Projected Views
+                                          </label>
+                                          <input
+                                            type="number"
+                                            value={channel.monthlyProjectedViews}
+                                            onChange={(e) => updateChannelImpressions(channel.id, parseInt(e.target.value) || 0)}
+                                            onBlur={() => saveSettings()}
+                                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                            step="1000"
+                                            min="0"
+                                          />
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {channel.enabled && (
+                                      <div className="mt-2 text-xs text-gray-500 bg-white/50 rounded px-2 py-1">
+                                        Revenue = ({formatCurrency(channel.cpmRate)} CPM x {formatNumber(channel.monthlyProjectedViews)} views / 1000) x {((1 - platformFee) * 100).toFixed(0)}% creator share = <strong className="text-emerald-600">{formatCurrency(monthlyNetRev)}/mo</strong>
+                                      </div>
+                                    )}
                                   </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {savingSettings && (

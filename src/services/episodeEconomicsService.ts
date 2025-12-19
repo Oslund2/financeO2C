@@ -2,7 +2,12 @@ import { supabase } from '../lib/supabase';
 import {
   EpisodeProfitSettingsService,
   EpisodeProfitSettings,
-  DistributionChannelSettings
+  DistributionChannelSettings,
+  ChannelDistributionType,
+  isLinearChannel,
+  isOnDemandChannel,
+  getChannelAnnualImpressions,
+  getChannelMonthlyImpressions
 } from './episodeProfitSettingsService';
 import {
   CostConfig,
@@ -32,16 +37,20 @@ export const DEFAULT_PLATFORM_FEES: PlatformFeeConfig = {
 export interface ChannelEconomics {
   channelId: string;
   channelName: string;
+  channelType: ChannelDistributionType;
   enabled: boolean;
   buyingModel: 'cpm' | 'spot';
   cpmRate: number;
-  impressionsPerRun: number;
+  impressionsPerAiring: number;
+  airingsPerYear: number;
+  monthlyProjectedViews: number;
   platformFeePercent: number;
-  grossRevenuePerRun: number;
-  netRevenuePerRun: number;
+  grossMonthlyRevenue: number;
+  netMonthlyRevenue: number;
   annualGrossRevenue: number;
   annualNetRevenue: number;
   breakEvenImpressions: number;
+  breakEvenMonths: number;
 }
 
 export interface CostBreakdown {
@@ -60,13 +69,19 @@ export interface BreakEvenAnalysis {
   totalInvestment: number;
   avgNetCpmAcrossChannels: number;
   breakEvenImpressions: number;
-  breakEvenRuns: number;
   breakEvenMonths: number;
   breakEvenYears: number;
-  channelBreakEven: Array<{
+  totalMonthlyNetRevenue: number;
+  linearChannelBreakEven: Array<{
     channelName: string;
     impressionsNeeded: number;
-    runsNeeded: number;
+    airingsNeeded: number;
+    monthsNeeded: number;
+  }>;
+  onDemandChannelBreakEven: Array<{
+    channelName: string;
+    viewsNeeded: number;
+    monthsNeeded: number;
   }>;
 }
 
@@ -101,7 +116,7 @@ export interface EpisodeEconomics {
   channels: ChannelEconomics[];
   totalAnnualGrossRevenue: number;
   totalAnnualNetRevenue: number;
-  netRevenuePerRun: number;
+  totalMonthlyNetRevenue: number;
   breakEven: BreakEvenAnalysis;
   lifetime: LifetimeProjection;
   hasCustomSettings: boolean;
@@ -113,8 +128,8 @@ export interface EpisodeSummaryMetrics {
   title: string;
   formatLabel: string;
   totalInvestment: number;
-  netRevenuePerRun: number;
-  breakEvenRuns: number;
+  monthlyNetRevenue: number;
+  breakEvenMonths: number;
   lifetimeProfit: number;
   roiMultiple: number;
   tokenCost: number;
@@ -187,79 +202,114 @@ function calculateHumanCosts(
 
 function calculateChannelEconomics(
   channel: DistributionChannelSettings,
-  totalInvestment: number,
-  runsPerYear: number
+  totalInvestment: number
 ): ChannelEconomics {
   const platformFeePercent = getPlatformFeeForChannel(channel.name);
 
-  let grossRevenuePerRun: number;
-  if (channel.buyingModel === 'cpm') {
-    grossRevenuePerRun = (channel.cpmRate * channel.impressionsPerRun) / 1000;
+  let annualGrossRevenue: number;
+  let monthlyGrossRevenue: number;
+
+  if (isLinearChannel(channel)) {
+    const annualImpressions = channel.impressionsPerAiring * channel.airingsPerYear;
+    if (channel.buyingModel === 'cpm') {
+      annualGrossRevenue = (channel.cpmRate * annualImpressions) / 1000;
+    } else {
+      annualGrossRevenue = channel.rate * channel.airingsPerYear;
+    }
+    monthlyGrossRevenue = annualGrossRevenue / 12;
   } else {
-    grossRevenuePerRun = channel.rate * 4;
+    const annualViews = channel.monthlyProjectedViews * 12;
+    annualGrossRevenue = (channel.cpmRate * annualViews) / 1000;
+    monthlyGrossRevenue = (channel.cpmRate * channel.monthlyProjectedViews) / 1000;
   }
 
-  const netRevenuePerRun = grossRevenuePerRun * (1 - platformFeePercent);
-  const annualGrossRevenue = grossRevenuePerRun * runsPerYear;
-  const annualNetRevenue = netRevenuePerRun * runsPerYear;
+  const annualNetRevenue = annualGrossRevenue * (1 - platformFeePercent);
+  const monthlyNetRevenue = monthlyGrossRevenue * (1 - platformFeePercent);
 
-  const effectiveNetCpm = channel.impressionsPerRun > 0
-    ? (netRevenuePerRun / channel.impressionsPerRun) * 1000
+  const annualImpressions = getChannelAnnualImpressions(channel);
+  const effectiveNetCpm = annualImpressions > 0
+    ? (annualNetRevenue / annualImpressions) * 1000
     : 0;
   const breakEvenImpressions = effectiveNetCpm > 0
     ? (totalInvestment / effectiveNetCpm) * 1000
     : Infinity;
 
+  const breakEvenMonths = monthlyNetRevenue > 0
+    ? totalInvestment / monthlyNetRevenue
+    : Infinity;
+
   return {
     channelId: channel.id,
     channelName: channel.name,
+    channelType: channel.channelType,
     enabled: channel.enabled,
     buyingModel: channel.buyingModel,
     cpmRate: channel.cpmRate,
-    impressionsPerRun: channel.impressionsPerRun,
+    impressionsPerAiring: channel.impressionsPerAiring,
+    airingsPerYear: channel.airingsPerYear,
+    monthlyProjectedViews: channel.monthlyProjectedViews,
     platformFeePercent: platformFeePercent * 100,
-    grossRevenuePerRun,
-    netRevenuePerRun,
+    grossMonthlyRevenue: monthlyGrossRevenue,
+    netMonthlyRevenue: monthlyNetRevenue,
     annualGrossRevenue,
     annualNetRevenue,
-    breakEvenImpressions
+    breakEvenImpressions: isFinite(breakEvenImpressions) ? breakEvenImpressions : 0,
+    breakEvenMonths: isFinite(breakEvenMonths) ? breakEvenMonths : 0
   };
 }
 
 function calculateBreakEven(
   totalInvestment: number,
-  channels: ChannelEconomics[],
-  runsPerYear: number
+  channels: ChannelEconomics[]
 ): BreakEvenAnalysis {
   const enabledChannels = channels.filter(c => c.enabled);
 
-  const totalNetRevenuePerRun = enabledChannels.reduce((sum, c) => sum + c.netRevenuePerRun, 0);
-  const totalImpressions = enabledChannels.reduce((sum, c) => sum + c.impressionsPerRun, 0);
+  const totalMonthlyNetRevenue = enabledChannels.reduce((sum, c) => sum + c.netMonthlyRevenue, 0);
+  const totalAnnualImpressions = enabledChannels.reduce((sum, c) => {
+    if (c.channelType === 'linear') {
+      return sum + (c.impressionsPerAiring * c.airingsPerYear);
+    }
+    return sum + (c.monthlyProjectedViews * 12);
+  }, 0);
 
-  const avgNetCpm = totalImpressions > 0
-    ? (totalNetRevenuePerRun / totalImpressions) * 1000
+  const totalAnnualNetRevenue = enabledChannels.reduce((sum, c) => sum + c.annualNetRevenue, 0);
+  const avgNetCpm = totalAnnualImpressions > 0
+    ? (totalAnnualNetRevenue / totalAnnualImpressions) * 1000
     : 0;
 
   const breakEvenImpressions = avgNetCpm > 0
     ? (totalInvestment / avgNetCpm) * 1000
     : Infinity;
 
-  const breakEvenRuns = totalNetRevenuePerRun > 0
-    ? totalInvestment / totalNetRevenuePerRun
+  const breakEvenMonths = totalMonthlyNetRevenue > 0
+    ? totalInvestment / totalMonthlyNetRevenue
     : Infinity;
 
-  const breakEvenMonths = runsPerYear > 0
-    ? (breakEvenRuns / runsPerYear) * 12
-    : Infinity;
+  const linearChannels = enabledChannels.filter(c => c.channelType === 'linear');
+  const onDemandChannels = enabledChannels.filter(c => c.channelType === 'onDemand');
 
-  const channelBreakEven = enabledChannels.map(channel => {
-    const runsNeeded = channel.netRevenuePerRun > 0
-      ? totalInvestment / channel.netRevenuePerRun
-      : Infinity;
+  const linearChannelBreakEven = linearChannels.map(channel => {
+    const monthlyRevenue = channel.netMonthlyRevenue;
+    const monthsNeeded = monthlyRevenue > 0 ? totalInvestment / monthlyRevenue : Infinity;
+    const airingsPerMonth = channel.airingsPerYear / 12;
+    const airingsNeeded = airingsPerMonth > 0 ? monthsNeeded * airingsPerMonth : Infinity;
+
     return {
       channelName: channel.channelName,
       impressionsNeeded: channel.breakEvenImpressions,
-      runsNeeded
+      airingsNeeded: isFinite(airingsNeeded) ? airingsNeeded : 0,
+      monthsNeeded: isFinite(monthsNeeded) ? monthsNeeded : 0
+    };
+  });
+
+  const onDemandChannelBreakEven = onDemandChannels.map(channel => {
+    const monthlyRevenue = channel.netMonthlyRevenue;
+    const monthsNeeded = monthlyRevenue > 0 ? totalInvestment / monthlyRevenue : Infinity;
+
+    return {
+      channelName: channel.channelName,
+      viewsNeeded: channel.breakEvenImpressions,
+      monthsNeeded: isFinite(monthsNeeded) ? monthsNeeded : 0
     };
   });
 
@@ -267,10 +317,11 @@ function calculateBreakEven(
     totalInvestment,
     avgNetCpmAcrossChannels: avgNetCpm,
     breakEvenImpressions: isFinite(breakEvenImpressions) ? breakEvenImpressions : 0,
-    breakEvenRuns: isFinite(breakEvenRuns) ? breakEvenRuns : 0,
     breakEvenMonths: isFinite(breakEvenMonths) ? breakEvenMonths : 0,
     breakEvenYears: isFinite(breakEvenMonths) ? breakEvenMonths / 12 : 0,
-    channelBreakEven
+    totalMonthlyNetRevenue,
+    linearChannelBreakEven,
+    onDemandChannelBreakEven
   };
 }
 
@@ -278,7 +329,6 @@ function calculateLifetimeProjection(
   totalInvestment: number,
   annualGrossRevenue: number,
   annualNetRevenue: number,
-  runsPerYear: number,
   yearsInService: number,
   decayRatePercent: number,
   minimumRetentionPercent: number
@@ -317,7 +367,7 @@ function calculateLifetimeProjection(
 
   return {
     yearsInService,
-    totalRuns: runsPerYear * yearsInService,
+    totalRuns: yearsInService,
     grossLifetimeRevenue,
     netLifetimeRevenue,
     lifetimeProfit,
@@ -370,26 +420,25 @@ export class EpisodeEconomicsService {
       dubbingCosts,
       totalInitialInvestment,
       amortizedCostPerYear: yearsInService > 0 ? totalInitialInvestment / yearsInService : totalInitialInvestment,
-      costPerRun: (runsPerYear * yearsInService) > 0 ? totalInitialInvestment / (runsPerYear * yearsInService) : totalInitialInvestment,
+      costPerRun: yearsInService > 0 ? totalInitialInvestment / yearsInService : totalInitialInvestment,
       costPerFinishedMinute: contentMinutes > 0 ? totalInitialInvestment / contentMinutes : 0
     };
 
     const channels = (settings?.distributionChannels ??
       EpisodeProfitSettingsService.getDefaultChannelsForEpisode(contentMinutes))
-      .map(channel => calculateChannelEconomics(channel, totalInitialInvestment, runsPerYear));
+      .map(channel => calculateChannelEconomics(channel, totalInitialInvestment));
 
     const enabledChannels = channels.filter(c => c.enabled);
     const totalAnnualGrossRevenue = enabledChannels.reduce((sum, c) => sum + c.annualGrossRevenue, 0);
     const totalAnnualNetRevenue = enabledChannels.reduce((sum, c) => sum + c.annualNetRevenue, 0);
-    const netRevenuePerRun = enabledChannels.reduce((sum, c) => sum + c.netRevenuePerRun, 0);
+    const totalMonthlyNetRevenue = enabledChannels.reduce((sum, c) => sum + c.netMonthlyRevenue, 0);
 
-    const breakEven = calculateBreakEven(totalInitialInvestment, channels, runsPerYear);
+    const breakEven = calculateBreakEven(totalInitialInvestment, channels);
 
     const lifetime = calculateLifetimeProjection(
       totalInitialInvestment,
       totalAnnualGrossRevenue,
       totalAnnualNetRevenue,
-      runsPerYear,
       yearsInService,
       decayRatePercent,
       minimumRetentionPercent
@@ -408,7 +457,7 @@ export class EpisodeEconomicsService {
       channels,
       totalAnnualGrossRevenue,
       totalAnnualNetRevenue,
-      netRevenuePerRun,
+      totalMonthlyNetRevenue,
       breakEven,
       lifetime,
       hasCustomSettings: settings !== null,
@@ -424,9 +473,9 @@ export class EpisodeEconomicsService {
     totals: {
       totalInvestment: number;
       totalAnnualNetRevenue: number;
+      totalMonthlyNetRevenue: number;
       totalLifetimeProfit: number;
       averageRoiMultiple: number;
-      seriesBreakEvenRuns: number;
       seriesBreakEvenMonths: number;
     };
   }> {
@@ -444,23 +493,23 @@ export class EpisodeEconomicsService {
 
     const totalInvestment = episodes.reduce((sum, e) => sum + e.costs.totalInitialInvestment, 0);
     const totalAnnualNetRevenue = episodes.reduce((sum, e) => sum + e.totalAnnualNetRevenue, 0);
+    const totalMonthlyNetRevenue = episodes.reduce((sum, e) => sum + e.totalMonthlyNetRevenue, 0);
     const totalLifetimeProfit = episodes.reduce((sum, e) => sum + e.lifetime.lifetimeProfit, 0);
     const averageRoiMultiple = episodes.length > 0
       ? episodes.reduce((sum, e) => sum + e.lifetime.roiMultiple, 0) / episodes.length
       : 0;
-    const seriesBreakEvenRuns = totalAnnualNetRevenue > 0
-      ? totalInvestment / (totalAnnualNetRevenue / 4)
+    const seriesBreakEvenMonths = totalMonthlyNetRevenue > 0
+      ? totalInvestment / totalMonthlyNetRevenue
       : 0;
-    const seriesBreakEvenMonths = seriesBreakEvenRuns * 3;
 
     return {
       episodes,
       totals: {
         totalInvestment,
         totalAnnualNetRevenue,
+        totalMonthlyNetRevenue,
         totalLifetimeProfit,
         averageRoiMultiple,
-        seriesBreakEvenRuns,
         seriesBreakEvenMonths
       }
     };
@@ -472,8 +521,8 @@ export class EpisodeEconomicsService {
       title: economics.episodeTitle,
       formatLabel: economics.format.formatLabel,
       totalInvestment: economics.costs.totalInitialInvestment,
-      netRevenuePerRun: economics.netRevenuePerRun,
-      breakEvenRuns: economics.breakEven.breakEvenRuns,
+      monthlyNetRevenue: economics.totalMonthlyNetRevenue,
+      breakEvenMonths: economics.breakEven.breakEvenMonths,
       lifetimeProfit: economics.lifetime.lifetimeProfit,
       roiMultiple: economics.lifetime.roiMultiple,
       tokenCost: economics.costs.tokenCosts,

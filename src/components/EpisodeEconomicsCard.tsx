@@ -25,6 +25,18 @@ function getFormatColor(formatLabel: string) {
   return { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200' };
 }
 
+function formatBreakEvenTime(months: number): string {
+  if (months >= 12) {
+    const years = Math.floor(months / 12);
+    const remainingMonths = Math.round(months % 12);
+    if (remainingMonths > 0) {
+      return `${years}y ${remainingMonths}mo`;
+    }
+    return `${years}y`;
+  }
+  return `${Math.ceil(months)}mo`;
+}
+
 export function EpisodeEconomicsCard({
   metrics,
   isSelected,
@@ -95,8 +107,8 @@ export function EpisodeEconomicsCard({
 
         <div className="space-y-2 mb-3">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-500">Net Rev/Run</span>
-            <span className="font-semibold text-gray-900">{formatCurrency(metrics.netRevenuePerRun)}</span>
+            <span className="text-gray-500">Monthly Net Rev</span>
+            <span className="font-semibold text-gray-900">{formatCurrency(metrics.monthlyNetRevenue)}</span>
           </div>
           <div className="flex items-center justify-between text-sm">
             <span className="text-gray-500">Lifetime Profit</span>
@@ -119,7 +131,7 @@ export function EpisodeEconomicsCard({
               Break-even
             </div>
             <span className="text-xs font-medium text-gray-700">
-              {metrics.breakEvenRuns > 0 ? `${Math.ceil(metrics.breakEvenRuns)} runs` : 'N/A'}
+              {metrics.breakEvenMonths > 0 ? formatBreakEvenTime(metrics.breakEvenMonths) : 'N/A'}
             </span>
           </div>
 
