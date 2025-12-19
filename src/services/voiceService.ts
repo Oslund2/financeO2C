@@ -103,7 +103,7 @@ export class VoiceService {
     options: VoiceGenerationOptions = {}
   ): Promise<Blob> {
     if (provider === 'elevenlabs') {
-      return this.elevenLabsService.generatePreview(text, voiceId);
+      return this.elevenLabsService.generatePreview(voiceId, text);
     } else {
       return this.chatterboxService.generateSpeech(text, voiceId, {
         speed: options.speed,
