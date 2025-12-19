@@ -19,6 +19,14 @@ export interface ScriptDeletionCheck {
   dependentEpisodes: ScriptDependency[];
 }
 
+interface BreakStructure {
+  segment_count: number;
+  break_positions: string[];
+  break_durations: number[];
+  break_types: string[];
+  end_break_duration?: number;
+}
+
 interface Script {
   id: string;
   series_id: string | null;
@@ -30,6 +38,10 @@ interface Script {
   vocabulary_words: string[];
   status: string;
   locked: boolean;
+  program_length_minutes?: number;
+  total_episode_minutes?: number;
+  break_structure?: BreakStructure;
+  format_type?: string;
 }
 
 interface Act {
@@ -205,6 +217,21 @@ export async function createEpisodeFromScript(
     ? `${episodeTitle} - Part ${episodeData.partNumber}`
     : episodeTitle;
 
+  const contentMinutes = script.program_length_minutes || script.runtime_minutes || 22;
+  const targetRuntimeSeconds = contentMinutes * 60;
+
+  const breakStructure = script.break_structure || {
+    segment_count: 4,
+    break_positions: ['00:05:30', '00:11:00', '00:16:30'],
+    break_durations: [120, 120, 120],
+    break_types: ['commercial', 'commercial', 'commercial'],
+    end_break_duration: 120
+  };
+
+  const totalBreakSeconds = breakStructure.break_durations.reduce((sum, d) => sum + d, 0);
+  const openingSting = 60;
+  const closingSting = 30;
+
   const { data: episode, error: episodeError } = await supabase
     .from('episodes')
     .insert([{
@@ -220,6 +247,15 @@ export async function createEpisodeFromScript(
       multi_part_episode: episodeData.isMultiPart || false,
       part_number: episodeData.partNumber || 1,
       previous_episode_id: episodeData.previousEpisodeId || null,
+      target_runtime_seconds: targetRuntimeSeconds,
+      trt_metadata: {
+        opening_sting: openingSting,
+        content: targetRuntimeSeconds - openingSting - closingSting,
+        closing_sting: closingSting,
+        break_duration: totalBreakSeconds,
+        format_type: script.format_type || 'broadcast',
+        break_structure: breakStructure
+      },
       production_notes: `Episode created from script "${script.title}" by ${episodeData.createdBy}.\n\nEstimated Cost (AI): $${costComparison.aiCost.totalCost.toFixed(2)}\nEstimated Cost (Traditional): $${costComparison.traditionalCost.totalCost.toFixed(2)}\nEstimated Savings: $${costComparison.savings.toFixed(2)} (${costComparison.savingsPercentage.toFixed(1)}%)`,
     }])
     .select()

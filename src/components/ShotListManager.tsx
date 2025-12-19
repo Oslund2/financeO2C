@@ -211,8 +211,8 @@ export default function ShotListManager({
 
   return (
     <div className="space-y-6">
-      {showTRT && episodeId && (
-        <TRTCalculator episodeId={episodeId} shotIds={shotIds} />
+      {showTRT && (episodeId || scriptId) && (
+        <TRTCalculator episodeId={episodeId} scriptId={scriptId} shotIds={shotIds} />
       )}
 
       {showScriptViewer && scriptId && (

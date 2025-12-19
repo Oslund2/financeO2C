@@ -3,7 +3,8 @@ import { Clock, AlertTriangle, CheckCircle, Info, Pause, Play } from 'lucide-rea
 import { supabase } from '../lib/supabase';
 
 interface TRTCalculatorProps {
-  episodeId: string;
+  episodeId?: string;
+  scriptId?: string;
   shotIds?: string[];
   onTRTUpdate?: (trtData: TRTBreakdown) => void;
 }
@@ -17,6 +18,7 @@ interface SegmentTiming {
   actual_duration: number;
   shot_count: number;
   break_after: boolean;
+  break_duration?: number;
 }
 
 interface TRTBreakdown {
@@ -32,58 +34,136 @@ interface TRTBreakdown {
   scripted_content: number;
   break_duration: number;
   segments: SegmentTiming[];
+  format_type?: string;
 }
 
-const SEGMENT_TARGETS = [210, 210, 210, 240];
-const SEGMENT_NAMES = ['Setup', 'Rising Action', 'Climax', 'Resolution'];
-const BREAK_DURATION = 120;
-const TOTAL_BREAKS = 3;
+interface BreakStructure {
+  segment_count: number;
+  break_positions: string[];
+  break_durations: number[];
+  break_types: string[];
+  end_break_duration?: number;
+}
 
-export default function TRTCalculator({ episodeId, shotIds, onTRTUpdate }: TRTCalculatorProps) {
+function getSegmentNames(count: number): string[] {
+  if (count === 1) return ['Content'];
+  if (count === 2) return ['Part 1', 'Part 2'];
+  if (count === 3) return ['Setup', 'Development', 'Resolution'];
+  if (count === 4) return ['Setup', 'Rising Action', 'Climax', 'Resolution'];
+  if (count === 5) return ['Teaser', 'Setup', 'Rising Action', 'Climax', 'Resolution'];
+  return Array.from({ length: count }, (_, i) => `Segment ${i + 1}`);
+}
+
+function calculateSegmentTargets(contentSeconds: number, segmentCount: number): number[] {
+  if (segmentCount === 1) return [contentSeconds];
+
+  const baseSegmentTime = Math.floor(contentSeconds / segmentCount);
+  const remainder = contentSeconds - (baseSegmentTime * segmentCount);
+
+  return Array.from({ length: segmentCount }, (_, i) =>
+    i === segmentCount - 1 ? baseSegmentTime + remainder : baseSegmentTime
+  );
+}
+
+export default function TRTCalculator({ episodeId, scriptId, shotIds, onTRTUpdate }: TRTCalculatorProps) {
   const [trtData, setTRTData] = useState<TRTBreakdown>({
     opening_sting: 60,
     content_duration: 0,
     closing_sting: 30,
     total_duration: 0,
-    target_duration: 1320,
+    target_duration: 300,
     difference: 0,
     shot_count: 0,
     open_time: '00:01:00',
-    close_time: '00:21:30',
+    close_time: '00:05:00',
     scripted_content: 0,
-    break_duration: BREAK_DURATION * TOTAL_BREAKS,
-    segments: SEGMENT_NAMES.map((name, i) => ({
-      segment_number: i + 1,
-      name,
+    break_duration: 0,
+    segments: [{
+      segment_number: 1,
+      name: 'Content',
       start_timecode: '00:00:00',
       end_timecode: '00:00:00',
-      target_duration: SEGMENT_TARGETS[i],
+      target_duration: 300,
       actual_duration: 0,
       shot_count: 0,
-      break_after: i < 3
-    }))
+      break_after: false
+    }],
+    format_type: 'short_form'
   });
   const [loading, setLoading] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [showSegments, setShowSegments] = useState(true);
 
   useEffect(() => {
-    calculateTRT();
-  }, [episodeId, shotIds]);
+    if (episodeId || scriptId) {
+      calculateTRT();
+    }
+  }, [episodeId, scriptId, shotIds]);
 
   const calculateTRT = async () => {
     setLoading(true);
     try {
-      const { data: episode, error: episodeError } = await supabase
-        .from('episodes')
-        .select('trt_metadata, target_runtime_seconds')
-        .eq('id', episodeId)
-        .maybeSingle();
+      let metadata: any = {};
+      let targetDuration = 300;
+      let formatType = 'short_form';
+      let effectiveScriptId = scriptId;
 
-      if (episodeError) throw episodeError;
+      if (episodeId) {
+        const { data: episode, error: episodeError } = await supabase
+          .from('episodes')
+          .select('trt_metadata, target_runtime_seconds, script_id')
+          .eq('id', episodeId)
+          .maybeSingle();
 
-      const metadata = episode?.trt_metadata || { opening_sting: 60, content: 1230, closing_sting: 30 };
-      const targetDuration = episode?.target_runtime_seconds || 1320;
+        if (episodeError) throw episodeError;
+
+        metadata = episode?.trt_metadata || {};
+        targetDuration = episode?.target_runtime_seconds || 300;
+        formatType = metadata.format_type || 'short_form';
+        effectiveScriptId = effectiveScriptId || episode?.script_id;
+      } else if (scriptId) {
+        const { data: script, error: scriptError } = await supabase
+          .from('scripts')
+          .select('program_length_minutes, total_episode_minutes, break_structure, format_type')
+          .eq('id', scriptId)
+          .maybeSingle();
+
+        if (scriptError) throw scriptError;
+
+        if (script) {
+          targetDuration = (script.program_length_minutes || 5) * 60;
+          formatType = script.format_type || 'short_form';
+          metadata = {
+            opening_sting: 60,
+            closing_sting: 30,
+            format_type: formatType,
+            break_structure: script.break_structure || {
+              segment_count: 1,
+              break_positions: [],
+              break_durations: [],
+              break_types: []
+            }
+          };
+        }
+      }
+
+      const breakStructure: BreakStructure = metadata.break_structure || {
+        segment_count: 1,
+        break_positions: [],
+        break_durations: [],
+        break_types: []
+      };
+
+      const segmentCount = breakStructure.segment_count || 1;
+      const breakDurations = breakStructure.break_durations || [];
+      const totalBreakDuration = breakDurations.reduce((sum: number, d: number) => sum + d, 0);
+
+      const openingSting = metadata.opening_sting || 60;
+      const closingSting = metadata.closing_sting || 30;
+      const scriptedContentTarget = targetDuration - openingSting - closingSting;
+
+      const segmentNames = getSegmentNames(segmentCount);
+      const segmentTargets = calculateSegmentTargets(scriptedContentTarget, segmentCount);
 
       let query = supabase
         .from('production_shot_plans')
@@ -91,8 +171,10 @@ export default function TRTCalculator({ episodeId, shotIds, onTRTUpdate }: TRTCa
 
       if (shotIds && shotIds.length > 0) {
         query = query.in('id', shotIds);
-      } else {
+      } else if (episodeId) {
         query = query.eq('episode_id', episodeId);
+      } else {
+        query = query.is('episode_id', null);
       }
 
       const { data: shots, error: shotsError } = await query.order('rendering_order');
@@ -100,11 +182,11 @@ export default function TRTCalculator({ episodeId, shotIds, onTRTUpdate }: TRTCa
       if (shotsError) throw shotsError;
 
       let contentDuration = 0;
-      const segmentDurations = [0, 0, 0, 0];
-      const segmentShotCounts = [0, 0, 0, 0];
+      const segmentDurations = Array(segmentCount).fill(0);
+      const segmentShotCounts = Array(segmentCount).fill(0);
 
       if (shots && shots.length > 0) {
-        const shotsPerSegment = Math.ceil(shots.length / 4);
+        const shotsPerSegment = Math.ceil(shots.length / segmentCount);
 
         shots.forEach((shot, index) => {
           let shotDuration = shot.duration_seconds || 5;
@@ -118,28 +200,28 @@ export default function TRTCalculator({ episodeId, shotIds, onTRTUpdate }: TRTCa
 
           contentDuration += shotDuration;
 
-          const segmentIndex = Math.min(Math.floor(index / shotsPerSegment), 3);
+          const segmentIndex = Math.min(Math.floor(index / shotsPerSegment), segmentCount - 1);
           segmentDurations[segmentIndex] += shotDuration;
           segmentShotCounts[segmentIndex]++;
         });
       }
 
-      const openingSting = metadata.opening_sting || 60;
-      const closingSting = metadata.closing_sting || 30;
-      const breakDuration = BREAK_DURATION * TOTAL_BREAKS;
-      const totalContentHole = contentDuration + breakDuration;
+      const totalContentHole = contentDuration + totalBreakDuration;
       const totalDuration = openingSting + totalContentHole + closingSting;
       const difference = totalDuration - targetDuration;
 
       let runningTimecode = openingSting;
-      const segments: SegmentTiming[] = SEGMENT_NAMES.map((name, i) => {
+      const segments: SegmentTiming[] = segmentNames.map((name, i) => {
         const startTimecode = formatTimecodeFromSeconds(runningTimecode);
         const segmentDuration = segmentDurations[i];
         runningTimecode += segmentDuration;
         const endTimecode = formatTimecodeFromSeconds(runningTimecode);
 
-        if (i < 3) {
-          runningTimecode += BREAK_DURATION;
+        const hasBreakAfter = i < breakDurations.length;
+        const breakAfterDuration = hasBreakAfter ? breakDurations[i] : 0;
+
+        if (hasBreakAfter) {
+          runningTimecode += breakAfterDuration;
         }
 
         return {
@@ -147,10 +229,11 @@ export default function TRTCalculator({ episodeId, shotIds, onTRTUpdate }: TRTCa
           name,
           start_timecode: startTimecode,
           end_timecode: endTimecode,
-          target_duration: SEGMENT_TARGETS[i],
+          target_duration: segmentTargets[i],
           actual_duration: segmentDuration,
           shot_count: segmentShotCounts[i],
-          break_after: i < 3
+          break_after: hasBreakAfter && breakAfterDuration > 0,
+          break_duration: breakAfterDuration
         };
       });
 
@@ -162,29 +245,33 @@ export default function TRTCalculator({ episodeId, shotIds, onTRTUpdate }: TRTCa
         target_duration: targetDuration,
         difference: difference,
         shot_count: shots?.length || 0,
-        open_time: '00:01:00',
+        open_time: formatTimecodeFromSeconds(openingSting),
         close_time: formatTimecodeFromSeconds(openingSting + totalContentHole),
         scripted_content: contentDuration,
-        break_duration: breakDuration,
-        segments
+        break_duration: totalBreakDuration,
+        segments,
+        format_type: formatType
       };
 
       setTRTData(newTRTData);
       onTRTUpdate?.(newTRTData);
 
-      await supabase
-        .from('episodes')
-        .update({
-          actual_runtime_seconds: Math.round(totalDuration),
-          trt_metadata: {
-            opening_sting: openingSting,
-            content: Math.round(totalContentHole),
-            closing_sting: closingSting,
-            scripted_content: Math.round(contentDuration),
-            break_duration: breakDuration
-          }
-        })
-        .eq('id', episodeId);
+      if (episodeId) {
+        await supabase
+          .from('episodes')
+          .update({
+            actual_runtime_seconds: Math.round(totalDuration),
+            trt_metadata: {
+              ...metadata,
+              opening_sting: openingSting,
+              content: Math.round(totalContentHole),
+              closing_sting: closingSting,
+              scripted_content: Math.round(contentDuration),
+              break_duration: totalBreakDuration
+            }
+          })
+          .eq('id', episodeId);
+      }
     } catch (error) {
       console.error('Error calculating TRT:', error);
     } finally {
@@ -418,12 +505,12 @@ export default function TRTCalculator({ episodeId, shotIds, onTRTUpdate }: TRTCa
                     </div>
                   </div>
 
-                  {segment.break_after && (
+                  {segment.break_after && segment.break_duration && segment.break_duration > 0 && (
                     <div className="flex items-center justify-center py-2">
                       <div className="flex items-center gap-2 px-4 py-1.5 bg-gray-100 rounded-full">
                         <Pause className="w-3 h-3 text-gray-500" />
                         <span className="text-xs font-medium text-gray-600">
-                          BREAK {index + 1} - 2:00
+                          BREAK {index + 1} - {formatTime(segment.break_duration)}
                         </span>
                       </div>
                     </div>
@@ -437,13 +524,24 @@ export default function TRTCalculator({ episodeId, shotIds, onTRTUpdate }: TRTCa
 
       <div className="mt-4 p-4 bg-gray-50 rounded-lg">
         <div className="text-xs text-gray-600 space-y-1">
-          <div><strong>Standard TRT:</strong> 22 minutes (1,320 seconds)</div>
-          <div><strong>Content Hole:</strong> 20:30 (1,230 seconds) = {formatTime(trtData.scripted_content)} scripted + {formatTime(trtData.break_duration)} breaks</div>
-          <div><strong>Breakdown:</strong> 60s opening + 1,230s content (870s script + 360s breaks) + 30s closing</div>
-          <div><strong>Target Scripted Content:</strong> 14:30 (870 seconds)</div>
+          <div><strong>Target TRT:</strong> {formatTime(trtData.target_duration)} ({trtData.target_duration} seconds) - {getFormatLabel(trtData.format_type)}</div>
+          <div><strong>Content:</strong> {formatTime(trtData.scripted_content)} scripted{trtData.break_duration > 0 ? ` + ${formatTime(trtData.break_duration)} breaks` : ''}</div>
+          <div><strong>Breakdown:</strong> {trtData.opening_sting}s opening + {formatTime(trtData.scripted_content)} content{trtData.break_duration > 0 ? ` + ${formatTime(trtData.break_duration)} breaks` : ''} + {trtData.closing_sting}s closing</div>
+          <div><strong>Target Scripted Content:</strong> {formatTime(trtData.target_duration - trtData.opening_sting - trtData.closing_sting)} ({trtData.target_duration - trtData.opening_sting - trtData.closing_sting} seconds)</div>
           <div><strong>Acceptable Range:</strong> ±5 seconds from total target</div>
         </div>
       </div>
     </div>
   );
+}
+
+function getFormatLabel(formatType?: string): string {
+  switch (formatType) {
+    case 'broadcast': return 'Broadcast';
+    case 'streaming': return 'Streaming';
+    case 'short_form': return 'Short Form';
+    case 'medium_form': return 'Medium Form';
+    case 'custom': return 'Custom';
+    default: return formatType || 'Unknown';
+  }
 }
