@@ -27,10 +27,9 @@ export const FORMAT_PRESETS: FormatPreset[] = [
     impressionRange: { min: 50000, max: 500000 },
     bgGradient: 'from-red-500 to-pink-600',
     channels: [
-      { id: '1', name: 'YouTube (Ad Revenue)', buyingModel: 'cpm', rate: 200, cpmRate: 2.00, impressionsPerRun: 100000, enabled: true },
-      { id: '2', name: 'YouTube (Sponsorship)', buyingModel: 'cpm', rate: 1500, cpmRate: 15.00, impressionsPerRun: 100000, enabled: true },
-      { id: '3', name: 'TikTok Creator Fund', buyingModel: 'cpm', rate: 20, cpmRate: 0.04, impressionsPerRun: 250000, enabled: true },
-      { id: '4', name: 'Instagram Reels Bonus', buyingModel: 'cpm', rate: 75, cpmRate: 0.50, impressionsPerRun: 150000, enabled: false }
+      { id: '1', name: 'YouTube (Ad Revenue)', channelType: 'onDemand', buyingModel: 'cpm', rate: 200, cpmRate: 2.00, impressionsPerAiring: 0, airingsPerYear: 0, monthlyProjectedViews: 100000, enabled: true },
+      { id: '2', name: 'YouTube (Sponsorship)', channelType: 'onDemand', buyingModel: 'cpm', rate: 1500, cpmRate: 15.00, impressionsPerAiring: 0, airingsPerYear: 0, monthlyProjectedViews: 100000, enabled: true },
+      { id: '3', name: 'TikTok Creator Fund', channelType: 'onDemand', buyingModel: 'cpm', rate: 20, cpmRate: 0.04, impressionsPerAiring: 0, airingsPerYear: 0, monthlyProjectedViews: 500000, enabled: true }
     ]
   },
   {
@@ -44,10 +43,10 @@ export const FORMAT_PRESETS: FormatPreset[] = [
     impressionRange: { min: 20000, max: 150000 },
     bgGradient: 'from-blue-500 to-cyan-600',
     channels: [
-      { id: '1', name: 'YouTube (Ad Revenue)', buyingModel: 'cpm', rate: 300, cpmRate: 4.00, impressionsPerRun: 75000, enabled: true },
-      { id: '2', name: 'YouTube (Sponsorship)', buyingModel: 'cpm', rate: 1500, cpmRate: 20.00, impressionsPerRun: 75000, enabled: true },
-      { id: '3', name: 'O&O Streaming', buyingModel: 'cpm', rate: 450, cpmRate: 18, impressionsPerRun: 25000, enabled: true },
-      { id: '4', name: 'Tablo Kids', buyingModel: 'cpm', rate: 180, cpmRate: 12, impressionsPerRun: 15000, enabled: true }
+      { id: '1', name: 'YouTube (Ad Revenue)', channelType: 'onDemand', buyingModel: 'cpm', rate: 300, cpmRate: 4.00, impressionsPerAiring: 0, airingsPerYear: 0, monthlyProjectedViews: 75000, enabled: true },
+      { id: '2', name: 'YouTube (Sponsorship)', channelType: 'onDemand', buyingModel: 'cpm', rate: 1500, cpmRate: 20.00, impressionsPerAiring: 0, airingsPerYear: 0, monthlyProjectedViews: 75000, enabled: true },
+      { id: '3', name: 'O&O Streaming', channelType: 'onDemand', buyingModel: 'cpm', rate: 450, cpmRate: 18, impressionsPerAiring: 0, airingsPerYear: 0, monthlyProjectedViews: 25000, enabled: true },
+      { id: '4', name: 'Tablo Kids', channelType: 'onDemand', buyingModel: 'cpm', rate: 180, cpmRate: 12, impressionsPerAiring: 0, airingsPerYear: 0, monthlyProjectedViews: 15000, enabled: true }
     ]
   },
   {
@@ -61,11 +60,11 @@ export const FORMAT_PRESETS: FormatPreset[] = [
     impressionRange: { min: 100000, max: 500000 },
     bgGradient: 'from-emerald-500 to-teal-600',
     channels: [
-      { id: '1', name: 'O&O TV', buyingModel: 'spot', rate: 350, cpmRate: 28, impressionsPerRun: 200000, enabled: true },
-      { id: '2', name: 'O&O Streaming', buyingModel: 'cpm', rate: 750, cpmRate: 25, impressionsPerRun: 30000, enabled: true },
-      { id: '3', name: 'YouTube (Ad Revenue)', buyingModel: 'cpm', rate: 250, cpmRate: 5.00, impressionsPerRun: 50000, enabled: true },
-      { id: '4', name: 'YouTube (Sponsorship)', buyingModel: 'cpm', rate: 1000, cpmRate: 20.00, impressionsPerRun: 50000, enabled: true },
-      { id: '5', name: 'Tablo Kids', buyingModel: 'cpm', rate: 300, cpmRate: 15, impressionsPerRun: 20000, enabled: true }
+      { id: '1', name: 'O&O TV', channelType: 'linear', buyingModel: 'spot', rate: 350, cpmRate: 28, impressionsPerAiring: 200000, airingsPerYear: 4, monthlyProjectedViews: 0, enabled: true },
+      { id: '2', name: 'O&O Streaming', channelType: 'onDemand', buyingModel: 'cpm', rate: 750, cpmRate: 25, impressionsPerAiring: 0, airingsPerYear: 0, monthlyProjectedViews: 30000, enabled: true },
+      { id: '3', name: 'YouTube (Ad Revenue)', channelType: 'onDemand', buyingModel: 'cpm', rate: 250, cpmRate: 5.00, impressionsPerAiring: 0, airingsPerYear: 0, monthlyProjectedViews: 50000, enabled: true },
+      { id: '4', name: 'YouTube (Sponsorship)', channelType: 'onDemand', buyingModel: 'cpm', rate: 1000, cpmRate: 20.00, impressionsPerAiring: 0, airingsPerYear: 0, monthlyProjectedViews: 50000, enabled: true },
+      { id: '5', name: 'Tablo Kids', channelType: 'onDemand', buyingModel: 'cpm', rate: 300, cpmRate: 15, impressionsPerAiring: 0, airingsPerYear: 0, monthlyProjectedViews: 20000, enabled: true }
     ]
   },
   {
@@ -79,12 +78,12 @@ export const FORMAT_PRESETS: FormatPreset[] = [
     impressionRange: { min: 150000, max: 750000 },
     bgGradient: 'from-amber-500 to-orange-600',
     channels: [
-      { id: '1', name: 'O&O TV', buyingModel: 'spot', rate: 450, cpmRate: 32, impressionsPerRun: 300000, enabled: true },
-      { id: '2', name: 'O&O Streaming', buyingModel: 'cpm', rate: 1400, cpmRate: 28, impressionsPerRun: 50000, enabled: true },
-      { id: '3', name: 'YouTube (Ad Revenue)', buyingModel: 'cpm', rate: 450, cpmRate: 6.00, impressionsPerRun: 75000, enabled: true },
-      { id: '4', name: 'YouTube (Sponsorship)', buyingModel: 'cpm', rate: 2250, cpmRate: 30.00, impressionsPerRun: 75000, enabled: true },
-      { id: '5', name: 'Tablo Kids', buyingModel: 'cpm', rate: 540, cpmRate: 18, impressionsPerRun: 30000, enabled: true },
-      { id: '6', name: 'Syndication', buyingModel: 'spot', rate: 200, cpmRate: 12, impressionsPerRun: 150000, enabled: false }
+      { id: '1', name: 'O&O TV', channelType: 'linear', buyingModel: 'spot', rate: 450, cpmRate: 32, impressionsPerAiring: 300000, airingsPerYear: 4, monthlyProjectedViews: 0, enabled: true },
+      { id: '2', name: 'O&O Streaming', channelType: 'onDemand', buyingModel: 'cpm', rate: 1400, cpmRate: 28, impressionsPerAiring: 0, airingsPerYear: 0, monthlyProjectedViews: 50000, enabled: true },
+      { id: '3', name: 'YouTube (Ad Revenue)', channelType: 'onDemand', buyingModel: 'cpm', rate: 450, cpmRate: 6.00, impressionsPerAiring: 0, airingsPerYear: 0, monthlyProjectedViews: 75000, enabled: true },
+      { id: '4', name: 'YouTube (Sponsorship)', channelType: 'onDemand', buyingModel: 'cpm', rate: 2250, cpmRate: 30.00, impressionsPerAiring: 0, airingsPerYear: 0, monthlyProjectedViews: 75000, enabled: true },
+      { id: '5', name: 'Tablo Kids', channelType: 'onDemand', buyingModel: 'cpm', rate: 540, cpmRate: 18, impressionsPerAiring: 0, airingsPerYear: 0, monthlyProjectedViews: 30000, enabled: true },
+      { id: '6', name: 'Syndication', channelType: 'linear', buyingModel: 'spot', rate: 200, cpmRate: 12, impressionsPerAiring: 150000, airingsPerYear: 4, monthlyProjectedViews: 0, enabled: false }
     ]
   }
 ];

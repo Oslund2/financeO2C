@@ -17,7 +17,8 @@ import {
   Plus,
   Minus,
   Globe,
-  Calculator
+  Calculator,
+  RotateCcw
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
@@ -207,6 +208,18 @@ export function ProductionEconomics({ seriesId }: ProductionEconomicsProps) {
     if (selectedEpisodeId) {
       await saveSettings(preset.channels, preset.runsPerYear);
     }
+  };
+
+  const handleResetToDefaults = async () => {
+    if (!selectedEpisodeId || !selectedEconomics) return;
+
+    const contentMinutes = selectedEconomics.format.contentMinutes;
+    const defaultChannels = EpisodeProfitSettingsService.getDefaultChannelsForEpisode(contentMinutes);
+
+    setChannels(defaultChannels);
+    setSelectedPresetId(undefined);
+
+    await saveSettings(defaultChannels);
   };
 
   const saveSettings = async (
@@ -727,7 +740,17 @@ export function ProductionEconomics({ seriesId }: ProductionEconomicsProps) {
                       </div>
 
                       <div>
-                        <h4 className="text-sm font-semibold text-gray-900 mb-3">Channel Configuration</h4>
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="text-sm font-semibold text-gray-900">Channel Configuration</h4>
+                          <button
+                            onClick={handleResetToDefaults}
+                            disabled={savingSettings}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            Reset to Format Defaults
+                          </button>
+                        </div>
 
                         {channels.some(c => isLinearChannel(c)) && (
                           <div className="mb-4">

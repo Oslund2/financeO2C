@@ -148,8 +148,8 @@ const SHORT_FORM_CHANNELS: DistributionChannelSettings[] = [
     name: 'YouTube (Ad Revenue)',
     channelType: 'onDemand',
     buyingModel: 'cpm',
-    rate: 300,
-    cpmRate: 3.00,
+    rate: 200,
+    cpmRate: 2.00,
     impressionsPerAiring: 0,
     airingsPerYear: 0,
     monthlyProjectedViews: 100000,
@@ -160,8 +160,8 @@ const SHORT_FORM_CHANNELS: DistributionChannelSettings[] = [
     name: 'YouTube (Sponsorship)',
     channelType: 'onDemand',
     buyingModel: 'cpm',
-    rate: 2000,
-    cpmRate: 20.00,
+    rate: 1500,
+    cpmRate: 15.00,
     impressionsPerAiring: 0,
     airingsPerYear: 0,
     monthlyProjectedViews: 100000,
@@ -178,18 +178,6 @@ const SHORT_FORM_CHANNELS: DistributionChannelSettings[] = [
     airingsPerYear: 0,
     monthlyProjectedViews: 500000,
     enabled: true
-  },
-  {
-    id: '4',
-    name: 'Instagram Reels Bonus',
-    channelType: 'onDemand',
-    buyingModel: 'cpm',
-    rate: 75,
-    cpmRate: 0.50,
-    impressionsPerAiring: 0,
-    airingsPerYear: 0,
-    monthlyProjectedViews: 150000,
-    enabled: false
   }
 ];
 
