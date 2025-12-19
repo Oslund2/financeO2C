@@ -14,7 +14,8 @@ import {
   Wand2,
   Save,
   Check,
-  Info
+  Info,
+  Eraser
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
@@ -34,6 +35,15 @@ interface ImageGenerationTabProps {
 
 type AssetType = 'character' | 'background' | 'prop';
 type ReferenceFilter = 'all' | 'characters' | 'backgrounds' | 'props';
+
+const mapAssetTypeToDatabase = (type: AssetType): string => {
+  const mapping: Record<AssetType, string> = {
+    'character': 'character_ref',
+    'background': 'background',
+    'prop': 'prop'
+  };
+  return mapping[type];
+};
 
 interface ReferenceImage {
   id: string;
@@ -96,6 +106,8 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
   const [assetName, setAssetName] = useState('');
   const [assetDescription, setAssetDescription] = useState('');
   const [assetTags, setAssetTags] = useState('');
+  const [transparentBackground, setTransparentBackground] = useState(false);
+  const [processingTransparency, setProcessingTransparency] = useState(false);
 
   useEffect(() => {
     const status = checkNanoBananaConfiguration();
@@ -158,6 +170,45 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
     setReferenceImages(referenceImages.filter(r => r.id !== id));
   };
 
+  const removeBackground = async (imageUrl: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new window.Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Failed to get canvas context'));
+          return;
+        }
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+
+          const isGreen = g > 100 && g > r * 1.2 && g > b * 1.2;
+          const isLimeGreen = r > 100 && g > 180 && b < 100;
+          const isBrightGreen = g > 200 && r < 150 && b < 150;
+
+          if (isGreen || isLimeGreen || isBrightGreen) {
+            data[i + 3] = 0;
+          }
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = imageUrl;
+    });
+  };
+
   const buildSmartPrompt = () => {
     const styleGuide = "claymation style, vibrant colors, playful animation aesthetic, smooth rounded shapes, friendly character design";
     const typeConfig = ASSET_TYPE_CONFIG[assetType];
@@ -166,6 +217,10 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
 
     if (!enhanced.toLowerCase().includes('claymation')) {
       enhanced = `${enhanced}. ${styleGuide}, ${typeConfig.promptGuide}`;
+    }
+
+    if (transparentBackground && assetType !== 'background') {
+      enhanced += `. Place subject on solid bright green (#00FF00) screen background for easy extraction, no shadows on background`;
     }
 
     const refsByType = {
@@ -220,14 +275,27 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
 
       const result = await generateAssetImage(options, assetType);
 
+      let finalImageUrl = result.imageUrl;
+
+      if (transparentBackground && assetType !== 'background') {
+        setProcessingTransparency(true);
+        try {
+          finalImageUrl = await removeBackground(result.imageUrl);
+        } catch (bgError) {
+          console.error('Background removal failed:', bgError);
+        } finally {
+          setProcessingTransparency(false);
+        }
+      }
+
       setGeneratedImage({
-        url: result.imageUrl,
+        url: finalImageUrl,
         cost: result.estimatedCost
       });
 
       setAssetName(`${assetType} - ${new Date().toLocaleString()}`);
       setAssetDescription(prompt.substring(0, 200));
-      setAssetTags(assetType);
+      setAssetTags(transparentBackground ? `${assetType}, transparent` : assetType);
 
     } catch (err) {
       console.error('Generation error:', err);
@@ -246,13 +314,13 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
     setSaving(true);
     try {
       const tags = assetTags.split(',').map(t => t.trim()).filter(Boolean);
+      const dbAssetType = mapAssetTypeToDatabase(assetType);
 
       const { data: asset, error: assetError } = await supabase
         .from('assets')
         .insert([{
           series_id: seriesId,
-          organization_id: null,
-          asset_type: assetType,
+          asset_type: dbAssetType,
           name: assetName,
           description: assetDescription || null,
           file_url: generatedImage.url,
@@ -262,6 +330,7 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
           generation_prompt: prompt,
           metadata: {
             aspectRatio,
+            hasTransparency: transparentBackground && assetType !== 'background',
             referenceImages: referenceImages.map(r => ({
               name: r.name,
               type: r.type,
@@ -306,6 +375,7 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
       setAssetName('');
       setAssetDescription('');
       setAssetTags('');
+      setTransparentBackground(false);
 
     } catch (err) {
       console.error('Error saving asset:', err);
@@ -559,6 +629,32 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
         </div>
       </div>
 
+      {assetType !== 'background' && (
+        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-lg ${transparentBackground ? 'bg-teal-100' : 'bg-gray-200'}`}>
+              <Eraser className={`w-5 h-5 ${transparentBackground ? 'text-teal-600' : 'text-gray-500'}`} />
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-gray-700">Transparent Background</label>
+              <p className="text-xs text-gray-500">Creates PNG with alpha channel for layering</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setTransparentBackground(!transparentBackground)}
+            className={`relative w-12 h-6 rounded-full transition-colors ${
+              transparentBackground ? 'bg-teal-500' : 'bg-gray-300'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                transparentBackground ? 'translate-x-6' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
+      )}
+
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="flex items-start gap-3">
@@ -571,13 +667,18 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
       <div className="pt-4">
         <button
           onClick={handleGenerate}
-          disabled={!configured || generating || !prompt.trim()}
+          disabled={!configured || generating || processingTransparency || !prompt.trim()}
           className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg hover:shadow-lg transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed text-lg"
         >
           {generating ? (
             <>
               <Loader2 className="w-6 h-6 animate-spin" />
               Generating Image...
+            </>
+          ) : processingTransparency ? (
+            <>
+              <Loader2 className="w-6 h-6 animate-spin" />
+              Removing Background...
             </>
           ) : (
             <>
@@ -603,11 +704,23 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
           </div>
 
           <div className="relative">
-            <img
-              src={generatedImage.url}
-              alt="Generated"
-              className="w-full rounded-lg border border-gray-200"
-            />
+            <div className={`rounded-lg overflow-hidden ${
+              transparentBackground && assetType !== 'background'
+                ? 'bg-[url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'20\' height=\'20\' viewBox=\'0 0 20 20\'%3E%3Crect fill=\'%23f0f0f0\' x=\'0\' y=\'0\' width=\'10\' height=\'10\'/%3E%3Crect fill=\'%23ffffff\' x=\'10\' y=\'0\' width=\'10\' height=\'10\'/%3E%3Crect fill=\'%23ffffff\' x=\'0\' y=\'10\' width=\'10\' height=\'10\'/%3E%3Crect fill=\'%23f0f0f0\' x=\'10\' y=\'10\' width=\'10\' height=\'10\'/%3E%3C/svg%3E")]'
+                : 'bg-gray-100'
+            }`}>
+              <img
+                src={generatedImage.url}
+                alt="Generated"
+                className="w-full border border-gray-200 rounded-lg"
+              />
+            </div>
+            {transparentBackground && assetType !== 'background' && (
+              <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 bg-teal-500 text-white rounded text-xs font-medium">
+                <Eraser className="w-3 h-3" />
+                Transparent
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3">

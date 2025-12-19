@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Image, Search, Filter, Sparkles, Plus, Trash2, FileVideo, FileAudio, Play, FileText, ChevronDown, ChevronUp, HelpCircle, Package, Palette, Type, Camera as CameraIcon } from 'lucide-react';
+import { Image, Search, Filter, Sparkles, Plus, Trash2, FileVideo, FileAudio, Play, FileText, ChevronDown, ChevronUp, HelpCircle, Package, Palette, Type, Camera as CameraIcon, Layers } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
@@ -19,6 +19,7 @@ export function Assets({ seriesId }: AssetsProps) {
   const [filteredAssets, setFilteredAssets] = useState<Asset[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState<string>('all');
+  const [transparencyFilter, setTransparencyFilter] = useState<'all' | 'transparent' | 'opaque'>('all');
   const [loading, setLoading] = useState(true);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
@@ -56,6 +57,13 @@ export function Assets({ seriesId }: AssetsProps) {
       filtered = filtered.filter((asset) => asset.asset_type === selectedType);
     }
 
+    if (transparencyFilter !== 'all') {
+      filtered = filtered.filter((asset) => {
+        const hasTransparency = (asset.metadata as Record<string, unknown>)?.hasTransparency === true;
+        return transparencyFilter === 'transparent' ? hasTransparency : !hasTransparency;
+      });
+    }
+
     if (searchQuery) {
       filtered = filtered.filter(
         (asset) =>
@@ -66,7 +74,7 @@ export function Assets({ seriesId }: AssetsProps) {
     }
 
     setFilteredAssets(filtered);
-  }, [searchQuery, selectedType, assets]);
+  }, [searchQuery, selectedType, transparencyFilter, assets]);
 
   const loadAssets = async () => {
     if (!currentOrganization) {
@@ -331,6 +339,15 @@ export function Assets({ seriesId }: AssetsProps) {
                 </option>
               ))}
             </select>
+            <select
+              value={transparencyFilter}
+              onChange={(e) => setTransparencyFilter(e.target.value as 'all' | 'transparent' | 'opaque')}
+              className="w-full sm:w-auto px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent text-sm md:text-base min-h-[44px]"
+            >
+              <option value="all">All Backgrounds</option>
+              <option value="transparent">Transparent Only</option>
+              <option value="opaque">Opaque Only</option>
+            </select>
           </div>
         </div>
 
@@ -357,7 +374,9 @@ export function Assets({ seriesId }: AssetsProps) {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
             {filteredAssets.map((asset) => {
-              const mimeType = asset.metadata?.mimeType || '';
+              const metadata = asset.metadata as Record<string, unknown> | null;
+              const mimeType = (metadata?.mimeType as string) || '';
+              const hasTransparency = metadata?.hasTransparency === true;
               const isVideo = mimeType.startsWith('video/') || asset.asset_type === 'video_clip';
               const isAudio = mimeType.startsWith('audio/') || asset.asset_type === 'audio_clip';
               const isDocument = mimeType.startsWith('text/') ||
@@ -375,7 +394,11 @@ export function Assets({ seriesId }: AssetsProps) {
                   className="bg-white rounded-lg shadow-md hover:shadow-xl transition-all border border-gray-200 overflow-hidden group cursor-pointer"
                   onClick={() => setPreviewAsset(asset)}
                 >
-                  <div className="h-40 sm:h-48 bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center relative">
+                  <div className={`h-40 sm:h-48 flex items-center justify-center relative ${
+                    hasTransparency
+                      ? 'bg-[url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'20\' height=\'20\' viewBox=\'0 0 20 20\'%3E%3Crect fill=\'%23e5e7eb\' x=\'0\' y=\'0\' width=\'10\' height=\'10\'/%3E%3Crect fill=\'%23f3f4f6\' x=\'10\' y=\'0\' width=\'10\' height=\'10\'/%3E%3Crect fill=\'%23f3f4f6\' x=\'0\' y=\'10\' width=\'10\' height=\'10\'/%3E%3Crect fill=\'%23e5e7eb\' x=\'10\' y=\'10\' width=\'10\' height=\'10\'/%3E%3C/svg%3E")]'
+                      : 'bg-gradient-to-br from-gray-200 to-gray-300'
+                  }`}>
                     {isImage && (asset.thumbnail_url || asset.file_url) && (
                       <img
                         src={asset.thumbnail_url || asset.file_url || ''}
@@ -416,12 +439,20 @@ export function Assets({ seriesId }: AssetsProps) {
                     {!isImage && !isVideo && !isAudio && !isDocument && (
                       <Image className="w-12 h-12 text-gray-400" />
                     )}
-                    {asset.ai_generated && (
-                      <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 bg-purple-500 text-white rounded text-xs font-medium">
-                        <Sparkles className="w-3 h-3" />
-                        AI
-                      </div>
-                    )}
+                    <div className="absolute top-2 left-2 flex flex-wrap gap-1">
+                      {asset.ai_generated && (
+                        <div className="flex items-center gap-1 px-2 py-1 bg-purple-500 text-white rounded text-xs font-medium">
+                          <Sparkles className="w-3 h-3" />
+                          AI
+                        </div>
+                      )}
+                      {hasTransparency && (
+                        <div className="flex items-center gap-1 px-2 py-1 bg-teal-500 text-white rounded text-xs font-medium">
+                          <Layers className="w-3 h-3" />
+                          PNG
+                        </div>
+                      )}
+                    </div>
                     <div className="absolute top-2 right-2 px-2 py-1 bg-black bg-opacity-60 text-white rounded text-xs">
                       {asset.asset_type.replace('_', ' ')}
                     </div>
