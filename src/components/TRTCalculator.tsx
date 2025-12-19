@@ -107,6 +107,7 @@ export default function TRTCalculator({ episodeId, scriptId, shotIds, onTRTUpdat
       let targetDuration = 300;
       let formatType = 'short_form';
       let effectiveScriptId = scriptId;
+      let needsEpisodeUpdate = false;
 
       if (episodeId) {
         const { data: episode, error: episodeError } = await supabase
@@ -121,6 +122,41 @@ export default function TRTCalculator({ episodeId, scriptId, shotIds, onTRTUpdat
         targetDuration = episode?.target_runtime_seconds || 300;
         formatType = metadata.format_type || 'short_form';
         effectiveScriptId = effectiveScriptId || episode?.script_id;
+
+        if (effectiveScriptId) {
+          const { data: script, error: scriptError } = await supabase
+            .from('scripts')
+            .select('program_length_minutes, break_structure, format_type')
+            .eq('id', effectiveScriptId)
+            .maybeSingle();
+
+          if (!scriptError && script) {
+            const scriptTargetSeconds = (script.program_length_minutes || 5) * 60;
+
+            if (targetDuration !== scriptTargetSeconds) {
+              targetDuration = scriptTargetSeconds;
+              formatType = script.format_type || 'short_form';
+
+              const openingSting = metadata.opening_sting || 60;
+              const closingSting = metadata.closing_sting || 30;
+
+              metadata = {
+                ...metadata,
+                opening_sting: openingSting,
+                closing_sting: closingSting,
+                content: targetDuration - openingSting - closingSting,
+                format_type: formatType,
+                break_structure: script.break_structure || metadata.break_structure || {
+                  segment_count: 1,
+                  break_positions: [],
+                  break_durations: [],
+                  break_types: []
+                }
+              };
+              needsEpisodeUpdate = true;
+            }
+          }
+        }
       } else if (scriptId) {
         const { data: script, error: scriptError } = await supabase
           .from('scripts')
@@ -257,19 +293,26 @@ export default function TRTCalculator({ episodeId, scriptId, shotIds, onTRTUpdat
       onTRTUpdate?.(newTRTData);
 
       if (episodeId) {
+        const updatePayload: any = {
+          actual_runtime_seconds: Math.round(totalDuration),
+          trt_metadata: {
+            ...metadata,
+            opening_sting: openingSting,
+            content: Math.round(totalContentHole),
+            closing_sting: closingSting,
+            scripted_content: Math.round(contentDuration),
+            break_duration: totalBreakDuration,
+            format_type: formatType
+          }
+        };
+
+        if (needsEpisodeUpdate) {
+          updatePayload.target_runtime_seconds = targetDuration;
+        }
+
         await supabase
           .from('episodes')
-          .update({
-            actual_runtime_seconds: Math.round(totalDuration),
-            trt_metadata: {
-              ...metadata,
-              opening_sting: openingSting,
-              content: Math.round(totalContentHole),
-              closing_sting: closingSting,
-              scripted_content: Math.round(contentDuration),
-              break_duration: totalBreakDuration
-            }
-          })
+          .update(updatePayload)
           .eq('id', episodeId);
       }
     } catch (error) {
