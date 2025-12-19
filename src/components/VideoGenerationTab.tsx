@@ -23,11 +23,13 @@ import {
   Image as ImageIcon,
   Wand2,
   Save,
-  Eye
+  Eye,
+  Calculator
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
-import { isVertexAIConfigured, calculateVeo3Cost, type Veo3Parameters } from '../services/vertexAIService';
+import { isVertexAIConfigured, calculateVeo3Cost, calculateProductionCost, type Veo3Parameters } from '../services/vertexAIService';
+import { FORMAT_PRESETS } from '../types/formatConfig';
 import { generateVeo3Prompt, type Veo3PromptConfig } from '../services/veo3PromptService';
 import { useOrganization } from '../contexts/OrganizationContext';
 
@@ -126,6 +128,7 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
   const [generatedPrompt, setGeneratedPrompt] = useState<string | null>(null);
   const [showPromptPreview, setShowPromptPreview] = useState(false);
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+  const [showCostEstimator, setShowCostEstimator] = useState(false);
 
   useEffect(() => {
     setConfigured(isVertexAIConfigured());
@@ -370,7 +373,7 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
               props: propUrls
             }
           },
-          cost_estimate: calculateVeo3Cost(duration, 1)
+          cost_estimate: calculateVeo3Cost(duration, 1, generateAudio)
         }])
         .select()
         .single();
@@ -388,7 +391,7 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
     }
   };
 
-  const estimatedCost = calculateVeo3Cost(duration, 1);
+  const estimatedCost = calculateVeo3Cost(duration, 1, generateAudio);
 
   const backgroundAssets = assets.filter(a => a.asset_type === 'background');
   const propAssets = assets.filter(a => a.asset_type === 'prop');
@@ -941,6 +944,11 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
         </div>
       </div>
 
+      <ProductionCostEstimator
+        expanded={showCostEstimator}
+        onToggle={() => setShowCostEstimator(!showCostEstimator)}
+      />
+
       {showAssetBrowser && (
         <AssetBrowser
           type={assetBrowserType}
@@ -1130,6 +1138,136 @@ function PromptPreviewModal({ prompt, scene, onClose }: PromptPreviewModalProps)
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+interface ProductionCostEstimatorProps {
+  expanded: boolean;
+  onToggle: () => void;
+}
+
+function ProductionCostEstimator({ expanded, onToggle }: ProductionCostEstimatorProps) {
+  const [voicePercentage, setVoicePercentage] = useState(50);
+
+  const formatPresets = [
+    { key: 'short_5min', label: '5 min', minutes: 5 },
+    { key: 'youtube_standard', label: '10 min', minutes: 10 },
+    { key: 'streaming', label: '22 min', minutes: 22 },
+    { key: 'broadcast_45min', label: '42 min', minutes: 42 },
+  ];
+
+  const voicePresets = [
+    { label: '25%', value: 25 },
+    { label: '50%', value: 50 },
+    { label: '75%', value: 75 },
+    { label: '100%', value: 100 },
+  ];
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <button
+        onClick={onToggle}
+        className="flex items-center justify-between w-full p-4 hover:bg-gray-50 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Calculator className="w-5 h-5 text-blue-600" />
+          <h3 className="text-lg font-semibold text-gray-900">Production Cost Estimator</h3>
+        </div>
+        {expanded ? (
+          <ChevronUp className="w-5 h-5 text-gray-400" />
+        ) : (
+          <ChevronDown className="w-5 h-5 text-gray-400" />
+        )}
+      </button>
+
+      {expanded && (
+        <div className="p-6 pt-2 border-t border-gray-100 space-y-6">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-sm font-medium text-gray-700">
+                Voice/Dialogue Percentage
+              </label>
+              <span className="text-sm font-bold text-blue-600">{voicePercentage}%</span>
+            </div>
+
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="5"
+              value={voicePercentage}
+              onChange={(e) => setVoicePercentage(parseInt(e.target.value))}
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+            />
+
+            <div className="flex gap-2 mt-3">
+              {voicePresets.map((preset) => (
+                <button
+                  key={preset.value}
+                  onClick={() => setVoicePercentage(preset.value)}
+                  className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                    voicePercentage === preset.value
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-4">
+              <Film className="w-5 h-5 text-gray-600" />
+              <h4 className="font-semibold text-gray-900">Estimated Production Costs</h4>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left border-b border-gray-200">
+                    <th className="pb-2 font-medium text-gray-600">Format</th>
+                    <th className="pb-2 font-medium text-gray-600 text-right">TRT</th>
+                    <th className="pb-2 font-medium text-gray-600 text-right">Voice</th>
+                    <th className="pb-2 font-medium text-gray-600 text-right">Silent</th>
+                    <th className="pb-2 font-medium text-gray-900 text-right">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {formatPresets.map((format) => {
+                    const totalSeconds = format.minutes * 60;
+                    const costs = calculateProductionCost(totalSeconds, voicePercentage);
+                    return (
+                      <tr key={format.key} className="hover:bg-white/50">
+                        <td className="py-2.5 font-medium text-gray-900">{format.label}</td>
+                        <td className="py-2.5 text-right text-gray-600">{format.minutes} min</td>
+                        <td className="py-2.5 text-right text-gray-600">
+                          ${costs.withVoice.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        </td>
+                        <td className="py-2.5 text-right text-gray-600">
+                          ${costs.noVoice.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        </td>
+                        <td className="py-2.5 text-right font-bold text-gray-900">
+                          ${costs.total.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <div className="flex items-center justify-between text-xs text-gray-500">
+                <span>Video with audio: $0.75/sec</span>
+                <span>Video only: $0.50/sec</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

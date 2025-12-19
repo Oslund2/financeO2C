@@ -32,7 +32,8 @@ export interface VertexAIConfig {
   cloudStorageBucket: string;
 }
 
-const VEO3_COST_PER_SECOND = 0.75;
+const VEO3_COST_PER_SECOND_WITH_AUDIO = 0.75;
+const VEO3_COST_PER_SECOND_NO_AUDIO = 0.50;
 const API_RATE_LIMIT = 50;
 
 export function getVertexAIConfig(): VertexAIConfig | null {
@@ -57,14 +58,34 @@ export function isVertexAIConfigured(): boolean {
   return getVertexAIConfig() !== null;
 }
 
-export function calculateVeo3Cost(durationSeconds: number, sampleCount: number = 1): number {
-  return durationSeconds * VEO3_COST_PER_SECOND * sampleCount;
+export function calculateVeo3Cost(durationSeconds: number, sampleCount: number = 1, includeAudio: boolean = true): number {
+  const costPerSecond = includeAudio ? VEO3_COST_PER_SECOND_WITH_AUDIO : VEO3_COST_PER_SECOND_NO_AUDIO;
+  return durationSeconds * costPerSecond * sampleCount;
+}
+
+export function calculateProductionCost(
+  totalRuntimeSeconds: number,
+  voicePercentage: number = 50
+): { withVoice: number; noVoice: number; total: number } {
+  const voiceRatio = voicePercentage / 100;
+  const voiceSeconds = totalRuntimeSeconds * voiceRatio;
+  const silentSeconds = totalRuntimeSeconds * (1 - voiceRatio);
+
+  const withVoice = voiceSeconds * VEO3_COST_PER_SECOND_WITH_AUDIO;
+  const noVoice = silentSeconds * VEO3_COST_PER_SECOND_NO_AUDIO;
+
+  return {
+    withVoice,
+    noVoice,
+    total: withVoice + noVoice
+  };
 }
 
 export function estimateBatchDuration(
   shotCount: number,
   averageDurationSeconds: number,
-  sampleCount: number = 2
+  sampleCount: number = 2,
+  includeAudio: boolean = true
 ): {
   apiCalls: number;
   estimatedMinutes: number;
@@ -73,7 +94,8 @@ export function estimateBatchDuration(
   const apiCalls = shotCount * sampleCount;
   const batchesNeeded = Math.ceil(apiCalls / API_RATE_LIMIT);
   const estimatedMinutes = batchesNeeded * 1.2;
-  const totalCost = shotCount * averageDurationSeconds * VEO3_COST_PER_SECOND * sampleCount;
+  const costPerSecond = includeAudio ? VEO3_COST_PER_SECOND_WITH_AUDIO : VEO3_COST_PER_SECOND_NO_AUDIO;
+  const totalCost = shotCount * averageDurationSeconds * costPerSecond * sampleCount;
 
   return {
     apiCalls,
@@ -131,7 +153,8 @@ export async function submitVeo3Request(
 
     const cost = calculateVeo3Cost(
       request.parameters.durationSeconds,
-      request.parameters.sampleCount
+      request.parameters.sampleCount,
+      request.parameters.generateAudio
     );
 
     const { error: dbError } = await supabase
