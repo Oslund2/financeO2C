@@ -635,7 +635,12 @@ export function Settings() {
                   <Sparkles className="w-5 h-5 text-white" />
                 </div>
                 <div className="text-left">
-                  <h2 className="text-xl font-bold text-gray-900">{instructions.elevenLabs.title}</h2>
+                  <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                    {instructions.elevenLabs.title}
+                    {apiStatus?.elevenLabs.apiKey && (
+                      <CheckCircle className="w-5 h-5 text-green-600" />
+                    )}
+                  </h2>
                   <p className="text-sm text-gray-600">{instructions.elevenLabs.description}</p>
                 </div>
               </div>
@@ -648,17 +653,54 @@ export function Settings() {
 
             {elevenLabsExpanded && (
               <div className="border-t border-gray-200 p-6">
-                <div className="flex justify-end mb-4">
-                  <a
-                    href={instructions.elevenLabs.setupUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-4 py-2 text-scripps-blue hover:bg-blue-50 rounded-lg transition-colors text-sm font-medium"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                    Get API Key
-                  </a>
-                </div>
+                {apiStatus?.elevenLabs.apiKey ? (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                    <div className="flex items-center gap-2 text-green-800 mb-3">
+                      <CheckCircle className="w-5 h-5 text-green-600" />
+                      <span className="font-semibold text-lg">Connected & Operational</span>
+                    </div>
+                    <div className="space-y-3">
+                      <p className="text-sm text-green-700">
+                        ElevenLabs API is connected and working. You can now:
+                      </p>
+                      <ul className="text-sm text-green-700 space-y-2 ml-4">
+                        <li className="flex items-start gap-2">
+                          <span className="text-green-600 mt-0.5">•</span>
+                          <span>Browse and preview 100+ professional voices</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-green-600 mt-0.5">•</span>
+                          <span>Assign voices to characters in the Characters section</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-green-600 mt-0.5">•</span>
+                          <span>Generate high-quality dialogue audio</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-green-600 mt-0.5">•</span>
+                          <span>Use custom voice cloning (requires Creator+ plan)</span>
+                        </li>
+                      </ul>
+                      <div className="border-t border-green-200 pt-3 mt-3">
+                        <p className="text-xs text-green-600 font-medium">
+                          Pricing: ~$0.30 per 1K characters, voice cloning at ~$11/month
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex justify-end mb-4">
+                    <a
+                      href={instructions.elevenLabs.setupUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-2 text-scripps-blue hover:bg-blue-50 rounded-lg transition-colors text-sm font-medium"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      Get API Key
+                    </a>
+                  </div>
+                )}
 
                 <div className="space-y-4">
                   {instructions.elevenLabs.secrets.map((secret: any) => (
