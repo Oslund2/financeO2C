@@ -1234,6 +1234,13 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
                 initialProductionCost={productionCost}
                 initialEpisodeCount={defaultEpisodeCount}
                 onCalculationsChange={handleRevenueCalculationsChange}
+                episodeId={selectedEpisode?.id}
+                organizationId={selectedEpisode?.organization_id}
+                episodeContentMinutes={
+                  selectedEpisode?.target_runtime_seconds
+                    ? Math.round(selectedEpisode.target_runtime_seconds / 60)
+                    : undefined
+                }
               />
 
               <div className="mt-8 bg-white border-2 border-gray-200 rounded-xl p-6">

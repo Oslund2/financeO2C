@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect } from 'react';
-import { DollarSign, Users, TrendingUp, BarChart3, Info, Plus, X, Globe, Tv, Monitor, Youtube, Baby, AlertTriangle, Eye, Clock, TrendingDown, UserCog, ArrowDown, Sliders, RotateCcw } from 'lucide-react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { DollarSign, Users, TrendingUp, BarChart3, Info, Plus, X, Globe, Tv, Monitor, Youtube, Baby, AlertTriangle, Eye, Clock, TrendingDown, UserCog, ArrowDown, Sliders, RotateCcw, Save, Check, Loader2 } from 'lucide-react';
 import { LTVCalculationService, type LTVCalculation } from '../services/ltvCalculationService';
 import { YearByYearBreakdown } from './YearByYearBreakdown';
 import {
@@ -10,6 +10,7 @@ import {
   type CostConfig,
   type HumanCostBreakdown
 } from '../services/costCalculationService';
+import { EpisodeProfitSettingsService, type EpisodeProfitSettings, type DistributionChannelSettings } from '../services/episodeProfitSettingsService';
 
 export interface RevenueCalculations {
   revenuePerEpisodePerRun: number;
@@ -42,6 +43,9 @@ interface ShowRevenueEstimatorProps {
   initialProductionCost?: number;
   initialEpisodeCount?: number;
   onCalculationsChange?: (calculations: RevenueCalculations) => void;
+  episodeId?: string;
+  organizationId?: string | null;
+  episodeContentMinutes?: number;
 }
 
 interface Sponsor {
@@ -76,7 +80,14 @@ interface Language {
   audienceMultiplier: number; // potential audience expansion
 }
 
-export function ShowRevenueEstimator({ initialProductionCost = 0, initialEpisodeCount = 6, onCalculationsChange }: ShowRevenueEstimatorProps) {
+export function ShowRevenueEstimator({
+  initialProductionCost = 0,
+  initialEpisodeCount = 6,
+  onCalculationsChange,
+  episodeId,
+  organizationId,
+  episodeContentMinutes
+}: ShowRevenueEstimatorProps) {
   const [numberOfEpisodes, setNumberOfEpisodes] = useState(initialEpisodeCount);
   const [programLength, setProgramLength] = useState(30);
   const [breaksPerEpisode, setBreaksPerEpisode] = useState(4);
@@ -96,6 +107,13 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, initialEpisode
 
   const [enableHumanCosts, setEnableHumanCosts] = useState(true);
   const [humanCostProfile, setHumanCostProfile] = useState<HumanCostProfile>('standard');
+
+  const [loadingSettings, setLoadingSettings] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsSaved, setSettingsSaved] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isInitialLoad = useRef(true);
 
   const [customEditingRate, setCustomEditingRate] = useState(() => {
     const saved = localStorage.getItem('humanCost_editingRate');
@@ -262,6 +280,172 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, initialEpisode
   useEffect(() => {
     localStorage.setItem('humanCost_decayFloor', String(customDecayFloor));
   }, [customDecayFloor]);
+
+  const loadEpisodeSettings = useCallback(async () => {
+    if (!episodeId) return;
+
+    setLoadingSettings(true);
+    isInitialLoad.current = true;
+
+    try {
+      const savedSettings = await EpisodeProfitSettingsService.getSettings(episodeId);
+      const defaults = await EpisodeProfitSettingsService.getEpisodeDefaults(episodeId);
+
+      if (savedSettings) {
+        setProgramLength(savedSettings.programLengthMinutes);
+        setBreaksPerEpisode(savedSettings.breaksPerEpisode);
+        setSpotsPerBreak(savedSettings.spotsPerBreak);
+        setSpotLength(savedSettings.spotLengthSeconds);
+        setAnnualRunsPerEpisode(savedSettings.annualRunsPerEpisode);
+        setYearsInService(savedSettings.yearsInService);
+        setDecayRatePercent(savedSettings.decayRatePercent);
+        setMinimumRetentionPercent(savedSettings.minimumRetentionPercent);
+        setTargetCPM(savedSettings.targetCpm);
+        setTotalProductionCost(savedSettings.baseProductionCost || initialProductionCost);
+        setEnableMultiLanguage(savedSettings.enableMultiLanguage);
+        setDubbingTier(savedSettings.dubbingTier);
+        setEnableHumanCosts(savedSettings.enableHumanCosts);
+        setHumanCostProfile(savedSettings.humanCostProfile as HumanCostProfile);
+        setSponsors(savedSettings.sponsors.map(s => ({
+          id: s.id,
+          name: s.name,
+          cost: s.cost
+        })));
+
+        if (savedSettings.distributionChannels.length > 0) {
+          setDistributionChannels(prev => prev.map(ch => {
+            const savedCh = savedSettings.distributionChannels.find(sc => sc.id === ch.id || sc.name === ch.name);
+            if (savedCh) {
+              return {
+                ...ch,
+                buyingModel: savedCh.buyingModel,
+                rate: savedCh.rate,
+                cpmRate: savedCh.cpmRate,
+                impressionsPerRun: savedCh.impressionsPerRun,
+                enabled: savedCh.enabled
+              };
+            }
+            return ch;
+          }));
+        }
+      } else if (defaults) {
+        const contentMins = episodeContentMinutes || defaults.contentMinutes || 22;
+        const programMins = defaults.programLengthMinutes || contentMins + 8;
+        const defaultBreaks = EpisodeProfitSettingsService.getDefaultBreaksForDuration(contentMins);
+        const defaultChannels = EpisodeProfitSettingsService.getDefaultChannelsForEpisode(contentMins);
+
+        setProgramLength(Math.round(programMins));
+        setBreaksPerEpisode(defaultBreaks);
+
+        if (defaultBreaks === 0) {
+          setDistributionChannels(prev => {
+            const socialChannels = prev.filter(c =>
+              c.name.toLowerCase().includes('social') ||
+              c.name.toLowerCase().includes('youtube')
+            );
+            return prev.map(c => ({
+              ...c,
+              enabled: socialChannels.some(sc => sc.id === c.id)
+            }));
+          });
+        }
+
+        if (defaults.estimatedCost) {
+          setTotalProductionCost(defaults.estimatedCost);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading episode settings:', error);
+    } finally {
+      setLoadingSettings(false);
+      setTimeout(() => {
+        isInitialLoad.current = false;
+      }, 500);
+    }
+  }, [episodeId, episodeContentMinutes, initialProductionCost]);
+
+  useEffect(() => {
+    loadEpisodeSettings();
+  }, [episodeId]);
+
+  const saveEpisodeSettings = useCallback(async () => {
+    if (!episodeId || isInitialLoad.current) return;
+
+    setSavingSettings(true);
+    setSettingsSaved(false);
+
+    try {
+      await EpisodeProfitSettingsService.saveSettings(episodeId, organizationId || null, {
+        programLengthMinutes: programLength,
+        breaksPerEpisode,
+        spotsPerBreak,
+        spotLengthSeconds: spotLength,
+        annualRunsPerEpisode,
+        yearsInService,
+        decayRatePercent,
+        minimumRetentionPercent,
+        targetCpm: targetCPM,
+        baseProductionCost: totalProductionCost,
+        distributionChannels: distributionChannels.map(ch => ({
+          id: ch.id,
+          name: ch.name,
+          buyingModel: ch.buyingModel,
+          rate: ch.rate,
+          cpmRate: ch.cpmRate,
+          impressionsPerRun: ch.impressionsPerRun,
+          enabled: ch.enabled
+        })),
+        sponsors: sponsors.map(s => ({
+          id: s.id,
+          name: s.name,
+          cost: s.cost
+        })),
+        enableMultiLanguage,
+        dubbingTier,
+        enabledLanguages: languages.filter(l => l.enabled).map(l => l.code),
+        enableHumanCosts,
+        humanCostProfile
+      });
+
+      setSettingsSaved(true);
+      setHasUnsavedChanges(false);
+      setTimeout(() => setSettingsSaved(false), 2000);
+    } catch (error) {
+      console.error('Error saving episode settings:', error);
+    } finally {
+      setSavingSettings(false);
+    }
+  }, [
+    episodeId, organizationId, programLength, breaksPerEpisode, spotsPerBreak,
+    spotLength, annualRunsPerEpisode, yearsInService, decayRatePercent,
+    minimumRetentionPercent, targetCPM, totalProductionCost, distributionChannels,
+    sponsors, enableMultiLanguage, dubbingTier, languages, enableHumanCosts, humanCostProfile
+  ]);
+
+  useEffect(() => {
+    if (!episodeId || isInitialLoad.current) return;
+
+    setHasUnsavedChanges(true);
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    saveTimeoutRef.current = setTimeout(() => {
+      saveEpisodeSettings();
+    }, 1500);
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [
+    programLength, breaksPerEpisode, spotsPerBreak, spotLength,
+    annualRunsPerEpisode, yearsInService, decayRatePercent, minimumRetentionPercent,
+    targetCPM, totalProductionCost, distributionChannels, sponsors,
+    enableMultiLanguage, dubbingTier, enableHumanCosts, humanCostProfile
+  ]);
 
   const addSponsor = () => {
     const newSponsor: Sponsor = {
@@ -613,16 +797,51 @@ export function ShowRevenueEstimator({ initialProductionCost = 0, initialEpisode
     return new Intl.NumberFormat('en-US').format(Math.round(value));
   };
 
+  if (loadingSettings) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="flex items-center gap-3 text-gray-600">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <span>Loading episode settings...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
-          <TrendingUp className="w-6 h-6 text-white" />
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
+            <TrendingUp className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h3 className="text-2xl font-bold text-gray-900">Multi-Channel Revenue Estimator</h3>
+            <p className="text-sm text-gray-600">Project revenue across distribution channels, languages, and sponsors</p>
+          </div>
         </div>
-        <div>
-          <h3 className="text-2xl font-bold text-gray-900">Multi-Channel Revenue Estimator</h3>
-          <p className="text-sm text-gray-600">Project revenue across distribution channels, languages, and sponsors</p>
-        </div>
+        {episodeId && (
+          <div className="flex items-center gap-2">
+            {savingSettings && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Saving...</span>
+              </div>
+            )}
+            {settingsSaved && !savingSettings && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 rounded-lg text-sm">
+                <Check className="w-4 h-4" />
+                <span>Settings saved</span>
+              </div>
+            )}
+            {hasUnsavedChanges && !savingSettings && !settingsSaved && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg text-sm">
+                <Save className="w-4 h-4" />
+                <span>Unsaved changes</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
