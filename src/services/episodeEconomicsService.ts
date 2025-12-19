@@ -132,11 +132,16 @@ function getPlatformFeeForChannel(channelName: string): number {
   return 0.30;
 }
 
-function getFormatLabel(runtimeMinutes: number, breaksCount: number): string {
-  if (runtimeMinutes <= 5) return `${runtimeMinutes} min | Social Short`;
-  if (runtimeMinutes <= 11) return `${runtimeMinutes} min | Digital`;
-  if (runtimeMinutes <= 22) return `${runtimeMinutes} min | Broadcast`;
-  return `${runtimeMinutes} min | Premium`;
+function getFormatLabel(runtimeMinutes: number, formatType: string): string {
+  const formatLabels: Record<string, string> = {
+    'broadcast': 'Broadcast',
+    'streaming': 'Streaming',
+    'short_form': 'Social Short',
+    'medium_form': 'Digital',
+    'custom': 'Custom'
+  };
+  const label = formatLabels[formatType] || 'Digital';
+  return `${runtimeMinutes} min | ${label}`;
 }
 
 function estimateHumanHours(
@@ -397,7 +402,7 @@ export class EpisodeEconomicsService {
         runtimeMinutes,
         contentMinutes,
         breaksCount,
-        formatLabel: getFormatLabel(runtimeMinutes, breaksCount)
+        formatLabel: getFormatLabel(runtimeMinutes, defaults.formatType)
       },
       costs,
       channels,

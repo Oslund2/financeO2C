@@ -49,6 +49,7 @@ export interface EpisodeDefaults {
   targetRuntimeSeconds: number;
   episodeTitle: string;
   estimatedCost: number | null;
+  formatType: string;
 }
 
 const DEFAULT_DISTRIBUTION_CHANNELS: DistributionChannelSettings[] = [
@@ -174,7 +175,8 @@ export class EpisodeProfitSettingsService {
       contentMinutes: data.content_minutes || 22,
       targetRuntimeSeconds: data.target_runtime_seconds || 1320,
       episodeTitle: data.episode_title || 'Episode',
-      estimatedCost: data.estimated_cost
+      estimatedCost: data.estimated_cost,
+      formatType: data.format_type || 'broadcast'
     };
   }
 
