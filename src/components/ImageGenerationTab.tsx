@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import {
   Image as ImageIcon,
   Sparkles,
-  Upload,
   Plus,
   X,
   Loader2,
@@ -12,11 +11,10 @@ import {
   Layers,
   Package,
   Download,
-  Eye,
-  Settings as SettingsIcon,
   Wand2,
-  RefreshCw,
-  Save
+  Save,
+  Check,
+  Info
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
@@ -35,6 +33,7 @@ interface ImageGenerationTabProps {
 }
 
 type AssetType = 'character' | 'background' | 'prop';
+type ReferenceFilter = 'all' | 'characters' | 'backgrounds' | 'props';
 
 interface ReferenceImage {
   id: string;
@@ -43,6 +42,42 @@ interface ReferenceImage {
   type: AssetType;
   assetId?: string;
 }
+
+const ASSET_TYPE_CONFIG = {
+  character: {
+    label: 'Character',
+    icon: Users,
+    color: 'blue',
+    bgColor: 'bg-blue-50',
+    borderColor: 'border-blue-500',
+    textColor: 'text-blue-600',
+    badgeColor: 'bg-blue-100 text-blue-700',
+    description: 'Generate expressive characters with distinct personalities',
+    promptGuide: 'full body character design, expressive face, distinct personality, child-friendly appearance, dynamic pose'
+  },
+  background: {
+    label: 'Background',
+    icon: Layers,
+    color: 'green',
+    bgColor: 'bg-green-50',
+    borderColor: 'border-green-500',
+    textColor: 'text-green-600',
+    badgeColor: 'bg-green-100 text-green-700',
+    description: 'Create detailed environments and scenic backdrops',
+    promptGuide: 'detailed environment, appropriate depth, clear focal points, animation-ready background, atmospheric lighting'
+  },
+  prop: {
+    label: 'Prop',
+    icon: Package,
+    color: 'amber',
+    bgColor: 'bg-amber-50',
+    borderColor: 'border-amber-500',
+    textColor: 'text-amber-600',
+    badgeColor: 'bg-amber-100 text-amber-700',
+    description: 'Design objects and items for your scenes',
+    promptGuide: 'clear object definition, appropriate scale, animation-friendly design, distinct from background, detailed textures'
+  }
+};
 
 export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
   const [assetType, setAssetType] = useState<AssetType>('character');
@@ -74,7 +109,6 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
       let query = supabase
         .from('assets')
         .select('*')
-        .eq('ai_generated', true)
         .order('created_at', { ascending: false });
 
       if (seriesId) {
@@ -106,6 +140,9 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
 
     if (!imageUrl) return;
 
+    const existingRef = referenceImages.find(r => r.assetId === asset.id && r.type === type);
+    if (existingRef) return;
+
     const ref: ReferenceImage = {
       id: crypto.randomUUID(),
       name: asset.name,
@@ -115,27 +152,45 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
     };
 
     setReferenceImages([...referenceImages, ref]);
-    setShowReferenceBrowser(false);
   };
 
   const handleRemoveReference = (id: string) => {
     setReferenceImages(referenceImages.filter(r => r.id !== id));
   };
 
-  const enhancePrompt = () => {
+  const buildSmartPrompt = () => {
     const styleGuide = "claymation style, vibrant colors, playful animation aesthetic, smooth rounded shapes, friendly character design";
-    const typeSpecificGuide = {
-      character: "full body character design, expressive face, distinct personality, child-friendly appearance",
-      background: "detailed environment, appropriate depth, clear focal points, animation-ready background",
-      prop: "clear object definition, appropriate scale, animation-friendly design, distinct from background"
-    };
+    const typeConfig = ASSET_TYPE_CONFIG[assetType];
 
     let enhanced = prompt.trim();
+
     if (!enhanced.toLowerCase().includes('claymation')) {
-      enhanced = `${enhanced}. ${styleGuide}, ${typeSpecificGuide[assetType]}`;
+      enhanced = `${enhanced}. ${styleGuide}, ${typeConfig.promptGuide}`;
     }
 
-    setPrompt(enhanced);
+    const refsByType = {
+      character: referenceImages.filter(r => r.type === 'character'),
+      background: referenceImages.filter(r => r.type === 'background'),
+      prop: referenceImages.filter(r => r.type === 'prop')
+    };
+
+    if (refsByType.character.length > 0 && assetType !== 'character') {
+      enhanced += `. Include character${refsByType.character.length > 1 ? 's' : ''} in the style of: ${refsByType.character.map(r => r.name).join(', ')}`;
+    }
+
+    if (refsByType.background.length > 0 && assetType !== 'background') {
+      enhanced += `. Environment inspired by: ${refsByType.background.map(r => r.name).join(', ')}`;
+    }
+
+    if (refsByType.prop.length > 0 && assetType !== 'prop') {
+      enhanced += `. Props and objects styled like: ${refsByType.prop.map(r => r.name).join(', ')}`;
+    }
+
+    return enhanced;
+  };
+
+  const enhancePrompt = () => {
+    setPrompt(buildSmartPrompt());
   };
 
   const handleGenerate = async () => {
@@ -154,8 +209,10 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
         imageUrl: ref.imageUrl
       }));
 
+      const smartPrompt = buildSmartPrompt();
+
       const options: ImageGenerationOptions = {
-        prompt: prompt.trim(),
+        prompt: smartPrompt,
         aspectRatio,
         numberOfImages: 1,
         characterReferences: characterRefs.length > 0 ? characterRefs : undefined
@@ -258,11 +315,20 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
     }
   };
 
-  const assetTypes = [
-    { id: 'character' as AssetType, label: 'Character', icon: Users, color: 'blue' },
-    { id: 'background' as AssetType, label: 'Background', icon: Layers, color: 'green' },
-    { id: 'prop' as AssetType, label: 'Prop', icon: Package, color: 'purple' }
-  ];
+  const getReferenceSummary = () => {
+    const counts = {
+      character: referenceImages.filter(r => r.type === 'character').length,
+      background: referenceImages.filter(r => r.type === 'background').length,
+      prop: referenceImages.filter(r => r.type === 'prop').length
+    };
+
+    const parts = [];
+    if (counts.character > 0) parts.push(`${counts.character} character${counts.character > 1 ? 's' : ''}`);
+    if (counts.background > 0) parts.push(`${counts.background} background${counts.background > 1 ? 's' : ''}`);
+    if (counts.prop > 0) parts.push(`${counts.prop} prop${counts.prop > 1 ? 's' : ''}`);
+
+    return parts.join(', ');
+  };
 
   return (
     <div className="space-y-6">
@@ -308,69 +374,139 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
 
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-3">Asset Type</label>
-        <div className="grid grid-cols-3 gap-3">
-          {assetTypes.map((type) => {
-            const Icon = type.icon;
-            const isSelected = assetType === type.id;
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {(Object.entries(ASSET_TYPE_CONFIG) as [AssetType, typeof ASSET_TYPE_CONFIG[AssetType]][]).map(([typeId, config]) => {
+            const Icon = config.icon;
+            const isSelected = assetType === typeId;
 
             return (
               <button
-                key={type.id}
-                onClick={() => setAssetType(type.id)}
-                className={`p-4 rounded-lg border-2 transition-all ${
+                key={typeId}
+                onClick={() => setAssetType(typeId)}
+                className={`p-4 rounded-lg border-2 transition-all text-left ${
                   isSelected
-                    ? `border-${type.color}-500 bg-${type.color}-50`
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? `${config.borderColor} ${config.bgColor}`
+                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                 }`}
               >
-                <Icon className={`w-6 h-6 mx-auto mb-2 ${
-                  isSelected ? `text-${type.color}-600` : 'text-gray-600'
-                }`} />
-                <div className={`text-sm font-medium ${
-                  isSelected ? `text-${type.color}-900` : 'text-gray-900'
-                }`}>
-                  {type.label}
+                <div className="flex items-center gap-3 mb-2">
+                  <div className={`p-2 rounded-lg ${isSelected ? config.bgColor : 'bg-gray-100'}`}>
+                    <Icon className={`w-5 h-5 ${isSelected ? config.textColor : 'text-gray-600'}`} />
+                  </div>
+                  <div className={`font-semibold ${isSelected ? config.textColor : 'text-gray-900'}`}>
+                    {config.label}
+                  </div>
+                  {isSelected && (
+                    <Check className={`w-4 h-4 ml-auto ${config.textColor}`} />
+                  )}
                 </div>
+                <p className={`text-xs ${isSelected ? config.textColor : 'text-gray-500'}`}>
+                  {config.description}
+                </p>
               </button>
             );
           })}
         </div>
+        <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
+          <Info className="w-3 h-3" />
+          <span>Asset type guides the AI even without reference images</span>
+        </div>
       </div>
 
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Reference Images ({referenceImages.length})
-        </label>
+        <div className="flex items-center justify-between mb-2">
+          <label className="block text-sm font-semibold text-gray-700">
+            Reference Images ({referenceImages.length})
+          </label>
+          {referenceImages.length > 0 && (
+            <span className="text-xs text-gray-500">{getReferenceSummary()}</span>
+          )}
+        </div>
+
+        {referenceImages.length > 0 && (
+          <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-gray-600">Selected References</span>
+              <button
+                onClick={() => setReferenceImages([])}
+                className="text-xs text-red-600 hover:text-red-700"
+              >
+                Clear All
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {referenceImages.map((ref) => {
+                const typeConfig = ASSET_TYPE_CONFIG[ref.type];
+                return (
+                  <div
+                    key={ref.id}
+                    className="flex items-center gap-2 bg-white rounded-full pl-1 pr-2 py-1 border border-gray-200"
+                  >
+                    <img
+                      src={ref.imageUrl}
+                      alt={ref.name}
+                      className="w-6 h-6 rounded-full object-cover"
+                    />
+                    <span className="text-xs font-medium text-gray-700 max-w-[100px] truncate">
+                      {ref.name}
+                    </span>
+                    <span className={`text-xs px-1.5 py-0.5 rounded ${typeConfig.badgeColor}`}>
+                      {typeConfig.label}
+                    </span>
+                    <button
+                      onClick={() => handleRemoveReference(ref.id)}
+                      className="text-gray-400 hover:text-red-500"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <div className="space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {referenceImages.map((ref) => (
-              <div key={ref.id} className="relative group">
-                <img
-                  src={ref.imageUrl}
-                  alt={ref.name}
-                  className="w-full h-32 object-cover rounded-lg border-2 border-gray-200"
-                />
-                <button
-                  onClick={() => handleRemoveReference(ref.id)}
-                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-                <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-75 text-white text-xs p-1 rounded-b-lg">
-                  {ref.name}
+            {referenceImages.slice(0, 3).map((ref) => {
+              const typeConfig = ASSET_TYPE_CONFIG[ref.type];
+              return (
+                <div key={ref.id} className="relative group">
+                  <img
+                    src={ref.imageUrl}
+                    alt={ref.name}
+                    className={`w-full h-32 object-cover rounded-lg border-2 ${typeConfig.borderColor}`}
+                  />
+                  <button
+                    onClick={() => handleRemoveReference(ref.id)}
+                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                  <div className={`absolute top-2 left-2 text-xs px-2 py-0.5 rounded-full ${typeConfig.badgeColor}`}>
+                    {typeConfig.label}
+                  </div>
+                  <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-75 text-white text-xs p-1 rounded-b-lg truncate">
+                    {ref.name}
+                  </div>
                 </div>
+              );
+            })}
+            {referenceImages.length > 3 && (
+              <div className="h-32 border-2 border-gray-200 rounded-lg flex items-center justify-center bg-gray-50">
+                <span className="text-sm text-gray-600">+{referenceImages.length - 3} more</span>
               </div>
-            ))}
+            )}
             <button
               onClick={() => setShowReferenceBrowser(true)}
-              className="h-32 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-scripps-blue hover:bg-blue-50 transition-all"
+              className="h-32 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-blue-400 hover:bg-blue-50 transition-all"
             >
               <Plus className="w-6 h-6 text-gray-400" />
               <span className="text-sm text-gray-600">Add Reference</span>
             </button>
           </div>
           <p className="text-xs text-gray-600">
-            Add reference images to maintain visual consistency. The AI will use these as style guides for the generated image.
+            Add characters, backgrounds, or props from your Asset Library. The AI uses these as style guides regardless of what you're generating.
           </p>
         </div>
       </div>
@@ -382,7 +518,7 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
           </label>
           <button
             onClick={enhancePrompt}
-            className="flex items-center gap-1 text-xs text-scripps-blue hover:underline"
+            className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
           >
             <Wand2 className="w-3 h-3" />
             Enhance with Style Guide
@@ -392,7 +528,7 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           rows={4}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           placeholder={`Describe the ${assetType} you want to generate... (e.g., "A friendly young bee character wearing a spelling bee champion sash, holding a trophy")`}
         />
         <p className="text-xs text-gray-600 mt-1">
@@ -413,7 +549,7 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
               onClick={() => setAspectRatio(ratio.value)}
               className={`p-3 rounded-lg border-2 transition-all text-sm font-medium ${
                 aspectRatio === ratio.value
-                  ? 'border-scripps-blue bg-blue-50 text-scripps-blue'
+                  ? 'border-blue-500 bg-blue-50 text-blue-600'
                   : 'border-gray-200 text-gray-700 hover:border-gray-300'
               }`}
             >
@@ -446,7 +582,7 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
           ) : (
             <>
               <Sparkles className="w-6 h-6" />
-              Generate {assetType.charAt(0).toUpperCase() + assetType.slice(1)}
+              Generate {ASSET_TYPE_CONFIG[assetType].label}
             </>
           )}
         </button>
@@ -495,9 +631,9 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
 
       {showReferenceBrowser && (
         <ReferenceBrowser
-          assetType={assetType}
           assets={availableAssets}
           characters={characters}
+          selectedRefs={referenceImages}
           onSelect={handleAddReferenceImage}
           onClose={() => setShowReferenceBrowser(false)}
         />
@@ -521,32 +657,60 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
 }
 
 interface ReferenceBrowserProps {
-  assetType: AssetType;
   assets: Asset[];
   characters: Character[];
+  selectedRefs: ReferenceImage[];
   onSelect: (asset: Asset | Character, type: AssetType) => void;
   onClose: () => void;
 }
 
-function ReferenceBrowser({ assetType, assets, characters, onSelect, onClose }: ReferenceBrowserProps) {
-  const [filter, setFilter] = useState<'all' | 'characters' | 'assets'>('all');
+function ReferenceBrowser({ assets, characters, selectedRefs, onSelect, onClose }: ReferenceBrowserProps) {
+  const [filter, setFilter] = useState<ReferenceFilter>('all');
 
-  const filteredAssets = assets.filter(a => {
-    if (filter === 'characters') return false;
-    if (assetType === 'character') return a.asset_type === 'character';
-    if (assetType === 'background') return a.asset_type === 'background';
-    if (assetType === 'prop') return a.asset_type === 'prop';
-    return true;
+  const isSelected = (id: string, type: AssetType) => {
+    return selectedRefs.some(r => r.assetId === id && r.type === type);
+  };
+
+  const backgroundAssets = assets.filter(a => a.asset_type === 'background');
+  const propAssets = assets.filter(a => a.asset_type === 'prop');
+  const characterAssets = assets.filter(a => a.asset_type === 'character');
+
+  const getCounts = () => ({
+    all: characters.length + assets.length,
+    characters: characters.length + characterAssets.length,
+    backgrounds: backgroundAssets.length,
+    props: propAssets.length
   });
 
-  const filteredCharacters = filter !== 'assets' ? characters : [];
+  const counts = getCounts();
+
+  const filterTabs: { id: ReferenceFilter; label: string; count: number; icon: typeof Users }[] = [
+    { id: 'all', label: 'All', count: counts.all, icon: ImageIcon },
+    { id: 'characters', label: 'Characters', count: counts.characters, icon: Users },
+    { id: 'backgrounds', label: 'Backgrounds', count: counts.backgrounds, icon: Layers },
+    { id: 'props', label: 'Props', count: counts.props, icon: Package }
+  ];
+
+  const showCharacters = filter === 'all' || filter === 'characters';
+  const showBackgrounds = filter === 'all' || filter === 'backgrounds';
+  const showProps = filter === 'all' || filter === 'props';
+
+  const allCharacterItems = [
+    ...characters.map(c => ({ ...c, source: 'character' as const })),
+    ...characterAssets.map(a => ({ ...a, source: 'asset' as const }))
+  ];
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+      <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[85vh] overflow-hidden flex flex-col">
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold text-gray-900">Select Reference Image</h2>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Select Reference Images</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Browse your Asset Library to add style references for generation
+              </p>
+            </div>
             <button
               onClick={onClose}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -555,106 +719,220 @@ function ReferenceBrowser({ assetType, assets, characters, onSelect, onClose }: 
             </button>
           </div>
 
-          <div className="flex gap-2">
-            <button
-              onClick={() => setFilter('all')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                filter === 'all'
-                  ? 'bg-scripps-blue text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              All
-            </button>
-            <button
-              onClick={() => setFilter('characters')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                filter === 'characters'
-                  ? 'bg-scripps-blue text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Characters
-            </button>
-            <button
-              onClick={() => setFilter('assets')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                filter === 'assets'
-                  ? 'bg-scripps-blue text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Generated Assets
-            </button>
+          <div className="flex flex-wrap gap-2">
+            {filterTabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setFilter(tab.id)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                    filter === tab.id
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {tab.label}
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                    filter === tab.id ? 'bg-blue-500' : 'bg-gray-200'
+                  }`}>
+                    {tab.count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
-          {filteredCharacters.length > 0 && (
-            <div className="mb-6">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">Characters</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {filteredCharacters.map((char) => (
-                  <button
-                    key={char.id}
-                    onClick={() => onSelect(char, 'character')}
-                    className="group relative"
-                  >
-                    {char.reference_image_url ? (
-                      <img
-                        src={char.reference_image_url}
-                        alt={char.name}
-                        className="w-full h-40 object-cover rounded-lg border-2 border-gray-200 group-hover:border-scripps-blue transition-colors"
-                      />
-                    ) : (
-                      <div className="w-full h-40 bg-gray-100 rounded-lg border-2 border-gray-200 group-hover:border-scripps-blue transition-colors flex items-center justify-center">
-                        <Users className="w-12 h-12 text-gray-400" />
-                      </div>
-                    )}
-                    <div className="mt-2 text-sm font-medium text-gray-900">{char.name}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {filteredAssets.length > 0 && (
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {showCharacters && allCharacterItems.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">Generated Assets</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {filteredAssets.map((asset) => (
-                  <button
-                    key={asset.id}
-                    onClick={() => onSelect(asset, asset.asset_type as AssetType)}
-                    className="group relative"
-                  >
-                    {asset.file_url ? (
-                      <img
-                        src={asset.file_url}
-                        alt={asset.name}
-                        className="w-full h-40 object-cover rounded-lg border-2 border-gray-200 group-hover:border-scripps-blue transition-colors"
-                      />
-                    ) : (
-                      <div className="w-full h-40 bg-gray-100 rounded-lg border-2 border-gray-200 group-hover:border-scripps-blue transition-colors flex items-center justify-center">
-                        <ImageIcon className="w-12 h-12 text-gray-400" />
+              <div className="flex items-center gap-2 mb-3">
+                <Users className="w-4 h-4 text-blue-600" />
+                <h3 className="text-sm font-semibold text-gray-700">Characters</h3>
+                <span className="text-xs text-gray-500">({allCharacterItems.length})</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {allCharacterItems.map((item) => {
+                  const imageUrl = item.source === 'character'
+                    ? (item as Character).reference_image_url
+                    : (item as Asset).file_url;
+                  const itemSelected = isSelected(item.id, 'character');
+
+                  return (
+                    <button
+                      key={`${item.source}-${item.id}`}
+                      onClick={() => {
+                        if (item.source === 'character') {
+                          onSelect(item as Character, 'character');
+                        } else {
+                          onSelect(item as Asset, 'character');
+                        }
+                      }}
+                      className={`group relative rounded-lg overflow-hidden transition-all ${
+                        itemSelected ? 'ring-2 ring-blue-500 ring-offset-2' : ''
+                      }`}
+                    >
+                      {imageUrl ? (
+                        <img
+                          src={imageUrl}
+                          alt={item.name}
+                          className="w-full h-36 object-cover group-hover:scale-105 transition-transform"
+                        />
+                      ) : (
+                        <div className="w-full h-36 bg-gray-100 flex items-center justify-center">
+                          <Users className="w-10 h-10 text-gray-400" />
+                        </div>
+                      )}
+                      {itemSelected && (
+                        <div className="absolute top-2 right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                          <Check className="w-4 h-4 text-white" />
+                        </div>
+                      )}
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
+                        <div className="text-sm font-medium text-white truncate">{item.name}</div>
                       </div>
-                    )}
-                    <div className="mt-2 text-sm font-medium text-gray-900">{asset.name}</div>
-                  </button>
-                ))}
+                      <div className="absolute top-2 left-2">
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                          Character
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
 
-          {filteredCharacters.length === 0 && filteredAssets.length === 0 && (
+          {showBackgrounds && backgroundAssets.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Layers className="w-4 h-4 text-green-600" />
+                <h3 className="text-sm font-semibold text-gray-700">Backgrounds</h3>
+                <span className="text-xs text-gray-500">({backgroundAssets.length})</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {backgroundAssets.map((asset) => {
+                  const itemSelected = isSelected(asset.id, 'background');
+
+                  return (
+                    <button
+                      key={asset.id}
+                      onClick={() => onSelect(asset, 'background')}
+                      className={`group relative rounded-lg overflow-hidden transition-all ${
+                        itemSelected ? 'ring-2 ring-green-500 ring-offset-2' : ''
+                      }`}
+                    >
+                      {asset.file_url ? (
+                        <img
+                          src={asset.file_url}
+                          alt={asset.name}
+                          className="w-full h-36 object-cover group-hover:scale-105 transition-transform"
+                        />
+                      ) : (
+                        <div className="w-full h-36 bg-gray-100 flex items-center justify-center">
+                          <Layers className="w-10 h-10 text-gray-400" />
+                        </div>
+                      )}
+                      {itemSelected && (
+                        <div className="absolute top-2 right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                          <Check className="w-4 h-4 text-white" />
+                        </div>
+                      )}
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
+                        <div className="text-sm font-medium text-white truncate">{asset.name}</div>
+                      </div>
+                      <div className="absolute top-2 left-2">
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                          Background
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {showProps && propAssets.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Package className="w-4 h-4 text-amber-600" />
+                <h3 className="text-sm font-semibold text-gray-700">Props</h3>
+                <span className="text-xs text-gray-500">({propAssets.length})</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {propAssets.map((asset) => {
+                  const itemSelected = isSelected(asset.id, 'prop');
+
+                  return (
+                    <button
+                      key={asset.id}
+                      onClick={() => onSelect(asset, 'prop')}
+                      className={`group relative rounded-lg overflow-hidden transition-all ${
+                        itemSelected ? 'ring-2 ring-amber-500 ring-offset-2' : ''
+                      }`}
+                    >
+                      {asset.file_url ? (
+                        <img
+                          src={asset.file_url}
+                          alt={asset.name}
+                          className="w-full h-36 object-cover group-hover:scale-105 transition-transform"
+                        />
+                      ) : (
+                        <div className="w-full h-36 bg-gray-100 flex items-center justify-center">
+                          <Package className="w-10 h-10 text-gray-400" />
+                        </div>
+                      )}
+                      {itemSelected && (
+                        <div className="absolute top-2 right-2 w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center">
+                          <Check className="w-4 h-4 text-white" />
+                        </div>
+                      )}
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
+                        <div className="text-sm font-medium text-white truncate">{asset.name}</div>
+                      </div>
+                      <div className="absolute top-2 left-2">
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                          Prop
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {((filter === 'all' && characters.length === 0 && assets.length === 0) ||
+            (filter === 'characters' && allCharacterItems.length === 0) ||
+            (filter === 'backgrounds' && backgroundAssets.length === 0) ||
+            (filter === 'props' && propAssets.length === 0)) && (
             <div className="text-center py-12">
               <ImageIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-600">No reference images available</p>
+              <p className="text-gray-600">No {filter === 'all' ? 'assets' : filter} available</p>
               <p className="text-sm text-gray-500 mt-1">
-                Generate some assets first to use them as references
+                {filter === 'all'
+                  ? 'Create characters or generate assets to use as references'
+                  : `Add ${filter} to your Asset Library to use them as references`}
               </p>
             </div>
           )}
+        </div>
+
+        <div className="p-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+          <div className="text-sm text-gray-600">
+            {selectedRefs.length > 0
+              ? `${selectedRefs.length} reference${selectedRefs.length > 1 ? 's' : ''} selected`
+              : 'Click images to select references'}
+          </div>
+          <button
+            onClick={onClose}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          >
+            Done
+          </button>
         </div>
       </div>
     </div>
@@ -700,7 +978,7 @@ function SaveAssetModal({
               type="text"
               value={assetName}
               onChange={(e) => onNameChange(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="e.g., Bee Character - Happy Pose"
             />
           </div>
@@ -713,7 +991,7 @@ function SaveAssetModal({
               value={assetDescription}
               onChange={(e) => onDescriptionChange(e.target.value)}
               rows={3}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Optional: Add details about this asset"
             />
           </div>
@@ -726,7 +1004,7 @@ function SaveAssetModal({
               type="text"
               value={assetTags}
               onChange={(e) => onTagsChange(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Comma-separated tags (e.g., character, bee, hero)"
             />
           </div>
