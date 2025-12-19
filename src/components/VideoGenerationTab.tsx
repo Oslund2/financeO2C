@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
-import { isVertexAIConfigured, calculateVeo3Cost, calculateProductionCost, type Veo3Parameters } from '../services/vertexAIService';
+import { isVertexAIConfigured, calculateVeo3Cost, calculateProductionCost, submitVeo3Request, type Veo3Parameters, type Veo3Request } from '../services/vertexAIService';
 import { FORMAT_PRESETS } from '../types/formatConfig';
 import { generateVeo3Prompt, type Veo3PromptConfig } from '../services/veo3PromptService';
 import { useOrganization } from '../contexts/OrganizationContext';
@@ -303,9 +303,34 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
     setShowPromptPreview(true);
   };
 
+  const fetchImageAsBase64 = async (url: string): Promise<{ base64: string; mimeType: 'image/jpeg' | 'image/png' } | null> => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const mimeType = blob.type.includes('png') ? 'image/png' : 'image/jpeg';
+
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = (reader.result as string).split(',')[1];
+          resolve({ base64, mimeType });
+        };
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return null;
+    }
+  };
+
   const handleGenerate = async () => {
     if (!configured) {
       setError('Vertex AI is not configured. Please add credentials in Settings.');
+      return;
+    }
+
+    if (!currentOrganization) {
+      setError('No organization selected. Please select an organization first.');
       return;
     }
 
@@ -319,21 +344,31 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
 
     try {
       const prompt = buildPrompt();
+      setGeneratedPrompt(prompt);
 
-      const characterReferenceUrls = scene.characters
-        .map(sc => sc.character.reference_image_url)
-        .filter(Boolean);
+      const referenceImages: Veo3Request['referenceImages'] = [];
 
-      const backgroundUrl = scene.background?.file_url;
-      const propUrls = scene.props.map(p => p.file_url).filter(Boolean);
+      for (const sc of scene.characters) {
+        if (sc.character.reference_image_url) {
+          const imageData = await fetchImageAsBase64(sc.character.reference_image_url);
+          if (imageData) {
+            referenceImages.push({
+              bytesBase64Encoded: imageData.base64,
+              mimeType: imageData.mimeType,
+              referenceType: 'asset'
+            });
+          }
+        }
+      }
 
       const { data: job, error: jobError } = await supabase
         .from('production_jobs')
         .insert([{
           series_id: seriesId,
+          organization_id: currentOrganization.id,
           job_type: 'video_generation',
           entity_type: 'video_clip',
-          status: 'pending',
+          status: 'processing',
           service: 'veo3',
           request_payload: {
             prompt,
@@ -366,11 +401,6 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
               resolution,
               generateAudio,
               mood: scene.mood
-            },
-            referenceImages: {
-              characters: characterReferenceUrls,
-              background: backgroundUrl,
-              props: propUrls
             }
           },
           cost_estimate: calculateVeo3Cost(duration, 1, generateAudio)
@@ -380,7 +410,33 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
 
       if (jobError) throw jobError;
 
-      setGeneratedPrompt(prompt);
+      const veo3Request: Veo3Request = {
+        prompt,
+        referenceImages: referenceImages.length > 0 ? referenceImages.slice(0, 3) : undefined,
+        parameters: {
+          aspectRatio,
+          resolution,
+          durationSeconds: duration as 4 | 5 | 6 | 7 | 8,
+          sampleCount: 1,
+          generateAudio,
+          personGeneration: 'allow_adult'
+        }
+      };
+
+      const veoJobId = await submitVeo3Request(
+        job.id,
+        currentOrganization.id,
+        veo3Request
+      );
+
+      await supabase
+        .from('production_jobs')
+        .update({
+          status: 'processing',
+          response_payload: { veoJobId }
+        })
+        .eq('id', job.id);
+
       setShowPromptPreview(true);
 
     } catch (err) {
