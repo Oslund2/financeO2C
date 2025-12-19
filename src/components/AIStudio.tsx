@@ -10,6 +10,7 @@ import { isSpellingBeeSeries, type SpellingBeeWord } from '../services/spellingB
 import { FormatSelector } from './FormatSelector';
 import { FORMAT_PRESETS, type ProgramFormatConfig } from '../types/formatConfig';
 import { ImageGenerationTab } from './ImageGenerationTab';
+import { VideoGenerationTab } from './VideoGenerationTab';
 
 type Character = Database['public']['Tables']['characters']['Row'];
 
@@ -71,7 +72,7 @@ export function AIStudio({ seriesId, onNavigate }: AIStudioProps) {
             {activeTab === 'script' && <ScriptGeneration seriesId={seriesId} onNavigate={onNavigate} />}
             {activeTab === 'storyboard' && <StoryboardGeneration onNavigate={onNavigate} />}
             {activeTab === 'image' && <ImageGeneration seriesId={seriesId} />}
-            {activeTab === 'video' && <VideoGeneration />}
+            {activeTab === 'video' && <VideoGeneration seriesId={seriesId} onNavigate={onNavigate} />}
             {activeTab === 'voice' && <VoiceGeneration seriesId={seriesId} onNavigate={onNavigate} />}
           </div>
         </div>
@@ -976,19 +977,8 @@ function ImageGeneration({ seriesId }: { seriesId: string | null }) {
   return <ImageGenerationTab seriesId={seriesId} />;
 }
 
-function VideoGeneration() {
-  return (
-    <div className="text-center py-12">
-      <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-full flex items-center justify-center mx-auto mb-4">
-        <Video className="w-8 h-8 text-white" />
-      </div>
-      <h3 className="text-xl font-semibold text-gray-900 mb-2">Video Generation</h3>
-      <p className="text-gray-600 mb-4">
-        Create animated claymation clips using Veo 3 from static images
-      </p>
-      <p className="text-sm text-scripps-blue">Coming soon...</p>
-    </div>
-  );
+function VideoGeneration({ seriesId, onNavigate }: { seriesId: string | null; onNavigate: (view: string) => void }) {
+  return <VideoGenerationTab seriesId={seriesId} onNavigate={onNavigate} />;
 }
 
 function StoryboardGeneration({ onNavigate }: { onNavigate: (view: string) => void }) {
