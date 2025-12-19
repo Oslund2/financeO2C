@@ -318,6 +318,175 @@ export async function generateStoryboardImage(
 
 export { getRateLimitStatus };
 
+async function uploadImageToProductionAssets(
+  imageBase64: string,
+  assetType: string,
+  assetId: string
+): Promise<{ imageUrl: string; thumbnailUrl: string }> {
+  const imageBuffer = Uint8Array.from(atob(imageBase64), c => c.charCodeAt(0));
+
+  const timestamp = Date.now();
+  const fileName = `${assetType}/${assetId}-${timestamp}.png`;
+
+  const { data: uploadData, error: uploadError } = await supabase.storage
+    .from('production-assets')
+    .upload(fileName, imageBuffer, {
+      contentType: 'image/png',
+      upsert: true
+    });
+
+  if (uploadError) {
+    throw new Error(`Failed to upload image: ${uploadError.message}`);
+  }
+
+  const { data: { publicUrl } } = supabase.storage
+    .from('production-assets')
+    .getPublicUrl(fileName);
+
+  return {
+    imageUrl: publicUrl,
+    thumbnailUrl: publicUrl
+  };
+}
+
+export async function generateAssetImage(
+  options: ImageGenerationOptions,
+  assetType: string,
+  retryCount = 0
+): Promise<ImageGenerationResult> {
+  const startTime = Date.now();
+
+  await waitForRateLimit();
+
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+
+  if (!apiKey) {
+    throw new Error('Gemini API key not configured. Please set VITE_GEMINI_API_KEY in environment variables.');
+  }
+
+  const aspectRatioMap = {
+    '16:9': '16:9',
+    '1:1': '1:1',
+    '9:16': '9:16'
+  };
+
+  const parts: any[] = [];
+  const characterRefs = options.characterReferences || [];
+  const loadedReferences: { name: string; loaded: boolean }[] = [];
+
+  if (characterRefs.length > 0) {
+    for (const ref of characterRefs) {
+      const imageData = await fetchImageAsBase64(ref.imageUrl);
+      if (imageData) {
+        parts.push({
+          inlineData: {
+            mimeType: imageData.mimeType,
+            data: imageData.base64
+          }
+        });
+        loadedReferences.push({ name: ref.name, loaded: true });
+      } else {
+        loadedReferences.push({ name: ref.name, loaded: false });
+      }
+    }
+
+    const loadedNames = loadedReferences.filter(r => r.loaded).map(r => r.name);
+    if (loadedNames.length > 0) {
+      parts.push({
+        text: `CRITICAL: Reference images provided for: ${loadedNames.join(', ')}. You MUST use these reference images to ensure EXACT visual consistency. All elements MUST match their reference images in appearance, proportions, colors, features, and style. This is essential for animation production continuity.\n\n`
+      });
+    }
+  }
+
+  parts.push({ text: options.prompt });
+
+  const requestBody = {
+    contents: [{
+      role: 'user',
+      parts
+    }],
+    generationConfig: {
+      responseModalities: ['TEXT', 'IMAGE'],
+      imageConfig: {
+        aspectRatio: aspectRatioMap[options.aspectRatio || '1:1']
+      }
+    }
+  };
+
+  try {
+    const response = await fetch(`${NANO_BANANA_ENDPOINT}?key=${apiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      const errorMessage = `API error: ${response.status} - ${errorText}`;
+
+      if (response.status === 429) {
+        recordFailedRequest();
+        throw new Error(`Rate limit exceeded: ${errorText}`);
+      }
+
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+
+    if (!data.candidates || data.candidates.length === 0) {
+      throw new Error('No image generated in response');
+    }
+
+    const imagePart = data.candidates[0].content.parts.find((part: any) => part.inlineData);
+
+    if (!imagePart || !imagePart.inlineData || !imagePart.inlineData.data) {
+      throw new Error('No image data found in response');
+    }
+
+    const imageBase64 = imagePart.inlineData.data;
+
+    const assetId = crypto.randomUUID();
+    const { imageUrl, thumbnailUrl } = await uploadImageToProductionAssets(
+      imageBase64,
+      assetType,
+      assetId
+    );
+
+    const generationTime = Date.now() - startTime;
+
+    recordSuccessfulRequest();
+
+    return {
+      imageUrl,
+      thumbnailUrl,
+      generationTime,
+      estimatedCost: ESTIMATED_COST_PER_IMAGE
+    };
+
+  } catch (error) {
+    console.error(`Image generation failed (attempt ${retryCount + 1}):`, error);
+
+    const parsedError = parseGenerationError(error);
+
+    if (parsedError.retryable && retryCount < MAX_RETRIES) {
+      recordFailedRequest();
+
+      const delay = parsedError.type === 'rate_limit'
+        ? RATE_LIMIT_RETRY_DELAY * Math.pow(1.5, retryCount)
+        : RETRY_DELAY * Math.pow(2, retryCount);
+
+      console.log(`Retrying in ${Math.round(delay / 1000)}s (${parsedError.type} error)...`);
+      await sleep(delay);
+      return generateAssetImage(options, assetType, retryCount + 1);
+    }
+
+    throw new Error(parsedError.message);
+  }
+}
+
 export async function uploadManualImage(
   file: File,
   storyboardId: string,

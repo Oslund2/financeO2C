@@ -9,6 +9,7 @@ import { SpellingBeeWordSelector } from './SpellingBeeWordSelector';
 import { isSpellingBeeSeries, type SpellingBeeWord } from '../services/spellingBeeService';
 import { FormatSelector } from './FormatSelector';
 import { FORMAT_PRESETS, type ProgramFormatConfig } from '../types/formatConfig';
+import { ImageGenerationTab } from './ImageGenerationTab';
 
 type Character = Database['public']['Tables']['characters']['Row'];
 
@@ -972,18 +973,7 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
 }
 
 function ImageGeneration({ seriesId }: { seriesId: string | null }) {
-  return (
-    <div className="text-center py-12">
-      <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
-        <ImageIcon className="w-8 h-8 text-white" />
-      </div>
-      <h3 className="text-xl font-semibold text-gray-900 mb-2">Image Generation</h3>
-      <p className="text-gray-600 mb-4">
-        Generate character references, backgrounds, and scene images using Gemini 3
-      </p>
-      <p className="text-sm text-scripps-blue">Coming soon...</p>
-    </div>
-  );
+  return <ImageGenerationTab seriesId={seriesId} />;
 }
 
 function VideoGeneration() {
