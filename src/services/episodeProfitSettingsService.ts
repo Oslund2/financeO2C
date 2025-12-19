@@ -43,6 +43,8 @@ export interface SponsorSettings {
   cost: number;
 }
 
+export type SettingsSource = 'default' | 'custom' | 'synced' | 'preset';
+
 export interface EpisodeProfitSettings {
   id: string;
   episodeId: string;
@@ -65,8 +67,28 @@ export interface EpisodeProfitSettings {
   enableHumanCosts: boolean;
   humanCostProfile: string;
   customCostRates: Record<string, number> | null;
+  settingsSource: SettingsSource;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface EpisodeSettingsComparison {
+  episodeId: string;
+  episodeTitle: string;
+  formatType: string;
+  programLengthMinutes: number;
+  hasCustomSettings: boolean;
+  settingsSource: SettingsSource;
+  channelCount: number;
+  enabledChannelCount: number;
+  totalMonthlyProjectedViews: number;
+}
+
+export interface SyncSettingsResult {
+  success: boolean;
+  updatedCount: number;
+  sourceEpisodeId?: string;
+  error?: string;
 }
 
 export interface EpisodeDefaults {
@@ -370,8 +392,118 @@ export class EpisodeProfitSettingsService {
       enableHumanCosts: data.enable_human_costs,
       humanCostProfile: data.human_cost_profile,
       customCostRates: data.custom_cost_rates,
+      settingsSource: (data.settings_source as SettingsSource) || 'custom',
       createdAt: data.created_at,
       updatedAt: data.updated_at
     };
+  }
+
+  static async syncSettingsToEpisodes(
+    sourceEpisodeId: string,
+    targetEpisodeIds: string[],
+    syncChannels: boolean = true,
+    syncParameters: boolean = true
+  ): Promise<SyncSettingsResult> {
+    const { data, error } = await supabase.rpc('sync_episode_profit_settings', {
+      p_source_episode_id: sourceEpisodeId,
+      p_target_episode_ids: targetEpisodeIds,
+      p_sync_channels: syncChannels,
+      p_sync_parameters: syncParameters
+    });
+
+    if (error) {
+      console.error('Error syncing episode settings:', error);
+      return {
+        success: false,
+        updatedCount: 0,
+        error: error.message
+      };
+    }
+
+    return {
+      success: data?.success ?? false,
+      updatedCount: data?.updated_count ?? 0,
+      sourceEpisodeId: data?.source_episode_id,
+      error: data?.error
+    };
+  }
+
+  static async getEpisodesSettingsComparison(seriesId: string): Promise<EpisodeSettingsComparison[]> {
+    const { data, error } = await supabase.rpc('get_episodes_settings_comparison', {
+      p_series_id: seriesId
+    });
+
+    if (error) {
+      console.error('Error getting episodes settings comparison:', error);
+      return [];
+    }
+
+    return (data || []).map((row: any) => ({
+      episodeId: row.episode_id,
+      episodeTitle: row.episode_title,
+      formatType: row.format_type,
+      programLengthMinutes: row.program_length_minutes,
+      hasCustomSettings: row.has_custom_settings,
+      settingsSource: (row.settings_source as SettingsSource) || 'default',
+      channelCount: row.channel_count,
+      enabledChannelCount: row.enabled_channel_count,
+      totalMonthlyProjectedViews: Number(row.total_monthly_projected_views)
+    }));
+  }
+
+  static async getEpisodesByFormat(
+    seriesId: string,
+    formatType: string,
+    programLengthMinutes: number
+  ): Promise<Array<{ id: string; title: string; hasCustomSettings: boolean }>> {
+    const { data: episodes, error } = await supabase
+      .from('episodes')
+      .select('id, title')
+      .eq('series_id', seriesId)
+      .eq('format_type', formatType)
+      .eq('program_length_minutes', programLengthMinutes)
+      .order('episode_number', { ascending: true });
+
+    if (error) {
+      console.error('Error getting episodes by format:', error);
+      return [];
+    }
+
+    const episodeIds = episodes?.map(e => e.id) || [];
+    const { data: settingsData } = await supabase
+      .from('episode_profit_settings')
+      .select('episode_id')
+      .in('episode_id', episodeIds);
+
+    const episodesWithSettings = new Set((settingsData || []).map(s => s.episode_id));
+
+    return (episodes || []).map(ep => ({
+      id: ep.id,
+      title: ep.title,
+      hasCustomSettings: episodesWithSettings.has(ep.id)
+    }));
+  }
+
+  static channelsAreEqual(
+    channels1: DistributionChannelSettings[],
+    channels2: DistributionChannelSettings[]
+  ): boolean {
+    if (channels1.length !== channels2.length) return false;
+
+    const sortedChannels1 = [...channels1].sort((a, b) => a.id.localeCompare(b.id));
+    const sortedChannels2 = [...channels2].sort((a, b) => a.id.localeCompare(b.id));
+
+    return sortedChannels1.every((ch1, idx) => {
+      const ch2 = sortedChannels2[idx];
+      return (
+        ch1.id === ch2.id &&
+        ch1.name === ch2.name &&
+        ch1.enabled === ch2.enabled &&
+        ch1.cpmRate === ch2.cpmRate &&
+        ch1.monthlyProjectedViews === ch2.monthlyProjectedViews &&
+        ch1.impressionsPerAiring === ch2.impressionsPerAiring &&
+        ch1.airingsPerYear === ch2.airingsPerYear
+      );
+    });
   }
 }

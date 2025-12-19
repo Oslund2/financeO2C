@@ -18,7 +18,9 @@ import {
   Minus,
   Globe,
   Calculator,
-  RotateCcw
+  RotateCcw,
+  Copy,
+  AlertTriangle
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
@@ -40,6 +42,7 @@ import { EpisodeFormatPresets, FORMAT_PRESETS, FormatPreset } from './EpisodeFor
 import { EpisodeEconomicsCard, EpisodeEconomicsGrid } from './EpisodeEconomicsCard';
 import { SocialRevenueEducation } from './SocialRevenueEducation';
 import { YouTubeRevenueCalculator } from './YouTubeRevenueCalculator';
+import { SyncSettingsModal } from './SyncSettingsModal';
 import jsPDF from 'jspdf';
 
 type Episode = Database['public']['Tables']['episodes']['Row'];
@@ -61,6 +64,7 @@ export function ProductionEconomics({ seriesId }: ProductionEconomicsProps) {
   const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null);
   const [showChannelConfig, setShowChannelConfig] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+  const [showSyncModal, setShowSyncModal] = useState(false);
 
   const [channels, setChannels] = useState<DistributionChannelSettings[]>([]);
   const [runsPerYear, setRunsPerYear] = useState(4);
@@ -90,6 +94,46 @@ export function ProductionEconomics({ seriesId }: ProductionEconomicsProps) {
       };
     });
   }, [episodes, episodeEconomics, loadingEpisodes]);
+
+  const settingsMismatchWarning = useMemo(() => {
+    const economicsArray = Array.from(episodeEconomics.values());
+    if (economicsArray.length < 2) return null;
+
+    const formatGroups = new Map<string, EpisodeEconomics[]>();
+    economicsArray.forEach(eco => {
+      const key = eco.format.formatLabel;
+      if (!formatGroups.has(key)) {
+        formatGroups.set(key, []);
+      }
+      formatGroups.get(key)!.push(eco);
+    });
+
+    for (const [formatLabel, group] of formatGroups) {
+      if (group.length < 2) continue;
+
+      const firstChannels = group[0].channels;
+      const hasMismatch = group.slice(1).some(eco => {
+        if (eco.channels.length !== firstChannels.length) return true;
+        return eco.channels.some((ch, idx) => {
+          const firstCh = firstChannels[idx];
+          return (
+            ch.enabled !== firstCh.enabled ||
+            ch.cpmRate !== firstCh.cpmRate ||
+            ch.monthlyProjectedViews !== firstCh.monthlyProjectedViews
+          );
+        });
+      });
+
+      if (hasMismatch) {
+        return {
+          formatLabel,
+          episodeCount: group.length
+        };
+      }
+    }
+
+    return null;
+  }, [episodeEconomics]);
 
   const seriesTotals = useMemo(() => {
     const allEconomics = Array.from(episodeEconomics.values());
@@ -650,6 +694,32 @@ export function ProductionEconomics({ seriesId }: ProductionEconomicsProps) {
           </div>
         ) : (
           <div className="space-y-6">
+            {settingsMismatchWarning && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <h4 className="font-medium text-amber-900">Settings Mismatch Detected</h4>
+                    <p className="text-sm text-amber-700 mt-1">
+                      {settingsMismatchWarning.episodeCount} episodes with format "{settingsMismatchWarning.formatLabel}" have different distribution settings.
+                      This will result in different revenue projections. Use the "Sync to Other Episodes" button to align settings.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowChannelConfig(true);
+                      setTimeout(() => {
+                        channelConfigRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }, 100);
+                    }}
+                    className="px-3 py-1.5 text-sm font-medium text-amber-700 bg-amber-100 hover:bg-amber-200 rounded-lg transition-colors flex-shrink-0"
+                  >
+                    Fix Settings
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
               <div className="flex items-center gap-2 mb-4">
                 <BarChart3 className="w-5 h-5 text-gray-600" />
@@ -742,14 +812,24 @@ export function ProductionEconomics({ seriesId }: ProductionEconomicsProps) {
                       <div>
                         <div className="flex items-center justify-between mb-3">
                           <h4 className="text-sm font-semibold text-gray-900">Channel Configuration</h4>
-                          <button
-                            onClick={handleResetToDefaults}
-                            disabled={savingSettings}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50"
-                          >
-                            <RotateCcw className="w-3.5 h-3.5" />
-                            Reset to Format Defaults
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setShowSyncModal(true)}
+                              disabled={savingSettings || !selectedEpisodeId}
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                              Sync to Other Episodes
+                            </button>
+                            <button
+                              onClick={handleResetToDefaults}
+                              disabled={savingSettings}
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                              Reset to Format Defaults
+                            </button>
+                          </div>
                         </div>
 
                         {channels.some(c => isLinearChannel(c)) && (
@@ -1043,6 +1123,22 @@ export function ProductionEconomics({ seriesId }: ProductionEconomicsProps) {
           </div>
         )}
       </div>
+
+      {showSyncModal && selectedEpisodeId && selectedEconomics && seriesId && (
+        <SyncSettingsModal
+          isOpen={showSyncModal}
+          onClose={() => setShowSyncModal(false)}
+          seriesId={seriesId}
+          sourceEpisodeId={selectedEpisodeId}
+          sourceEpisodeTitle={selectedEconomics.episodeTitle}
+          sourceFormatLabel={selectedEconomics.format.formatLabel}
+          onSyncComplete={() => {
+            for (const episode of episodes) {
+              loadEpisodeEconomics(episode.id, episode.estimated_cost || 0);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
