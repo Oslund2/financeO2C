@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { Upload, X, Loader2, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
 import { getChatterboxService } from '../services/chatterboxService';
+import { getElevenLabsService } from '../services/elevenLabsService';
 
 interface VoiceCloningModalProps {
   isOpen: boolean;
@@ -13,7 +14,10 @@ interface AudioFile {
   id: string;
 }
 
+type VoiceProvider = 'elevenlabs' | 'chatterbox';
+
 export function VoiceCloningModal({ isOpen, onClose, onSuccess }: VoiceCloningModalProps) {
+  const [provider, setProvider] = useState<VoiceProvider>('elevenlabs');
   const [voiceName, setVoiceName] = useState('');
   const [description, setDescription] = useState('');
   const [audioFiles, setAudioFiles] = useState<AudioFile[]>([]);
@@ -71,15 +75,22 @@ export function VoiceCloningModal({ isOpen, onClose, onSuccess }: VoiceCloningMo
     setIsUploading(true);
 
     try {
-      const service = getChatterboxService();
       const files = audioFiles.map((af) => af.file);
-      const result = await service.cloneVoice(voiceName, files, description);
+      let result: { voice_id: string; name?: string };
+
+      if (provider === 'elevenlabs') {
+        const service = getElevenLabsService();
+        result = await service.cloneVoice(voiceName, files, description);
+      } else {
+        const service = getChatterboxService();
+        result = await service.cloneVoice(voiceName, files, description);
+      }
 
       setSuccess(true);
 
       if (onSuccess && result.voice_id) {
         setTimeout(() => {
-          onSuccess(result.voice_id!);
+          onSuccess(result.voice_id);
           handleClose();
         }, 2000);
       }
@@ -91,6 +102,7 @@ export function VoiceCloningModal({ isOpen, onClose, onSuccess }: VoiceCloningMo
   };
 
   const handleClose = () => {
+    setProvider('elevenlabs');
     setVoiceName('');
     setDescription('');
     setAudioFiles([]);
@@ -99,6 +111,8 @@ export function VoiceCloningModal({ isOpen, onClose, onSuccess }: VoiceCloningMo
     setIsUploading(false);
     onClose();
   };
+
+  const providerName = provider === 'elevenlabs' ? 'ElevenLabs' : 'Chatterbox';
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return bytes + ' B';
@@ -110,7 +124,7 @@ export function VoiceCloningModal({ isOpen, onClose, onSuccess }: VoiceCloningMo
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">Clone Voice with Chatterbox</h2>
+          <h2 className="text-xl font-bold text-gray-900">Clone Voice with {providerName}</h2>
           <button
             onClick={handleClose}
             className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
@@ -128,11 +142,31 @@ export function VoiceCloningModal({ isOpen, onClose, onSuccess }: VoiceCloningMo
                 Voice Cloning Successful!
               </h3>
               <p className="text-sm text-gray-600 text-center">
-                Your voice has been successfully cloned and is now available for use.
+                Your voice has been successfully cloned with {providerName} and is now available for use.
               </p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Provider <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={provider}
+                  onChange={(e) => setProvider(e.target.value as VoiceProvider)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
+                  disabled={isUploading}
+                >
+                  <option value="elevenlabs">ElevenLabs (Cloud)</option>
+                  <option value="chatterbox">Chatterbox (Self-Hosted)</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  {provider === 'elevenlabs'
+                    ? 'Professional AI voice cloning with 100+ voices (requires Creator+ plan)'
+                    : 'Self-hosted voice cloning and TTS server'}
+                </p>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Voice Name <span className="text-red-500">*</span>

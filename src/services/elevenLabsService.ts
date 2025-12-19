@@ -181,6 +181,57 @@ export class ElevenLabsService {
     }
   }
 
+  async cloneVoice(
+    name: string,
+    files: File[],
+    description?: string
+  ): Promise<{ voice_id: string; name: string }> {
+    try {
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+      const formData = new FormData();
+      formData.append('name', name);
+      if (description) {
+        formData.append('description', description);
+      }
+
+      files.forEach((file) => {
+        formData.append('files', file);
+      });
+
+      const response = await fetch(
+        `${this.edgeFunctionUrl}?path=/voices/add&method=POST`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${anonKey}`,
+            'apikey': anonKey,
+          },
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to clone voice: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      this.clearCache();
+
+      return {
+        voice_id: data.voice_id,
+        name: data.name || name,
+      };
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Failed to clone voice with ElevenLabs');
+    }
+  }
+
   clearCache(): void {
     this.cachedVoices = null;
     this.cacheTimestamp = null;

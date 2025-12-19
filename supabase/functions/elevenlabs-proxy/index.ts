@@ -69,8 +69,18 @@ Deno.serve(async (req: Request) => {
 
     // Get request body if it's a POST request
     let body = null;
+    let contentType = "application/json";
+
     if (method === "POST" && req.body) {
-      body = await req.text();
+      const reqContentType = req.headers.get("content-type") || "";
+
+      if (reqContentType.includes("multipart/form-data")) {
+        const formData = await req.formData();
+        body = formData;
+        contentType = "multipart/form-data";
+      } else {
+        body = await req.text();
+      }
     }
 
     // Forward the request to Eleven Labs API
@@ -79,8 +89,10 @@ Deno.serve(async (req: Request) => {
     };
 
     if (method === "POST") {
-      headers["Content-Type"] = "application/json";
-      headers["Accept"] = "audio/mpeg";
+      if (contentType !== "multipart/form-data") {
+        headers["Content-Type"] = "application/json";
+      }
+      headers["Accept"] = "audio/mpeg, application/json";
     }
 
     const response = await fetch(elevenLabsUrl, {
