@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
-import { Plus, Search, Edit2, Copy, Trash2, Sparkles, X, Volume2, Film } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Plus, Search, Edit2, Copy, Trash2, Sparkles, X, Volume2, Film, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
 import { VoiceSelector } from './VoiceSelector';
 import { VoiceCloningModal } from './VoiceCloningModal';
 import type { VoiceProvider } from '../services/voiceService';
+import { getVoiceService } from '../services/voiceService';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { useNotification } from '../contexts/NotificationContext';
 
@@ -17,6 +18,7 @@ interface CharactersProps {
 
 export function Characters({ seriesId }: CharactersProps) {
   const { currentOrganization } = useOrganization();
+  const { showError } = useNotification();
   const [characters, setCharacters] = useState<Character[]>([]);
   const [filteredCharacters, setFilteredCharacters] = useState<Character[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -34,6 +36,9 @@ export function Characters({ seriesId }: CharactersProps) {
     character: null,
     relatedItems: [],
   });
+  const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
+  const [loadingVoiceId, setLoadingVoiceId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     loadCharacters();
@@ -68,6 +73,15 @@ export function Characters({ seriesId }: CharactersProps) {
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
   }, [fullscreenCharacter]);
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
 
   const loadCharacters = async () => {
     if (!currentOrganization) {
@@ -104,6 +118,69 @@ export function Characters({ seriesId }: CharactersProps) {
       console.error('Error loading characters:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleVoicePreview = async (character: Character, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    const voiceId = character.chatterbox_voice_id || character.eleven_labs_voice_id;
+    const provider = (character.voice_provider as VoiceProvider) || 'elevenlabs';
+
+    if (!voiceId) {
+      showError('No Voice', 'This character does not have a voice assigned.');
+      return;
+    }
+
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+
+    if (playingVoiceId === character.id) {
+      setPlayingVoiceId(null);
+      return;
+    }
+
+    setLoadingVoiceId(character.id);
+
+    try {
+      const voiceService = getVoiceService();
+      const sampleText = `Hello, I'm ${character.name}!`;
+
+      const audioBlob = await voiceService.generateSpeech(
+        sampleText,
+        voiceId,
+        provider
+      );
+
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+
+      audioRef.current = audio;
+      setPlayingVoiceId(character.id);
+      setLoadingVoiceId(null);
+
+      audio.onended = () => {
+        setPlayingVoiceId(null);
+        URL.revokeObjectURL(audioUrl);
+        audioRef.current = null;
+      };
+
+      audio.onerror = () => {
+        setPlayingVoiceId(null);
+        setLoadingVoiceId(null);
+        URL.revokeObjectURL(audioUrl);
+        audioRef.current = null;
+        showError('Playback Error', 'Failed to play voice preview.');
+      };
+
+      await audio.play();
+    } catch (error) {
+      console.error('Error previewing voice:', error);
+      setPlayingVoiceId(null);
+      setLoadingVoiceId(null);
+      showError('Voice Preview Failed', 'Could not generate voice preview. Please try again.');
     }
   };
 
@@ -361,11 +438,23 @@ export function Characters({ seriesId }: CharactersProps) {
                         }`}>
                           {character.role}
                         </span>
-                        {character.eleven_labs_voice_id && (
-                          <div className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-full">
-                            <Volume2 className="w-3 h-3" />
+                        {(character.eleven_labs_voice_id || character.chatterbox_voice_id) && (
+                          <button
+                            type="button"
+                            onClick={(e) => handleVoicePreview(character, e)}
+                            disabled={loadingVoiceId === character.id}
+                            className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-full hover:shadow-md transition-all cursor-pointer disabled:opacity-70"
+                            aria-label={`Preview ${character.name}'s voice`}
+                          >
+                            {loadingVoiceId === character.id ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : playingVoiceId === character.id ? (
+                              <Volume2 className="w-3 h-3 animate-pulse" />
+                            ) : (
+                              <Volume2 className="w-3 h-3" />
+                            )}
                             <span className="text-xs font-medium">Voice</span>
-                          </div>
+                          </button>
                         )}
                       </div>
                       {character.age && (
@@ -443,11 +532,23 @@ export function Characters({ seriesId }: CharactersProps) {
               <div className="p-6 sm:p-8 lg:p-12 space-y-6 sm:space-y-8" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
                   <h2 className="text-3xl sm:text-5xl lg:text-6xl font-bold text-white flex-1">{fullscreenCharacter.name}</h2>
-                  {fullscreenCharacter.eleven_labs_voice_id && (
-                    <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-scripps-yellow/20 rounded-2xl border border-scripps-yellow/30">
-                      <Volume2 className="w-5 h-5 sm:w-6 sm:h-6 text-scripps-yellow" />
+                  {(fullscreenCharacter.eleven_labs_voice_id || fullscreenCharacter.chatterbox_voice_id) && (
+                    <button
+                      type="button"
+                      onClick={(e) => handleVoicePreview(fullscreenCharacter, e)}
+                      disabled={loadingVoiceId === fullscreenCharacter.id}
+                      className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-scripps-yellow/20 rounded-2xl border border-scripps-yellow/30 hover:bg-scripps-yellow/30 transition-all cursor-pointer disabled:opacity-70"
+                      aria-label={`Preview ${fullscreenCharacter.name}'s voice`}
+                    >
+                      {loadingVoiceId === fullscreenCharacter.id ? (
+                        <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 text-scripps-yellow animate-spin" />
+                      ) : playingVoiceId === fullscreenCharacter.id ? (
+                        <Volume2 className="w-5 h-5 sm:w-6 sm:h-6 text-scripps-yellow animate-pulse" />
+                      ) : (
+                        <Volume2 className="w-5 h-5 sm:w-6 sm:h-6 text-scripps-yellow" />
+                      )}
                       <span className="text-base sm:text-xl font-semibold text-white">Voice Enabled</span>
-                    </div>
+                    </button>
                   )}
                 </div>
 
