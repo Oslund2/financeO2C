@@ -219,8 +219,8 @@ export function getAPIKeyStatus() {
 export function getConfigurationInstructions() {
   return {
     vertexAI: {
-      title: 'Vertex AI Veo 3.1 Configuration',
-      description: 'Set up Google Cloud Vertex AI for video generation with Veo 3.1',
+      title: 'Vertex AI Veo Configuration',
+      description: 'Set up Google Cloud Vertex AI for video generation with Veo models (2.0, 3.0, 3.1)',
       secrets: [
         {
           name: 'VITE_VERTEX_AI_PROJECT_ID',
@@ -229,27 +229,35 @@ export function getConfigurationInstructions() {
           required: true
         },
         {
+          name: 'VITE_GEMINI_API_KEY',
+          description: 'Your Gemini API key (same key works for both Gemini and Vertex AI)',
+          example: 'AIzaSy...',
+          required: true,
+          note: 'Already configured above - this same key works for Vertex AI too!'
+        },
+        {
           name: 'VITE_VERTEX_AI_LOCATION',
-          description: 'Google Cloud region for Vertex AI (must support Veo 3.1)',
+          description: 'Google Cloud region for Vertex AI',
           example: 'us-central1',
           required: false,
           default: 'us-central1'
         },
         {
-          name: 'VITE_VERTEX_AI_API_KEY',
-          description: 'Google Cloud API key with Vertex AI and Cloud Storage access',
-          example: 'AIzaSy...',
-          required: true
+          name: 'VITE_VERTEX_AI_CLOUD_STORAGE_BUCKET',
+          description: 'Cloud Storage bucket name for video outputs (optional - base64 returned if not provided)',
+          example: 'my-veo-renders',
+          required: false
         },
         {
-          name: 'VITE_VERTEX_AI_CLOUD_STORAGE_BUCKET',
-          description: 'Cloud Storage bucket for video outputs (gs://bucket-name)',
-          example: 'gs://my-veo3-renders',
-          required: true
+          name: 'VITE_VERTEX_AI_DEFAULT_MODEL',
+          description: 'Default Veo model to use',
+          example: 'veo-3.1-generate-001',
+          required: false,
+          default: 'veo-3.1-generate-001'
         }
       ],
       setupUrl: 'https://console.cloud.google.com/apis/credentials',
-      additionalInfo: 'Veo 3.1 pricing: $0.75/second for video with audio generation. Ensure your Cloud Storage bucket has proper IAM permissions for Vertex AI service account.'
+      additionalInfo: 'Veo pricing varies by model: Veo 2.0 (~$0.35/sec), Veo 3.0/3.1 Fast (~$0.50/sec), Veo 3.1 Premium ($0.75/sec with audio). The same Gemini API key works for both Gemini text generation and Vertex AI video generation - just add your Google Cloud Project ID.'
     },
     elevenLabs: {
       title: 'ElevenLabs Configuration',

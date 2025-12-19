@@ -319,23 +319,47 @@ export function Settings() {
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-bold text-gray-900">Video Generation API (Veo 3)</h3>
+                          <h3 className="font-bold text-gray-900">Video Generation API (Veo)</h3>
                           <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">Required</span>
                           <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">High Priority</span>
                         </div>
                         <p className="text-sm text-gray-600 mb-3">
-                          Google's Veo 3 model generates animated video clips from text descriptions. This is the core engine for turning storyboards into animated sequences.
+                          Google's Veo models (2.0, 3.0, 3.1) generate animated video clips from text. Core engine for storyboard-to-video conversion. Supports all Veo variants including fast generation modes.
                         </p>
-                        <div className="bg-gray-50 rounded-lg p-3 mb-3">
-                          <div className="text-xs font-medium text-gray-700 mb-2">Environment Variables Needed:</div>
-                          <div className="space-y-1">
-                            <code className="text-xs bg-gray-200 px-2 py-1 rounded block">VITE_VERTEX_AI_PROJECT_ID</code>
-                            <code className="text-xs bg-gray-200 px-2 py-1 rounded block">VITE_VERTEX_AI_LOCATION</code>
-                            <code className="text-xs bg-gray-200 px-2 py-1 rounded block">VITE_VERTEX_AI_API_KEY</code>
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+                          <div className="flex items-start gap-2">
+                            <div className="text-blue-600 mt-0.5">ℹ️</div>
+                            <div className="text-xs text-blue-900">
+                              <strong>Good News:</strong> You can use your existing Gemini API key for Vertex AI! Just add your Google Cloud Project ID below. The same API key works for both services.
+                            </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-4 text-sm">
-                          <span className="text-gray-500">Est. Cost: ~$0.50 per 5-sec clip</span>
+                        <div className="bg-gray-50 rounded-lg p-3 mb-3">
+                          <div className="text-xs font-medium text-gray-700 mb-2">Required Environment Variables:</div>
+                          <div className="space-y-2">
+                            <div>
+                              <code className="text-xs bg-gray-200 px-2 py-1 rounded block">VITE_VERTEX_AI_PROJECT_ID</code>
+                              <span className="text-xs text-gray-500 ml-2">Your Google Cloud project ID</span>
+                            </div>
+                            <div>
+                              <code className="text-xs bg-gray-200 px-2 py-1 rounded block">VITE_GEMINI_API_KEY</code>
+                              <span className="text-xs text-gray-500 ml-2">Already configured above (reused)</span>
+                            </div>
+                          </div>
+                          <div className="text-xs font-medium text-gray-700 mb-2 mt-3">Optional:</div>
+                          <div className="space-y-2">
+                            <div>
+                              <code className="text-xs bg-gray-200 px-2 py-1 rounded block">VITE_VERTEX_AI_LOCATION</code>
+                              <span className="text-xs text-gray-500 ml-2">Default: us-central1</span>
+                            </div>
+                            <div>
+                              <code className="text-xs bg-gray-200 px-2 py-1 rounded block">VITE_VERTEX_AI_CLOUD_STORAGE_BUCKET</code>
+                              <span className="text-xs text-gray-500 ml-2">For storing video outputs</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm flex-wrap">
+                          <span className="text-gray-500">Cost: $0.35-$0.75/sec depending on model</span>
                           <a
                             href="https://cloud.google.com/vertex-ai/generative-ai/docs/video/overview"
                             target="_blank"
@@ -344,10 +368,18 @@ export function Settings() {
                           >
                             Documentation <ExternalLink className="w-3 h-3" />
                           </a>
+                          <a
+                            href="https://console.cloud.google.com/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                          >
+                            Google Cloud Console <ExternalLink className="w-3 h-3" />
+                          </a>
                         </div>
                       </div>
                       <div className="flex-shrink-0">
-                        {apiStatus?.vertexAI?.apiKey ? (
+                        {apiStatus?.vertexAI?.apiKey && apiStatus?.vertexAI?.projectId ? (
                           <CheckCircle className="w-6 h-6 text-green-600" />
                         ) : (
                           <XCircle className="w-6 h-6 text-red-500" />
