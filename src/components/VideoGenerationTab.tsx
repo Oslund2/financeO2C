@@ -27,7 +27,8 @@ import {
   Calculator,
   Info,
   Zap,
-  TrendingDown
+  TrendingDown,
+  Upload
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
@@ -110,12 +111,86 @@ const MOODS = [
   'Happy', 'Excited', 'Tense', 'Mysterious', 'Calm', 'Dramatic', 'Comedic', 'Inspirational'
 ];
 
+type VideoTask =
+  | 'text-to-video'
+  | 'image-to-video'
+  | 'reference-to-video-subject'
+  | 'video-extension'
+  | 'reference-to-video-style'
+  | 'video-inpaint-insert'
+  | 'video-inpaint-remove';
+
+interface VideoTaskOption {
+  value: VideoTask;
+  label: string;
+  description: string;
+  available: boolean;
+  requiresImage?: boolean;
+  requiresReferenceImages?: boolean;
+  requiresVideo?: boolean;
+}
+
+const VIDEO_TASKS: VideoTaskOption[] = [
+  {
+    value: 'text-to-video',
+    label: 'Text-to-video',
+    description: 'Generate video from a text prompt',
+    available: true,
+  },
+  {
+    value: 'image-to-video',
+    label: 'Image-to-video',
+    description: 'Animate a static image into video',
+    available: true,
+    requiresImage: true,
+  },
+  {
+    value: 'reference-to-video-subject',
+    label: 'Reference-to-video (Subject)',
+    description: 'Generate video with consistent subject from reference images',
+    available: true,
+    requiresReferenceImages: true,
+  },
+  {
+    value: 'video-extension',
+    label: 'Video extension',
+    description: 'Extend an existing video clip',
+    available: false,
+    requiresVideo: true,
+  },
+  {
+    value: 'reference-to-video-style',
+    label: 'Reference-to-video (Style)',
+    description: 'Generate video matching the style of a reference image',
+    available: true,
+    requiresReferenceImages: true,
+  },
+  {
+    value: 'video-inpaint-insert',
+    label: 'Video inpaint (Insert)',
+    description: 'Insert new objects or elements into video',
+    available: false,
+    requiresVideo: true,
+  },
+  {
+    value: 'video-inpaint-remove',
+    label: 'Video inpaint (Remove)',
+    description: 'Remove objects or elements from video',
+    available: false,
+    requiresVideo: true,
+  },
+];
+
 export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabProps) {
   const { currentOrganization } = useOrganization();
   const [configured, setConfigured] = useState(false);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [selectedTask, setSelectedTask] = useState<VideoTask>('text-to-video');
+  const [inputImage, setInputImage] = useState<{ file: File; dataUrl: string } | null>(null);
+  const [styleReferenceImage, setStyleReferenceImage] = useState<{ file: File; dataUrl: string } | null>(null);
 
   const [characters, setCharacters] = useState<Character[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -350,7 +425,23 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
       return;
     }
 
-    if (scene.characters.length === 0 && !scene.background) {
+    const taskConfig = VIDEO_TASKS.find(t => t.value === selectedTask);
+    if (!taskConfig?.available) {
+      setError('This task type is not yet available.');
+      return;
+    }
+
+    if (selectedTask === 'image-to-video' && !inputImage) {
+      setError('Please upload an input image for image-to-video generation.');
+      return;
+    }
+
+    if (selectedTask === 'reference-to-video-style' && !styleReferenceImage) {
+      setError('Please upload a style reference image.');
+      return;
+    }
+
+    if (selectedTask !== 'image-to-video' && scene.characters.length === 0 && !scene.background) {
       setError('Add at least one character or background to generate video');
       return;
     }
@@ -363,16 +454,42 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
       setGeneratedPrompt(prompt);
 
       const referenceImages: Veo3Request['referenceImages'] = [];
+      let inputImageData: Veo3Request['image'] | undefined;
+      let modelToUse = selectedModel;
+      let actualDuration = duration;
 
-      for (const sc of scene.characters) {
-        if (sc.character.reference_image_url) {
-          const imageData = await fetchImageAsBase64(sc.character.reference_image_url);
-          if (imageData) {
-            referenceImages.push({
-              bytesBase64Encoded: imageData.base64,
-              mimeType: imageData.mimeType,
-              referenceType: 'asset'
-            });
+      if (selectedTask === 'image-to-video' && inputImage) {
+        const base64 = inputImage.dataUrl.split(',')[1];
+        const mimeType = inputImage.file.type.includes('png') ? 'image/png' : 'image/jpeg';
+        inputImageData = {
+          bytesBase64Encoded: base64,
+          mimeType: mimeType as 'image/jpeg' | 'image/png'
+        };
+        actualDuration = 8;
+      }
+
+      if (selectedTask === 'reference-to-video-style' && styleReferenceImage) {
+        const base64 = styleReferenceImage.dataUrl.split(',')[1];
+        const mimeType = styleReferenceImage.file.type.includes('png') ? 'image/png' : 'image/jpeg';
+        referenceImages.push({
+          bytesBase64Encoded: base64,
+          mimeType: mimeType as 'image/jpeg' | 'image/png',
+          referenceType: 'style'
+        });
+        modelToUse = 'veo-2.0-generate-exp';
+      }
+
+      if (selectedTask === 'reference-to-video-subject' || selectedTask === 'text-to-video') {
+        for (const sc of scene.characters) {
+          if (sc.character.reference_image_url) {
+            const imageData = await fetchImageAsBase64(sc.character.reference_image_url);
+            if (imageData) {
+              referenceImages.push({
+                bytesBase64Encoded: imageData.base64,
+                mimeType: imageData.mimeType,
+                referenceType: 'asset'
+              });
+            }
           }
         }
       }
@@ -387,6 +504,7 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
           status: 'processing',
           service: 'veo3',
           request_payload: {
+            task: selectedTask,
             prompt,
             scene: {
               characters: scene.characters.map(sc => ({
@@ -412,14 +530,14 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
               shotType,
               cameraAngle,
               cameraMovement,
-              duration,
+              duration: actualDuration,
               aspectRatio,
               resolution,
               generateAudio,
               mood: scene.mood
             }
           },
-          cost_estimate: calculateVeo3Cost(duration, 1, generateAudio, selectedModel)
+          cost_estimate: calculateVeo3Cost(actualDuration, 1, generateAudio, modelToUse)
         }])
         .select()
         .single();
@@ -428,16 +546,17 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
 
       const veo3Request: Veo3Request = {
         prompt,
+        image: inputImageData,
         referenceImages: referenceImages.length > 0 ? referenceImages.slice(0, 3) : undefined,
         parameters: {
           aspectRatio,
           resolution,
-          durationSeconds: duration as 4 | 5 | 6 | 7 | 8,
+          durationSeconds: actualDuration as 4 | 5 | 6 | 7 | 8,
           sampleCount: 1,
           generateAudio,
           personGeneration: 'allow_adult'
         },
-        model: selectedModel
+        model: modelToUse
       };
 
       const veoJobId = await submitVeo3Request(
@@ -551,6 +670,133 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
           </div>
         </div>
       )}
+
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Task</label>
+            <select
+              value={selectedTask}
+              onChange={(e) => setSelectedTask(e.target.value as VideoTask)}
+              className="w-full md:w-80 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+            >
+              {VIDEO_TASKS.map((task) => (
+                <option
+                  key={task.value}
+                  value={task.value}
+                  disabled={!task.available}
+                >
+                  {task.label}{!task.available ? ' (Coming Soon)' : ''}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1.5 text-xs text-gray-500">
+              {VIDEO_TASKS.find(t => t.value === selectedTask)?.description}
+            </p>
+          </div>
+
+          {selectedTask === 'image-to-video' && (
+            <div className="border-t border-gray-100 pt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Input Image</label>
+              {inputImage ? (
+                <div className="relative inline-block">
+                  <img
+                    src={inputImage.dataUrl}
+                    alt="Input"
+                    className="w-48 h-32 object-cover rounded-lg border-2 border-blue-500"
+                  />
+                  <button
+                    onClick={() => setInputImage(null)}
+                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <label className="w-48 h-32 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-blue-400 hover:bg-blue-50 transition-all cursor-pointer">
+                  <ImageIcon className="w-6 h-6 text-gray-400" />
+                  <span className="text-sm text-gray-600">Upload Image</span>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          setInputImage({ file, dataUrl: reader.result as string });
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                </label>
+              )}
+              <p className="mt-2 text-xs text-gray-500">
+                Upload an image to animate. Video duration will be set to 8 seconds for image-to-video.
+              </p>
+            </div>
+          )}
+
+          {selectedTask === 'reference-to-video-style' && (
+            <div className="border-t border-gray-100 pt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Style Reference Image</label>
+              {styleReferenceImage ? (
+                <div className="relative inline-block">
+                  <img
+                    src={styleReferenceImage.dataUrl}
+                    alt="Style Reference"
+                    className="w-48 h-32 object-cover rounded-lg border-2 border-purple-500"
+                  />
+                  <button
+                    onClick={() => setStyleReferenceImage(null)}
+                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                  <div className="absolute bottom-0 left-0 right-0 bg-purple-600 text-white text-xs py-1 px-2 rounded-b-lg text-center">
+                    Style Reference
+                  </div>
+                </div>
+              ) : (
+                <label className="w-48 h-32 border-2 border-dashed border-purple-300 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-purple-400 hover:bg-purple-50 transition-all cursor-pointer">
+                  <Wand2 className="w-6 h-6 text-purple-400" />
+                  <span className="text-sm text-purple-600">Upload Style Image</span>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          setStyleReferenceImage({ file, dataUrl: reader.result as string });
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                </label>
+              )}
+              <p className="mt-2 text-xs text-gray-500">
+                Upload an image whose visual style you want the video to match. Uses veo-2.0-generate-exp model.
+              </p>
+            </div>
+          )}
+
+          {selectedTask === 'reference-to-video-subject' && (
+            <div className="border-t border-gray-100 pt-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-800">
+                  <strong>Subject reference mode:</strong> Character images from your scene will be used as reference images to maintain subject consistency in the generated video.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
       <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-6">
         <div>
