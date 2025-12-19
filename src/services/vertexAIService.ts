@@ -58,8 +58,77 @@ export interface VertexAIConfig {
   defaultModel?: VeoModel;
 }
 
-const VEO3_COST_PER_SECOND_WITH_AUDIO = 0.75;
-const VEO3_COST_PER_SECOND_NO_AUDIO = 0.50;
+const VEO_PRICING = {
+  'veo-2.0-generate-001': { withAudio: 0.50, noAudio: 0.50 },
+  'veo-2.0-generate-exp': { withAudio: 0.50, noAudio: 0.50 },
+  'veo-2.0-generate-preview': { withAudio: 0.50, noAudio: 0.50 },
+  'veo-3.0-generate-001': { withAudio: 0.40, noAudio: 0.20 },
+  'veo-3.0-fast-generate-001': { withAudio: 0.15, noAudio: 0.10 },
+  'veo-3.1-generate-001': { withAudio: 0.40, noAudio: 0.20 },
+  'veo-3.1-fast-generate-001': { withAudio: 0.15, noAudio: 0.10 },
+  'veo-3.1-generate-preview': { withAudio: 0.40, noAudio: 0.20 },
+} as const;
+
+export type VeoModelTier = 'standard' | 'fast';
+
+export interface VeoModelInfo {
+  id: VeoModel;
+  name: string;
+  tier: VeoModelTier;
+  supportsAudio: boolean;
+  description: string;
+  costWithAudio: number;
+  costNoAudio: number;
+}
+
+export const VEO_MODELS: VeoModelInfo[] = [
+  {
+    id: 'veo-3.1-generate-001',
+    name: 'Veo 3.1',
+    tier: 'standard',
+    supportsAudio: true,
+    description: 'Highest quality, best for final production',
+    costWithAudio: 0.40,
+    costNoAudio: 0.20,
+  },
+  {
+    id: 'veo-3.1-fast-generate-001',
+    name: 'Veo 3.1 Fast',
+    tier: 'fast',
+    supportsAudio: true,
+    description: 'Good quality, 62% cheaper, ideal for previews',
+    costWithAudio: 0.15,
+    costNoAudio: 0.10,
+  },
+  {
+    id: 'veo-3.0-generate-001',
+    name: 'Veo 3.0',
+    tier: 'standard',
+    supportsAudio: true,
+    description: 'High quality with audio sync',
+    costWithAudio: 0.40,
+    costNoAudio: 0.20,
+  },
+  {
+    id: 'veo-3.0-fast-generate-001',
+    name: 'Veo 3.0 Fast',
+    tier: 'fast',
+    supportsAudio: true,
+    description: 'Faster generation, budget-friendly',
+    costWithAudio: 0.15,
+    costNoAudio: 0.10,
+  },
+  {
+    id: 'veo-2.0-generate-001',
+    name: 'Veo 2.0',
+    tier: 'standard',
+    supportsAudio: false,
+    description: 'Video only, good for non-dialogue scenes',
+    costWithAudio: 0.50,
+    costNoAudio: 0.50,
+  },
+];
+
 const API_RATE_LIMIT = 50;
 
 export function getVertexAIConfig(): VertexAIConfig | null {
@@ -92,29 +161,27 @@ export function calculateVeo3Cost(
   includeAudio: boolean = true,
   model: VeoModel = 'veo-3.1-generate-001'
 ): number {
-  let costPerSecond: number;
-
-  if (model.startsWith('veo-2')) {
-    costPerSecond = 0.35;
-  } else if (model.includes('fast')) {
-    costPerSecond = includeAudio ? 0.50 : 0.35;
-  } else {
-    costPerSecond = includeAudio ? VEO3_COST_PER_SECOND_WITH_AUDIO : VEO3_COST_PER_SECOND_NO_AUDIO;
-  }
-
+  const pricing = VEO_PRICING[model] || VEO_PRICING['veo-3.1-generate-001'];
+  const costPerSecond = includeAudio ? pricing.withAudio : pricing.noAudio;
   return durationSeconds * costPerSecond * sampleCount;
+}
+
+export function getModelPricing(model: VeoModel): { withAudio: number; noAudio: number } {
+  return VEO_PRICING[model] || VEO_PRICING['veo-3.1-generate-001'];
 }
 
 export function calculateProductionCost(
   totalRuntimeSeconds: number,
-  voicePercentage: number = 50
+  voicePercentage: number = 50,
+  model: VeoModel = 'veo-3.1-generate-001'
 ): { withVoice: number; noVoice: number; total: number } {
+  const pricing = VEO_PRICING[model] || VEO_PRICING['veo-3.1-generate-001'];
   const voiceRatio = voicePercentage / 100;
   const voiceSeconds = totalRuntimeSeconds * voiceRatio;
   const silentSeconds = totalRuntimeSeconds * (1 - voiceRatio);
 
-  const withVoice = voiceSeconds * VEO3_COST_PER_SECOND_WITH_AUDIO;
-  const noVoice = silentSeconds * VEO3_COST_PER_SECOND_NO_AUDIO;
+  const withVoice = voiceSeconds * pricing.withAudio;
+  const noVoice = silentSeconds * pricing.noAudio;
 
   return {
     withVoice,
@@ -123,11 +190,64 @@ export function calculateProductionCost(
   };
 }
 
+export interface ModelRecommendation {
+  model: VeoModel;
+  reason: string;
+  savings?: number;
+}
+
+export function getRecommendedModel(params: {
+  hasDialogue: boolean;
+  resolution: '720p' | '1080p';
+  isPreview?: boolean;
+  sceneType?: 'establishing' | 'dialogue' | 'action' | 'wide' | 'closeup';
+  characterCount?: number;
+}): ModelRecommendation {
+  const { hasDialogue, resolution, isPreview, sceneType, characterCount = 1 } = params;
+
+  if (isPreview || resolution === '720p') {
+    return {
+      model: 'veo-3.1-fast-generate-001',
+      reason: 'Cost-effective for previews and drafts',
+      savings: 62,
+    };
+  }
+
+  if (!hasDialogue && (sceneType === 'establishing' || sceneType === 'wide')) {
+    return {
+      model: 'veo-3.1-fast-generate-001',
+      reason: 'No audio needed for establishing shots',
+      savings: 62,
+    };
+  }
+
+  if (hasDialogue && characterCount > 1) {
+    return {
+      model: 'veo-3.1-generate-001',
+      reason: 'Best quality for multi-character dialogue',
+    };
+  }
+
+  if (hasDialogue) {
+    return {
+      model: 'veo-3.1-generate-001',
+      reason: 'Best audio-visual sync for dialogue',
+    };
+  }
+
+  return {
+    model: 'veo-3.1-fast-generate-001',
+    reason: 'Good quality at lower cost',
+    savings: 62,
+  };
+}
+
 export function estimateBatchDuration(
   shotCount: number,
   averageDurationSeconds: number,
   sampleCount: number = 2,
-  includeAudio: boolean = true
+  includeAudio: boolean = true,
+  model: VeoModel = 'veo-3.1-generate-001'
 ): {
   apiCalls: number;
   estimatedMinutes: number;
@@ -136,7 +256,8 @@ export function estimateBatchDuration(
   const apiCalls = shotCount * sampleCount;
   const batchesNeeded = Math.ceil(apiCalls / API_RATE_LIMIT);
   const estimatedMinutes = batchesNeeded * 1.2;
-  const costPerSecond = includeAudio ? VEO3_COST_PER_SECOND_WITH_AUDIO : VEO3_COST_PER_SECOND_NO_AUDIO;
+  const pricing = VEO_PRICING[model] || VEO_PRICING['veo-3.1-generate-001'];
+  const costPerSecond = includeAudio ? pricing.withAudio : pricing.noAudio;
   const totalCost = shotCount * averageDurationSeconds * costPerSecond * sampleCount;
 
   return {

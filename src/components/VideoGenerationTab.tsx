@@ -24,11 +24,25 @@ import {
   Wand2,
   Save,
   Eye,
-  Calculator
+  Calculator,
+  Info,
+  Zap,
+  TrendingDown
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
-import { isVertexAIConfigured, calculateVeo3Cost, calculateProductionCost, submitVeo3Request, type Veo3Parameters, type Veo3Request } from '../services/vertexAIService';
+import {
+  isVertexAIConfigured,
+  calculateVeo3Cost,
+  calculateProductionCost,
+  submitVeo3Request,
+  getRecommendedModel,
+  VEO_MODELS,
+  type VeoModel,
+  type VeoModelInfo,
+  type Veo3Parameters,
+  type Veo3Request
+} from '../services/vertexAIService';
 import { FORMAT_PRESETS } from '../types/formatConfig';
 import { generateVeo3Prompt, type Veo3PromptConfig } from '../services/veo3PromptService';
 import { useOrganization } from '../contexts/OrganizationContext';
@@ -124,6 +138,8 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
   const [aspectRatio, setAspectRatio] = useState<'16:9' | '9:16'>('16:9');
   const [generateAudio, setGenerateAudio] = useState(true);
   const [resolution, setResolution] = useState<'720p' | '1080p'>('1080p');
+  const [selectedModel, setSelectedModel] = useState<VeoModel>('veo-3.1-generate-001');
+  const [showPricingInfo, setShowPricingInfo] = useState(false);
 
   const [generatedPrompt, setGeneratedPrompt] = useState<string | null>(null);
   const [showPromptPreview, setShowPromptPreview] = useState(false);
@@ -403,7 +419,7 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
               mood: scene.mood
             }
           },
-          cost_estimate: calculateVeo3Cost(duration, 1, generateAudio)
+          cost_estimate: calculateVeo3Cost(duration, 1, generateAudio, selectedModel)
         }])
         .select()
         .single();
@@ -420,7 +436,8 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
           sampleCount: 1,
           generateAudio,
           personGeneration: 'allow_adult'
-        }
+        },
+        model: selectedModel
       };
 
       const veoJobId = await submitVeo3Request(
@@ -447,7 +464,20 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
     }
   };
 
-  const estimatedCost = calculateVeo3Cost(duration, 1, generateAudio);
+  const estimatedCost = calculateVeo3Cost(duration, 1, generateAudio, selectedModel);
+  const selectedModelInfo = VEO_MODELS.find(m => m.id === selectedModel);
+  const hasDialogue = scene.dialogue.length > 0 && scene.dialogue.some(d => d.text.trim().length > 0);
+  const sceneType = shotType === 'establishing_shot' ? 'establishing' :
+                   shotType === 'wide_shot' ? 'wide' :
+                   shotType === 'close_up' ? 'closeup' :
+                   hasDialogue ? 'dialogue' : 'action';
+  const recommendation = getRecommendedModel({
+    hasDialogue,
+    resolution,
+    isPreview: false,
+    sceneType: sceneType as any,
+    characterCount: scene.characters.length
+  });
 
   const backgroundAssets = assets.filter(a => a.asset_type === 'background');
   const propAssets = assets.filter(a => a.asset_type === 'prop');
@@ -873,6 +903,109 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
               </div>
             </div>
 
+            <div className="space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-gray-700">Model</label>
+                  <button
+                    onClick={() => setShowPricingInfo(!showPricingInfo)}
+                    className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
+                  >
+                    <Info className="w-3.5 h-3.5" />
+                    Pricing Info
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {VEO_MODELS.filter(m => m.id.startsWith('veo-3')).map((model) => {
+                    const isRecommended = recommendation.model === model.id;
+                    const isSelected = selectedModel === model.id;
+                    return (
+                      <button
+                        key={model.id}
+                        onClick={() => setSelectedModel(model.id)}
+                        className={`relative px-3 py-2 rounded-lg font-medium transition-all text-sm ${
+                          isSelected
+                            ? model.tier === 'fast'
+                              ? 'bg-green-500 text-white ring-2 ring-green-300'
+                              : 'bg-blue-500 text-white ring-2 ring-blue-300'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          {model.tier === 'fast' && <Zap className="w-3.5 h-3.5" />}
+                          {model.name}
+                        </div>
+                        {isRecommended && !isSelected && (
+                          <span className="absolute -top-2 -right-2 px-1.5 py-0.5 bg-amber-400 text-amber-900 text-[10px] font-bold rounded-full">
+                            REC
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                {selectedModelInfo && (
+                  <div className="mt-2 flex items-center justify-between text-xs">
+                    <span className="text-gray-500">{selectedModelInfo.description}</span>
+                    <span className={`font-medium ${selectedModelInfo.tier === 'fast' ? 'text-green-600' : 'text-blue-600'}`}>
+                      ${generateAudio ? selectedModelInfo.costWithAudio.toFixed(2) : selectedModelInfo.costNoAudio.toFixed(2)}/sec
+                    </span>
+                  </div>
+                )}
+                {recommendation.model !== selectedModel && recommendation.savings && (
+                  <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2">
+                    <TrendingDown className="w-4 h-4 text-amber-600" />
+                    <span className="text-xs text-amber-800">
+                      <strong>{VEO_MODELS.find(m => m.id === recommendation.model)?.name}</strong> recommended: {recommendation.reason} (save {recommendation.savings}%)
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {showPricingInfo && (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-gray-600" />
+                    Veo Model Pricing
+                  </h4>
+                  <div className="space-y-3 text-sm">
+                    <div>
+                      <div className="font-medium text-gray-700 mb-1.5">Standard Quality</div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="flex justify-between bg-white rounded px-2 py-1.5">
+                          <span className="text-gray-600">With Audio</span>
+                          <span className="font-medium text-gray-900">$0.40/sec</span>
+                        </div>
+                        <div className="flex justify-between bg-white rounded px-2 py-1.5">
+                          <span className="text-gray-600">Video Only</span>
+                          <span className="font-medium text-gray-900">$0.20/sec</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-green-700 mb-1.5 flex items-center gap-1">
+                        <Zap className="w-3.5 h-3.5" />
+                        Fast Generation (62% savings)
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="flex justify-between bg-green-50 rounded px-2 py-1.5">
+                          <span className="text-green-700">With Audio</span>
+                          <span className="font-medium text-green-800">$0.15/sec</span>
+                        </div>
+                        <div className="flex justify-between bg-green-50 rounded px-2 py-1.5">
+                          <span className="text-green-700">Video Only</span>
+                          <span className="font-medium text-green-800">$0.10/sec</span>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Fast models are ideal for drafts, previews, and non-dialogue scenes.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Duration</label>
@@ -956,7 +1089,9 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
             </div>
             <div className="flex items-center gap-2">
               <DollarSign className="w-5 h-5 text-gray-500" />
-              <span className="text-sm text-gray-600">Est. ${estimatedCost.toFixed(2)}</span>
+              <span className={`text-sm font-medium ${selectedModelInfo?.tier === 'fast' ? 'text-green-600' : 'text-gray-600'}`}>
+                Est. ${estimatedCost.toFixed(2)} ({selectedModelInfo?.name || 'Veo 3.1'})
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <Users className="w-5 h-5 text-gray-500" />
@@ -1205,6 +1340,7 @@ interface ProductionCostEstimatorProps {
 
 function ProductionCostEstimator({ expanded, onToggle }: ProductionCostEstimatorProps) {
   const [voicePercentage, setVoicePercentage] = useState(50);
+  const [selectedTier, setSelectedTier] = useState<'standard' | 'fast'>('standard');
 
   const formatPresets = [
     { key: 'short_5min', label: '5 min', minutes: 5 },
@@ -1219,6 +1355,12 @@ function ProductionCostEstimator({ expanded, onToggle }: ProductionCostEstimator
     { label: '75%', value: 75 },
     { label: '100%', value: 100 },
   ];
+
+  const tierModel: VeoModel = selectedTier === 'fast'
+    ? 'veo-3.1-fast-generate-001'
+    : 'veo-3.1-generate-001';
+
+  const tierInfo = VEO_MODELS.find(m => m.id === tierModel);
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
@@ -1239,6 +1381,33 @@ function ProductionCostEstimator({ expanded, onToggle }: ProductionCostEstimator
 
       {expanded && (
         <div className="p-6 pt-2 border-t border-gray-100 space-y-6">
+          <div className="flex items-center gap-4">
+            <label className="text-sm font-medium text-gray-700">Model Tier:</label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setSelectedTier('standard')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+                  selectedTier === 'standard'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Standard
+              </button>
+              <button
+                onClick={() => setSelectedTier('fast')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+                  selectedTier === 'fast'
+                    ? 'bg-green-500 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <Zap className="w-4 h-4" />
+                Fast (62% savings)
+              </button>
+            </div>
+          </div>
+
           <div>
             <div className="flex items-center justify-between mb-3">
               <label className="text-sm font-medium text-gray-700">
@@ -1274,10 +1443,18 @@ function ProductionCostEstimator({ expanded, onToggle }: ProductionCostEstimator
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-4">
-              <Film className="w-5 h-5 text-gray-600" />
-              <h4 className="font-semibold text-gray-900">Estimated Production Costs</h4>
+          <div className={`rounded-lg p-4 ${selectedTier === 'fast' ? 'bg-gradient-to-br from-green-50 to-emerald-50' : 'bg-gradient-to-br from-gray-50 to-blue-50'}`}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Film className="w-5 h-5 text-gray-600" />
+                <h4 className="font-semibold text-gray-900">Estimated Production Costs</h4>
+              </div>
+              {selectedTier === 'fast' && (
+                <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full flex items-center gap-1">
+                  <Zap className="w-3 h-3" />
+                  Fast Mode
+                </span>
+              )}
             </div>
 
             <div className="overflow-x-auto">
@@ -1289,12 +1466,17 @@ function ProductionCostEstimator({ expanded, onToggle }: ProductionCostEstimator
                     <th className="pb-2 font-medium text-gray-600 text-right">Voice</th>
                     <th className="pb-2 font-medium text-gray-600 text-right">Silent</th>
                     <th className="pb-2 font-medium text-gray-900 text-right">Total</th>
+                    {selectedTier === 'fast' && (
+                      <th className="pb-2 font-medium text-green-600 text-right">Savings</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {formatPresets.map((format) => {
                     const totalSeconds = format.minutes * 60;
-                    const costs = calculateProductionCost(totalSeconds, voicePercentage);
+                    const costs = calculateProductionCost(totalSeconds, voicePercentage, tierModel);
+                    const standardCosts = calculateProductionCost(totalSeconds, voicePercentage, 'veo-3.1-generate-001');
+                    const savings = standardCosts.total - costs.total;
                     return (
                       <tr key={format.key} className="hover:bg-white/50">
                         <td className="py-2.5 font-medium text-gray-900">{format.label}</td>
@@ -1305,9 +1487,14 @@ function ProductionCostEstimator({ expanded, onToggle }: ProductionCostEstimator
                         <td className="py-2.5 text-right text-gray-600">
                           ${costs.noVoice.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                         </td>
-                        <td className="py-2.5 text-right font-bold text-gray-900">
+                        <td className={`py-2.5 text-right font-bold ${selectedTier === 'fast' ? 'text-green-700' : 'text-gray-900'}`}>
                           ${costs.total.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                         </td>
+                        {selectedTier === 'fast' && (
+                          <td className="py-2.5 text-right font-medium text-green-600">
+                            -${savings.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
@@ -1316,9 +1503,18 @@ function ProductionCostEstimator({ expanded, onToggle }: ProductionCostEstimator
             </div>
 
             <div className="mt-4 pt-4 border-t border-gray-200">
-              <div className="flex items-center justify-between text-xs text-gray-500">
-                <span>Video with audio: $0.75/sec</span>
-                <span>Video only: $0.50/sec</span>
+              <div className="flex items-center justify-between text-xs">
+                {selectedTier === 'fast' ? (
+                  <>
+                    <span className="text-green-600 font-medium">Video with audio: $0.15/sec</span>
+                    <span className="text-green-600 font-medium">Video only: $0.10/sec</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-gray-500">Video with audio: $0.40/sec</span>
+                    <span className="text-gray-500">Video only: $0.20/sec</span>
+                  </>
+                )}
               </div>
             </div>
           </div>
