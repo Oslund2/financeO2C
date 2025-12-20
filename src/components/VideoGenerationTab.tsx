@@ -155,7 +155,7 @@ const VIDEO_TASKS: VideoTaskOption[] = [
     value: 'video-extension',
     label: 'Video extension',
     description: 'Extend an existing video clip',
-    available: false,
+    available: true,
     requiresVideo: true,
   },
   {
@@ -169,14 +169,14 @@ const VIDEO_TASKS: VideoTaskOption[] = [
     value: 'video-inpaint-insert',
     label: 'Video inpaint (Insert)',
     description: 'Insert new objects or elements into video',
-    available: false,
+    available: true,
     requiresVideo: true,
   },
   {
     value: 'video-inpaint-remove',
     label: 'Video inpaint (Remove)',
     description: 'Remove objects or elements from video',
-    available: false,
+    available: true,
     requiresVideo: true,
   },
 ];
