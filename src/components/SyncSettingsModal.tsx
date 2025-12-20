@@ -5,8 +5,6 @@ import {
   Check,
   AlertTriangle,
   Loader2,
-  Settings,
-  Users,
   ArrowRight
 } from 'lucide-react';
 import {
@@ -21,6 +19,7 @@ interface SyncSettingsModalProps {
   sourceEpisodeId: string;
   sourceEpisodeTitle: string;
   sourceFormatLabel: string;
+  sourceProgramLengthMinutes: number;
   onSyncComplete: () => void;
 }
 
@@ -31,6 +30,7 @@ export function SyncSettingsModal({
   sourceEpisodeId,
   sourceEpisodeTitle,
   sourceFormatLabel,
+  sourceProgramLengthMinutes,
   onSyncComplete
 }: SyncSettingsModalProps) {
   const [episodes, setEpisodes] = useState<EpisodeSettingsComparison[]>([]);
@@ -53,7 +53,10 @@ export function SyncSettingsModal({
     setResult(null);
 
     const comparison = await EpisodeProfitSettingsService.getEpisodesSettingsComparison(seriesId);
-    const filteredEpisodes = comparison.filter(ep => ep.episodeId !== sourceEpisodeId);
+    const filteredEpisodes = comparison.filter(ep =>
+      ep.episodeId !== sourceEpisodeId &&
+      ep.programLengthMinutes === sourceProgramLengthMinutes
+    );
     setEpisodes(filteredEpisodes);
     setLoading(false);
   };
@@ -70,14 +73,6 @@ export function SyncSettingsModal({
 
   const selectAll = () => {
     setSelectedEpisodes(new Set(episodes.map(ep => ep.episodeId)));
-  };
-
-  const selectSameFormat = () => {
-    const sameFormatEpisodes = episodes.filter(ep =>
-      ep.formatType === sourceFormatLabel.split('|')[1]?.trim().toLowerCase().replace(' ', '_') ||
-      `${ep.programLengthMinutes} min` === sourceFormatLabel.split('|')[0]?.trim()
-    );
-    setSelectedEpisodes(new Set(sameFormatEpisodes.map(ep => ep.episodeId)));
   };
 
   const clearSelection = () => {
@@ -122,7 +117,7 @@ export function SyncSettingsModal({
           <div>
             <h2 className="text-xl font-bold text-gray-900">Sync Distribution Settings</h2>
             <p className="text-sm text-gray-500 mt-1">
-              Copy settings from "{sourceEpisodeTitle}" to other episodes
+              Copy settings from "{sourceEpisodeTitle}" to other {sourceProgramLengthMinutes}-minute episodes
             </p>
           </div>
           <button
@@ -185,12 +180,6 @@ export function SyncSettingsModal({
                   Select All
                 </button>
                 <button
-                  onClick={selectSameFormat}
-                  className="text-xs px-2 py-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                >
-                  Same Format
-                </button>
-                <button
                   onClick={clearSelection}
                   className="text-xs px-2 py-1 text-gray-600 hover:bg-gray-100 rounded transition-colors"
                 >
@@ -205,7 +194,7 @@ export function SyncSettingsModal({
               </div>
             ) : episodes.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
-                No other episodes available in this series
+                No other {sourceProgramLengthMinutes}-minute episodes in this series
               </div>
             ) : (
               <div className="space-y-2 max-h-64 overflow-y-auto">
