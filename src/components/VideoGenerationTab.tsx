@@ -28,7 +28,10 @@ import {
   Info,
   Zap,
   TrendingDown,
-  Upload
+  Upload,
+  Shuffle,
+  Hash,
+  HelpCircle
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
@@ -220,6 +223,8 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
   const [showPromptPreview, setShowPromptPreview] = useState(false);
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [showCostEstimator, setShowCostEstimator] = useState(false);
+  const [seed, setSeed] = useState<number>(0);
+  const [showSeedExplainer, setShowSeedExplainer] = useState(false);
 
   useEffect(() => {
     setConfigured(isVertexAIConfigured());
@@ -534,7 +539,8 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
               aspectRatio,
               resolution,
               generateAudio,
-              mood: scene.mood
+              mood: scene.mood,
+              seed: seed > 0 ? seed : undefined
             }
           },
           cost_estimate: calculateVeo3Cost(actualDuration, 1, generateAudio, modelToUse)
@@ -554,7 +560,8 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
           durationSeconds: actualDuration as 4 | 5 | 6 | 7 | 8,
           sampleCount: 1,
           generateAudio,
-          personGeneration: 'allow_adult'
+          personGeneration: 'allow_adult',
+          ...(seed > 0 && { seed })
         },
         model: modelToUse
       };
@@ -1321,6 +1328,139 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
                   {generateAudio ? 'With Audio' : 'No Audio'}
                 </button>
               </div>
+            </div>
+
+            <div className="border-t border-gray-200 pt-4 mt-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Hash className="w-5 h-5 text-gray-600" />
+                  <label className="text-sm font-medium text-gray-700">Seed</label>
+                  <button
+                    onClick={() => setShowSeedExplainer(!showSeedExplainer)}
+                    className="p-1 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-full transition-colors"
+                    title="What is a seed?"
+                  >
+                    <HelpCircle className="w-4 h-4" />
+                  </button>
+                </div>
+                <span className="text-xs text-gray-500">
+                  {seed === 0 ? 'Random (AI picks)' : `Fixed: ${seed}`}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  value={seed}
+                  onChange={(e) => setSeed(Math.max(0, parseInt(e.target.value) || 0))}
+                  placeholder="0 = Random"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <button
+                  onClick={() => setSeed(0)}
+                  className={`p-2 rounded-lg transition-all ${
+                    seed === 0
+                      ? 'bg-blue-100 text-blue-600'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                  title="Reset to random"
+                >
+                  <Shuffle className="w-5 h-5" />
+                </button>
+              </div>
+
+              {showSeedExplainer && (
+                <div className="mt-4 bg-gradient-to-br from-cyan-50 to-blue-50 border border-cyan-200 rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => setShowSeedExplainer(false)}
+                    className="w-full flex items-center justify-between p-3 bg-cyan-100/50 hover:bg-cyan-100 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Info className="w-4 h-4 text-cyan-700" />
+                      <span className="font-medium text-cyan-900">Understanding Seeds</span>
+                    </div>
+                    <ChevronUp className="w-4 h-4 text-cyan-600" />
+                  </button>
+
+                  <div className="p-4 space-y-4 text-sm">
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                        <span className="w-6 h-6 bg-cyan-600 text-white rounded-full flex items-center justify-center text-xs font-bold">1</span>
+                        How to "Generate" a New Seed
+                      </h4>
+                      <p className="text-gray-700 ml-8">
+                        <strong>You don't.</strong> You let the AI do it.
+                      </p>
+                      <ul className="mt-2 ml-8 space-y-1 text-gray-600">
+                        <li className="flex items-start gap-2">
+                          <span className="text-cyan-500 mt-1">-</span>
+                          <span>Leave it at <strong>0</strong> (or empty)</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-cyan-500 mt-1">-</span>
+                          <span>When the box says 0, the AI secretly picks a random number (like 8430221, then 100493, etc.) and builds your video on top of it</span>
+                        </li>
+                      </ul>
+                    </div>
+
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                        <span className="w-6 h-6 bg-cyan-600 text-white rounded-full flex items-center justify-center text-xs font-bold">2</span>
+                        When to Change that Number
+                      </h4>
+                      <p className="text-gray-700 ml-8">
+                        You only type a number in that box if you want to <strong>go back in time</strong> to a specific result you already created.
+                      </p>
+                      <div className="mt-3 ml-8 bg-white/60 rounded-lg p-3 border border-cyan-100">
+                        <p className="font-medium text-gray-800 mb-2">The Workflow:</p>
+                        <ol className="space-y-2 text-gray-600">
+                          <li className="flex items-start gap-2">
+                            <span className="font-bold text-cyan-600">1.</span>
+                            <span><strong>Leave Seed at 0:</strong> Generate 5 or 6 videos until you find one where the character/lighting is perfect</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="font-bold text-cyan-600">2.</span>
+                            <span><strong>Find the "Hidden" Seed:</strong> Go to the details/info of that perfect video (usually an info icon or "View Details")</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="font-bold text-cyan-600">3.</span>
+                            <span><strong>Copy that number:</strong> It will be a long string of digits (e.g., 4829104)</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="font-bold text-cyan-600">4.</span>
+                            <span><strong>Paste it in the box:</strong> Now paste that number into the Seed field above</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="font-bold text-cyan-600">5.</span>
+                            <span><strong>Tweak:</strong> Change your prompt slightly (e.g., add "smiling") and hit Generate</span>
+                          </li>
+                        </ol>
+                      </div>
+                    </div>
+
+                    <div className="bg-white/60 rounded-lg p-3 border border-cyan-100">
+                      <h4 className="font-semibold text-gray-900 mb-2">Summary</h4>
+                      <ul className="space-y-1 text-gray-700">
+                        <li className="flex items-center gap-2">
+                          <Shuffle className="w-4 h-4 text-cyan-500" />
+                          <span><strong>To get new ideas:</strong> Leave it as 0</span>
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <Hash className="w-4 h-4 text-cyan-500" />
+                          <span><strong>To fix a specific video:</strong> Paste the number from the video you want to fix</span>
+                        </li>
+                      </ul>
+                    </div>
+
+                    <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <Zap className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                      <p className="text-gray-700">
+                        <strong className="text-amber-700">Quick Tip:</strong> If you just want to experiment with "controlled randomness," you can literally type any number you want (e.g., 7, 42, 1999). It doesn't matter what the number is, only that it stays the same when you want the result to stay the same.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
