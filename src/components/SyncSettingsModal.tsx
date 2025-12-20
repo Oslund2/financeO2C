@@ -5,12 +5,14 @@ import {
   Check,
   AlertTriangle,
   Loader2,
-  ArrowRight
+  ArrowRight,
+  RefreshCw
 } from 'lucide-react';
 import {
   EpisodeProfitSettingsService,
   EpisodeSettingsComparison,
-  DistributionChannelSettings
+  DistributionChannelSettings,
+  EpisodeProfitSettings
 } from '../services/episodeProfitSettingsService';
 import { supabase } from '../lib/supabase';
 
@@ -52,12 +54,57 @@ export function SyncSettingsModal({
   const [syncChannels, setSyncChannels] = useState(true);
   const [syncParameters, setSyncParameters] = useState(true);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [actualSourceSettings, setActualSourceSettings] = useState<SourceSettings | null>(null);
+  const [loadingSourceSettings, setLoadingSourceSettings] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       loadEpisodes();
+      loadActualSourceSettings();
     }
-  }, [isOpen, seriesId]);
+  }, [isOpen, seriesId, sourceEpisodeId]);
+
+  const loadActualSourceSettings = async () => {
+    setLoadingSourceSettings(true);
+    try {
+      const settings = await EpisodeProfitSettingsService.getSettings(sourceEpisodeId);
+      const defaults = await EpisodeProfitSettingsService.getEpisodeDefaults(sourceEpisodeId);
+
+      if (settings) {
+        setActualSourceSettings({
+          channels: settings.distributionChannels,
+          runsPerYear: settings.annualRunsPerEpisode,
+          yearsInService: settings.yearsInService,
+          decayRatePercent: settings.decayRatePercent,
+          minimumRetentionPercent: settings.minimumRetentionPercent
+        });
+        console.log('[SyncModal] Loaded saved source settings from DB:', {
+          channelCount: settings.distributionChannels.length,
+          enabledChannels: settings.distributionChannels.filter(c => c.enabled).length,
+          totalMonthlyViews: settings.distributionChannels.filter(c => c.enabled).reduce((sum, c) => sum + (c.monthlyProjectedViews || 0), 0)
+        });
+      } else {
+        const defaultChannels = defaults
+          ? EpisodeProfitSettingsService.getDefaultChannelsForEpisode(defaults.contentMinutes)
+          : sourceSettings.channels;
+        setActualSourceSettings({
+          channels: defaultChannels,
+          runsPerYear: 4,
+          yearsInService: 5,
+          decayRatePercent: 10,
+          minimumRetentionPercent: 20
+        });
+        console.log('[SyncModal] No saved settings found, using defaults:', {
+          channelCount: defaultChannels.length,
+          enabledChannels: defaultChannels.filter(c => c.enabled).length
+        });
+      }
+    } catch (error) {
+      console.error('[SyncModal] Error loading source settings:', error);
+      setActualSourceSettings(sourceSettings);
+    }
+    setLoadingSourceSettings(false);
+  };
 
   const loadEpisodes = async () => {
     setLoading(true);
@@ -94,6 +141,8 @@ export function SyncSettingsModal({
   const handleSync = async () => {
     if (selectedEpisodes.size === 0) return;
 
+    const settingsToSync = actualSourceSettings || sourceSettings;
+
     setSyncing(true);
     setResult(null);
 
@@ -101,15 +150,32 @@ export function SyncSettingsModal({
       const { data: { user } } = await supabase.auth.getUser();
       const orgId = user?.user_metadata?.organization_id || null;
 
+      const enabledChannels = settingsToSync.channels.filter(c => c.enabled);
+      const totalMonthlyViews = enabledChannels.reduce((sum, c) => sum + (c.monthlyProjectedViews || 0), 0);
+
+      console.log('[Sync] Starting sync with source channels:', {
+        usingActualSettings: !!actualSourceSettings,
+        totalChannels: settingsToSync.channels.length,
+        enabledChannels: enabledChannels.length,
+        totalMonthlyViews,
+        channelDetails: settingsToSync.channels.map(c => ({
+          name: c.name,
+          enabled: c.enabled,
+          monthlyViews: c.monthlyProjectedViews,
+          cpm: c.cpmRate
+        }))
+      });
+
       const savedSettings = await EpisodeProfitSettingsService.saveSettings(sourceEpisodeId, orgId, {
-        distributionChannels: sourceSettings.channels,
-        annualRunsPerEpisode: sourceSettings.runsPerYear,
-        yearsInService: sourceSettings.yearsInService,
-        decayRatePercent: sourceSettings.decayRatePercent,
-        minimumRetentionPercent: sourceSettings.minimumRetentionPercent
+        distributionChannels: settingsToSync.channels,
+        annualRunsPerEpisode: settingsToSync.runsPerYear,
+        yearsInService: settingsToSync.yearsInService,
+        decayRatePercent: settingsToSync.decayRatePercent,
+        minimumRetentionPercent: settingsToSync.minimumRetentionPercent
       });
 
       if (!savedSettings) {
+        console.error('[Sync] Failed to save source episode settings');
         setResult({
           success: false,
           message: 'Failed to save source episode settings before sync'
@@ -118,14 +184,48 @@ export function SyncSettingsModal({
         return;
       }
 
+      console.log('[Sync] Source settings saved successfully:', {
+        savedChannels: savedSettings.distributionChannels.length,
+        savedEnabledChannels: savedSettings.distributionChannels.filter(c => c.enabled).length
+      });
+
+      const verifySettings = await EpisodeProfitSettingsService.getSettings(sourceEpisodeId);
+      if (verifySettings) {
+        const verifyEnabledChannels = verifySettings.distributionChannels.filter(c => c.enabled);
+        const verifyMonthlyViews = verifyEnabledChannels.reduce((sum, c) => sum + (c.monthlyProjectedViews || 0), 0);
+        console.log('[Sync] Verified source settings in DB:', {
+          totalChannels: verifySettings.distributionChannels.length,
+          enabledChannels: verifyEnabledChannels.length,
+          totalMonthlyViews: verifyMonthlyViews
+        });
+      }
+
+      const targetIds = Array.from(selectedEpisodes);
+      console.log('[Sync] Syncing to targets:', targetIds);
+
       const syncResult = await EpisodeProfitSettingsService.syncSettingsToEpisodes(
         sourceEpisodeId,
-        Array.from(selectedEpisodes),
+        targetIds,
         syncChannels,
         syncParameters
       );
 
+      console.log('[Sync] Sync result:', syncResult);
+
       if (syncResult.success) {
+        for (const targetId of targetIds) {
+          const targetSettings = await EpisodeProfitSettingsService.getSettings(targetId);
+          if (targetSettings) {
+            const targetEnabledChannels = targetSettings.distributionChannels.filter(c => c.enabled);
+            const targetMonthlyViews = targetEnabledChannels.reduce((sum, c) => sum + (c.monthlyProjectedViews || 0), 0);
+            console.log(`[Sync] Target ${targetId} after sync:`, {
+              totalChannels: targetSettings.distributionChannels.length,
+              enabledChannels: targetEnabledChannels.length,
+              totalMonthlyViews: targetMonthlyViews
+            });
+          }
+        }
+
         setResult({
           success: true,
           message: `Successfully synced settings to ${syncResult.updatedCount} episode${syncResult.updatedCount !== 1 ? 's' : ''}`
@@ -138,7 +238,7 @@ export function SyncSettingsModal({
         });
       }
     } catch (error) {
-      console.error('Error during sync:', error);
+      console.error('[Sync] Error during sync:', error);
       setResult({
         success: false,
         message: 'An unexpected error occurred during sync'
@@ -172,12 +272,34 @@ export function SyncSettingsModal({
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-start gap-3">
               <Copy className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-              <div>
+              <div className="flex-1">
                 <h3 className="font-medium text-blue-900">Source Episode</h3>
                 <p className="text-sm text-blue-700 mt-1">
                   {sourceEpisodeTitle} <span className="text-blue-500">({sourceFormatLabel})</span>
                 </p>
+                {loadingSourceSettings ? (
+                  <div className="flex items-center gap-2 mt-2 text-sm text-blue-600">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Loading settings...
+                  </div>
+                ) : actualSourceSettings ? (
+                  <div className="mt-2 text-xs text-blue-600 space-y-1">
+                    <div className="flex items-center gap-4">
+                      <span>{actualSourceSettings.channels.filter(c => c.enabled).length} active channels</span>
+                      <span>{(actualSourceSettings.channels.filter(c => c.enabled).reduce((sum, c) => sum + (c.monthlyProjectedViews || 0), 0) / 1000).toFixed(0)}K views/mo</span>
+                    </div>
+                  </div>
+                ) : null}
               </div>
+              {!loadingSourceSettings && (
+                <button
+                  onClick={loadActualSourceSettings}
+                  className="p-1.5 hover:bg-blue-100 rounded transition-colors"
+                  title="Refresh settings"
+                >
+                  <RefreshCw className="w-4 h-4 text-blue-600" />
+                </button>
+              )}
             </div>
           </div>
 
@@ -316,7 +438,7 @@ export function SyncSettingsModal({
             </button>
             <button
               onClick={handleSync}
-              disabled={selectedEpisodes.size === 0 || syncing || (!syncChannels && !syncParameters)}
+              disabled={selectedEpisodes.size === 0 || syncing || loadingSourceSettings || (!syncChannels && !syncParameters)}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {syncing ? (
