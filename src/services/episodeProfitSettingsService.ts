@@ -249,59 +249,78 @@ export class EpisodeProfitSettingsService {
     organizationId: string | null,
     settings: Partial<Omit<EpisodeProfitSettings, 'id' | 'episodeId' | 'organizationId' | 'createdAt' | 'updatedAt'>>
   ): Promise<EpisodeProfitSettings | null> {
-    const existing = await this.getSettings(episodeId);
+    const channels = settings.distributionChannels ?? DEFAULT_DISTRIBUTION_CHANNELS;
 
-    const dbData = {
-      episode_id: episodeId,
-      organization_id: organizationId,
-      program_length_minutes: settings.programLengthMinutes ?? 30,
-      breaks_per_episode: settings.breaksPerEpisode ?? 4,
-      spots_per_break: settings.spotsPerBreak ?? 4,
-      spot_length_seconds: settings.spotLengthSeconds ?? 30,
-      annual_runs_per_episode: settings.annualRunsPerEpisode ?? 4,
-      years_in_service: settings.yearsInService ?? 5,
-      decay_rate_percent: settings.decayRatePercent ?? 0,
-      minimum_retention_percent: settings.minimumRetentionPercent ?? 100,
-      target_cpm: settings.targetCpm ?? 15,
-      base_production_cost: settings.baseProductionCost ?? 0,
-      distribution_channels: settings.distributionChannels ?? DEFAULT_DISTRIBUTION_CHANNELS,
-      sponsors: settings.sponsors ?? [],
-      enable_multi_language: settings.enableMultiLanguage ?? false,
-      dubbing_tier: settings.dubbingTier ?? 'bulk_professional',
-      enabled_languages: settings.enabledLanguages ?? ['en'],
-      enable_human_costs: settings.enableHumanCosts ?? true,
-      human_cost_profile: settings.humanCostProfile ?? 'standard',
-      custom_cost_rates: settings.customCostRates ?? null
-    };
+    const { data: rpcResult, error: rpcError } = await supabase.rpc('upsert_episode_profit_settings', {
+      p_episode_id: episodeId,
+      p_organization_id: organizationId,
+      p_distribution_channels: channels,
+      p_annual_runs_per_episode: settings.annualRunsPerEpisode ?? 4,
+      p_years_in_service: settings.yearsInService ?? 5,
+      p_decay_rate_percent: settings.decayRatePercent ?? 10,
+      p_minimum_retention_percent: settings.minimumRetentionPercent ?? 20,
+      p_enable_human_costs: settings.enableHumanCosts ?? true,
+      p_human_cost_profile: settings.humanCostProfile ?? 'standard',
+      p_settings_source: 'custom'
+    });
 
-    if (existing) {
-      const { data, error } = await supabase
-        .from('episode_profit_settings')
-        .update(dbData)
-        .eq('episode_id', episodeId)
-        .select()
-        .single();
+    if (rpcError) {
+      console.error('Error upserting episode profit settings via RPC:', rpcError);
 
-      if (error) {
-        console.error('Error updating episode profit settings:', error);
-        return null;
+      const existing = await this.getSettings(episodeId);
+      const dbData = {
+        episode_id: episodeId,
+        organization_id: organizationId,
+        program_length_minutes: settings.programLengthMinutes ?? 30,
+        breaks_per_episode: settings.breaksPerEpisode ?? 4,
+        spots_per_break: settings.spotsPerBreak ?? 4,
+        spot_length_seconds: settings.spotLengthSeconds ?? 30,
+        annual_runs_per_episode: settings.annualRunsPerEpisode ?? 4,
+        years_in_service: settings.yearsInService ?? 5,
+        decay_rate_percent: settings.decayRatePercent ?? 10,
+        minimum_retention_percent: settings.minimumRetentionPercent ?? 20,
+        target_cpm: settings.targetCpm ?? 15,
+        base_production_cost: settings.baseProductionCost ?? 0,
+        distribution_channels: channels,
+        sponsors: settings.sponsors ?? [],
+        enable_multi_language: settings.enableMultiLanguage ?? false,
+        dubbing_tier: settings.dubbingTier ?? 'bulk_professional',
+        enabled_languages: settings.enabledLanguages ?? ['en'],
+        enable_human_costs: settings.enableHumanCosts ?? true,
+        human_cost_profile: settings.humanCostProfile ?? 'standard',
+        custom_cost_rates: settings.customCostRates ?? null
+      };
+
+      if (existing) {
+        const { data, error } = await supabase
+          .from('episode_profit_settings')
+          .update(dbData)
+          .eq('episode_id', episodeId)
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Error updating episode profit settings:', error);
+          return null;
+        }
+        return this.mapFromDatabase(data);
+      } else {
+        const { data, error } = await supabase
+          .from('episode_profit_settings')
+          .insert([dbData])
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Error creating episode profit settings:', error);
+          return null;
+        }
+        return this.mapFromDatabase(data);
       }
-
-      return this.mapFromDatabase(data);
-    } else {
-      const { data, error } = await supabase
-        .from('episode_profit_settings')
-        .insert([dbData])
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error creating episode profit settings:', error);
-        return null;
-      }
-
-      return this.mapFromDatabase(data);
     }
+
+    console.log('[EpisodeProfitSettingsService] Upsert successful:', rpcResult);
+    return this.getSettings(episodeId);
   }
 
   static getDefaultChannelsForEpisode(contentMinutes: number): DistributionChannelSettings[] {
