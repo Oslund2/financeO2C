@@ -1133,6 +1133,13 @@ export function ProductionEconomics({ seriesId }: ProductionEconomicsProps) {
           sourceEpisodeTitle={selectedEconomics.episodeTitle}
           sourceFormatLabel={selectedEconomics.format.formatLabel}
           sourceProgramLengthMinutes={selectedEconomics.format.runtimeMinutes}
+          sourceSettings={{
+            channels,
+            runsPerYear,
+            yearsInService,
+            decayRatePercent,
+            minimumRetentionPercent
+          }}
           onSyncComplete={() => {
             for (const episode of episodes) {
               loadEpisodeEconomics(episode.id, episode.estimated_cost || 0);

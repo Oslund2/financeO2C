@@ -9,8 +9,18 @@ import {
 } from 'lucide-react';
 import {
   EpisodeProfitSettingsService,
-  EpisodeSettingsComparison
+  EpisodeSettingsComparison,
+  DistributionChannelSettings
 } from '../services/episodeProfitSettingsService';
+import { supabase } from '../lib/supabase';
+
+interface SourceSettings {
+  channels: DistributionChannelSettings[];
+  runsPerYear: number;
+  yearsInService: number;
+  decayRatePercent: number;
+  minimumRetentionPercent: number;
+}
 
 interface SyncSettingsModalProps {
   isOpen: boolean;
@@ -20,6 +30,7 @@ interface SyncSettingsModalProps {
   sourceEpisodeTitle: string;
   sourceFormatLabel: string;
   sourceProgramLengthMinutes: number;
+  sourceSettings: SourceSettings;
   onSyncComplete: () => void;
 }
 
@@ -31,6 +42,7 @@ export function SyncSettingsModal({
   sourceEpisodeTitle,
   sourceFormatLabel,
   sourceProgramLengthMinutes,
+  sourceSettings,
   onSyncComplete
 }: SyncSettingsModalProps) {
   const [episodes, setEpisodes] = useState<EpisodeSettingsComparison[]>([]);
@@ -85,23 +97,51 @@ export function SyncSettingsModal({
     setSyncing(true);
     setResult(null);
 
-    const result = await EpisodeProfitSettingsService.syncSettingsToEpisodes(
-      sourceEpisodeId,
-      Array.from(selectedEpisodes),
-      syncChannels,
-      syncParameters
-    );
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const orgId = user?.user_metadata?.organization_id || null;
 
-    if (result.success) {
-      setResult({
-        success: true,
-        message: `Successfully synced settings to ${result.updatedCount} episode${result.updatedCount !== 1 ? 's' : ''}`
+      const savedSettings = await EpisodeProfitSettingsService.saveSettings(sourceEpisodeId, orgId, {
+        distributionChannels: sourceSettings.channels,
+        annualRunsPerEpisode: sourceSettings.runsPerYear,
+        yearsInService: sourceSettings.yearsInService,
+        decayRatePercent: sourceSettings.decayRatePercent,
+        minimumRetentionPercent: sourceSettings.minimumRetentionPercent
       });
-      onSyncComplete();
-    } else {
+
+      if (!savedSettings) {
+        setResult({
+          success: false,
+          message: 'Failed to save source episode settings before sync'
+        });
+        setSyncing(false);
+        return;
+      }
+
+      const syncResult = await EpisodeProfitSettingsService.syncSettingsToEpisodes(
+        sourceEpisodeId,
+        Array.from(selectedEpisodes),
+        syncChannels,
+        syncParameters
+      );
+
+      if (syncResult.success) {
+        setResult({
+          success: true,
+          message: `Successfully synced settings to ${syncResult.updatedCount} episode${syncResult.updatedCount !== 1 ? 's' : ''}`
+        });
+        onSyncComplete();
+      } else {
+        setResult({
+          success: false,
+          message: syncResult.error || 'Failed to sync settings'
+        });
+      }
+    } catch (error) {
+      console.error('Error during sync:', error);
       setResult({
         success: false,
-        message: result.error || 'Failed to sync settings'
+        message: 'An unexpected error occurred during sync'
       });
     }
 
