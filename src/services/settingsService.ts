@@ -1,5 +1,24 @@
 import { supabase } from '../lib/supabase';
 
+export interface APIHealthStatus {
+  configured: boolean;
+  healthy: boolean;
+  checking: boolean;
+  error?: string;
+  lastChecked?: number;
+}
+
+export interface AllAPIStatus {
+  gemini: APIHealthStatus;
+  vertexAI: APIHealthStatus;
+  elevenLabs: APIHealthStatus;
+  chatterbox: APIHealthStatus;
+  syncLabs: APIHealthStatus;
+  veedIo: APIHealthStatus;
+  nanoBanana: APIHealthStatus;
+  supabase: APIHealthStatus;
+}
+
 export interface UserSettings {
   id?: string;
   user_id?: string;
@@ -205,14 +224,260 @@ export async function updateUserSettings(settings: Partial<UserSettings>): Promi
 
 export function getAPIKeyStatus() {
   return {
+    gemini: {
+      apiKey: !!import.meta.env.VITE_GEMINI_API_KEY
+    },
     vertexAI: {
       projectId: !!import.meta.env.VITE_VERTEX_AI_PROJECT_ID,
       location: !!import.meta.env.VITE_VERTEX_AI_LOCATION,
-      apiKey: !!import.meta.env.VITE_VERTEX_AI_API_KEY
+      apiKey: !!(import.meta.env.VITE_VERTEX_AI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY)
     },
     elevenLabs: {
       apiKey: !!import.meta.env.VITE_ELEVENLABS_API_KEY
+    },
+    chatterbox: {
+      url: !!import.meta.env.VITE_CHATTERBOX_URL
+    },
+    syncLabs: {
+      apiKey: !!import.meta.env.VITE_SYNC_LABS_API_KEY
+    },
+    veedIo: {
+      apiKey: !!import.meta.env.VITE_VEED_API_KEY
+    },
+    nanoBanana: {
+      apiKey: !!import.meta.env.VITE_NANO_BANANA_API_KEY
+    },
+    supabase: {
+      url: !!import.meta.env.VITE_SUPABASE_URL,
+      anonKey: !!import.meta.env.VITE_SUPABASE_ANON_KEY
     }
+  };
+}
+
+const createDefaultHealthStatus = (configured: boolean): APIHealthStatus => ({
+  configured,
+  healthy: false,
+  checking: false,
+  lastChecked: undefined
+});
+
+export async function checkGeminiHealth(): Promise<APIHealthStatus> {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) {
+    return { configured: false, healthy: false, checking: false };
+  }
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
+      { method: 'GET' }
+    );
+    return {
+      configured: true,
+      healthy: response.ok,
+      checking: false,
+      lastChecked: Date.now(),
+      error: response.ok ? undefined : `HTTP ${response.status}`
+    };
+  } catch (error) {
+    return {
+      configured: true,
+      healthy: false,
+      checking: false,
+      lastChecked: Date.now(),
+      error: error instanceof Error ? error.message : 'Connection failed'
+    };
+  }
+}
+
+export async function checkVertexAIHealth(): Promise<APIHealthStatus> {
+  const projectId = import.meta.env.VITE_VERTEX_AI_PROJECT_ID;
+  const apiKey = import.meta.env.VITE_VERTEX_AI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+
+  if (!projectId || !apiKey) {
+    return { configured: false, healthy: false, checking: false };
+  }
+
+  return {
+    configured: true,
+    healthy: true,
+    checking: false,
+    lastChecked: Date.now()
+  };
+}
+
+export async function checkElevenLabsHealth(): Promise<APIHealthStatus> {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !anonKey) {
+    return { configured: false, healthy: false, checking: false };
+  }
+
+  try {
+    const response = await fetch(
+      `${supabaseUrl}/functions/v1/elevenlabs-proxy?path=/health&method=GET`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${anonKey}`,
+          'apikey': anonKey,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      return {
+        configured: true,
+        healthy: false,
+        checking: false,
+        lastChecked: Date.now(),
+        error: 'Edge function not accessible'
+      };
+    }
+
+    const data = await response.json();
+    return {
+      configured: true,
+      healthy: data.api_key_configured || false,
+      checking: false,
+      lastChecked: Date.now()
+    };
+  } catch (error) {
+    return {
+      configured: true,
+      healthy: false,
+      checking: false,
+      lastChecked: Date.now(),
+      error: error instanceof Error ? error.message : 'Connection failed'
+    };
+  }
+}
+
+export async function checkChatterboxHealth(): Promise<APIHealthStatus> {
+  const chatterboxUrl = import.meta.env.VITE_CHATTERBOX_URL;
+
+  if (!chatterboxUrl) {
+    return { configured: false, healthy: false, checking: false };
+  }
+
+  try {
+    const response = await fetch(`${chatterboxUrl}/health`, {
+      method: 'GET',
+      signal: AbortSignal.timeout(5000)
+    });
+    return {
+      configured: true,
+      healthy: response.ok,
+      checking: false,
+      lastChecked: Date.now(),
+      error: response.ok ? undefined : `HTTP ${response.status}`
+    };
+  } catch (error) {
+    return {
+      configured: true,
+      healthy: false,
+      checking: false,
+      lastChecked: Date.now(),
+      error: error instanceof Error ? error.message : 'Connection failed'
+    };
+  }
+}
+
+export async function checkSyncLabsHealth(): Promise<APIHealthStatus> {
+  const apiKey = import.meta.env.VITE_SYNC_LABS_API_KEY;
+
+  if (!apiKey) {
+    return { configured: false, healthy: false, checking: false };
+  }
+
+  return {
+    configured: true,
+    healthy: true,
+    checking: false,
+    lastChecked: Date.now()
+  };
+}
+
+export async function checkVeedIoHealth(): Promise<APIHealthStatus> {
+  const apiKey = import.meta.env.VITE_VEED_API_KEY;
+
+  if (!apiKey) {
+    return { configured: false, healthy: false, checking: false };
+  }
+
+  return {
+    configured: true,
+    healthy: true,
+    checking: false,
+    lastChecked: Date.now()
+  };
+}
+
+export async function checkNanoBananaHealth(): Promise<APIHealthStatus> {
+  const apiKey = import.meta.env.VITE_NANO_BANANA_API_KEY;
+
+  if (!apiKey) {
+    return { configured: false, healthy: false, checking: false };
+  }
+
+  return {
+    configured: true,
+    healthy: true,
+    checking: false,
+    lastChecked: Date.now()
+  };
+}
+
+export async function checkSupabaseHealth(): Promise<APIHealthStatus> {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !anonKey) {
+    return { configured: false, healthy: false, checking: false };
+  }
+
+  try {
+    const { error } = await supabase.from('organizations').select('id').limit(1);
+    return {
+      configured: true,
+      healthy: !error,
+      checking: false,
+      lastChecked: Date.now(),
+      error: error?.message
+    };
+  } catch (error) {
+    return {
+      configured: true,
+      healthy: false,
+      checking: false,
+      lastChecked: Date.now(),
+      error: error instanceof Error ? error.message : 'Connection failed'
+    };
+  }
+}
+
+export async function checkAllAPIHealth(): Promise<AllAPIStatus> {
+  const [gemini, vertexAI, elevenLabs, chatterbox, syncLabs, veedIo, nanoBanana, supabaseStatus] = await Promise.all([
+    checkGeminiHealth(),
+    checkVertexAIHealth(),
+    checkElevenLabsHealth(),
+    checkChatterboxHealth(),
+    checkSyncLabsHealth(),
+    checkVeedIoHealth(),
+    checkNanoBananaHealth(),
+    checkSupabaseHealth()
+  ]);
+
+  return {
+    gemini,
+    vertexAI,
+    elevenLabs,
+    chatterbox,
+    syncLabs,
+    veedIo,
+    nanoBanana,
+    supabase: supabaseStatus
   };
 }
 

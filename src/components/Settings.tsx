@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
-import { Key, Database, Sparkles, ExternalLink, CheckCircle, XCircle, Info, BookOpen, ChevronDown, ChevronUp, Copy, Code, Layers, FileCode, Palette, Rocket, DollarSign, FolderTree, Building2, Film, Shield, Clock, AlertTriangle, History, Download, RefreshCw, Archive, Activity, Video, Mic2, Image, Zap, Hammer, Briefcase, Sliders, Globe, Brain, Volume2, Monitor, Languages, FileSearch, FileText, Printer } from 'lucide-react';
-import { getAPIKeyStatus, getConfigurationInstructions, getUserSettings, updateUserSettings, type UserSettings } from '../services/settingsService';
+import { useState, useEffect, useCallback } from 'react';
+import { Key, Database, Sparkles, ExternalLink, CheckCircle, XCircle, Info, BookOpen, ChevronDown, ChevronUp, Copy, Code, Layers, FileCode, Palette, Rocket, DollarSign, FolderTree, Building2, Film, Shield, Clock, AlertTriangle, History, Download, RefreshCw, Archive, Activity, Video, Mic2, Image, Zap, Hammer, Briefcase, Sliders, Globe, Brain, Volume2, Monitor, Languages, FileSearch, FileText, Printer, Loader2 } from 'lucide-react';
+import { getAPIKeyStatus, getConfigurationInstructions, getUserSettings, updateUserSettings, checkAllAPIHealth, type UserSettings, type AllAPIStatus, type APIHealthStatus } from '../services/settingsService';
 import { useOrganization } from '../contexts/OrganizationContext';
+import { useNotification } from '../contexts/NotificationContext';
 import { backupService } from '../services/backupService';
 import type { RecoveryPoint, IntegrityCheck, BackupSchedule } from '../services/backupService';
 import { LipSyncSettings } from './LipSyncSettings';
@@ -9,10 +10,14 @@ import { PromptLibrary } from './PromptLibrary';
 import { PatentIntelligenceSettings } from './PatentIntelligenceSettings';
 import { ANIMATION_STYLE_MULTIPLIERS, PRODUCTION_TIER_PRESETS, FREELANCE_TIER_PRESETS, fetchCostConfig, updateCostConfig } from '../services/costCalculationService';
 import type { AnimationStyle, ProductionTier, FreelanceTier, CostConfig } from '../services/costCalculationService';
+import { VEO_MODELS, type VeoModel } from '../services/vertexAIService';
 
 export function Settings() {
   const { currentOrganization } = useOrganization();
-  const [apiStatus, setApiStatus] = useState<any>(null);
+  const { showSuccess, showError } = useNotification();
+  const [apiStatus, setApiStatus] = useState<ReturnType<typeof getAPIKeyStatus> | null>(null);
+  const [apiHealth, setApiHealth] = useState<AllAPIStatus | null>(null);
+  const [healthCheckLoading, setHealthCheckLoading] = useState(false);
   const [techDocsExpanded, setTechDocsExpanded] = useState(false);
   const [backupExpanded, setBackupExpanded] = useState(false);
   const [promptLibraryExpanded, setPromptLibraryExpanded] = useState(false);
@@ -56,6 +61,19 @@ export function Settings() {
   useEffect(() => {
     checkAPIStatus();
     loadUserSettings();
+    runHealthChecks();
+  }, []);
+
+  const runHealthChecks = useCallback(async () => {
+    setHealthCheckLoading(true);
+    try {
+      const health = await checkAllAPIHealth();
+      setApiHealth(health);
+    } catch (err) {
+      console.error('Failed to run health checks:', err);
+    } finally {
+      setHealthCheckLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -88,9 +106,13 @@ export function Settings() {
       const updated = await updateUserSettings(updates);
       if (updated) {
         setUserSettings(updated);
+        showSuccess('Settings saved', 'Your preferences have been updated');
+      } else {
+        showError('Save failed', 'Could not save your settings. Please try again.');
       }
     } catch (err) {
       console.error('Failed to update user settings:', err);
+      showError('Save failed', 'An error occurred while saving your settings');
     } finally {
       setUserSettingsSaving(false);
     }
@@ -116,11 +138,72 @@ export function Settings() {
     try {
       await updateCostConfig(costConfig.id, updates);
       setCostConfig({ ...costConfig, ...updates });
+      showSuccess('Cost configuration saved', 'Production cost settings have been updated');
     } catch (err) {
-      setCostConfigError(err instanceof Error ? err.message : 'Failed to save changes');
+      const errorMsg = err instanceof Error ? err.message : 'Failed to save changes';
+      setCostConfigError(errorMsg);
+      showError('Save failed', errorMsg);
     } finally {
       setCostConfigSaving(false);
     }
+  };
+
+  const renderHealthIndicator = (health: APIHealthStatus | undefined, label: string) => {
+    if (!health) {
+      return <div className="w-5 h-5 rounded-full bg-gray-200 animate-pulse" title="Checking..." />;
+    }
+    if (!health.configured) {
+      return <XCircle className="w-5 h-5 text-gray-400" title={`${label} not configured`} />;
+    }
+    if (health.checking) {
+      return <Loader2 className="w-5 h-5 text-blue-500 animate-spin" title="Checking..." />;
+    }
+    if (health.healthy) {
+      return <CheckCircle className="w-5 h-5 text-green-600" title={`${label} connected`} />;
+    }
+    return (
+      <div className="relative group">
+        <XCircle className="w-5 h-5 text-red-500" />
+        {health.error && (
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10">
+            {health.error}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const getHealthStatusText = (health: APIHealthStatus | undefined): string => {
+    if (!health) return 'Checking...';
+    if (!health.configured) return 'Not configured';
+    if (health.checking) return 'Checking...';
+    if (health.healthy) return 'Connected';
+    return health.error || 'Connection failed';
+  };
+
+  const getHealthStatusColor = (health: APIHealthStatus | undefined): string => {
+    if (!health || health.checking) return 'text-gray-500';
+    if (!health.configured) return 'text-gray-400';
+    if (health.healthy) return 'text-green-600';
+    return 'text-red-500';
+  };
+
+  const countConfiguredAPIs = (): { configured: number; total: number } => {
+    if (!apiHealth) return { configured: 0, total: 8 };
+    const apis = [
+      apiHealth.gemini,
+      apiHealth.vertexAI,
+      apiHealth.elevenLabs,
+      apiHealth.chatterbox,
+      apiHealth.syncLabs,
+      apiHealth.veedIo,
+      apiHealth.nanoBanana,
+      apiHealth.supabase
+    ];
+    return {
+      configured: apis.filter(a => a.configured && a.healthy).length,
+      total: apis.length
+    };
   };
 
   const checkAPIStatus = () => {
@@ -249,17 +332,77 @@ export function Settings() {
 
   const instructions = getConfigurationInstructions();
 
+  const apiCounts = countConfiguredAPIs();
+  const requiredNotConfigured = apiHealth ? [
+    !apiHealth.vertexAI.configured && 'Vertex AI',
+    !apiHealth.syncLabs.configured && !apiHealth.veedIo.configured && 'Lip Sync Provider'
+  ].filter(Boolean).length : 2;
+
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="max-w-4xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Settings</h1>
-          <p className="text-gray-600">Configure your AI services and application settings</p>
+        <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Settings</h1>
+            <p className="text-gray-600">Configure your AI services and application settings</p>
+          </div>
+          <button
+            onClick={runHealthChecks}
+            disabled={healthCheckLoading}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors disabled:opacity-50 self-start sm:self-auto"
+            aria-label="Refresh API health status"
+          >
+            <RefreshCw className={`w-4 h-4 ${healthCheckLoading ? 'animate-spin' : ''}`} />
+            <span className="text-sm font-medium">Refresh Status</span>
+          </button>
         </div>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4 sm:p-6 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+            <h3 className="font-semibold text-gray-900">API Connection Status</h3>
+            <div className="flex items-center gap-2">
+              {healthCheckLoading ? (
+                <span className="text-sm text-gray-500 flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Checking connections...
+                </span>
+              ) : (
+                <span className={`text-sm font-medium ${apiCounts.configured === apiCounts.total ? 'text-green-600' : 'text-amber-600'}`}>
+                  {apiCounts.configured} of {apiCounts.total} services connected
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+            {[
+              { key: 'gemini', label: 'Gemini AI', health: apiHealth?.gemini },
+              { key: 'vertexAI', label: 'Vertex AI', health: apiHealth?.vertexAI },
+              { key: 'elevenLabs', label: 'ElevenLabs', health: apiHealth?.elevenLabs },
+              { key: 'supabase', label: 'Database', health: apiHealth?.supabase },
+              { key: 'syncLabs', label: 'Sync Labs', health: apiHealth?.syncLabs },
+              { key: 'veedIo', label: 'Veed.io', health: apiHealth?.veedIo },
+              { key: 'chatterbox', label: 'Chatterbox', health: apiHealth?.chatterbox },
+              { key: 'nanoBanana', label: 'Image Gen', health: apiHealth?.nanoBanana },
+            ].map(({ key, label, health }) => (
+              <div
+                key={key}
+                className="flex items-center gap-2 p-2 sm:p-3 bg-gray-50 rounded-lg"
+              >
+                {renderHealthIndicator(health, label)}
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs sm:text-sm font-medium text-gray-900 truncate">{label}</div>
+                  <div className={`text-xs truncate ${getHealthStatusColor(health)}`}>
+                    {getHealthStatusText(health)}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 sm:p-6 mb-6">
           <div className="flex items-start gap-3">
-            <Info className="w-6 h-6 text-blue-600 mt-1 flex-shrink-0" />
+            <Info className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 mt-0.5 flex-shrink-0" />
             <div>
               <h3 className="font-semibold text-blue-900 mb-2">Using Bolt Secrets</h3>
               <p className="text-sm text-blue-800 mb-2">
@@ -274,33 +417,43 @@ export function Settings() {
           </div>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
             <button
               onClick={() => setNextStepsExpanded(!nextStepsExpanded)}
-              className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              className="w-full p-4 sm:p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              aria-expanded={nextStepsExpanded}
+              aria-controls="next-steps-content"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg flex items-center justify-center">
                   <Zap className="w-5 h-5 text-white" />
                 </div>
                 <div className="text-left">
-                  <h2 className="text-xl font-bold text-gray-900">Next Steps</h2>
-                  <p className="text-sm text-gray-600">Required API integrations for full production capability</p>
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900">Next Steps</h2>
+                  <p className="text-xs sm:text-sm text-gray-600">Required API integrations for full production capability</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full font-medium">2 integrations needed</span>
-                {nextStepsExpanded ? (
-                  <ChevronUp className="w-6 h-6 text-gray-400" />
+              <div className="flex items-center gap-2 sm:gap-3">
+                {requiredNotConfigured > 0 ? (
+                  <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full font-medium">
+                    {requiredNotConfigured} needed
+                  </span>
                 ) : (
-                  <ChevronDown className="w-6 h-6 text-gray-400" />
+                  <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full font-medium">
+                    All configured
+                  </span>
+                )}
+                {nextStepsExpanded ? (
+                  <ChevronUp className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" />
                 )}
               </div>
             </button>
 
             {nextStepsExpanded && (
-              <div className="border-t border-gray-200 p-6">
+              <div id="next-steps-content" className="border-t border-gray-200 p-4 sm:p-6">
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
                   <div className="flex items-start gap-3">
                     <Info className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
@@ -521,7 +674,9 @@ export function Settings() {
           <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
             <button
               onClick={() => setWorkspaceExpanded(!workspaceExpanded)}
-              className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              className="w-full p-4 sm:p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              aria-expanded={workspaceExpanded}
+              aria-controls="workspace-content"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
@@ -804,7 +959,9 @@ export function Settings() {
           <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
             <button
               onClick={() => setGeminiExpanded(!geminiExpanded)}
-              className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              className="w-full p-4 sm:p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              aria-expanded={geminiExpanded}
+              aria-controls="gemini-settings-content"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center">
@@ -957,7 +1114,9 @@ export function Settings() {
           <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
             <button
               onClick={() => setVoiceSettingsExpanded(!voiceSettingsExpanded)}
-              className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              className="w-full p-4 sm:p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              aria-expanded={voiceSettingsExpanded}
+              aria-controls="voice-settings-content"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-rose-500 to-pink-600 rounded-lg flex items-center justify-center">
@@ -1095,7 +1254,9 @@ export function Settings() {
           <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
             <button
               onClick={() => setVideoSettingsExpanded(!videoSettingsExpanded)}
-              className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              className="w-full p-4 sm:p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              aria-expanded={videoSettingsExpanded}
+              aria-controls="video-settings-content"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
@@ -1120,7 +1281,7 @@ export function Settings() {
                     <Info className="w-5 h-5 text-emerald-600 mt-0.5 flex-shrink-0" />
                     <div className="text-sm text-emerald-800">
                       <p className="font-medium mb-1">Vertex AI Configuration</p>
-                      <p>Configure settings for Veo 3.1 video generation and Imagen storyboard image generation. These settings use shared Vertex AI credentials. Video: ~$0.75/second, Images: ~$0.04/image.</p>
+                      <p>Configure settings for Veo video generation and Imagen storyboard image generation. Video pricing varies by model: Fast models ($0.10-0.15/sec), Standard models ($0.20-0.40/sec). Images: ~$0.04/image.</p>
                     </div>
                   </div>
                 </div>
@@ -1231,12 +1392,27 @@ export function Settings() {
 
                     <div className="bg-gray-50 rounded-lg p-4">
                       <h4 className="text-sm font-medium text-gray-700 mb-2">Estimated Cost Per Shot</h4>
-                      <div className="text-2xl font-bold text-gray-900">
-                        ${((userSettings?.video_preferences?.default_duration ?? 6) * 0.75 * (userSettings?.video_preferences?.sample_count ?? 2)).toFixed(2)}
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {userSettings?.video_preferences?.default_duration ?? 6}s x {userSettings?.video_preferences?.sample_count ?? 2} samples x $0.75/second
-                      </p>
+                      {(() => {
+                        const duration = userSettings?.video_preferences?.default_duration ?? 6;
+                        const sampleCount = userSettings?.video_preferences?.sample_count ?? 2;
+                        const withAudio = userSettings?.video_preferences?.generate_audio ?? true;
+                        const defaultModel = VEO_MODELS.find(m => m.id === 'veo-3.1-generate-001') || VEO_MODELS[0];
+                        const costPerSec = withAudio ? defaultModel.costWithAudio : defaultModel.costNoAudio;
+                        const totalCost = duration * costPerSec * sampleCount;
+                        return (
+                          <>
+                            <div className="text-2xl font-bold text-gray-900">
+                              ${totalCost.toFixed(2)}
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {duration}s x {sampleCount} samples x ${costPerSec.toFixed(2)}/sec ({defaultModel.name})
+                            </p>
+                            <p className="text-xs text-emerald-600 mt-2">
+                              Fast model alternative: ${(duration * (withAudio ? 0.15 : 0.10) * sampleCount).toFixed(2)} (Veo 3.1 Fast)
+                            </p>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 )}
