@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Image as ImageIcon,
   Sparkles,
@@ -15,7 +15,8 @@ import {
   Save,
   Check,
   Info,
-  Eraser
+  Eraser,
+  Upload
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
@@ -108,6 +109,9 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
   const [assetTags, setAssetTags] = useState('');
   const [transparentBackground, setTransparentBackground] = useState(false);
   const [processingTransparency, setProcessingTransparency] = useState(false);
+  const [uploadTypeSelection, setUploadTypeSelection] = useState<AssetType | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const status = checkNanoBananaConfiguration();
@@ -167,7 +171,44 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
   };
 
   const handleRemoveReference = (id: string) => {
+    const refToRemove = referenceImages.find(r => r.id === id);
+    if (refToRemove && refToRemove.imageUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(refToRemove.imageUrl);
+    }
     setReferenceImages(referenceImages.filter(r => r.id !== id));
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !uploadTypeSelection) return;
+
+    const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif'];
+    if (!validTypes.includes(file.type)) {
+      setError('Please upload a valid image file (PNG, JPG, WEBP, or GIF)');
+      return;
+    }
+
+    const imageUrl = URL.createObjectURL(file);
+    const fileName = file.name.replace(/\.[^/.]+$/, '');
+
+    const ref: ReferenceImage = {
+      id: crypto.randomUUID(),
+      name: fileName,
+      imageUrl,
+      type: uploadTypeSelection
+    };
+
+    setReferenceImages([...referenceImages, ref]);
+    setUploadTypeSelection(null);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const triggerFileUpload = (type: AssetType) => {
+    setUploadTypeSelection(type);
+    fileInputRef.current?.click();
   };
 
   const removeBackground = async (imageUrl: string): Promise<string> => {
@@ -523,6 +564,11 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
                     <span className={`text-xs px-1.5 py-0.5 rounded ${typeConfig.badgeColor}`}>
                       {typeConfig.label}
                     </span>
+                    {!ref.assetId && (
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-teal-100 text-teal-700">
+                        Uploaded
+                      </span>
+                    )}
                     <button
                       onClick={() => handleRemoveReference(ref.id)}
                       className="text-gray-400 hover:text-red-500"
@@ -553,8 +599,15 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
                   >
                     <X className="w-4 h-4" />
                   </button>
-                  <div className={`absolute top-2 left-2 text-xs px-2 py-0.5 rounded-full ${typeConfig.badgeColor}`}>
-                    {typeConfig.label}
+                  <div className="absolute top-2 left-2 flex items-center gap-1">
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${typeConfig.badgeColor}`}>
+                      {typeConfig.label}
+                    </span>
+                    {!ref.assetId && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-teal-500 text-white">
+                        Uploaded
+                      </span>
+                    )}
                   </div>
                   <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-75 text-white text-xs p-1 rounded-b-lg truncate">
                     {ref.name}
@@ -572,12 +625,47 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
               className="h-32 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-blue-400 hover:bg-blue-50 transition-all"
             >
               <Plus className="w-6 h-6 text-gray-400" />
-              <span className="text-sm text-gray-600">Add Reference</span>
+              <span className="text-sm text-gray-600">From Library</span>
             </button>
+            <div className="relative group">
+              <button
+                onClick={() => setUploadTypeSelection(uploadTypeSelection ? null : assetType)}
+                className="h-32 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-teal-400 hover:bg-teal-50 transition-all w-full"
+              >
+                <Upload className="w-6 h-6 text-gray-400" />
+                <span className="text-sm text-gray-600">Upload File</span>
+              </button>
+              {uploadTypeSelection && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 z-10 overflow-hidden">
+                  <div className="p-2 bg-gray-50 border-b border-gray-200">
+                    <span className="text-xs font-medium text-gray-600">Select reference type:</span>
+                  </div>
+                  {(Object.entries(ASSET_TYPE_CONFIG) as [AssetType, typeof ASSET_TYPE_CONFIG[AssetType]][]).map(([typeId, config]) => {
+                    const Icon = config.icon;
+                    return (
+                      <button
+                        key={typeId}
+                        onClick={() => triggerFileUpload(typeId)}
+                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 transition-colors text-left"
+                      >
+                        <Icon className={`w-4 h-4 ${config.textColor}`} />
+                        <span className="text-sm text-gray-700">{config.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
           <p className="text-xs text-gray-600">
-            Add characters, backgrounds, or props from your Asset Library. The AI uses these as style guides regardless of what you're generating.
-          </p>
+            Add references from your Asset Library or upload images from your device. The AI uses these as style guides.</p>
         </div>
       </div>
 

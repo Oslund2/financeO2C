@@ -118,8 +118,9 @@ export async function generateSelfPatentApplication(
       (workflowProgress: PatentGenerationProgress) => {
         const basePercentage = 70;
         const workflowRange = 25;
-        const progressPercentage = basePercentage +
-          (workflowProgress.step / workflowProgress.totalSteps) * workflowRange;
+        const progressPercentage = Math.round(
+          basePercentage + (workflowProgress.step / workflowProgress.totalSteps) * workflowRange
+        );
 
         onProgress?.({
           stage: 'processing',
