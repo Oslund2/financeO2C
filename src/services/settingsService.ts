@@ -49,6 +49,7 @@ export interface UserSettings {
     default_duration: 4 | 6 | 8;
     sample_count: number;
     generate_audio: boolean;
+    no_music: boolean;
     [key: string]: any;
   };
   translation_preferences: {
@@ -95,9 +96,10 @@ const DEFAULT_SETTINGS: UserSettings = {
   video_preferences: {
     default_resolution: '1080p',
     default_aspect_ratio: '16:9',
-    default_duration: 6,
-    sample_count: 2,
-    generate_audio: true
+    default_duration: 8,
+    sample_count: 1,
+    generate_audio: false,
+    no_music: true
   },
   translation_preferences: {
     default_languages: ['es', 'fr', 'de', 'ja', 'zh'],

@@ -12,6 +12,7 @@ export interface Veo3PromptConfig {
   location: string;
   props: string[];
   dialogue_content?: DialogueLine[];
+  no_music?: boolean;
 }
 
 export interface GeneratedPrompt {
@@ -130,7 +131,8 @@ function formatDialogueForPrompt(dialogue: DialogueLine[]): string {
 function extractAudioCues(
   narrative: string,
   characters: string[],
-  dialogue: DialogueLine[] = []
+  dialogue: DialogueLine[] = [],
+  noMusic: boolean = true
 ): string {
   const cues: string[] = [];
 
@@ -150,7 +152,11 @@ function extractAudioCues(
     cues.push('ambient sound effects');
   }
 
-  if (dialogue.length === 0 && narrative.toLowerCase().includes('music')) {
+  if (noMusic) {
+    if (!cues.some(c => c.includes('NO MUSIC'))) {
+      cues.push('NO MUSIC');
+    }
+  } else if (dialogue.length === 0 && narrative.toLowerCase().includes('music')) {
     cues.push('background music');
   }
 
@@ -200,7 +206,8 @@ export function generateVeo3Prompt(config: Veo3PromptConfig): GeneratedPrompt {
   const audio_cues = extractAudioCues(
     config.narrative_description,
     config.characters,
-    config.dialogue_content || []
+    config.dialogue_content || [],
+    config.no_music ?? true
   );
 
   return {

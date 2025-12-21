@@ -1334,7 +1334,7 @@ export function Settings() {
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Default Duration</label>
                         <select
-                          value={userSettings?.video_preferences?.default_duration ?? 6}
+                          value={userSettings?.video_preferences?.default_duration ?? 8}
                           onChange={(e) => handleUpdateUserSettings({
                             video_preferences: {
                               ...userSettings?.video_preferences!,
@@ -1353,7 +1353,7 @@ export function Settings() {
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Sample Count</label>
                         <select
-                          value={userSettings?.video_preferences?.sample_count ?? 2}
+                          value={userSettings?.video_preferences?.sample_count ?? 1}
                           onChange={(e) => handleUpdateUserSettings({
                             video_preferences: {
                               ...userSettings?.video_preferences!,
@@ -1364,38 +1364,59 @@ export function Settings() {
                           disabled={userSettingsSaving}
                         >
                           <option value="1">1 (Fastest)</option>
-                          <option value="2">2 (Recommended)</option>
-                          <option value="3">3 (More Options)</option>
+                          <option value="2">2 (More Options)</option>
+                          <option value="3">3 (Recommended)</option>
                           <option value="4">4 (Maximum)</option>
                         </select>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        id="generate_audio"
-                        checked={userSettings?.video_preferences?.generate_audio ?? true}
-                        onChange={(e) => handleUpdateUserSettings({
-                          video_preferences: {
-                            ...userSettings?.video_preferences!,
-                            generate_audio: e.target.checked
-                          }
-                        })}
-                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                        disabled={userSettingsSaving}
-                      />
-                      <label htmlFor="generate_audio" className="text-sm text-gray-700">
-                        Generate audio with video (sound effects, ambient sounds)
-                      </label>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          id="generate_audio"
+                          checked={userSettings?.video_preferences?.generate_audio ?? false}
+                          onChange={(e) => handleUpdateUserSettings({
+                            video_preferences: {
+                              ...userSettings?.video_preferences!,
+                              generate_audio: e.target.checked
+                            }
+                          })}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          disabled={userSettingsSaving}
+                        />
+                        <label htmlFor="generate_audio" className="text-sm text-gray-700">
+                          Generate audio with video (sound effects, ambient sounds)
+                        </label>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          id="no_music"
+                          checked={userSettings?.video_preferences?.no_music ?? true}
+                          onChange={(e) => handleUpdateUserSettings({
+                            video_preferences: {
+                              ...userSettings?.video_preferences!,
+                              no_music: e.target.checked
+                            }
+                          })}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          disabled={userSettingsSaving}
+                        />
+                        <label htmlFor="no_music" className="text-sm text-gray-700">
+                          No music in generated videos (adds "no music" to prompt instructions)
+                        </label>
+                      </div>
                     </div>
 
                     <div className="bg-gray-50 rounded-lg p-4">
                       <h4 className="text-sm font-medium text-gray-700 mb-2">Estimated Cost Per Shot</h4>
                       {(() => {
-                        const duration = userSettings?.video_preferences?.default_duration ?? 6;
-                        const sampleCount = userSettings?.video_preferences?.sample_count ?? 2;
-                        const withAudio = userSettings?.video_preferences?.generate_audio ?? true;
+                        const duration = userSettings?.video_preferences?.default_duration ?? 8;
+                        const sampleCount = userSettings?.video_preferences?.sample_count ?? 1;
+                        const withAudio = userSettings?.video_preferences?.generate_audio ?? false;
                         const defaultModel = VEO_MODELS.find(m => m.id === 'veo-3.1-generate-001') || VEO_MODELS[0];
                         const costPerSec = withAudio ? defaultModel.costWithAudio : defaultModel.costNoAudio;
                         const totalCost = duration * costPerSec * sampleCount;
@@ -1405,7 +1426,7 @@ export function Settings() {
                               ${totalCost.toFixed(2)}
                             </div>
                             <p className="text-xs text-gray-500 mt-1">
-                              {duration}s x {sampleCount} samples x ${costPerSec.toFixed(2)}/sec ({defaultModel.name})
+                              {duration}s x {sampleCount} sample{sampleCount > 1 ? 's' : ''} x ${costPerSec.toFixed(2)}/sec ({defaultModel.name})
                             </p>
                             <p className="text-xs text-emerald-600 mt-2">
                               Fast model alternative: ${(duration * (withAudio ? 0.15 : 0.10) * sampleCount).toFixed(2)} (Veo 3.1 Fast)
