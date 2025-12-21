@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight, Film, Camera, Clock, MessageSquare, Lightbulb, Download, Grid3x3, List, Upload, Wand2, RefreshCw, ZoomIn, Layers, Sparkles, Trash2, Edit3, FileEdit, Filter, CheckCircle, History, Shield } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Film, Camera, Clock, MessageSquare, Lightbulb, Download, Grid3x3, List, Upload, Wand2, RefreshCw, ZoomIn, Layers, Sparkles, Trash2, Edit3, FileEdit, Filter, CheckCircle, History, Shield, FileDown, Settings } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { uploadManualImage } from '../services/nanoBananaService';
 import { generateImagesForStoryboard } from '../services/storyboardService';
+import { exportStoryboardToPDF, downloadPDF } from '../services/storyboardPdfExportService';
 import { BulkUploadModal } from './BulkUploadModal';
 import { SelectiveGenerationModal } from './SelectiveGenerationModal';
 import { ImageActionsMenu } from './ImageActionsMenu';
@@ -43,6 +44,17 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
   const [filterApprovalStatus, setFilterApprovalStatus] = useState<string>('all');
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [showManualReferenceUpload, setShowManualReferenceUpload] = useState(false);
+  const [showExportOptions, setShowExportOptions] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
+  const [exportStatus, setExportStatus] = useState('');
+  const [exportOptions, setExportOptions] = useState({
+    includeDialogue: true,
+    includeStageDirections: true,
+    includeCameraInfo: true,
+    shotsPerPage: 2 as 2 | 4 | 6,
+    pageOrientation: 'landscape' as 'portrait' | 'landscape'
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const singleUploadInputRef = useRef<HTMLInputElement>(null);
 
@@ -140,7 +152,38 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
   };
 
   const handleExport = () => {
-    alert('Export functionality coming soon! This will generate a PDF storyboard document.');
+    setShowExportOptions(true);
+  };
+
+  const handleExportPDF = async () => {
+    if (!storyboard) return;
+
+    setExporting(true);
+    setExportProgress(0);
+    setExportStatus('Preparing export...');
+    setShowExportOptions(false);
+
+    try {
+      const blob = await exportStoryboardToPDF(
+        storyboard,
+        shots,
+        exportOptions,
+        (progress, status) => {
+          setExportProgress(progress);
+          setExportStatus(status);
+        }
+      );
+
+      const filename = `${storyboard.title.replace(/[^a-z0-9]/gi, '_')}_storyboard.pdf`;
+      downloadPDF(blob, filename);
+    } catch (error) {
+      console.error('Export error:', error);
+      alert(error instanceof Error ? error.message : 'Failed to export PDF');
+    } finally {
+      setExporting(false);
+      setExportProgress(0);
+      setExportStatus('');
+    }
   };
 
   const handleUploadImage = async (file: File, shotId: string, actNumber: number, shotNumber: number) => {
@@ -1057,6 +1100,160 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
             loadStoryboard();
           }}
         />
+      )}
+
+      {showExportOptions && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                  <FileDown className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Export Storyboard PDF</h2>
+                  <p className="text-sm text-gray-500">{shots.length} shots will be exported</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Layout</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setExportOptions(prev => ({ ...prev, pageOrientation: 'landscape' }))}
+                    className={`p-3 rounded-lg border-2 transition-all ${
+                      exportOptions.pageOrientation === 'landscape'
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="w-full h-8 bg-gray-200 rounded mb-2" style={{ aspectRatio: '297/210' }}></div>
+                    <span className="text-sm font-medium">Landscape</span>
+                  </button>
+                  <button
+                    onClick={() => setExportOptions(prev => ({ ...prev, pageOrientation: 'portrait' }))}
+                    className={`p-3 rounded-lg border-2 transition-all ${
+                      exportOptions.pageOrientation === 'portrait'
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="w-12 h-8 bg-gray-200 rounded mx-auto mb-2" style={{ aspectRatio: '210/297' }}></div>
+                    <span className="text-sm font-medium">Portrait</span>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Shots Per Page</label>
+                <div className="flex gap-2">
+                  {[2, 4, 6].map((num) => (
+                    <button
+                      key={num}
+                      onClick={() => setExportOptions(prev => ({ ...prev, shotsPerPage: num as 2 | 4 | 6 }))}
+                      className={`flex-1 py-2 px-4 rounded-lg border-2 transition-all ${
+                        exportOptions.shotsPerPage === num
+                          ? 'border-blue-500 bg-blue-50 text-blue-700'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      {num}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-700">Include</label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={exportOptions.includeDialogue}
+                    onChange={(e) => setExportOptions(prev => ({ ...prev, includeDialogue: e.target.checked }))}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4 text-amber-600" />
+                    <span className="text-sm text-gray-700">Dialogue text</span>
+                  </div>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={exportOptions.includeStageDirections}
+                    onChange={(e) => setExportOptions(prev => ({ ...prev, includeStageDirections: e.target.checked }))}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <div className="flex items-center gap-2">
+                    <Lightbulb className="w-4 h-4 text-purple-600" />
+                    <span className="text-sm text-gray-700">Stage directions</span>
+                  </div>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={exportOptions.includeCameraInfo}
+                    onChange={(e) => setExportOptions(prev => ({ ...prev, includeCameraInfo: e.target.checked }))}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <div className="flex items-center gap-2">
+                    <Camera className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm text-gray-700">Camera information</span>
+                  </div>
+                </label>
+              </div>
+
+              {exportOptions.includeDialogue && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <MessageSquare className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-sm text-amber-800">
+                      Dialogue will appear in highlighted boxes beneath each shot's image for easy script reference.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-gray-200 flex gap-3">
+              <button
+                onClick={() => setShowExportOptions(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleExportPDF}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                Export PDF
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {exporting && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <RefreshCw className="w-6 h-6 text-blue-600 animate-spin" />
+              <h3 className="text-lg font-semibold text-gray-900">Exporting PDF</h3>
+            </div>
+            <div className="mb-2">
+              <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-blue-600 transition-all duration-300"
+                  style={{ width: `${exportProgress}%` }}
+                />
+              </div>
+            </div>
+            <p className="text-sm text-gray-600">{exportStatus}</p>
+          </div>
+        </div>
       )}
 
       <input
