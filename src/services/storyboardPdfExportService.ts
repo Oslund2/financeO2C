@@ -134,9 +134,6 @@ export async function exportStoryboardToPDF(
   const availableHeight = pageHeight - margin - 45;
   const shotHeight = (availableHeight - (rows - 1) * 10) / rows;
 
-  const imageHeight = shotHeight * 0.55;
-  const textAreaHeight = shotHeight - imageHeight - 5;
-
   let currentPage = 1;
   let shotIndex = 0;
 
@@ -182,6 +179,27 @@ export async function exportStoryboardToPDF(
     const imageYStart = yPos + 10;
     const imageWidth = shotWidth - 6;
     const imageXPos = xPos + 3;
+    const lineHeight = 3.5;
+    const maxTextWidth = shotWidth - 8;
+
+    let dialogueLines: string[] = [];
+    if (opts.includeDialogue && shot.dialogue_text) {
+      dialogueLines = wrapText(shot.dialogue_text, maxTextWidth - 4, 7);
+    }
+
+    const dialogueHeaderHeight = opts.includeDialogue && shot.dialogue_text ? 5 : 0;
+    const dialogueLinesHeight = dialogueLines.length * lineHeight;
+    const totalDialogueHeight = opts.includeDialogue && shot.dialogue_text
+      ? dialogueHeaderHeight + dialogueLinesHeight + 4
+      : 0;
+
+    const cameraInfoHeight = opts.includeCameraInfo ? lineHeight + 1 : 0;
+    const descriptionHeight = shot.shot_description ? lineHeight * 2 : 0;
+    const stageDirectionsHeight = opts.includeStageDirections && shot.stage_directions && !shot.dialogue_text ? lineHeight * 2 : 0;
+
+    const totalTextHeight = cameraInfoHeight + descriptionHeight + totalDialogueHeight + stageDirectionsHeight + 6;
+
+    const imageHeight = shotHeight - totalTextHeight - 12;
 
     if (shot.image_url) {
       try {
@@ -191,8 +209,8 @@ export async function exportStoryboardToPDF(
           let imgWidth = imageWidth;
           let imgHeight = imgWidth / aspectRatio;
 
-          if (imgHeight > imageHeight - 2) {
-            imgHeight = imageHeight - 2;
+          if (imgHeight > imageHeight) {
+            imgHeight = imageHeight;
             imgWidth = imgHeight * aspectRatio;
           }
 
@@ -209,14 +227,14 @@ export async function exportStoryboardToPDF(
         }
       } catch (error) {
         pdf.setFillColor(240, 240, 240);
-        pdf.rect(imageXPos, imageYStart, imageWidth, imageHeight - 2, 'F');
+        pdf.rect(imageXPos, imageYStart, imageWidth, imageHeight, 'F');
         pdf.setTextColor(150, 150, 150);
         pdf.setFontSize(8);
         pdf.text('Image not available', imageXPos + imageWidth / 2 - 15, imageYStart + imageHeight / 2);
       }
     } else {
       pdf.setFillColor(240, 240, 240);
-      pdf.rect(imageXPos, imageYStart, imageWidth, imageHeight - 2, 'F');
+      pdf.rect(imageXPos, imageYStart, imageWidth, imageHeight, 'F');
       pdf.setTextColor(150, 150, 150);
       pdf.setFontSize(8);
       pdf.text('No image', imageXPos + imageWidth / 2 - 8, imageYStart + imageHeight / 2);
@@ -224,8 +242,6 @@ export async function exportStoryboardToPDF(
 
     const textYStart = imageYStart + imageHeight + 2;
     let currentTextY = textYStart;
-    const lineHeight = 3.5;
-    const maxTextWidth = shotWidth - 8;
 
     if (opts.includeCameraInfo) {
       pdf.setFont('helvetica', 'normal');
@@ -252,11 +268,11 @@ export async function exportStoryboardToPDF(
       }
     }
 
-    if (opts.includeDialogue && shot.dialogue_text) {
+    if (opts.includeDialogue && shot.dialogue_text && dialogueLines.length > 0) {
       currentTextY += 2;
 
+      const dialogueBoxHeight = dialogueHeaderHeight + dialogueLinesHeight + 2;
       pdf.setFillColor(254, 249, 195);
-      const dialogueBoxHeight = Math.min(textAreaHeight - (currentTextY - textYStart) - 2, 20);
       pdf.roundedRect(xPos + 3, currentTextY, shotWidth - 6, dialogueBoxHeight, 1, 1, 'F');
 
       pdf.setFont('helvetica', 'bold');
@@ -268,16 +284,12 @@ export async function exportStoryboardToPDF(
       pdf.setFontSize(7);
       pdf.setTextColor(80, 60, 20);
 
-      const dialogueLines = wrapText(shot.dialogue_text, maxTextWidth - 4, 7);
-      const maxDialogueLines = Math.floor((dialogueBoxHeight - 5) / lineHeight);
-
-      for (let i = 0; i < Math.min(dialogueLines.length, maxDialogueLines); i++) {
-        let line = dialogueLines[i];
-        if (i === maxDialogueLines - 1 && dialogueLines.length > maxDialogueLines) {
-          line = line.substring(0, line.length - 3) + '...';
-        }
-        pdf.text(`"${line}"`, xPos + 5, currentTextY + 6 + (i * lineHeight));
+      for (let i = 0; i < dialogueLines.length; i++) {
+        const line = dialogueLines[i];
+        pdf.text(line, xPos + 5, currentTextY + 6 + (i * lineHeight));
       }
+
+      currentTextY += dialogueBoxHeight;
     }
 
     if (opts.includeStageDirections && shot.stage_directions && !shot.dialogue_text) {
