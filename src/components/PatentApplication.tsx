@@ -378,8 +378,12 @@ export function PatentApplication() {
 
       pdf.setFont('times', 'bold');
       pdf.setFontSize(14);
-      pdf.text(selectedApp.title.toUpperCase(), pageWidth / 2, yPos, { align: 'center' });
-      yPos += 30;
+      const titleLines = pdf.splitTextToSize(selectedApp.title.toUpperCase(), maxWidth);
+      titleLines.forEach((line: string) => {
+        pdf.text(line, pageWidth / 2, yPos, { align: 'center' });
+        yPos += 18;
+      });
+      yPos += 12;
 
       pdf.setFont('times', 'normal');
       pdf.setFontSize(12);
