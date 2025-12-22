@@ -25,6 +25,7 @@ import {
   Save,
   X
 } from 'lucide-react';
+import { useNotification } from '../contexts/NotificationContext';
 import type {
   PatentApplicationWithDetails,
   EntityStatus,
@@ -64,6 +65,7 @@ interface PatentFilingTabProps {
 }
 
 export function PatentFilingTab({ application, onUpdate }: PatentFilingTabProps) {
+  const { showSuccess, showError, showWarning } = useNotification();
   const [activeSection, setActiveSection] = useState<string>('checklist');
   const [feeBreakdown, setFeeBreakdown] = useState<FeeBreakdown | null>(null);
   const [entityStatus, setEntityStatus] = useState<EntityStatus>(application.entity_status || 'regular');
@@ -78,6 +80,7 @@ export function PatentFilingTab({ application, onUpdate }: PatentFilingTabProps)
   const [cpcData, setCpcData] = useState<CPCReferenceData[]>([]);
   const [classifications, setClassifications] = useState<CPCClassificationResult | null>(null);
   const [showCpcDropdown, setShowCpcDropdown] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     calculateFees();
@@ -190,26 +193,100 @@ export function PatentFilingTab({ application, onUpdate }: PatentFilingTabProps)
     try {
       await onUpdate({ entity_status: entityStatus });
       calculateFees();
+      showSuccess('Entity Status Saved', 'Your entity status has been updated successfully.');
+    } catch (error) {
+      console.error('Failed to save entity status:', error);
+      showError('Save Failed', error instanceof Error ? error.message : 'Failed to save entity status. Please try again.');
     } finally {
       setSaving(false);
     }
   };
 
+  const validateInventors = (): boolean => {
+    const errors: Record<string, string> = {};
+    let isValid = true;
+
+    inventors.forEach((inv, idx) => {
+      if (!inv.fullName || inv.fullName.trim() === '') {
+        errors[`inventor-${idx}-name`] = 'Name is required';
+        isValid = false;
+      }
+      if (!inv.residence.city || inv.residence.city.trim() === '') {
+        errors[`inventor-${idx}-city`] = 'City is required';
+        isValid = false;
+      }
+    });
+
+    setValidationErrors(errors);
+    return isValid;
+  };
+
   const handleSaveInventors = async () => {
+    if (inventors.length > 0 && !validateInventors()) {
+      showWarning('Validation Error', 'Please fill in all required inventor fields (name and city).');
+      return;
+    }
+
     setSaving(true);
     try {
       await onUpdate({ inventors });
       setEditingInventors(false);
+      setValidationErrors({});
+      const inventorCount = inventors.length;
+      showSuccess(
+        'Inventors Saved',
+        inventorCount > 0
+          ? `${inventorCount} inventor${inventorCount > 1 ? 's' : ''} saved successfully.`
+          : 'Inventor list cleared.'
+      );
+    } catch (error) {
+      console.error('Failed to save inventors:', error);
+      showError('Save Failed', error instanceof Error ? error.message : 'Failed to save inventor information. Please try again.');
     } finally {
       setSaving(false);
     }
   };
 
+  const validateAddress = (): boolean => {
+    const errors: Record<string, string> = {};
+    let isValid = true;
+
+    if (!correspondenceAddress.street || correspondenceAddress.street.trim() === '') {
+      errors['address-street'] = 'Street address is required';
+      isValid = false;
+    }
+    if (!correspondenceAddress.city || correspondenceAddress.city.trim() === '') {
+      errors['address-city'] = 'City is required';
+      isValid = false;
+    }
+    if (!correspondenceAddress.state || correspondenceAddress.state.trim() === '') {
+      errors['address-state'] = 'State is required';
+      isValid = false;
+    }
+    if (!correspondenceAddress.zipCode || correspondenceAddress.zipCode.trim() === '') {
+      errors['address-zip'] = 'ZIP code is required';
+      isValid = false;
+    }
+
+    setValidationErrors(errors);
+    return isValid;
+  };
+
   const handleSaveAddress = async () => {
+    if (!validateAddress()) {
+      showWarning('Validation Error', 'Please fill in all required address fields.');
+      return;
+    }
+
     setSaving(true);
     try {
       await onUpdate({ correspondence_address: correspondenceAddress });
       setEditingAddress(false);
+      setValidationErrors({});
+      showSuccess('Address Saved', 'Correspondence address saved successfully.');
+    } catch (error) {
+      console.error('Failed to save address:', error);
+      showError('Save Failed', error instanceof Error ? error.message : 'Failed to save correspondence address. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -300,6 +377,7 @@ export function PatentFilingTab({ application, onUpdate }: PatentFilingTabProps)
           editing={editingInventors}
           editingAddress={editingAddress}
           saving={saving}
+          validationErrors={validationErrors}
           onSetEditing={setEditingInventors}
           onSetEditingAddress={setEditingAddress}
           onAddInventor={addInventor}
@@ -548,6 +626,7 @@ function InventorsSection({
   editing,
   editingAddress,
   saving,
+  validationErrors,
   onSetEditing,
   onSetEditingAddress,
   onAddInventor,
@@ -562,6 +641,7 @@ function InventorsSection({
   editing: boolean;
   editingAddress: boolean;
   saving: boolean;
+  validationErrors: Record<string, string>;
   onSetEditing: (v: boolean) => void;
   onSetEditingAddress: (v: boolean) => void;
   onAddInventor: () => void;
@@ -636,23 +716,41 @@ function InventorsSection({
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-                    <input
-                      type="text"
-                      value={inv.fullName}
-                      onChange={e => onUpdateInventor(inv.id, { fullName: e.target.value })}
-                      placeholder="Full Legal Name"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    />
-                    <div className="grid grid-cols-3 gap-2">
+                    <div>
                       <input
                         type="text"
-                        value={inv.residence.city}
-                        onChange={e => onUpdateInventor(inv.id, {
-                          residence: { ...inv.residence, city: e.target.value }
-                        })}
-                        placeholder="City"
-                        className="px-3 py-2 border border-gray-300 rounded-lg"
+                        value={inv.fullName}
+                        onChange={e => onUpdateInventor(inv.id, { fullName: e.target.value })}
+                        placeholder="Full Legal Name *"
+                        className={`w-full px-3 py-2 border rounded-lg ${
+                          validationErrors[`inventor-${idx}-name`]
+                            ? 'border-red-500 bg-red-50'
+                            : 'border-gray-300'
+                        }`}
                       />
+                      {validationErrors[`inventor-${idx}-name`] && (
+                        <p className="text-xs text-red-600 mt-1">{validationErrors[`inventor-${idx}-name`]}</p>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <input
+                          type="text"
+                          value={inv.residence.city}
+                          onChange={e => onUpdateInventor(inv.id, {
+                            residence: { ...inv.residence, city: e.target.value }
+                          })}
+                          placeholder="City *"
+                          className={`w-full px-3 py-2 border rounded-lg ${
+                            validationErrors[`inventor-${idx}-city`]
+                              ? 'border-red-500 bg-red-50'
+                              : 'border-gray-300'
+                          }`}
+                        />
+                        {validationErrors[`inventor-${idx}-city`] && (
+                          <p className="text-xs text-red-600 mt-1">{validationErrors[`inventor-${idx}-city`]}</p>
+                        )}
+                      </div>
                       <input
                         type="text"
                         value={inv.residence.state}
@@ -747,35 +845,71 @@ function InventorsSection({
               placeholder="Name (optional)"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
             />
-            <input
-              type="text"
-              value={correspondenceAddress.street}
-              onChange={e => onUpdateAddress({ ...correspondenceAddress, street: e.target.value })}
-              placeholder="Street Address"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-            />
+            <div>
+              <input
+                type="text"
+                value={correspondenceAddress.street}
+                onChange={e => onUpdateAddress({ ...correspondenceAddress, street: e.target.value })}
+                placeholder="Street Address *"
+                className={`w-full px-3 py-2 border rounded-lg ${
+                  validationErrors['address-street']
+                    ? 'border-red-500 bg-red-50'
+                    : 'border-gray-300'
+                }`}
+              />
+              {validationErrors['address-street'] && (
+                <p className="text-xs text-red-600 mt-1">{validationErrors['address-street']}</p>
+              )}
+            </div>
             <div className="grid grid-cols-4 gap-2">
-              <input
-                type="text"
-                value={correspondenceAddress.city}
-                onChange={e => onUpdateAddress({ ...correspondenceAddress, city: e.target.value })}
-                placeholder="City"
-                className="px-3 py-2 border border-gray-300 rounded-lg"
-              />
-              <input
-                type="text"
-                value={correspondenceAddress.state}
-                onChange={e => onUpdateAddress({ ...correspondenceAddress, state: e.target.value })}
-                placeholder="State"
-                className="px-3 py-2 border border-gray-300 rounded-lg"
-              />
-              <input
-                type="text"
-                value={correspondenceAddress.zipCode}
-                onChange={e => onUpdateAddress({ ...correspondenceAddress, zipCode: e.target.value })}
-                placeholder="ZIP"
-                className="px-3 py-2 border border-gray-300 rounded-lg"
-              />
+              <div>
+                <input
+                  type="text"
+                  value={correspondenceAddress.city}
+                  onChange={e => onUpdateAddress({ ...correspondenceAddress, city: e.target.value })}
+                  placeholder="City *"
+                  className={`w-full px-3 py-2 border rounded-lg ${
+                    validationErrors['address-city']
+                      ? 'border-red-500 bg-red-50'
+                      : 'border-gray-300'
+                  }`}
+                />
+                {validationErrors['address-city'] && (
+                  <p className="text-xs text-red-600 mt-1">{validationErrors['address-city']}</p>
+                )}
+              </div>
+              <div>
+                <input
+                  type="text"
+                  value={correspondenceAddress.state}
+                  onChange={e => onUpdateAddress({ ...correspondenceAddress, state: e.target.value })}
+                  placeholder="State *"
+                  className={`w-full px-3 py-2 border rounded-lg ${
+                    validationErrors['address-state']
+                      ? 'border-red-500 bg-red-50'
+                      : 'border-gray-300'
+                  }`}
+                />
+                {validationErrors['address-state'] && (
+                  <p className="text-xs text-red-600 mt-1">{validationErrors['address-state']}</p>
+                )}
+              </div>
+              <div>
+                <input
+                  type="text"
+                  value={correspondenceAddress.zipCode}
+                  onChange={e => onUpdateAddress({ ...correspondenceAddress, zipCode: e.target.value })}
+                  placeholder="ZIP *"
+                  className={`w-full px-3 py-2 border rounded-lg ${
+                    validationErrors['address-zip']
+                      ? 'border-red-500 bg-red-50'
+                      : 'border-gray-300'
+                  }`}
+                />
+                {validationErrors['address-zip'] && (
+                  <p className="text-xs text-red-600 mt-1">{validationErrors['address-zip']}</p>
+                )}
+              </div>
               <input
                 type="text"
                 value={correspondenceAddress.country}
@@ -800,6 +934,7 @@ function InventorsSection({
                 className="px-3 py-2 border border-gray-300 rounded-lg"
               />
             </div>
+            <p className="text-xs text-gray-500">* Required fields</p>
           </div>
         ) : (
           <div className="text-gray-600">

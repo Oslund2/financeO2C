@@ -338,11 +338,22 @@ export async function updatePatentApplication(
   applicationId: string,
   updates: Partial<PatentApplication>
 ): Promise<void> {
+  const { data: current, error: fetchError } = await supabase
+    .from('patent_applications')
+    .select('version')
+    .eq('id', applicationId)
+    .maybeSingle();
+
+  if (fetchError) throw fetchError;
+
+  const currentVersion = current?.version || 1;
+
   const { error } = await supabase
     .from('patent_applications')
     .update({
       ...updates,
-      version: supabase.rpc('increment_version', { row_id: applicationId })
+      version: currentVersion + 1,
+      updated_at: new Date().toISOString()
     })
     .eq('id', applicationId);
 
