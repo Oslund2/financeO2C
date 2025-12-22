@@ -17,7 +17,7 @@ export const PATENT_PROMPT_TEMPLATES: Record<string, PatentPromptTemplate> = {
     key: 'patent_claims_independent',
     name: 'Independent Patent Claims',
     description: 'Generates broad independent claims covering core innovations for method and system categories',
-    content: `Generate independent patent claims for the following invention. Create claims that are broad enough to provide meaningful protection while being specific enough to distinguish from prior art.
+    content: `Generate independent patent claims for the following invention. Create claims that are TECHNICALLY SPECIFIC to survive Alice/Mayo subject matter eligibility challenges while providing meaningful protection.
 
 INVENTION TITLE: \${title}
 
@@ -30,19 +30,56 @@ NOVELTY ASSESSMENT:
 INVENTION CONTEXT:
 \${inventionDescription}
 
+**CROWN JEWEL CLAIM PILLARS** - Focus claims on these 4 technical innovation areas:
+
+1. **SELF-DOCUMENTING CODE ANALYSIS**
+   - Parser that traverses abstract syntax trees (AST)
+   - Extraction of function signatures, class hierarchies, data flows
+   - Automated identification of patentable features from source code
+   - Technical transformation: raw code -> structured patent-ready documentation
+
+2. **AI-COMPLIANCE WORKFLOW ORCHESTRATION**
+   - Multi-stage pipeline coordinating LLM calls with validation gates
+   - Prompt templating with variable interpolation and version control
+   - Structured output parsing with JSON schema enforcement
+   - Rate limiting and retry logic with exponential backoff
+
+3. **ASSET DECAY ALGORITHM**
+   - Mathematical formula: decay_multiplier = max(floor_value, decay_rate^(episode_number - 1))
+   - Cost optimization model tracking human editing time reduction over iterations
+   - Configurable parameters for different production scenarios
+   - Comparative analysis engine vs traditional methods
+
+4. **PIPELINE ORCHESTRATION & STATE MACHINE**
+   - Directed acyclic graph (DAG) of dependent generation tasks
+   - Checkpoint/resume capability with persistent state storage
+   - Multi-provider failover with automatic service switching
+   - Progress tracking with granular status updates
+
+**ALICE-DEFENSE LANGUAGE REQUIREMENTS** (CRITICAL):
+- Use "processor configured to execute" NOT "computer performs"
+- Use "parsing abstract syntax trees" NOT "analyzing code"
+- Use "transmitting via API endpoints" NOT "sending data"
+- Reference SPECIFIC data structures (JSON schemas, database tables, cache layers)
+- Include QUANTIFIABLE improvements (latency reduction, cost savings percentages)
+- Describe TECHNICAL TRANSFORMATIONS (input data -> transformed output)
+
+**AVOID THESE ABSTRACT PHRASES:**
+- "managing", "organizing", "facilitating" (too abstract)
+- "using AI to..." (not specific enough)
+- "automatically generating" (needs technical HOW)
+
 Generate exactly 2 independent claims:
-1. One METHOD claim (computer-implemented method) - Start with "A computer-implemented method for..."
-2. One SYSTEM claim (system with processors and storage) - Start with "A system comprising..."
+1. One METHOD claim - Start with "A computer-implemented method for..."
+2. One SYSTEM claim - Start with "A system comprising: one or more processors; a non-transitory computer-readable storage medium storing instructions that, when executed..."
 
 USPTO FORMATTING REQUIREMENTS:
-- Each claim MUST be a single sentence
-- Use semicolons to separate claim elements
+- Each claim MUST be a single sentence (use semicolons to separate elements)
 - Use proper antecedent basis ("a/an" for first mention, "the/said" for subsequent)
-- Include the preamble, transitional phrase ("comprising"), and body
-- Method claims should use gerund form (-ing verbs) for steps
-- System claims should list components with their functions
-- Be specific about technical implementations while maintaining breadth
-- Cover the end-to-end workflow where applicable
+- Method claims should use gerund form (-ing verbs) with TECHNICAL specificity
+- System claims should list components with their CONCRETE functions
+- Include at least one mathematical formula or specific algorithm reference
+- Reference specific data structures by name (e.g., "hash table", "priority queue", "B-tree index")
 
 Format your response as a JSON array of claim strings:
 ["claim 1 text...", "claim 2 text..."]`,
@@ -66,19 +103,42 @@ INDEPENDENT CLAIMS:
 AVAILABLE FEATURES TO COVER:
 \${features}
 
+**ALICE-DEFENSE STRATEGY FOR DEPENDENT CLAIMS:**
+Each dependent claim should add TECHNICAL SPECIFICITY that anchors the invention to concrete implementation:
+
+1. **Data Structure Claims** - Specify exact structures:
+   - "wherein the cache comprises a least-recently-used (LRU) eviction policy"
+   - "wherein the database schema includes a foreign key relationship between..."
+   - "wherein the JSON schema defines required fields including..."
+
+2. **Algorithm Claims** - Include mathematical precision:
+   - "wherein calculating the decay multiplier comprises: multiplier = max(floor, rate^(n-1))"
+   - "wherein the retry logic implements exponential backoff with jitter"
+   - "wherein parsing comprises tokenizing using regular expression patterns"
+
+3. **Technical Integration Claims** - Specify protocols/APIs:
+   - "wherein transmitting comprises HTTP POST requests with OAuth 2.0 bearer tokens"
+   - "wherein the storage medium comprises a PostgreSQL database with row-level security"
+   - "wherein the rate limiting implements token bucket algorithm with configurable refill rate"
+
+4. **Performance Claims** - Include measurable improvements:
+   - "wherein the caching reduces API latency by at least 40%"
+   - "wherein the asset decay model reduces human editing time by 15-20% per iteration"
+
 Generate 15-18 dependent claims that:
 1. Reference parent claims properly using "The method of claim X, wherein..." or "The system of claim Y, further comprising..."
-2. Cover specific implementations of features
-3. Include algorithm details, data structures, and technical specifications
-4. Provide fallback positions if independent claims are challenged
+2. Cover specific implementations with CONCRETE technical details
+3. Include algorithm details, data structures, and protocol specifications
+4. Provide fallback positions if independent claims face Alice challenges
 5. Cover variations and alternative embodiments
 
 USPTO FORMATTING REQUIREMENTS:
 - Start each claim with "The [method/system] of claim [N]"
 - Use "wherein" to add limitations or "further comprising" to add elements
 - Maintain proper antecedent basis from parent claims
-- Each dependent claim should add meaningful limitations
+- Each dependent claim should add meaningful TECHNICAL limitations
 - Include specific technical details (formulas, data structures, protocols)
+- AVOID abstract language - be concrete and specific
 
 Distribute claims: approximately 60% depending on claim 1 (method), 40% on claim 2 (system).
 
@@ -657,6 +717,96 @@ EXAMPLE FORMAT:
 Generate ONLY the abstract text, no heading or additional commentary.`,
     variables: [
       { name: 'title', description: 'Patent application title', type: 'string', required: true },
+      { name: 'features', description: 'Key technical features', type: 'string', required: true },
+      { name: 'inventionDescription', description: 'Invention description', type: 'string', required: false }
+    ]
+  },
+
+  patent_alice_risk_assessment: {
+    key: 'patent_alice_risk_assessment',
+    name: 'Alice Test Risk Assessment',
+    description: 'Evaluates patent claims for Alice/Mayo subject matter eligibility risks',
+    content: `Perform an Alice/Mayo subject matter eligibility risk assessment for the following patent application.
+
+INVENTION TITLE: \${title}
+
+CLAIMS:
+\${claims}
+
+KEY FEATURES:
+\${features}
+
+INVENTION DESCRIPTION:
+\${inventionDescription}
+
+**ALICE/MAYO TWO-STEP ANALYSIS:**
+
+STEP 1: Is the claim directed to a judicial exception?
+- Abstract ideas (fundamental economic practices, mathematical concepts, mental processes, methods of organizing human activity)
+- Laws of nature
+- Natural phenomena
+
+STEP 2: If yes, does the claim recite additional elements that amount to "significantly more"?
+- Improvements to computer functionality
+- Specific technical implementations
+- Unconventional arrangements of known elements
+- Transformation of data into a different state
+
+**EVALUATE EACH CLAIM FOR:**
+
+1. **Abstract Idea Risk** (High/Medium/Low)
+   - Is it describing a business method?
+   - Is it a mathematical concept without technical application?
+   - Could it be performed mentally or with pen and paper?
+
+2. **Technical Anchoring Strength** (Strong/Moderate/Weak)
+   - Does it reference specific hardware components?
+   - Does it describe concrete data structures?
+   - Does it include specific algorithms with technical effect?
+
+3. **Improvement Evidence** (Present/Partial/Absent)
+   - Does it improve computer functionality itself?
+   - Does it solve a technical problem in a technical way?
+   - Does it describe unconventional technical steps?
+
+**RISK INDICATORS TO FLAG:**
+- Generic computer implementation language ("using a computer to...")
+- Abstract verbs without technical specificity ("managing", "organizing", "facilitating")
+- Missing hardware/data structure references
+- Business outcome focus vs technical outcome focus
+
+**PROVIDE:**
+1. Overall Alice Risk Score (0-100, where 0 = no risk, 100 = high rejection risk)
+2. Risk level for each independent claim
+3. Specific vulnerable phrases identified
+4. Recommended language improvements
+5. Technical anchoring suggestions
+
+Format response as JSON:
+{
+  "overallAliceRiskScore": 35,
+  "riskLevel": "Low",
+  "claimAnalysis": [
+    {
+      "claimNumber": 1,
+      "riskScore": 30,
+      "riskLevel": "Low",
+      "abstractIdeaRisk": "Low",
+      "technicalAnchoringStrength": "Strong",
+      "improvementEvidence": "Present",
+      "vulnerablePhrases": ["phrase 1"],
+      "strengths": ["strength 1"],
+      "recommendations": ["recommendation 1"]
+    }
+  ],
+  "overallStrengths": ["strength 1", "strength 2"],
+  "overallWeaknesses": ["weakness 1"],
+  "recommendedImprovements": ["improvement 1", "improvement 2"],
+  "summary": "Brief assessment summary"
+}`,
+    variables: [
+      { name: 'title', description: 'Patent application title', type: 'string', required: true },
+      { name: 'claims', description: 'Patent claims text', type: 'string', required: true },
       { name: 'features', description: 'Key technical features', type: 'string', required: true },
       { name: 'inventionDescription', description: 'Invention description', type: 'string', required: false }
     ]

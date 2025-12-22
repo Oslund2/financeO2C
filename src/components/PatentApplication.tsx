@@ -79,7 +79,9 @@ import {
 } from '../services/patentPriorArtSearchService';
 import {
   performNoveltyAnalysis,
-  getNoveltyAnalysis
+  getNoveltyAnalysis,
+  performAliceRiskAssessment,
+  type AliceRiskAssessment
 } from '../services/patentNoveltyAnalysisService';
 import {
   generateSelfPatentApplication,
@@ -114,6 +116,7 @@ export function PatentApplication() {
   const [selfPatentGenerating, setSelfPatentGenerating] = useState(false);
   const [selfPatentProgress, setSelfPatentProgress] = useState<SelfPatentProgress | null>(null);
   const [showSelfPatentModal, setShowSelfPatentModal] = useState(false);
+  const [exportOptions, setExportOptions] = useState({ includeExemplaryClaims: false });
 
   const convertSvgToPng = (svgContent: string, width: number = 800, height: number = 600): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -428,7 +431,8 @@ export function PatentApplication() {
         yPos = margin;
         pdf.setFont('times', 'bold');
         pdf.setFontSize(14);
-        pdf.text('CLAIMS', pageWidth / 2, yPos, { align: 'center' });
+        const claimsHeader = exportOptions.includeExemplaryClaims ? 'EXEMPLARY CLAIMS' : 'CLAIMS';
+        pdf.text(claimsHeader, pageWidth / 2, yPos, { align: 'center' });
         yPos += 30;
         pdf.setFont('times', 'normal');
         pdf.setFontSize(12);
@@ -716,6 +720,8 @@ export function PatentApplication() {
                     application={selectedApp}
                     onExportPDF={handleExportPDF}
                     exporting={exporting}
+                    exportOptions={exportOptions}
+                    onExportOptionsChange={setExportOptions}
                   />
                 )}
               </div>
@@ -1970,11 +1976,15 @@ function PriorArtTab({ application }: { application: PatentApplicationWithDetail
 function ExportTab({
   application,
   onExportPDF,
-  exporting
+  exporting,
+  exportOptions,
+  onExportOptionsChange
 }: {
   application: PatentApplicationWithDetails;
   onExportPDF: () => void;
   exporting: boolean;
+  exportOptions: { includeExemplaryClaims: boolean };
+  onExportOptionsChange: (options: { includeExemplaryClaims: boolean }) => void;
 }) {
   const [showPrintPreview, setShowPrintPreview] = useState(false);
 
@@ -2070,6 +2080,22 @@ function ExportTab({
         </button>
       </div>
 
+      <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+        <h3 className="font-medium text-gray-900 mb-3">Export Options</h3>
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={exportOptions.includeExemplaryClaims}
+            onChange={(e) => onExportOptionsChange({ ...exportOptions, includeExemplaryClaims: e.target.checked })}
+            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+          />
+          <div>
+            <span className="text-sm font-medium text-gray-700">Include "Exemplary Claims" Header</span>
+            <p className="text-xs text-gray-500">Adds "EXEMPLARY CLAIMS" header before the claims section (internal review only, not for filing)</p>
+          </div>
+        </label>
+      </div>
+
       <div className="bg-gray-50 rounded-lg p-4">
         <h3 className="font-medium text-gray-900 mb-2">Elements Included in Print/Export</h3>
         <ul className="space-y-1 text-sm text-gray-600">
@@ -2111,7 +2137,7 @@ function ExportTab({
             ) : (
               <AlertCircle className="w-4 h-4 text-yellow-500" />
             )}
-            Claims ({application.claims.length} total)
+            Claims ({application.claims.length} total){exportOptions.includeExemplaryClaims && <span className="text-blue-600 ml-1">(Exemplary)</span>}
           </li>
           <li className="flex items-center gap-2">
             {application.drawings.length > 0 ? (
@@ -2148,7 +2174,9 @@ function ExportTab({
 
         {sortedClaims.length > 0 && (
           <div className="mb-8">
-            <h2 className="text-xl font-bold mb-4 border-b-2 border-black pb-2">CLAIMS</h2>
+            <h2 className="text-xl font-bold mb-4 border-b-2 border-black pb-2">
+              {exportOptions.includeExemplaryClaims ? 'EXEMPLARY CLAIMS' : 'CLAIMS'}
+            </h2>
             <div className="space-y-4">
               {sortedClaims.map(claim => (
                 <p key={claim.id} className="text-justify">
@@ -2439,8 +2467,11 @@ function AIGenerationProgressModal({
 }
 
 function AnalysisTab({ application }: { application: PatentApplicationWithDetails }) {
+  const { currentOrganization } = useOrganization();
   const [noveltyAnalysis, setNoveltyAnalysis] = useState<any>(null);
+  const [aliceAssessment, setAliceAssessment] = useState<AliceRiskAssessment | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingAlice, setLoadingAlice] = useState(false);
 
   useEffect(() => {
     loadNoveltyAnalysis();
@@ -2456,6 +2487,31 @@ function AnalysisTab({ application }: { application: PatentApplicationWithDetail
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRunAliceAssessment = async () => {
+    if (!currentOrganization) return;
+    setLoadingAlice(true);
+    try {
+      const assessment = await performAliceRiskAssessment(application.id, currentOrganization.id);
+      setAliceAssessment(assessment);
+    } catch (err) {
+      console.error('Failed to perform Alice assessment:', err);
+    } finally {
+      setLoadingAlice(false);
+    }
+  };
+
+  const getAliceRiskColor = (score: number) => {
+    if (score <= 35) return 'text-green-600 bg-green-50 border-green-200';
+    if (score <= 65) return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+    return 'text-red-600 bg-red-50 border-red-200';
+  };
+
+  const getAliceRiskGradient = (score: number) => {
+    if (score <= 35) return 'from-green-500 to-emerald-500';
+    if (score <= 65) return 'from-yellow-500 to-orange-500';
+    return 'from-red-500 to-rose-500';
   };
 
   const getScoreColor = (score: number) => {
@@ -2642,6 +2698,179 @@ function AnalysisTab({ application }: { application: PatentApplicationWithDetail
           </ul>
         </div>
       )}
+
+      <div className="border-t border-gray-200 pt-6 mt-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <Shield className="w-5 h-5 text-amber-600" />
+              Alice Test Risk Assessment
+            </h3>
+            <p className="text-sm text-gray-500 mt-1">
+              Evaluate claims for 35 U.S.C. 101 subject matter eligibility (internal analysis only)
+            </p>
+          </div>
+          <button
+            onClick={handleRunAliceAssessment}
+            disabled={loadingAlice || application.claims.length === 0}
+            className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {loadingAlice ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Analyzing...
+              </>
+            ) : (
+              <>
+                <Search className="w-4 h-4" />
+                Run Alice Assessment
+              </>
+            )}
+          </button>
+        </div>
+
+        {application.claims.length === 0 && (
+          <div className="bg-gray-50 rounded-lg p-4 text-center">
+            <AlertCircle className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+            <p className="text-sm text-gray-600">Generate claims first to run Alice risk assessment</p>
+          </div>
+        )}
+
+        {aliceAssessment && (
+          <div className="space-y-4">
+            <div className={`rounded-xl p-6 border ${getAliceRiskColor(aliceAssessment.overallAliceRiskScore)}`}>
+              <div className="flex items-center gap-4">
+                <div className={`w-16 h-16 rounded-full bg-gradient-to-br ${getAliceRiskGradient(aliceAssessment.overallAliceRiskScore)} flex items-center justify-center shadow-lg`}>
+                  <span className="text-2xl font-bold text-white">{aliceAssessment.overallAliceRiskScore}</span>
+                </div>
+                <div className="flex-1">
+                  <p className="text-lg font-semibold">
+                    Alice Risk: {aliceAssessment.riskLevel}
+                  </p>
+                  <p className="text-sm opacity-80">
+                    {aliceAssessment.riskLevel === 'Low' && 'Claims appear to have strong technical anchoring'}
+                    {aliceAssessment.riskLevel === 'Medium' && 'Claims may benefit from additional technical specificity'}
+                    {aliceAssessment.riskLevel === 'High' && 'Claims may face 101 rejection - consider strengthening technical language'}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 w-full bg-white/50 rounded-full h-2">
+                <div
+                  className={`h-2 rounded-full bg-gradient-to-r ${getAliceRiskGradient(aliceAssessment.overallAliceRiskScore)}`}
+                  style={{ width: `${aliceAssessment.overallAliceRiskScore}%` }}
+                />
+              </div>
+              <p className="text-xs mt-2 opacity-70">0 = No Risk | 100 = High Rejection Risk</p>
+            </div>
+
+            {aliceAssessment.summary && (
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <h4 className="font-medium text-gray-900 mb-2">Assessment Summary</h4>
+                <p className="text-sm text-gray-700">{aliceAssessment.summary}</p>
+              </div>
+            )}
+
+            {aliceAssessment.claimAnalysis && aliceAssessment.claimAnalysis.length > 0 && (
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <h4 className="font-medium text-gray-900 mb-3">Claim-by-Claim Analysis</h4>
+                <div className="space-y-3">
+                  {aliceAssessment.claimAnalysis.map((claim, index) => (
+                    <div key={index} className="border border-gray-100 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium text-gray-900">Claim {claim.claimNumber}</span>
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                          claim.riskLevel === 'Low' ? 'bg-green-100 text-green-700' :
+                          claim.riskLevel === 'Medium' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-red-100 text-red-700'
+                        }`}>
+                          Risk: {claim.riskScore}/100
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-xs mb-2">
+                        <div className="bg-gray-50 rounded p-2">
+                          <span className="text-gray-500 block">Abstract Risk</span>
+                          <span className="font-medium">{claim.abstractIdeaRisk}</span>
+                        </div>
+                        <div className="bg-gray-50 rounded p-2">
+                          <span className="text-gray-500 block">Tech Anchoring</span>
+                          <span className="font-medium">{claim.technicalAnchoringStrength}</span>
+                        </div>
+                        <div className="bg-gray-50 rounded p-2">
+                          <span className="text-gray-500 block">Improvement</span>
+                          <span className="font-medium">{claim.improvementEvidence}</span>
+                        </div>
+                      </div>
+                      {claim.vulnerablePhrases && claim.vulnerablePhrases.length > 0 && (
+                        <div className="mt-2">
+                          <span className="text-xs text-red-600 font-medium">Vulnerable phrases: </span>
+                          <span className="text-xs text-gray-600">{claim.vulnerablePhrases.join(', ')}</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {aliceAssessment.overallStrengths && aliceAssessment.overallStrengths.length > 0 && (
+                <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                  <h4 className="font-medium text-green-900 mb-2 flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4" />
+                    Technical Strengths
+                  </h4>
+                  <ul className="space-y-1">
+                    {aliceAssessment.overallStrengths.map((s, i) => (
+                      <li key={i} className="text-sm text-green-800 flex items-start gap-1">
+                        <span className="text-green-500 mt-0.5">+</span>
+                        {s}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {aliceAssessment.overallWeaknesses && aliceAssessment.overallWeaknesses.length > 0 && (
+                <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+                  <h4 className="font-medium text-red-900 mb-2 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4" />
+                    Risk Factors
+                  </h4>
+                  <ul className="space-y-1">
+                    {aliceAssessment.overallWeaknesses.map((w, i) => (
+                      <li key={i} className="text-sm text-red-800 flex items-start gap-1">
+                        <span className="text-red-500 mt-0.5">!</span>
+                        {w}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            {aliceAssessment.recommendedImprovements && aliceAssessment.recommendedImprovements.length > 0 && (
+              <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
+                <h4 className="font-medium text-amber-900 mb-2 flex items-center gap-2">
+                  <Lightbulb className="w-4 h-4" />
+                  Recommended Claim Improvements
+                </h4>
+                <ul className="space-y-1">
+                  {aliceAssessment.recommendedImprovements.map((rec, i) => (
+                    <li key={i} className="text-sm text-amber-800 flex items-start gap-1">
+                      <span className="text-amber-600 mt-0.5">→</span>
+                      {rec}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="bg-gray-100 rounded-lg p-3 text-xs text-gray-500">
+              <strong>Note:</strong> This Alice risk assessment is for internal review purposes only and will NOT appear in any filed patent documents. Use this analysis to strengthen your claims before filing.
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

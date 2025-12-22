@@ -3,6 +3,7 @@ import { generateText } from './geminiService';
 import { extractCodebaseFeatures, createFeatureAnalysis, createFeatureMappings } from './patentFeatureExtractionService';
 import { getPriorArtResults } from './patentPriorArtSearchService';
 import { getPatentNoveltyAnalysisPrompt } from './promptResolver';
+import { PATENT_PROMPT_TEMPLATES } from './patentPromptDefaults';
 
 export interface NoveltyAnalysis {
   analysisId: string;
@@ -13,6 +14,26 @@ export interface NoveltyAnalysis {
   recommendations: string[];
   featureNoveltyScores: Record<string, number>;
   patentabilityAssessment: string;
+}
+
+export interface AliceRiskAssessment {
+  overallAliceRiskScore: number;
+  riskLevel: 'Low' | 'Medium' | 'High';
+  claimAnalysis: Array<{
+    claimNumber: number;
+    riskScore: number;
+    riskLevel: string;
+    abstractIdeaRisk: string;
+    technicalAnchoringStrength: string;
+    improvementEvidence: string;
+    vulnerablePhrases: string[];
+    strengths: string[];
+    recommendations: string[];
+  }>;
+  overallStrengths: string[];
+  overallWeaknesses: string[];
+  recommendedImprovements: string[];
+  summary: string;
 }
 
 export async function performNoveltyAnalysis(
@@ -267,4 +288,98 @@ function calculateIndividualFeatureScore(noveltyStrength: string): number {
     'weak': 40
   };
   return scoreMap[noveltyStrength] || 50;
+}
+
+export async function performAliceRiskAssessment(
+  patentApplicationId: string,
+  organizationId: string
+): Promise<AliceRiskAssessment> {
+  const { data: app } = await supabase
+    .from('patent_applications')
+    .select('title, summary_invention, invention_description')
+    .eq('id', patentApplicationId)
+    .maybeSingle();
+
+  const { data: claims } = await supabase
+    .from('patent_claims')
+    .select('claim_number, claim_text, claim_type')
+    .eq('patent_application_id', patentApplicationId)
+    .order('claim_number');
+
+  const { data: features } = await supabase
+    .from('patent_feature_mappings')
+    .select('feature_name, technical_description, novelty_strength')
+    .eq('patent_application_id', patentApplicationId);
+
+  if (!claims || claims.length === 0) {
+    return getDefaultAliceAssessment('No claims found to analyze');
+  }
+
+  const claimsText = claims
+    .map(c => `Claim ${c.claim_number} (${c.claim_type}): ${c.claim_text}`)
+    .join('\n\n');
+
+  const featuresText = (features || [])
+    .map(f => `- ${f.feature_name}: ${f.technical_description} (${f.novelty_strength})`)
+    .join('\n');
+
+  const promptTemplate = PATENT_PROMPT_TEMPLATES.patent_alice_risk_assessment;
+  if (!promptTemplate) {
+    return getDefaultAliceAssessment('Alice risk assessment prompt not found');
+  }
+
+  const prompt = promptTemplate.content
+    .replace('${title}', app?.title || 'Unknown')
+    .replace('${claims}', claimsText)
+    .replace('${features}', featuresText || 'No features extracted')
+    .replace('${inventionDescription}', app?.invention_description || app?.summary_invention || '');
+
+  try {
+    const response = await generateText(prompt, 'patent_alice_risk_assessment');
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return {
+        overallAliceRiskScore: parsed.overallAliceRiskScore || 50,
+        riskLevel: getRiskLevel(parsed.overallAliceRiskScore || 50),
+        claimAnalysis: parsed.claimAnalysis || [],
+        overallStrengths: parsed.overallStrengths || [],
+        overallWeaknesses: parsed.overallWeaknesses || [],
+        recommendedImprovements: parsed.recommendedImprovements || [],
+        summary: parsed.summary || ''
+      };
+    }
+  } catch (error) {
+    console.error('Alice risk assessment failed:', error);
+  }
+
+  return getDefaultAliceAssessment('Analysis could not be completed');
+}
+
+function getRiskLevel(score: number): 'Low' | 'Medium' | 'High' {
+  if (score <= 35) return 'Low';
+  if (score <= 65) return 'Medium';
+  return 'High';
+}
+
+function getDefaultAliceAssessment(reason: string): AliceRiskAssessment {
+  return {
+    overallAliceRiskScore: 50,
+    riskLevel: 'Medium',
+    claimAnalysis: [],
+    overallStrengths: [
+      'Technical implementation details present',
+      'Specific data structures referenced'
+    ],
+    overallWeaknesses: [
+      reason,
+      'Manual review recommended'
+    ],
+    recommendedImprovements: [
+      'Ensure claims reference specific hardware components',
+      'Include mathematical formulas or algorithms',
+      'Avoid abstract business method language'
+    ],
+    summary: `Alice risk assessment requires manual review. ${reason}`
+  };
 }
