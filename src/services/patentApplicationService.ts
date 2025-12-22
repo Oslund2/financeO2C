@@ -284,6 +284,8 @@ export async function getPatentApplication(applicationId: string): Promise<Paten
 
   return {
     ...application,
+    inventors: application.inventors || [],
+    correspondence_address: application.correspondence_address || null,
     claims: claims || [],
     drawings: drawings || [],
     priorArt: priorArt || []
