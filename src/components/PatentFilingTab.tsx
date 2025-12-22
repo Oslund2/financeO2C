@@ -58,6 +58,7 @@ import {
   createDefaultCorrespondenceAddress,
   type CoverSheetData
 } from '../services/coverSheetService';
+import { downloadSB16Form } from '../services/usptoFormGeneratorService';
 
 interface PatentFilingTabProps {
   application: PatentApplicationWithDetails;
@@ -421,7 +422,7 @@ export function PatentFilingTab({ application, onUpdate }: PatentFilingTabProps)
       )}
 
       {activeSection === 'instructions' && (
-        <FilingInstructions filingType={application.filing_type} />
+        <FilingInstructions filingType={application.filing_type} application={application} />
       )}
     </div>
   );
@@ -1282,21 +1283,57 @@ function FeesSection({
   );
 }
 
-function FilingInstructions({ filingType }: { filingType: string }) {
+function FilingInstructions({ filingType, application }: { filingType: string; application: PatentApplicationWithDetails }) {
   const isProvisional = filingType === 'provisional';
+
+  const handleDownloadSB16 = () => {
+    try {
+      downloadSB16Form(application);
+    } catch (error) {
+      console.error('Error downloading SB/16 form:', error);
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
-        <h3 className="font-semibold text-lg text-gray-900 mb-2">
-          {isProvisional ? 'Provisional Patent Application' : 'Non-Provisional Patent Application'} Filing Guide
-        </h3>
-        <p className="text-gray-600">
-          {isProvisional
-            ? 'A provisional application establishes your filing date and gives you 12 months to file a complete non-provisional application.'
-            : 'A non-provisional application is examined by the USPTO and can result in an issued patent.'}
-        </p>
+      <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-6 border border-blue-200">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h3 className="font-semibold text-lg text-gray-900 mb-2">
+              {isProvisional ? 'Provisional Patent Application' : 'Non-Provisional Patent Application'} Filing Guide
+            </h3>
+            <p className="text-gray-600">
+              {isProvisional
+                ? 'A provisional application establishes your filing date and gives you 12 months to file a complete non-provisional application.'
+                : 'A non-provisional application is examined by the USPTO and can result in an issued patent.'}
+            </p>
+          </div>
+          {isProvisional && (
+            <button
+              onClick={handleDownloadSB16}
+              className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+            >
+              <Download className="w-4 h-4" />
+              <span className="whitespace-nowrap">Download SB/16 Form</span>
+            </button>
+          )}
+        </div>
       </div>
+
+      {isProvisional && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <FileText className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium text-green-800">Pre-filled USPTO Form SB/16 Available</p>
+              <p className="text-sm text-green-700 mt-1">
+                Click the "Download SB/16 Form" button above to get a pre-filled Provisional Application Cover Sheet
+                with your inventor information, correspondence address, entity status, and other details automatically populated.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-lg border border-gray-200 p-6">
         <h4 className="font-semibold text-gray-900 mb-4">Step-by-Step Filing Instructions</h4>
