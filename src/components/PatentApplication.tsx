@@ -110,6 +110,7 @@ export function PatentApplication() {
   const [tempAbstract, setTempAbstract] = useState('');
   const [generating, setGenerating] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportingSection, setExportingSection] = useState<string | null>(null);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiProgress, setAiProgress] = useState<PatentGenerationProgress | null>(null);
   const [showAiModal, setShowAiModal] = useState(false);
@@ -494,6 +495,370 @@ export function PatentApplication() {
     }
   };
 
+  const handleExportSectionPDF = async (section: string) => {
+    if (!selectedApp) return;
+
+    setExportingSection(section);
+    try {
+      const pdf = new jsPDF('p', 'pt', 'letter');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 72;
+      const maxWidth = pageWidth - margin * 2;
+      let yPos = margin;
+
+      const addHeader = () => {
+        pdf.setFont('times', 'bold');
+        pdf.setFontSize(11);
+        pdf.setTextColor(100, 100, 100);
+        const titleLines = pdf.splitTextToSize(selectedApp.title.toUpperCase(), maxWidth);
+        titleLines.forEach((line: string) => {
+          pdf.text(line, pageWidth / 2, yPos, { align: 'center' });
+          yPos += 14;
+        });
+        yPos += 8;
+        pdf.setTextColor(0, 0, 0);
+      };
+
+      const addSectionTitle = (title: string) => {
+        pdf.setFont('times', 'bold');
+        pdf.setFontSize(14);
+        pdf.text(title, pageWidth / 2, yPos, { align: 'center' });
+        yPos += 30;
+        pdf.setFont('times', 'normal');
+        pdf.setFontSize(12);
+      };
+
+      const checkPageBreak = (neededSpace: number = 50) => {
+        if (yPos > pageHeight - margin - neededSpace) {
+          pdf.addPage();
+          yPos = margin;
+          return true;
+        }
+        return false;
+      };
+
+      addHeader();
+
+      switch (section) {
+        case 'overview': {
+          addSectionTitle('OVERVIEW');
+
+          const fields = [
+            { label: 'Inventor', value: selectedApp.inventor_name || 'Not specified' },
+            { label: 'Citizenship', value: selectedApp.inventor_citizenship },
+            { label: 'Filing Type', value: selectedApp.filing_type === 'provisional' ? 'Provisional Patent Application' : 'Non-Provisional Patent Application' },
+            { label: 'Status', value: getStatusLabel(selectedApp.status) },
+            { label: 'Application Number', value: selectedApp.application_number || 'Not assigned' },
+            { label: 'Technical Field', value: selectedApp.technical_field || 'Not specified' },
+            { label: 'Created', value: new Date(selectedApp.created_at).toLocaleDateString() }
+          ];
+
+          fields.forEach(({ label, value }) => {
+            checkPageBreak();
+            pdf.setFont('times', 'bold');
+            pdf.text(`${label}:`, margin, yPos);
+            pdf.setFont('times', 'normal');
+            const valueLines = pdf.splitTextToSize(value, maxWidth - 120);
+            pdf.text(valueLines, margin + 120, yPos);
+            yPos += valueLines.length * 14 + 8;
+          });
+
+          if (selectedApp.summary_invention) {
+            yPos += 10;
+            checkPageBreak(100);
+            pdf.setFont('times', 'bold');
+            pdf.text('Summary of Invention:', margin, yPos);
+            yPos += 18;
+            pdf.setFont('times', 'normal');
+            const summaryLines = pdf.splitTextToSize(selectedApp.summary_invention, maxWidth);
+            summaryLines.forEach((line: string) => {
+              checkPageBreak();
+              pdf.text(line, margin, yPos);
+              yPos += 14;
+            });
+          }
+
+          if (selectedApp.problem_solved) {
+            yPos += 10;
+            checkPageBreak(100);
+            pdf.setFont('times', 'bold');
+            pdf.text('Problem Solved:', margin, yPos);
+            yPos += 18;
+            pdf.setFont('times', 'normal');
+            const problemLines = pdf.splitTextToSize(selectedApp.problem_solved, maxWidth);
+            problemLines.forEach((line: string) => {
+              checkPageBreak();
+              pdf.text(line, margin, yPos);
+              yPos += 14;
+            });
+          }
+          break;
+        }
+
+        case 'specification': {
+          addSectionTitle('SPECIFICATION');
+
+          if (!selectedApp.specification) {
+            pdf.text('No specification content available.', margin, yPos);
+            break;
+          }
+
+          const specLines = selectedApp.specification.split('\n');
+          for (const line of specLines) {
+            checkPageBreak();
+            if (line.match(/^[A-Z\s]+$/) && line.trim().length > 0) {
+              pdf.setFont('times', 'bold');
+              yPos += 10;
+              pdf.text(line, margin, yPos);
+              pdf.setFont('times', 'normal');
+              yPos += 18;
+            } else {
+              const wrapped = pdf.splitTextToSize(line, maxWidth);
+              wrapped.forEach((wLine: string) => {
+                checkPageBreak();
+                pdf.text(wLine, margin, yPos);
+                yPos += 14;
+              });
+            }
+          }
+          break;
+        }
+
+        case 'claims': {
+          const claimsHeader = exportOptions.includeExemplaryClaims ? 'EXEMPLARY CLAIMS' : 'CLAIMS';
+          addSectionTitle(claimsHeader);
+
+          if (selectedApp.claims.length === 0) {
+            pdf.text('No claims available.', margin, yPos);
+            break;
+          }
+
+          const sortedClaims = [...selectedApp.claims].sort((a, b) => a.claim_number - b.claim_number);
+          for (const claim of sortedClaims) {
+            checkPageBreak(60);
+            const claimText = `${claim.claim_number}. ${claim.claim_text}`;
+            const wrapped = pdf.splitTextToSize(claimText, maxWidth);
+            wrapped.forEach((line: string) => {
+              checkPageBreak();
+              pdf.text(line, margin, yPos);
+              yPos += 14;
+            });
+            yPos += 10;
+          }
+          break;
+        }
+
+        case 'drawings': {
+          addSectionTitle('DRAWINGS');
+
+          if (selectedApp.drawings.length === 0) {
+            pdf.text('No drawings available.', margin, yPos);
+            break;
+          }
+
+          const sortedDrawings = [...selectedApp.drawings].sort((a, b) => a.figure_number - b.figure_number);
+          for (let i = 0; i < sortedDrawings.length; i++) {
+            const drawing = sortedDrawings[i];
+            if (i > 0) {
+              pdf.addPage();
+              yPos = margin;
+            }
+
+            pdf.setFont('times', 'bold');
+            pdf.setFontSize(12);
+            const figTitle = `FIG. ${drawing.figure_number} - ${drawing.title}`;
+            pdf.text(figTitle, pageWidth / 2, yPos, { align: 'center' });
+            yPos += 30;
+
+            if (drawing.svg_content) {
+              try {
+                const pngDataUrl = await convertSvgToPng(drawing.svg_content, 800, 600);
+                const imgMaxWidth = maxWidth;
+                const imgMaxHeight = pageHeight - margin * 2 - 150;
+                const aspectRatio = 800 / 600;
+                let imgWidth = imgMaxWidth;
+                let imgHeight = imgWidth / aspectRatio;
+                if (imgHeight > imgMaxHeight) {
+                  imgHeight = imgMaxHeight;
+                  imgWidth = imgHeight * aspectRatio;
+                }
+                const imgX = (pageWidth - imgWidth) / 2;
+                pdf.addImage(pngDataUrl, 'PNG', imgX, yPos, imgWidth, imgHeight);
+                yPos += imgHeight + 20;
+              } catch {
+                pdf.setFont('times', 'italic');
+                pdf.text('(Drawing could not be rendered)', margin, yPos);
+                yPos += 20;
+              }
+            }
+
+            if (drawing.description) {
+              pdf.setFont('times', 'normal');
+              pdf.setFontSize(10);
+              const descLines = pdf.splitTextToSize(drawing.description, maxWidth);
+              descLines.forEach((line: string) => {
+                if (yPos < pageHeight - margin) {
+                  pdf.text(line, margin, yPos);
+                  yPos += 12;
+                }
+              });
+            }
+          }
+          break;
+        }
+
+        case 'abstract': {
+          addSectionTitle('ABSTRACT');
+
+          if (!selectedApp.abstract) {
+            pdf.text('No abstract available.', margin, yPos);
+            break;
+          }
+
+          const abstractLines = pdf.splitTextToSize(selectedApp.abstract, maxWidth);
+          abstractLines.forEach((line: string) => {
+            checkPageBreak();
+            pdf.text(line, margin, yPos);
+            yPos += 14;
+          });
+
+          yPos += 20;
+          pdf.setFont('times', 'italic');
+          pdf.setFontSize(10);
+          pdf.text(`Word count: ${countWords(selectedApp.abstract)}`, margin, yPos);
+          break;
+        }
+
+        case 'prior-art': {
+          addSectionTitle('PRIOR ART ANALYSIS');
+
+          const priorArt = await getPriorArtResults(selectedApp.id);
+          if (!priorArt || priorArt.length === 0) {
+            pdf.text('No prior art search results available.', margin, yPos);
+            break;
+          }
+
+          for (const result of priorArt) {
+            checkPageBreak(80);
+            pdf.setFont('times', 'bold');
+            const titleLines = pdf.splitTextToSize(result.title, maxWidth);
+            titleLines.forEach((line: string) => {
+              pdf.text(line, margin, yPos);
+              yPos += 14;
+            });
+
+            pdf.setFont('times', 'normal');
+            pdf.setFontSize(10);
+            if (result.patent_number) {
+              pdf.text(`Patent: ${result.patent_number}`, margin, yPos);
+              yPos += 12;
+            }
+            if (result.publication_date) {
+              pdf.text(`Published: ${result.publication_date}`, margin, yPos);
+              yPos += 12;
+            }
+            pdf.text(`Relevance: ${Math.round(result.relevance_score * 100)}%`, margin, yPos);
+            yPos += 14;
+
+            pdf.setFontSize(12);
+            if (result.abstract) {
+              const abstractLines = pdf.splitTextToSize(result.abstract, maxWidth);
+              abstractLines.slice(0, 5).forEach((line: string) => {
+                checkPageBreak();
+                pdf.text(line, margin, yPos);
+                yPos += 14;
+              });
+            }
+            yPos += 15;
+          }
+          break;
+        }
+
+        case 'analysis': {
+          addSectionTitle('AI ANALYSIS');
+
+          const noveltyAnalysis = await getNoveltyAnalysis(selectedApp.id);
+          if (!noveltyAnalysis) {
+            pdf.text('No AI analysis available. Run analysis from the AI Analysis tab.', margin, yPos);
+            break;
+          }
+
+          pdf.setFont('times', 'bold');
+          pdf.text('Novelty Assessment', margin, yPos);
+          yPos += 20;
+          pdf.setFont('times', 'normal');
+
+          pdf.text(`Overall Score: ${Math.round(noveltyAnalysis.overall_novelty_score * 100)}%`, margin, yPos);
+          yPos += 18;
+          pdf.text(`Patentability Likelihood: ${noveltyAnalysis.patentability_likelihood}`, margin, yPos);
+          yPos += 25;
+
+          if (noveltyAnalysis.key_differentiators && noveltyAnalysis.key_differentiators.length > 0) {
+            checkPageBreak(60);
+            pdf.setFont('times', 'bold');
+            pdf.text('Key Differentiators:', margin, yPos);
+            yPos += 18;
+            pdf.setFont('times', 'normal');
+            noveltyAnalysis.key_differentiators.forEach((diff: string, idx: number) => {
+              checkPageBreak();
+              const diffLines = pdf.splitTextToSize(`${idx + 1}. ${diff}`, maxWidth - 20);
+              diffLines.forEach((line: string) => {
+                pdf.text(line, margin + 10, yPos);
+                yPos += 14;
+              });
+            });
+            yPos += 10;
+          }
+
+          if (noveltyAnalysis.potential_objections && noveltyAnalysis.potential_objections.length > 0) {
+            checkPageBreak(60);
+            pdf.setFont('times', 'bold');
+            pdf.text('Potential Objections:', margin, yPos);
+            yPos += 18;
+            pdf.setFont('times', 'normal');
+            noveltyAnalysis.potential_objections.forEach((obj: string, idx: number) => {
+              checkPageBreak();
+              const objLines = pdf.splitTextToSize(`${idx + 1}. ${obj}`, maxWidth - 20);
+              objLines.forEach((line: string) => {
+                pdf.text(line, margin + 10, yPos);
+                yPos += 14;
+              });
+            });
+            yPos += 10;
+          }
+
+          if (noveltyAnalysis.recommended_claim_improvements && noveltyAnalysis.recommended_claim_improvements.length > 0) {
+            checkPageBreak(60);
+            pdf.setFont('times', 'bold');
+            pdf.text('Recommended Improvements:', margin, yPos);
+            yPos += 18;
+            pdf.setFont('times', 'normal');
+            noveltyAnalysis.recommended_claim_improvements.forEach((rec: string, idx: number) => {
+              checkPageBreak();
+              const recLines = pdf.splitTextToSize(`${idx + 1}. ${rec}`, maxWidth - 20);
+              recLines.forEach((line: string) => {
+                pdf.text(line, margin + 10, yPos);
+                yPos += 14;
+              });
+            });
+          }
+          break;
+        }
+
+        default:
+          pdf.text('Unknown section.', margin, yPos);
+      }
+
+      const sectionName = section.replace(/-/g, '_').replace(/\s+/g, '_');
+      pdf.save(`${selectedApp.title.replace(/\s+/g, '_')}_${sectionName}.pdf`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Failed to export ${section} PDF`);
+    } finally {
+      setExportingSection(null);
+    }
+  };
+
   const tabs: { id: TabId; label: string; icon: React.ElementType }[] = [
     { id: 'overview', label: 'Overview', icon: Shield },
     { id: 'specification', label: 'Specification', icon: FileText },
@@ -723,7 +1088,9 @@ export function PatentApplication() {
                   <ExportTab
                     application={selectedApp}
                     onExportPDF={handleExportPDF}
+                    onExportSectionPDF={handleExportSectionPDF}
                     exporting={exporting}
+                    exportingSection={exportingSection}
                     exportOptions={exportOptions}
                     onExportOptionsChange={setExportOptions}
                   />
@@ -1980,17 +2347,31 @@ function PriorArtTab({ application }: { application: PatentApplicationWithDetail
 function ExportTab({
   application,
   onExportPDF,
+  onExportSectionPDF,
   exporting,
+  exportingSection,
   exportOptions,
   onExportOptionsChange
 }: {
   application: PatentApplicationWithDetails;
   onExportPDF: () => void;
+  onExportSectionPDF: (section: string) => void;
   exporting: boolean;
+  exportingSection: string | null;
   exportOptions: { includeExemplaryClaims: boolean };
   onExportOptionsChange: (options: { includeExemplaryClaims: boolean }) => void;
 }) {
   const [showPrintPreview, setShowPrintPreview] = useState(false);
+
+  const sectionExports = [
+    { id: 'overview', label: 'Overview', icon: Shield, description: 'Application details & inventor info', hasContent: true },
+    { id: 'specification', label: 'Specification', icon: FileText, description: 'Technical description', hasContent: !!application.specification },
+    { id: 'claims', label: 'Claims', icon: List, description: `${application.claims.length} claims`, hasContent: application.claims.length > 0 },
+    { id: 'drawings', label: 'Drawings', icon: Image, description: `${application.drawings.length} figures`, hasContent: application.drawings.length > 0 },
+    { id: 'abstract', label: 'Abstract', icon: BookOpen, description: 'Invention summary', hasContent: !!application.abstract },
+    { id: 'prior-art', label: 'Prior Art', icon: Scroll, description: 'Related patents & research', hasContent: true },
+    { id: 'analysis', label: 'AI Analysis', icon: BarChart3, description: 'Patentability assessment', hasContent: true }
+  ];
 
   const handleCopyText = () => {
     let text = `${application.title}\n\n`;
@@ -2098,6 +2479,42 @@ function ExportTab({
             <p className="text-xs text-gray-500">Adds "EXEMPLARY CLAIMS" header before the claims section (internal review only, not for filing)</p>
           </div>
         </label>
+      </div>
+
+      <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+        <h3 className="font-medium text-gray-900 mb-3">Export Individual Sections</h3>
+        <p className="text-sm text-gray-500 mb-4">Download each section as a separate PDF document</p>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {sectionExports.map(({ id, label, icon: Icon, description, hasContent }) => {
+            const isExporting = exportingSection === id;
+            return (
+              <button
+                key={id}
+                onClick={() => onExportSectionPDF(id)}
+                disabled={isExporting || !!exportingSection}
+                className={`flex flex-col items-center gap-2 p-4 border rounded-lg transition-all ${
+                  isExporting
+                    ? 'border-blue-400 bg-blue-50'
+                    : hasContent
+                    ? 'border-gray-200 hover:border-blue-400 hover:bg-blue-50'
+                    : 'border-gray-100 bg-gray-50 opacity-60'
+                } ${exportingSection && !isExporting ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {isExporting ? (
+                  <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
+                ) : (
+                  <Icon className={`w-6 h-6 ${hasContent ? 'text-blue-600' : 'text-gray-400'}`} />
+                )}
+                <div className="text-center">
+                  <p className={`text-sm font-medium ${hasContent ? 'text-gray-900' : 'text-gray-500'}`}>
+                    {label}
+                  </p>
+                  <p className="text-xs text-gray-500">{isExporting ? 'Generating...' : description}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="bg-gray-50 rounded-lg p-4">
