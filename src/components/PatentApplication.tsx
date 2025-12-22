@@ -88,7 +88,15 @@ import {
   checkExistingSelfPatent,
   type SelfPatentProgress
 } from '../services/selfPatentGenerationService';
-import jsPDF from 'jspdf';
+import {
+  createUsptoCompliantPdf,
+  setPatentFont,
+  addPdfAMetadata,
+  PDF_MARGINS,
+  getMaxTextWidth,
+  getPageHeight,
+  checkPageBreak as checkPdfPageBreak
+} from '../services/patentPdfFontService';
 import { PatentFilingTab } from './PatentFilingTab';
 
 type TabId = 'overview' | 'specification' | 'claims' | 'drawings' | 'abstract' | 'prior-art' | 'analysis' | 'filing' | 'export';
@@ -370,14 +378,14 @@ export function PatentApplication() {
         }
       }
 
-      const pdf = new jsPDF('p', 'pt', 'letter');
+      const pdf = createUsptoCompliantPdf();
       const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const margin = 72;
-      const maxWidth = pageWidth - margin * 2;
+      const pageHeight = getPageHeight(pdf);
+      const margin = PDF_MARGINS.top;
+      const maxWidth = getMaxTextWidth(pdf);
       let yPos = margin;
 
-      pdf.setFont('times', 'bold');
+      setPatentFont(pdf, 'bold');
       pdf.setFontSize(14);
       const titleLines = pdf.splitTextToSize(selectedApp.title.toUpperCase(), maxWidth);
       titleLines.forEach((line: string) => {
@@ -386,7 +394,7 @@ export function PatentApplication() {
       });
       yPos += 12;
 
-      pdf.setFont('times', 'normal');
+      setPatentFont(pdf, 'normal');
       pdf.setFontSize(12);
 
       if (selectedApp.inventor_name) {
@@ -397,10 +405,10 @@ export function PatentApplication() {
       yPos += 30;
 
       if (selectedApp.abstract) {
-        pdf.setFont('times', 'bold');
+        setPatentFont(pdf, 'bold');
         pdf.text('ABSTRACT', pageWidth / 2, yPos, { align: 'center' });
         yPos += 20;
-        pdf.setFont('times', 'normal');
+        setPatentFont(pdf, 'normal');
         const abstractLines = pdf.splitTextToSize(selectedApp.abstract, maxWidth);
         pdf.text(abstractLines, margin, yPos);
         yPos += abstractLines.length * 14 + 30;
@@ -418,10 +426,10 @@ export function PatentApplication() {
             yPos = margin;
           }
           if (line.match(/^[A-Z\s]+$/) && line.trim().length > 0) {
-            pdf.setFont('times', 'bold');
+            setPatentFont(pdf, 'bold');
             yPos += 10;
             pdf.text(line, margin, yPos);
-            pdf.setFont('times', 'normal');
+            setPatentFont(pdf, 'normal');
             yPos += 18;
           } else {
             const wrapped = pdf.splitTextToSize(line, maxWidth);
@@ -434,12 +442,12 @@ export function PatentApplication() {
       if (selectedApp.claims.length > 0) {
         pdf.addPage();
         yPos = margin;
-        pdf.setFont('times', 'bold');
+        setPatentFont(pdf, 'bold');
         pdf.setFontSize(14);
         const claimsHeader = exportOptions.includeExemplaryClaims ? 'EXEMPLARY CLAIMS' : 'CLAIMS';
         pdf.text(claimsHeader, pageWidth / 2, yPos, { align: 'center' });
         yPos += 30;
-        pdf.setFont('times', 'normal');
+        setPatentFont(pdf, 'normal');
         pdf.setFontSize(12);
 
         for (const claim of selectedApp.claims.sort((a, b) => a.claim_number - b.claim_number)) {
@@ -457,7 +465,7 @@ export function PatentApplication() {
       if (selectedApp.drawings.length > 0) {
         for (const drawing of selectedApp.drawings.sort((a, b) => a.figure_number - b.figure_number)) {
           pdf.addPage();
-          pdf.setFont('times', 'bold');
+          setPatentFont(pdf, 'bold');
           pdf.setFontSize(12);
           pdf.text(`FIG. ${drawing.figure_number} - ${drawing.title}`, pageWidth / 2, margin, { align: 'center' });
 
@@ -477,7 +485,7 @@ export function PatentApplication() {
             pdf.addImage(pngDataUrl, 'PNG', imgX, imgY, imgWidth, imgHeight);
           }
 
-          pdf.setFont('times', 'normal');
+          setPatentFont(pdf, 'normal');
           pdf.setFontSize(10);
           if (drawing.description) {
             const descLines = pdf.splitTextToSize(drawing.description, maxWidth);
@@ -487,6 +495,7 @@ export function PatentApplication() {
         }
       }
 
+      addPdfAMetadata(pdf, selectedApp.title, selectedApp.inventor_name || 'Unknown Inventor');
       pdf.save(`${selectedApp.title.replace(/\s+/g, '_')}_Patent_Application.pdf`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to export PDF');
@@ -500,15 +509,15 @@ export function PatentApplication() {
 
     setExportingSection(section);
     try {
-      const pdf = new jsPDF('p', 'pt', 'letter');
+      const pdf = createUsptoCompliantPdf();
       const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const margin = 72;
-      const maxWidth = pageWidth - margin * 2;
+      const pageHeight = getPageHeight(pdf);
+      const margin = PDF_MARGINS.top;
+      const maxWidth = getMaxTextWidth(pdf);
       let yPos = margin;
 
       const addHeader = () => {
-        pdf.setFont('times', 'bold');
+        setPatentFont(pdf, 'bold');
         pdf.setFontSize(11);
         pdf.setTextColor(100, 100, 100);
         const titleLines = pdf.splitTextToSize(selectedApp.title.toUpperCase(), maxWidth);
@@ -521,11 +530,11 @@ export function PatentApplication() {
       };
 
       const addSectionTitle = (title: string) => {
-        pdf.setFont('times', 'bold');
+        setPatentFont(pdf, 'bold');
         pdf.setFontSize(14);
         pdf.text(title, pageWidth / 2, yPos, { align: 'center' });
         yPos += 30;
-        pdf.setFont('times', 'normal');
+        setPatentFont(pdf, 'normal');
         pdf.setFontSize(12);
       };
 
@@ -556,9 +565,9 @@ export function PatentApplication() {
 
           fields.forEach(({ label, value }) => {
             checkPageBreak();
-            pdf.setFont('times', 'bold');
+            setPatentFont(pdf, 'bold');
             pdf.text(`${label}:`, margin, yPos);
-            pdf.setFont('times', 'normal');
+            setPatentFont(pdf, 'normal');
             const valueLines = pdf.splitTextToSize(value, maxWidth - 120);
             pdf.text(valueLines, margin + 120, yPos);
             yPos += valueLines.length * 14 + 8;
@@ -567,10 +576,10 @@ export function PatentApplication() {
           if (selectedApp.summary_invention) {
             yPos += 10;
             checkPageBreak(100);
-            pdf.setFont('times', 'bold');
+            setPatentFont(pdf, 'bold');
             pdf.text('Summary of Invention:', margin, yPos);
             yPos += 18;
-            pdf.setFont('times', 'normal');
+            setPatentFont(pdf, 'normal');
             const summaryLines = pdf.splitTextToSize(selectedApp.summary_invention, maxWidth);
             summaryLines.forEach((line: string) => {
               checkPageBreak();
@@ -582,10 +591,10 @@ export function PatentApplication() {
           if (selectedApp.problem_solved) {
             yPos += 10;
             checkPageBreak(100);
-            pdf.setFont('times', 'bold');
+            setPatentFont(pdf, 'bold');
             pdf.text('Problem Solved:', margin, yPos);
             yPos += 18;
-            pdf.setFont('times', 'normal');
+            setPatentFont(pdf, 'normal');
             const problemLines = pdf.splitTextToSize(selectedApp.problem_solved, maxWidth);
             problemLines.forEach((line: string) => {
               checkPageBreak();
@@ -608,10 +617,10 @@ export function PatentApplication() {
           for (const line of specLines) {
             checkPageBreak();
             if (line.match(/^[A-Z\s]+$/) && line.trim().length > 0) {
-              pdf.setFont('times', 'bold');
+              setPatentFont(pdf, 'bold');
               yPos += 10;
               pdf.text(line, margin, yPos);
-              pdf.setFont('times', 'normal');
+              setPatentFont(pdf, 'normal');
               yPos += 18;
             } else {
               const wrapped = pdf.splitTextToSize(line, maxWidth);
@@ -665,7 +674,7 @@ export function PatentApplication() {
               yPos = margin;
             }
 
-            pdf.setFont('times', 'bold');
+            setPatentFont(pdf, 'bold');
             pdf.setFontSize(12);
             const figTitle = `FIG. ${drawing.figure_number} - ${drawing.title}`;
             pdf.text(figTitle, pageWidth / 2, yPos, { align: 'center' });
@@ -687,14 +696,14 @@ export function PatentApplication() {
                 pdf.addImage(pngDataUrl, 'PNG', imgX, yPos, imgWidth, imgHeight);
                 yPos += imgHeight + 20;
               } catch {
-                pdf.setFont('times', 'italic');
+                setPatentFont(pdf, 'italic');
                 pdf.text('(Drawing could not be rendered)', margin, yPos);
                 yPos += 20;
               }
             }
 
             if (drawing.description) {
-              pdf.setFont('times', 'normal');
+              setPatentFont(pdf, 'normal');
               pdf.setFontSize(10);
               const descLines = pdf.splitTextToSize(drawing.description, maxWidth);
               descLines.forEach((line: string) => {
@@ -724,7 +733,7 @@ export function PatentApplication() {
           });
 
           yPos += 20;
-          pdf.setFont('times', 'italic');
+          setPatentFont(pdf, 'italic');
           pdf.setFontSize(10);
           pdf.text(`Word count: ${countWords(selectedApp.abstract)}`, margin, yPos);
           break;
@@ -741,14 +750,14 @@ export function PatentApplication() {
 
           for (const result of priorArt) {
             checkPageBreak(80);
-            pdf.setFont('times', 'bold');
+            setPatentFont(pdf, 'bold');
             const titleLines = pdf.splitTextToSize(result.title, maxWidth);
             titleLines.forEach((line: string) => {
               pdf.text(line, margin, yPos);
               yPos += 14;
             });
 
-            pdf.setFont('times', 'normal');
+            setPatentFont(pdf, 'normal');
             pdf.setFontSize(10);
             if (result.patent_number) {
               pdf.text(`Patent: ${result.patent_number}`, margin, yPos);
@@ -784,10 +793,10 @@ export function PatentApplication() {
             break;
           }
 
-          pdf.setFont('times', 'bold');
+          setPatentFont(pdf, 'bold');
           pdf.text('Novelty Assessment', margin, yPos);
           yPos += 20;
-          pdf.setFont('times', 'normal');
+          setPatentFont(pdf, 'normal');
 
           pdf.text(`Overall Score: ${Math.round(noveltyAnalysis.overall_novelty_score * 100)}%`, margin, yPos);
           yPos += 18;
@@ -796,10 +805,10 @@ export function PatentApplication() {
 
           if (noveltyAnalysis.key_differentiators && noveltyAnalysis.key_differentiators.length > 0) {
             checkPageBreak(60);
-            pdf.setFont('times', 'bold');
+            setPatentFont(pdf, 'bold');
             pdf.text('Key Differentiators:', margin, yPos);
             yPos += 18;
-            pdf.setFont('times', 'normal');
+            setPatentFont(pdf, 'normal');
             noveltyAnalysis.key_differentiators.forEach((diff: string, idx: number) => {
               checkPageBreak();
               const diffLines = pdf.splitTextToSize(`${idx + 1}. ${diff}`, maxWidth - 20);
@@ -813,10 +822,10 @@ export function PatentApplication() {
 
           if (noveltyAnalysis.potential_objections && noveltyAnalysis.potential_objections.length > 0) {
             checkPageBreak(60);
-            pdf.setFont('times', 'bold');
+            setPatentFont(pdf, 'bold');
             pdf.text('Potential Objections:', margin, yPos);
             yPos += 18;
-            pdf.setFont('times', 'normal');
+            setPatentFont(pdf, 'normal');
             noveltyAnalysis.potential_objections.forEach((obj: string, idx: number) => {
               checkPageBreak();
               const objLines = pdf.splitTextToSize(`${idx + 1}. ${obj}`, maxWidth - 20);
@@ -830,10 +839,10 @@ export function PatentApplication() {
 
           if (noveltyAnalysis.recommended_claim_improvements && noveltyAnalysis.recommended_claim_improvements.length > 0) {
             checkPageBreak(60);
-            pdf.setFont('times', 'bold');
+            setPatentFont(pdf, 'bold');
             pdf.text('Recommended Improvements:', margin, yPos);
             yPos += 18;
-            pdf.setFont('times', 'normal');
+            setPatentFont(pdf, 'normal');
             noveltyAnalysis.recommended_claim_improvements.forEach((rec: string, idx: number) => {
               checkPageBreak();
               const recLines = pdf.splitTextToSize(`${idx + 1}. ${rec}`, maxWidth - 20);
@@ -850,6 +859,7 @@ export function PatentApplication() {
           pdf.text('Unknown section.', margin, yPos);
       }
 
+      addPdfAMetadata(pdf, `${selectedApp.title} - ${section}`, selectedApp.inventor_name || 'Unknown Inventor');
       const sectionName = section.replace(/-/g, '_').replace(/\s+/g, '_');
       pdf.save(`${selectedApp.title.replace(/\s+/g, '_')}_${sectionName}.pdf`);
     } catch (err) {
