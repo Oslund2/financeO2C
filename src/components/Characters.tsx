@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Search, Edit2, Copy, Trash2, Sparkles, X, Volume2, Film, Loader2 } from 'lucide-react';
+import { Plus, Search, Edit2, Copy, Trash2, Sparkles, X, Volume2, Film, Loader2, Copyright } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
@@ -14,11 +14,12 @@ type Character = Database['public']['Tables']['characters']['Row'];
 
 interface CharactersProps {
   seriesId: string | null;
+  onNavigate?: (view: string, params?: Record<string, unknown>) => void;
 }
 
-export function Characters({ seriesId }: CharactersProps) {
+export function Characters({ seriesId, onNavigate }: CharactersProps) {
   const { currentOrganization } = useOrganization();
-  const { showError } = useNotification();
+  const { showError, showSuccess } = useNotification();
   const [characters, setCharacters] = useState<Character[]>([]);
   const [filteredCharacters, setFilteredCharacters] = useState<Character[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -242,6 +243,18 @@ export function Characters({ seriesId }: CharactersProps) {
     setShowForm(true);
   };
 
+  const handleCopyrightRegister = (character: Character) => {
+    if (onNavigate) {
+      onNavigate('ip-protection', {
+        tab: 'copyright',
+        characterId: character.id,
+        characterName: character.name
+      });
+    } else {
+      showSuccess(`"${character.name}" ready for copyright registration. Navigate to IP Protection to complete.`);
+    }
+  };
+
   const handleEdit = (character: Character) => {
     setEditingCharacter(character);
     setShowForm(true);
@@ -412,6 +425,16 @@ export function Characters({ seriesId }: CharactersProps) {
                       className="p-2.5 bg-white rounded-lg shadow-md hover:bg-gray-50 active:bg-gray-100 min-w-[44px] min-h-[44px] flex items-center justify-center"
                     >
                       <Copy className="w-5 h-5 text-gray-700" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCopyrightRegister(character);
+                      }}
+                      className="p-2.5 bg-white rounded-lg shadow-md hover:bg-teal-50 active:bg-teal-100 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                      title="Register Copyright"
+                    >
+                      <Copyright className="w-5 h-5 text-teal-600" />
                     </button>
                     <button
                       onClick={(e) => {

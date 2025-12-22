@@ -29,7 +29,8 @@ import {
   Image as ImageIcon,
   Film,
   Music,
-  Type
+  Type,
+  Layers
 } from 'lucide-react';
 import { useOrganization } from '../contexts/OrganizationContext';
 import {
@@ -73,8 +74,10 @@ import {
   type CopyrightTreaty,
   type ProtectionAnalysis
 } from '../services/internationalCopyrightService';
+import { BulkCopyrightWizard } from './BulkCopyrightWizard';
+import type { BulkRegistrationResult } from '../services/bulkCopyrightRegistrationService';
 
-type TabId = 'overview' | 'works' | 'ai-documentation' | 'registration' | 'search' | 'international' | 'export';
+type TabId = 'overview' | 'works' | 'ai-documentation' | 'registration' | 'search' | 'international' | 'bulk' | 'export';
 
 const WORK_TYPE_ICONS: Record<CopyrightWorkType, typeof FileText> = {
   dramatic_work: Film,
@@ -106,6 +109,7 @@ export function CopyrightApplication() {
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showBulkWizard, setShowBulkWizard] = useState(false);
   const [aiDocumentation, setAiDocumentation] = useState<AIAuthorshipDocumentation | null>(null);
   const [internationalRegistrations, setInternationalRegistrations] = useState<InternationalCopyrightRegistration[]>([]);
   const [treaties, setTreaties] = useState<CopyrightTreaty[]>([]);
@@ -284,6 +288,7 @@ export function CopyrightApplication() {
 
   const tabs: { id: TabId; label: string; icon: typeof Copyright }[] = [
     { id: 'overview', label: 'Overview', icon: Eye },
+    { id: 'bulk', label: 'Bulk Register', icon: Layers },
     { id: 'works', label: 'Work Details', icon: FileText },
     { id: 'ai-documentation', label: 'AI Documentation', icon: Bot },
     { id: 'registration', label: 'Registration', icon: FileCheck },
@@ -291,6 +296,13 @@ export function CopyrightApplication() {
     { id: 'international', label: 'International', icon: Globe },
     { id: 'export', label: 'Export', icon: Download }
   ];
+
+  const handleBulkRegistrationComplete = (result: BulkRegistrationResult) => {
+    setShowBulkWizard(false);
+    if (result.success) {
+      loadRegistrations();
+    }
+  };
 
   if (loading) {
     return (
@@ -428,6 +440,9 @@ export function CopyrightApplication() {
                     internationalCount={internationalRegistrations.length}
                   />
                 )}
+                {activeTab === 'bulk' && (
+                  <BulkRegistrationTab onOpenWizard={() => setShowBulkWizard(true)} />
+                )}
                 {activeTab === 'works' && (
                   <WorkDetailsTab
                     registration={selectedRegistration}
@@ -503,6 +518,13 @@ export function CopyrightApplication() {
           onClose={() => setShowDeleteModal(false)}
           onConfirm={handleDeleteRegistration}
           saving={saving}
+        />
+      )}
+
+      {showBulkWizard && (
+        <BulkCopyrightWizard
+          onClose={() => setShowBulkWizard(false)}
+          onComplete={handleBulkRegistrationComplete}
         />
       )}
     </div>
@@ -661,6 +683,127 @@ function OverviewTab({
       <div className="bg-gray-50 rounded-lg p-4">
         <h4 className="font-medium text-gray-900 mb-2">Copyright Notice</h4>
         <p className="font-mono text-sm bg-white p-3 rounded border border-gray-200">{copyrightNotice}</p>
+      </div>
+    </div>
+  );
+}
+
+function BulkRegistrationTab({ onOpenWizard }: { onOpenWizard: () => void }) {
+  return (
+    <div className="space-y-6">
+      <div className="bg-gradient-to-br from-teal-50 to-blue-50 rounded-xl p-6 border border-teal-100">
+        <div className="flex items-start gap-4">
+          <div className="p-3 bg-teal-600 rounded-xl">
+            <Layers className="w-6 h-6 text-white" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Bulk Copyright Registration</h3>
+            <p className="text-gray-600 mb-4">
+              Register multiple characters and scripts at once by scanning your asset library.
+              The system will automatically detect AI-generated content and pre-populate the
+              required disclosure fields.
+            </p>
+            <button
+              onClick={onOpenWizard}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Start Bulk Registration
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <Users className="w-5 h-5 text-purple-600" />
+            </div>
+            <h4 className="font-semibold text-gray-900">Characters</h4>
+          </div>
+          <p className="text-gray-600 text-sm mb-4">
+            Register character designs as visual art (Form VA). Includes character name,
+            visual appearance, and distinctive features.
+          </p>
+          <ul className="space-y-2 text-sm text-gray-600">
+            <li className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-green-500" />
+              Auto-detects AI-generated characters
+            </li>
+            <li className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-green-500" />
+              Pre-fills description from character data
+            </li>
+            <li className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-green-500" />
+              Links to reference images
+            </li>
+          </ul>
+        </div>
+
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <FileText className="w-5 h-5 text-blue-600" />
+            </div>
+            <h4 className="font-semibold text-gray-900">Scripts</h4>
+          </div>
+          <p className="text-gray-600 text-sm mb-4">
+            Register scripts as dramatic works (Form PA). Includes dialogue, scene
+            descriptions, and story structure.
+          </p>
+          <ul className="space-y-2 text-sm text-gray-600">
+            <li className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-green-500" />
+              Auto-detects AI-generated scripts
+            </li>
+            <li className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-green-500" />
+              Extracts episode and season info
+            </li>
+            <li className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-green-500" />
+              Includes synopsis and theme
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <h4 className="font-medium text-yellow-800">AI Content Disclosure</h4>
+            <p className="text-sm text-yellow-700 mt-1">
+              The Copyright Office requires disclosure of AI-generated content. Items marked
+              as AI-generated will automatically include the required disclosure statements
+              documenting the AI tools used and human creative contributions.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-gray-50 rounded-lg p-4">
+        <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
+          <DollarSign className="w-4 h-4" />
+          Registration Fees
+        </h4>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+          <div className="bg-white rounded-lg p-3 border border-gray-200">
+            <p className="text-gray-500">Single Online</p>
+            <p className="text-lg font-semibold text-gray-900">$45</p>
+          </div>
+          <div className="bg-white rounded-lg p-3 border border-gray-200">
+            <p className="text-gray-500">Standard Online</p>
+            <p className="text-lg font-semibold text-gray-900">$65</p>
+          </div>
+          <div className="bg-white rounded-lg p-3 border border-gray-200">
+            <p className="text-gray-500">Group Registration</p>
+            <p className="text-lg font-semibold text-gray-900">$85</p>
+            <p className="text-xs text-green-600">Save on bulk</p>
+          </div>
+        </div>
       </div>
     </div>
   );

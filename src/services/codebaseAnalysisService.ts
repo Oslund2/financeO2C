@@ -83,7 +83,17 @@ const CORE_FILES = [
   'src/services/architectureDiagramGenerator.ts',
   'src/services/dynamicPatentDrawingsService.ts',
   'src/services/featureSpecificDiagramGenerator.ts',
-  'src/services/printOptimizedSVGGenerator.ts'
+  'src/services/printOptimizedSVGGenerator.ts',
+  'src/services/selfPatentGenerationService.ts',
+  'src/services/cpcClassificationService.ts',
+  'src/services/coverSheetService.ts',
+  'src/services/filingFeeService.ts',
+  // Copyright services
+  'src/services/copyrightApplicationService.ts',
+  'src/services/aiAuthorshipService.ts',
+  'src/services/internationalCopyrightService.ts',
+  // Trademark services
+  'src/services/trademarkApplicationService.ts'
 ];
 
 const DATABASE_TABLES = [
@@ -97,9 +107,19 @@ const DATABASE_TABLES = [
   'production_jobs', 'production_draft_sessions',
   'prompt_templates', 'prompt_versions',
   'cost_models', 'episode_cost_tracking', 'episode_ltv_projections',
+  // Patent tables
   'patent_applications', 'patent_claims', 'patent_drawings',
   'patent_prior_art_search_results', 'patent_novelty_analyses',
   'patent_differentiation_reports', 'patent_feature_mappings',
+  // Copyright tables
+  'copyright_registrations', 'copyright_deposits', 'copyright_search_results',
+  'international_copyright_registrations', 'ai_authorship_documentation', 'ai_tool_registry',
+  'copyright_bulk_registrations',
+  // Trademark tables
+  'trademark_applications', 'trademark_specimens', 'trademark_search_results',
+  'nice_classifications', 'trademark_classes',
+  // Reference data
+  'copyright_treaties',
   'gemini_api_usage', 'translation_analytics', 'translation_exports',
   'backup_manifests', 'backup_files',
   'user_settings', 'workflow_templates', 'workflow_progress',
@@ -230,6 +250,10 @@ function inferFunctionality(filePath: string, content: string): string {
   if (fileName.includes('batch')) return 'Batch processing and recommendations';
   if (fileName.includes('translation')) return 'Multi-language translation services';
   if (fileName.includes('patent')) return 'Patent application generation and analysis';
+  if (fileName.includes('copyright')) return 'Copyright registration and AI authorship documentation';
+  if (fileName.includes('trademark')) return 'Trademark application and Nice classification';
+  if (fileName.includes('aiAuthorship')) return 'AI-generated content authorship tracking';
+  if (fileName.includes('international')) return 'International IP treaty compliance';
   if (fileName.includes('backup')) return 'Data backup and recovery';
   if (fileName.includes('monitoring')) return 'System health monitoring';
 
@@ -255,7 +279,10 @@ async function getComponentList(): Promise<string[]> {
     'LipSyncManager', 'ShotListManager',
     'CostComparison', 'CreatorCostCalculator', 'ShowRevenueEstimator',
     'PromptLibrary', 'PromptEditor', 'PromptEnhancementPanel',
-    'PatentApplication', 'PatentIntelligenceSettings',
+    'PatentApplication', 'PatentIntelligenceSettings', 'PatentFilingTab',
+    'CopyrightApplication', 'BulkCopyrightWizard',
+    'TrademarkApplication',
+    'IPProtection',
     'OrganizationSwitcher', 'SeriesSwitcher',
     'BackupRecovery', 'SystemHealthWidget'
   ];
@@ -276,11 +303,19 @@ function extractKeyFeatures(services: ServiceAnalysis[]): string[] {
     'Batch Processing Optimization',
     'Real-Time Usage Analytics',
     'Multi-Organization Workspace Management',
+    // Comprehensive IP Portfolio Management
+    'Integrated IP Protection Suite (Patents, Copyrights, Trademarks)',
     'Patent Application Generation System',
     'Prior Art Search and Analysis',
     'Automated Claims Generation',
     'Technical Drawing Generation',
     'Novelty Scoring Algorithm',
+    'Copyright Registration with AI Disclosure Compliance',
+    'Bulk Copyright Registration from Asset Library',
+    'AI Authorship Documentation System',
+    'International Copyright Treaty Analysis (Berne Convention)',
+    'Trademark Application with Nice Classification',
+    'USPTO Electronic Filing Integration',
     'ROI and LTV Projections',
     'Comprehensive Backup System'
   ];
@@ -312,10 +347,13 @@ PRIMARY INNOVATION AREAS:
 3. Intelligent prompt management with versioning and enhancement
 4. Character consistency across episodes using reference-based generation
 5. Real-time progress tracking across distributed job queues
-6. Automated patent generation for software inventions
-7. Multi-organization data isolation with granular permissions
+6. Integrated IP Portfolio Management (Patents, Copyrights, Trademarks)
+7. Automated patent generation with self-documenting codebase analysis
+8. Bulk copyright registration with AI authorship disclosure compliance
+9. Trademark application generation with Nice classification integration
+10. Multi-organization data isolation with granular permissions
 
-This platform reduces traditional animation production costs by 80-95% while maintaining professional quality through AI assistance combined with human oversight.
+This platform reduces traditional animation production costs by 80-95% while maintaining professional quality through AI assistance combined with human oversight. The integrated IP protection suite enables creators to protect their animated content, characters, and scripts through streamlined patent, copyright, and trademark applications with automatic AI-generated content disclosure.
   `.trim();
 
   return summary;

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, FileText, Trash2, Edit2, CheckCircle, Clock, Sparkles, Lock, Film, AlertCircle, DollarSign, ArrowRight, Zap, X, Eye, Filter, PlayCircle } from 'lucide-react';
+import { Plus, Search, FileText, Trash2, Edit2, CheckCircle, Clock, Sparkles, Lock, Film, AlertCircle, DollarSign, ArrowRight, Zap, X, Eye, Filter, PlayCircle, Copyright } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
@@ -610,6 +610,15 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
                       className="hidden sm:flex p-2 hover:bg-gray-100 rounded-lg transition-colors"
                     >
                       <Edit2 className="w-5 h-5 text-gray-600" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        showSuccess(`"${script.title}" ready for copyright registration. Navigate to IP Protection to complete.`);
+                      }}
+                      className="hidden sm:flex p-2 hover:bg-teal-50 rounded-lg transition-colors"
+                      title="Register Copyright"
+                    >
+                      <Copyright className="w-5 h-5 text-teal-600" />
                     </button>
                     <button
                       onClick={() => handleDeleteClick(script)}
