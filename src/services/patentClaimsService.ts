@@ -1,6 +1,10 @@
 import { createPatentClaim } from './patentApplicationService';
 import type { PatentClaim } from './patentApplicationService';
 import { generateText } from './geminiService';
+import {
+  getPatentClaimsIndependentPrompt,
+  getPatentClaimsDependentPrompt
+} from './promptResolver';
 
 export interface ClaimTemplate {
   category: PatentClaim['category'];
@@ -307,11 +311,20 @@ export function countClaimsByType(claims: PatentClaim[]): { independent: number;
 export async function generateAIEnhancedClaims(
   applicationId: string,
   features: any[],
-  noveltyAnalysis: any
+  noveltyAnalysis: any,
+  organizationId?: string | null,
+  title?: string,
+  inventionDescription?: string
 ): Promise<PatentClaim[]> {
   const claims: PatentClaim[] = [];
 
-  const independentClaims = await generateIndependentClaims(features, noveltyAnalysis);
+  const independentClaims = await generateIndependentClaims(
+    features,
+    noveltyAnalysis,
+    organizationId || null,
+    title,
+    inventionDescription
+  );
 
   for (let i = 0; i < independentClaims.length; i++) {
     const claimText = independentClaims[i];
@@ -326,7 +339,7 @@ export async function generateAIEnhancedClaims(
     claims.push(claim);
   }
 
-  const dependentClaims = await generateDependentClaims(features, claims);
+  const dependentClaims = await generateDependentClaims(features, claims, organizationId || null);
 
   for (let i = 0; i < dependentClaims.length; i++) {
     const { claimText, parentClaimNumber } = dependentClaims[i];
@@ -348,38 +361,26 @@ export async function generateAIEnhancedClaims(
 
 async function generateIndependentClaims(
   features: any[],
-  noveltyAnalysis: any
+  noveltyAnalysis: any,
+  organizationId: string | null,
+  title?: string,
+  inventionDescription?: string
 ): Promise<string[]> {
   const coreFeatures = features.filter(f => f.is_core_innovation);
 
-  const prompt = `Generate 2 independent patent claims for an AI animation production system.
-
-Core Novel Features:
-${coreFeatures.map((f, i) => `${i + 1}. ${f.feature_name}
+  const featuresText = coreFeatures.map((f, i) => `${i + 1}. ${f.feature_name}
    Type: ${f.feature_type}
    Description: ${f.technical_description}
-   Novelty: ${f.novelty_strength}`).join('\n\n')}
-
-Novelty Assessment:
-${noveltyAnalysis.patentabilityAssessment || 'Strong innovation in AI-assisted animation production'}
-
-Generate:
-1. One METHOD claim (computer-implemented method)
-2. One SYSTEM claim (system with processors and storage)
-
-Requirements:
-- Each claim should be ONE sentence with proper semicolon structure
-- Include the strongest novel features
-- Use proper patent claim language
-- Start method claims with "A computer-implemented method..."
-- Start system claims with "A system comprising..."
-- Be specific about technical implementations
-- Cover the end-to-end workflow
-
-Format as JSON array:
-["claim 1 text...", "claim 2 text..."]`;
+   Novelty: ${f.novelty_strength}`).join('\n\n');
 
   try {
+    const prompt = await getPatentClaimsIndependentPrompt(organizationId, {
+      title: title || 'AI Animation Production System',
+      features: featuresText,
+      noveltyAnalysis: noveltyAnalysis.patentabilityAssessment || 'Strong innovation in AI-assisted animation production',
+      inventionDescription: inventionDescription || ''
+    });
+
     const response = await generateText(prompt, 'patent_claims_independent');
     const jsonMatch = response.match(/\[[\s\S]*\]/);
     if (jsonMatch) {
@@ -397,32 +398,23 @@ Format as JSON array:
 
 async function generateDependentClaims(
   features: any[],
-  independentClaims: PatentClaim[]
+  independentClaims: PatentClaim[],
+  organizationId: string | null
 ): Promise<Array<{ claimText: string; parentClaimNumber: number }>> {
-  const prompt = `Generate 15-18 dependent patent claims based on these independent claims and features.
+  const independentClaimsText = independentClaims
+    .map((c) => `Claim ${c.claim_number}: ${c.claim_text.substring(0, 200)}...`)
+    .join('\n\n');
 
-Independent Claims:
-${independentClaims.map((c, i) => `Claim ${c.claim_number}: ${c.claim_text.substring(0, 200)}...`).join('\n\n')}
-
-Available Features to Cover:
-${features.map((f, i) => `${i + 1}. ${f.feature_name} (${f.feature_type}, ${f.novelty_strength} novelty)`).join('\n')}
-
-Generate dependent claims that:
-- Reference parent claims properly ("The method of claim X" or "The system of claim Y")
-- Cover specific implementations of features
-- Include algorithm details, data structures, and technical specifications
-- Provide fallback positions if independent claims are challenged
-- Cover variations and alternative embodiments
-
-Distribute claims across both independent claims (roughly 60% depending on claim 1, 40% on claim 2).
-
-Format as JSON array of objects:
-[
-  {"claimText": "The method of claim 1, wherein...", "parentClaimNumber": 1},
-  {"claimText": "The system of claim 2, wherein...", "parentClaimNumber": 2}
-]`;
+  const featuresText = features
+    .map((f, i) => `${i + 1}. ${f.feature_name} (${f.feature_type}, ${f.novelty_strength} novelty)`)
+    .join('\n');
 
   try {
+    const prompt = await getPatentClaimsDependentPrompt(organizationId, {
+      independentClaims: independentClaimsText,
+      features: featuresText
+    });
+
     const response = await generateText(prompt, 'patent_claims_dependent');
     const jsonMatch = response.match(/\[[\s\S]*\]/);
     if (jsonMatch) {

@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { generateText } from './geminiService';
+import { getPatentDifferentiationPrompt } from './promptResolver';
 
 export interface DifferentiationReport {
   id: string;
@@ -34,7 +35,7 @@ export async function generateDifferentiationReport(
     throw new Error('Missing data for differentiation report');
   }
 
-  const analysis = await generateDifferentiationAnalysis(priorArt, features);
+  const analysis = await generateDifferentiationAnalysis(priorArt, features, organizationId);
 
   const { data, error } = await supabase
     .from('patent_differentiation_reports')
@@ -62,63 +63,25 @@ export async function generateDifferentiationReport(
 
 async function generateDifferentiationAnalysis(
   priorArt: any,
-  features: any[]
+  features: any[],
+  organizationId: string
 ): Promise<any> {
-  const prompt = `You are a patent attorney preparing a differentiation analysis. Compare our invention against this prior art patent.
+  const featuresText = features.map((f, i) => `${i + 1}. ${f.feature_name} (${f.novelty_strength} novelty)
+   Type: ${f.feature_type}
+   Description: ${f.technical_description}`).join('\n\n');
 
-PRIOR ART PATENT:
-Patent Number: ${priorArt.patent_number}
+  const priorArtText = `Patent Number: ${priorArt.patent_number}
 Title: ${priorArt.patent_title}
 Abstract: ${priorArt.patent_abstract}
-Relevance Score: ${priorArt.relevance_score}/100
-
-OUR INVENTION FEATURES:
-${features.map((f, i) => `${i + 1}. ${f.feature_name} (${f.novelty_strength} novelty)
-   Type: ${f.feature_type}
-   Description: ${f.technical_description}`).join('\n\n')}
-
-Generate a comprehensive differentiation analysis with:
-
-1. POINTS OF NOVELTY: List 5-7 specific technical features our invention has that the prior art lacks
-
-2. TECHNICAL ADVANTAGES: List 4-6 concrete advantages our invention provides (speed, cost, accuracy, scalability, etc.)
-
-3. COMPARISON MATRIX: Create a feature-by-feature comparison showing what prior art has vs what we have
-
-4. IMPROVEMENT QUANTIFICATION: Provide specific metrics or estimates:
-   - Cost reduction percentage
-   - Speed improvement
-   - Accuracy improvement
-   - Scalability factor
-   - Any other measurable improvements
-
-5. UNEXPECTED RESULTS: Describe any surprising or non-obvious benefits of our approach
-
-6. NON-OBVIOUSNESS ARGUMENT: Explain why our invention would not be obvious to someone skilled in the art, even with knowledge of this prior art
-
-7. DIFFERENTIATION SUMMARY: A 2-3 paragraph executive summary
-
-Format as JSON:
-{
-  "pointsOfNovelty": ["novelty 1", "novelty 2", ...],
-  "technicalAdvantages": ["advantage 1", "advantage 2", ...],
-  "comparisonMatrix": {
-    "feature1": {"priorArt": "basic implementation", "ourInvention": "advanced with X"},
-    "feature2": {"priorArt": "not present", "ourInvention": "fully implemented"}
-  },
-  "quantification": {
-    "costReduction": "60-80%",
-    "speedImprovement": "3-5x faster",
-    "accuracyImprovement": "15-20% more accurate"
-  },
-  "unexpectedResults": "Discovered that...",
-  "nonObviousnessArgument": "The combination of features...",
-  "summary": "Executive summary...",
-  "strengthScore": 85,
-  "distanceScore": 75
-}`;
+Relevance Score: ${priorArt.relevance_score}/100`;
 
   try {
+    const prompt = await getPatentDifferentiationPrompt(organizationId, {
+      features: featuresText,
+      priorArt: priorArtText,
+      inventionDescription: ''
+    });
+
     const response = await generateText(prompt, 'patent_differentiation');
 
     const jsonMatch = response.match(/\{[\s\S]*\}/);

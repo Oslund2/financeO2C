@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase';
 import { generateText } from './geminiService';
 import { extractCodebaseFeatures, createFeatureAnalysis, createFeatureMappings } from './patentFeatureExtractionService';
 import { getPriorArtResults } from './patentPriorArtSearchService';
+import { getPatentNoveltyAnalysisPrompt } from './promptResolver';
 
 export interface NoveltyAnalysis {
   analysisId: string;
@@ -38,7 +39,8 @@ export async function performNoveltyAnalysis(
 
   const aiAssessment = await generateAINoveltyAssessment(
     features.features,
-    priorArt
+    priorArt,
+    organizationId
   );
 
   const overallScore = calculateNoveltyScore(features.features, priorArt);
@@ -68,40 +70,31 @@ export async function performNoveltyAnalysis(
   };
 }
 
-async function generateAINoveltyAssessment(features: any[], priorArt: any[]): Promise<any> {
-  const prompt = `You are a patent examiner expert analyzing the novelty and patentability of an invention.
-
-Invention Features:
-${features.map((f, i) => `${i + 1}. ${f.name} (${f.noveltyStrength} novelty)
+async function generateAINoveltyAssessment(
+  features: any[],
+  priorArt: any[],
+  organizationId: string
+): Promise<any> {
+  const featuresText = features.map((f, i) => `${i + 1}. ${f.name} (${f.noveltyStrength} novelty)
    Description: ${f.description}
    Technical Details: ${f.technicalDetails}
-   Core Innovation: ${f.isCoreInnovation ? 'Yes' : 'No'}`).join('\n\n')}
+   Core Innovation: ${f.isCoreInnovation ? 'Yes' : 'No'}`).join('\n\n');
 
-Prior Art Patents:
-${priorArt.length > 0 ? priorArt.map((pa, i) => `${i + 1}. ${pa.patent_number} - ${pa.patent_title}
+  const priorArtText = priorArt.length > 0
+    ? priorArt.map((pa, i) => `${i + 1}. ${pa.patent_number} - ${pa.patent_title}
    Abstract: ${pa.patent_abstract}
    Relevance: ${pa.relevance_score}/100
-   Relationship: ${pa.relationship_type}`).join('\n\n') : 'No prior art identified yet.'}
-
-Analyze this invention and provide:
-
-1. STRENGTHS: List 4-6 specific strengths that increase patentability (novelty, non-obviousness, utility, technical advancement)
-
-2. WEAKNESSES: List 2-4 potential weaknesses or challenges (prior art overlap, obviousness concerns, narrow claim scope)
-
-3. RECOMMENDATIONS: Provide 3-5 specific recommendations to strengthen the patent application
-
-4. ASSESSMENT: Write a 2-3 paragraph overall patentability assessment explaining the likelihood of approval and key factors
-
-Format your response as JSON:
-{
-  "strengths": ["strength 1", "strength 2", ...],
-  "weaknesses": ["weakness 1", "weakness 2", ...],
-  "recommendations": ["recommendation 1", "recommendation 2", ...],
-  "assessment": "Overall assessment text..."
-}`;
+   Relationship: ${pa.relationship_type}`).join('\n\n')
+    : 'No prior art identified yet.';
 
   try {
+    const prompt = await getPatentNoveltyAnalysisPrompt(organizationId, {
+      title: 'Patent Novelty Analysis',
+      features: featuresText,
+      priorArt: priorArtText,
+      inventionDescription: ''
+    });
+
     const response = await generateText(prompt, 'patent_novelty_analysis');
 
     const jsonMatch = response.match(/\{[\s\S]*\}/);

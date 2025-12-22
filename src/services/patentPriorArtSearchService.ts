@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { generateText } from './geminiService';
+import { getPriorArtSearchPrompt } from './promptResolver';
 
 export interface PriorArtSearchParams {
   title: string;
@@ -34,7 +35,7 @@ export async function searchPriorArt(
 
   try {
     console.log('Starting prior art search for:', params.title);
-    const googleResults = await searchGooglePatents(params);
+    const googleResults = await searchGooglePatents(params, organizationId);
     results.push(...googleResults);
     console.log(`Found ${results.length} prior art results`);
   } catch (error) {
@@ -52,57 +53,22 @@ export async function searchPriorArt(
   return results;
 }
 
-async function searchGooglePatents(params: PriorArtSearchParams): Promise<PriorArtResult[]> {
-  const searchQuery = buildSearchQuery(params);
+async function searchGooglePatents(params: PriorArtSearchParams, organizationId: string): Promise<PriorArtResult[]> {
   const focusAreas = getFocusAreas(params.analysisTarget);
 
-  const analysisPrompt = `You are a patent prior art search expert with access to real patent databases. Based on this invention description, identify REAL, EXISTING prior art patents from USPTO and Google Patents that are relevant.
-
-Invention Title: ${params.title}
-
-Invention Description: ${params.description}
-
-${params.keywords && params.keywords.length > 0 ? `Keywords: ${params.keywords.join(', ')}` : ''}
-
-IMPORTANT: You must provide REAL patent numbers that actually exist in the USPTO database. Search for actual granted patents and published applications in the relevant technology areas. Do not invent fictional patents.
-
-Generate a list of 5-8 REAL prior art patents. For each patent, provide:
-1. REAL patent number (format: US-XXXXXXX-XX for grants, US-XXXXXXXX-A1 for applications)
-2. Actual title from the patent document
-3. Brief abstract from the actual patent
-4. Relevance score (0-100) based on how similar it is to the invention
-5. Technical similarity score (0-100) measuring feature overlap
-6. Explanation of how it relates to the invention
-7. Relationship type: similar, improvement, different_approach, or unrelated
-8. Whether it might be blocking (true/false)
-
-Focus your search on these technology areas:
-${focusAreas.map((area, i) => `${i + 1}. ${area}`).join('\n')}
-
-Use CPC classifications where appropriate:
-- G06T (Image data processing) for video/image generation
-- G06N (Computing arrangements based on AI) for machine learning
-- H04N (Pictorial communication, video) for video systems
-- G06F (Electric digital data processing) for software systems
-- G06Q (Data processing for business) for workflow/cost management
-
-Format your response as a JSON array of objects with these fields:
-{
-  "patentNumber": "US-XXXXXXX-XX",
-  "title": "Actual Patent Title",
-  "abstract": "Actual patent abstract...",
-  "assignee": "Company Name",
-  "relevanceScore": 85,
-  "technicalSimilarityScore": 72,
-  "similarityExplanation": "This patent covers...",
-  "relationshipType": "similar",
-  "isBlocking": false
-}
-
-Remember: These must be REAL patents that can be looked up on patents.google.com or uspto.gov.`;
+  const featuresText = params.keywords && params.keywords.length > 0
+    ? params.keywords.join(', ')
+    : focusAreas.join('\n');
 
   try {
     console.log('Calling Gemini AI for prior art search...');
+
+    const analysisPrompt = await getPriorArtSearchPrompt(organizationId, {
+      title: params.title,
+      inventionDescription: params.description,
+      features: featuresText,
+      analysisTarget: params.analysisTarget || 'both'
+    });
 
     const timeoutPromise = new Promise<string>((_, reject) => {
       setTimeout(() => reject(new Error('Prior art search timed out after 30 seconds')), 30000);
