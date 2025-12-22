@@ -156,6 +156,22 @@ export async function createUserSettings(settings: Partial<UserSettings>): Promi
         ...DEFAULT_SETTINGS.generation_preferences,
         ...(settings.generation_preferences || {})
       },
+      voice_preferences: {
+        ...DEFAULT_SETTINGS.voice_preferences,
+        ...(settings.voice_preferences || {})
+      },
+      video_preferences: {
+        ...DEFAULT_SETTINGS.video_preferences,
+        ...(settings.video_preferences || {})
+      },
+      translation_preferences: {
+        ...DEFAULT_SETTINGS.translation_preferences,
+        ...(settings.translation_preferences || {})
+      },
+      patent_preferences: {
+        ...DEFAULT_SETTINGS.patent_preferences,
+        ...(settings.patent_preferences || {})
+      },
       vertex_ai_config: {
         ...DEFAULT_SETTINGS.vertex_ai_config,
         ...(settings.vertex_ai_config || {})
@@ -198,6 +214,22 @@ export async function updateUserSettings(settings: Partial<UserSettings>): Promi
       generation_preferences: {
         ...currentSettings.generation_preferences,
         ...(settings.generation_preferences || {})
+      },
+      voice_preferences: {
+        ...currentSettings.voice_preferences,
+        ...(settings.voice_preferences || {})
+      },
+      video_preferences: {
+        ...currentSettings.video_preferences,
+        ...(settings.video_preferences || {})
+      },
+      translation_preferences: {
+        ...currentSettings.translation_preferences,
+        ...(settings.translation_preferences || {})
+      },
+      patent_preferences: {
+        ...currentSettings.patent_preferences,
+        ...(settings.patent_preferences || {})
       },
       vertex_ai_config: {
         ...currentSettings.vertex_ai_config,
