@@ -61,6 +61,7 @@ import {
   type CoverSheetData
 } from '../services/coverSheetService';
 import { downloadSB16Form } from '../services/usptoFormGeneratorService';
+import { downloadADSForm } from '../services/usptoAdsFormGenerator';
 
 interface PatentFilingTabProps {
   application: PatentApplicationWithDetails;
@@ -325,6 +326,16 @@ export function PatentFilingTab({ application, onUpdate }: PatentFilingTabProps)
     downloadCoverSheet(data, 'pdf');
   };
 
+  const handleDownloadADSForm = () => {
+    try {
+      downloadADSForm(application);
+      showSuccess('ADS Form Downloaded', 'Application Data Sheet form has been generated successfully.');
+    } catch (error) {
+      console.error('Error downloading ADS form:', error);
+      showError('Download Failed', error instanceof Error ? error.message : 'Failed to generate ADS form. Please try again.');
+    }
+  };
+
   const checklist = buildChecklist(application, inventors, correspondenceAddress, classifications);
   const deadlines = calculateFilingDeadlines(
     application.provisional_filing_date ? new Date(application.provisional_filing_date) : null
@@ -370,6 +381,7 @@ export function PatentFilingTab({ application, onUpdate }: PatentFilingTabProps)
           checklist={checklist}
           deadlines={deadlines}
           onDownloadCoverSheet={handleDownloadCoverSheet}
+          onDownloadADSForm={handleDownloadADSForm}
         />
       )}
 
@@ -528,11 +540,13 @@ function buildChecklist(
 function FilingChecklist({
   checklist,
   deadlines,
-  onDownloadCoverSheet
+  onDownloadCoverSheet,
+  onDownloadADSForm
 }: {
   checklist: ChecklistData;
   deadlines: ReturnType<typeof calculateFilingDeadlines>;
   onDownloadCoverSheet: () => void;
+  onDownloadADSForm: () => void;
 }) {
   return (
     <div className="space-y-6">
@@ -601,23 +615,54 @@ function FilingChecklist({
         ))}
       </div>
 
-      <div className="flex gap-3">
-        <button
-          onClick={onDownloadCoverSheet}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Download className="w-4 h-4" />
-          Download Cover Sheet (SB/16)
-        </button>
-        <a
-          href="https://www.uspto.gov/patents/basics/apply/provisional-application"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
-        >
-          <ExternalLink className="w-4 h-4" />
-          USPTO Filing Guide
-        </a>
+      <div className="space-y-3">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium text-blue-900">Two Filing Options Available</p>
+              <p className="text-sm text-blue-700 mt-1">
+                <strong>SB/16</strong> - Simple cover sheet for paper or basic electronic filing.<br />
+                <strong>ADS Form</strong> - Complete Application Data Sheet for USPTO Patent Center web-based filing (recommended).
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={onDownloadADSForm}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-colors shadow-sm"
+          >
+            <Download className="w-4 h-4" />
+            Download ADS Form (Recommended)
+          </button>
+          <button
+            onClick={onDownloadCoverSheet}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Download SB/16 Cover Sheet
+          </button>
+          <a
+            href="https://www.uspto.gov/patents/basics/apply/provisional-application"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
+          >
+            <ExternalLink className="w-4 h-4" />
+            USPTO Filing Guide
+          </a>
+          <a
+            href="https://patentcenter.uspto.gov"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
+          >
+            <ExternalLink className="w-4 h-4" />
+            USPTO Patent Center
+          </a>
+        </div>
       </div>
     </div>
   );
@@ -1324,20 +1369,33 @@ function FilingInstructions({ filingType, application }: { filingType: string; a
         </div>
       </div>
 
-      {isProvisional && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-start gap-3">
-            <FileText className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+            <FileText className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="font-medium text-green-800">Pre-filled USPTO Form SB/16 Available</p>
-              <p className="text-sm text-green-700 mt-1">
-                Click the "Download SB/16 Form" button above to get a pre-filled Provisional Application Cover Sheet
-                with your inventor information, correspondence address, entity status, and other details automatically populated.
+              <p className="font-medium text-blue-800">Application Data Sheet (ADS) - Recommended</p>
+              <p className="text-sm text-blue-700 mt-1">
+                The ADS form (PTO/AIA/14) contains complete bibliographic data for USPTO Patent Center web-based filing.
+                Download as a reference when entering data into the USPTO web forms.
               </p>
             </div>
           </div>
         </div>
-      )}
+
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <FileText className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium text-green-800">Simple Cover Sheet (SB/16)</p>
+              <p className="text-sm text-green-700 mt-1">
+                Alternative simplified cover sheet for paper filing or basic electronic submission.
+                Contains essential information in a shorter format.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div className="bg-white rounded-lg border border-gray-200 p-6">
         <h4 className="font-semibold text-gray-900 mb-4">Step-by-Step Filing Instructions</h4>
@@ -1360,10 +1418,10 @@ function FilingInstructions({ filingType, application }: { filingType: string; a
               2
             </div>
             <div>
-              <p className="font-medium text-gray-900">Prepare Your Documents</p>
+              <p className="font-medium text-gray-900">Download Reference Documents</p>
               <p className="text-sm text-gray-600 mt-1">
-                Use the Export tab to download your specification PDF, drawings, and cover sheet (SB/16).
-                Ensure all PDFs meet USPTO requirements.
+                Download the ADS form from the Checklist tab for reference. It contains all your bibliographic data
+                pre-filled. Also download your specification PDF and drawings from the Export tab.
               </p>
             </div>
           </div>
@@ -1375,8 +1433,8 @@ function FilingInstructions({ filingType, application }: { filingType: string; a
             <div>
               <p className="font-medium text-gray-900">Start New Application in Patent Center</p>
               <p className="text-sm text-gray-600 mt-1">
-                Select "{isProvisional ? 'Provisional' : 'Utility Non-Provisional'}" application type.
-                Follow the web-based ADS form to enter application data.
+                Log into USPTO Patent Center and select "{isProvisional ? 'File a Provisional Application' : 'File a Utility Non-Provisional Application'}".
+                Use the web-based Application Data Sheet (ADS) form to enter your information.
               </p>
             </div>
           </div>
@@ -1386,10 +1444,10 @@ function FilingInstructions({ filingType, application }: { filingType: string; a
               4
             </div>
             <div>
-              <p className="font-medium text-gray-900">Upload Documents</p>
+              <p className="font-medium text-gray-900">Enter Application Data from Downloaded ADS</p>
               <p className="text-sm text-gray-600 mt-1">
-                Upload your specification, drawings, and any additional documents.
-                The system will validate file formats and sizes.
+                Use your downloaded ADS PDF as reference to fill in the web form fields: inventor information,
+                correspondence address, entity status, and docket number. The USPTO system validates data as you enter it.
               </p>
             </div>
           </div>
@@ -1399,10 +1457,10 @@ function FilingInstructions({ filingType, application }: { filingType: string; a
               5
             </div>
             <div>
-              <p className="font-medium text-gray-900">Pay Filing Fee</p>
+              <p className="font-medium text-gray-900">Upload Documents</p>
               <p className="text-sm text-gray-600 mt-1">
-                Select your entity status and pay the appropriate filing fee.
-                Keep your receipt for records.
+                Upload your specification PDF, drawings, and any additional documents.
+                The USPTO system validates file formats (PDF required) and sizes automatically.
               </p>
             </div>
           </div>
@@ -1412,10 +1470,23 @@ function FilingInstructions({ filingType, application }: { filingType: string; a
               6
             </div>
             <div>
-              <p className="font-medium text-gray-900">Submit and Get Filing Receipt</p>
+              <p className="font-medium text-gray-900">Confirm Entity Status and Pay Filing Fee</p>
               <p className="text-sm text-gray-600 mt-1">
-                After submission, you'll receive an application number and filing date.
-                Save these for your records.
+                Verify your entity status (Small Entity or Micro Entity) and certify eligibility if claiming small entity status.
+                Pay the appropriate filing fee via credit card or USPTO deposit account.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+            <div className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold">
+              7
+            </div>
+            <div>
+              <p className="font-medium text-gray-900">Review and Submit Application</p>
+              <p className="text-sm text-gray-600 mt-1">
+                Review all entered data and uploaded documents for accuracy. Submit your application and immediately
+                receive a filing receipt with your application number and official filing date.
               </p>
             </div>
           </div>
