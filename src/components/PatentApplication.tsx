@@ -486,7 +486,7 @@ export function PatentApplication() {
           }
 
           setPatentFont(pdf, 'normal');
-          pdf.setFontSize(10);
+          pdf.setFontSize(12);
           if (drawing.description) {
             const descLines = pdf.splitTextToSize(drawing.description, maxWidth);
             const descY = pngDataUrl ? margin + 30 + (pageHeight - margin * 2 - 100) + 20 : margin + 50;
@@ -518,15 +518,14 @@ export function PatentApplication() {
 
       const addHeader = () => {
         setPatentFont(pdf, 'bold');
-        pdf.setFontSize(11);
-        pdf.setTextColor(100, 100, 100);
+        pdf.setFontSize(12);
+        pdf.setTextColor(0, 0, 0);
         const titleLines = pdf.splitTextToSize(selectedApp.title.toUpperCase(), maxWidth);
         titleLines.forEach((line: string) => {
           pdf.text(line, pageWidth / 2, yPos, { align: 'center' });
-          yPos += 14;
+          yPos += 16;
         });
         yPos += 8;
-        pdf.setTextColor(0, 0, 0);
       };
 
       const addSectionTitle = (title: string) => {

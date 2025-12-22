@@ -26,6 +26,9 @@ export function createUsptoCompliantPdf(): jsPDF {
     compress: true
   });
 
+  pdf.setTextColor(0, 0, 0);
+  pdf.setFontSize(12);
+
   return pdf;
 }
 
