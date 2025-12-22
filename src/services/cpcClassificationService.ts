@@ -126,30 +126,52 @@ ${availableClasses || fallbackClasses}
 COMMON SOFTWARE/TECH CPC CODES FOR REFERENCE:
 ${fallbackClasses}
 
-Based on the invention description and technical field, select:
-1. ONE primary CPC classification that best describes the core innovation
-2. Up to THREE secondary CPC classifications for additional aspects
+CLASSIFICATION GUIDANCE:
 
-Consider:
-- If the invention involves AI/ML, consider G06N classes
-- If it involves image/video processing, consider G06T or H04N
-- If it involves speech/voice, consider G10L
-- If it involves business processes/workflow, consider G06Q
-- If it involves data processing/software, consider G06F
-- If it involves animation, consider G06T13
+1. ANIMATION/GRAPHICS (Primary for animation production systems):
+   - G06T 13/00: Animation (broad category)
+   - G06T 13/20: 3D Animation (for 3D mesh manipulation, claymation, photo-real styles)
+   - G06T 13/40: Facial Animation (for lip-sync, facial expressions)
+   - G06T 13/80: 2D Animation (for cartoon-style, flat animation)
+   - G06T 19/00: Manipulating 3D Models (for computer graphics rendering)
+
+2. AI/MACHINE LEARNING (Secondary for AI-powered systems):
+   - G06N 3/00: Biological Models - Neural Networks (for LLMs, diffusion models, deep learning)
+   - G06N 20/00: Machine Learning (for adaptive algorithms, learning systems)
+
+3. LEGAL/IP AUTOMATION (Critical for IP management features):
+   - G06Q 50/18: Legal Services (for IP management, automated copyright/patent generation)
+   Note: Business method patents require strong technical grounding
+
+4. BUSINESS/WORKFLOW (For cost modeling, project management):
+   - G06Q 10/06: Project/Resource Management (for cost modeling, asset decay simulation, progress tracking)
+
+5. SPEECH/VOICE (For voice generation features):
+   - G10L 13/00: Speech Synthesis (for TTS, dialogue audio generation)
+
+IMPORTANT CLASSIFICATION RULES:
+- For inventions combining animation + AI: Primary should be G06T 13/xx (the core output)
+- For legal automation features: Include G06Q 50/18 but emphasize TECHNICAL implementation
+- For self-documenting patent features: Anchor in G06F (codebase scanning, AST analysis) rather than just business methods
+- Be specific with subclass codes when possible (e.g., G06T13/40 not just G06T13)
+
+Based on the invention description and technical field, select:
+1. ONE primary CPC classification that best describes the core technical innovation (the OUTPUT)
+2. Up to THREE secondary CPC classifications for underlying technologies and additional aspects
 
 Respond in JSON format:
 {
   "primary": {
-    "code": "G06T13/40",
+    "code": "G06T13/00",
     "confidence": 0.85,
     "rationale": "Brief explanation why this is the primary classification"
   },
   "secondary": [
-    {"code": "G06N3/08", "confidence": 0.72, "rationale": "Brief explanation"},
-    {"code": "G10L13", "confidence": 0.65, "rationale": "Brief explanation"}
+    {"code": "G06Q50/18", "confidence": 0.78, "rationale": "IP management and legal automation features"},
+    {"code": "G06N3/00", "confidence": 0.72, "rationale": "Neural network-based AI generation"},
+    {"code": "G10L13/00", "confidence": 0.65, "rationale": "Speech synthesis for dialogue"}
   ],
-  "overallRationale": "Summary of the classification analysis"
+  "overallRationale": "Summary explaining classification hierarchy and why primary was chosen over secondaries"
 }`;
 
   try {
@@ -432,12 +454,91 @@ export function getCPCCodeLink(code: string): string {
 }
 
 export const COMMON_SOFTWARE_CPC_CLASSES = [
-  { code: 'G06F', title: 'Electric Digital Data Processing', description: 'General software and computing' },
-  { code: 'G06N', title: 'Computing Based on Specific Models', description: 'AI, ML, Neural Networks' },
-  { code: 'G06Q', title: 'Business Data Processing', description: 'Business methods, workflows' },
-  { code: 'G06T', title: 'Image Data Processing', description: 'Graphics, visualization, animation' },
-  { code: 'G06V', title: 'Image/Video Recognition', description: 'Computer vision, recognition' },
-  { code: 'G10L', title: 'Speech Analysis/Synthesis', description: 'Voice, TTS, ASR' },
-  { code: 'H04L', title: 'Digital Information Transmission', description: 'Networks, protocols' },
-  { code: 'H04N', title: 'Pictorial Communication', description: 'Video, multimedia, streaming' }
+  { code: 'G06F', title: 'Electric Digital Data Processing', description: 'General software and computing, data processing systems' },
+  { code: 'G06N', title: 'Computing Based on Specific Models', description: 'AI, ML, Neural Networks, computational models' },
+  { code: 'G06N3/00', title: 'Biological Models (Neural Networks)', description: 'Computer systems based on biological models, LLMs, diffusion models, deep learning' },
+  { code: 'G06N20/00', title: 'Machine Learning', description: 'Adaptive algorithms, training systems, learning curve simulation' },
+  { code: 'G06Q', title: 'Business Data Processing', description: 'Business methods, administrative systems, workflow automation' },
+  { code: 'G06Q10/06', title: 'Project/Resource Management', description: 'Workflow management, cost modeling, resource allocation, progress tracking, asset management' },
+  { code: 'G06Q50/18', title: 'Legal Services', description: 'IP management, automated copyright registration, patent generation, legal document automation' },
+  { code: 'G06T', title: 'Image Data Processing', description: 'Graphics, visualization, image generation' },
+  { code: 'G06T13/00', title: 'Animation', description: 'Computer animation, motion graphics, animated content generation' },
+  { code: 'G06T13/20', title: '3D Animation', description: 'Three-dimensional animation, 3D character animation, claymation-style rendering' },
+  { code: 'G06T13/40', title: 'Facial Animation', description: 'Lip-sync, facial expression animation, character face movement' },
+  { code: 'G06T13/80', title: '2D Animation', description: 'Two-dimensional animation, cartoon-style, flat animation' },
+  { code: 'G06T19/00', title: 'Manipulating 3D Models', description: '3D model manipulation, computer graphics rendering, scene composition' },
+  { code: 'G06V', title: 'Image/Video Recognition', description: 'Computer vision, recognition, visual analysis' },
+  { code: 'G10L', title: 'Speech Analysis/Synthesis', description: 'Voice, TTS, ASR, voice cloning' },
+  { code: 'G10L13/00', title: 'Speech Synthesis', description: 'Text-to-speech, voice generation, dialogue audio synthesis' },
+  { code: 'H04L', title: 'Digital Information Transmission', description: 'Networks, protocols, data transmission' },
+  { code: 'H04N', title: 'Pictorial Communication', description: 'Video, multimedia, streaming, video generation' }
 ];
+
+export interface ArtUnitSuggestion {
+  techCenter: string;
+  artUnit: string;
+  description: string;
+  relevance: number;
+}
+
+export function suggestArtUnits(classifications: CPCClassificationResult): ArtUnitSuggestion[] {
+  const suggestions: ArtUnitSuggestion[] = [];
+  const allCodes = [
+    classifications.primary?.code,
+    ...classifications.secondary.map(s => s.code)
+  ].filter(Boolean) as string[];
+
+  const hasAnimation = allCodes.some(c => c.startsWith('G06T13') || c.startsWith('G06T19'));
+  const hasAI = allCodes.some(c => c.startsWith('G06N'));
+  const hasLegal = allCodes.some(c => c.startsWith('G06Q50/18'));
+  const hasBusiness = allCodes.some(c => c.startsWith('G06Q'));
+  const hasSpeech = allCodes.some(c => c.startsWith('G10L'));
+  const hasVideo = allCodes.some(c => c.startsWith('H04N'));
+
+  if (hasAnimation || hasAI) {
+    suggestions.push({
+      techCenter: '2100',
+      artUnit: '2121-2129',
+      description: 'Computer Architecture and Software - AI, Graphics, Animation',
+      relevance: hasAnimation && hasAI ? 0.95 : 0.85
+    });
+  }
+
+  if (hasLegal || hasBusiness) {
+    suggestions.push({
+      techCenter: '3600',
+      artUnit: '3621-3629',
+      description: 'Business Methods - Legal Automation, IP Management, Workflow',
+      relevance: hasLegal ? 0.9 : 0.75
+    });
+  }
+
+  if (hasSpeech) {
+    suggestions.push({
+      techCenter: '2600',
+      artUnit: '2654-2658',
+      description: 'Communications - Speech Processing, Audio Synthesis',
+      relevance: 0.8
+    });
+  }
+
+  if (hasVideo) {
+    suggestions.push({
+      techCenter: '2400',
+      artUnit: '2482-2488',
+      description: 'Networking, Multiplexing, and Video - Video Processing',
+      relevance: 0.75
+    });
+  }
+
+  if (suggestions.length === 0) {
+    suggestions.push({
+      techCenter: '2100',
+      artUnit: '2121-2129',
+      description: 'Computer Architecture and Software (Default)',
+      relevance: 0.5
+    });
+  }
+
+  return suggestions.sort((a, b) => b.relevance - a.relevance);
+}

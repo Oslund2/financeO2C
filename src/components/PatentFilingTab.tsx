@@ -47,9 +47,11 @@ import {
   suggestCPCClassifications,
   updatePatentClassifications,
   getCPCReferenceData,
+  suggestArtUnits,
   COMMON_SOFTWARE_CPC_CLASSES,
   type CPCClassificationResult,
-  type CPCReferenceData
+  type CPCReferenceData,
+  type ArtUnitSuggestion
 } from '../services/cpcClassificationService';
 import {
   downloadCoverSheet,
@@ -1071,6 +1073,8 @@ function ClassificationSection({
                 <p className="text-sm text-gray-700">{classifications.analysisRationale}</p>
               </div>
             )}
+
+            <ArtUnitSuggestions classifications={classifications} />
           </div>
         ) : (
           <div className="text-center py-8 text-gray-500">
@@ -1504,6 +1508,55 @@ function FilingInstructions({ filingType, application }: { filingType: string; a
           </a>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ArtUnitSuggestions({ classifications }: { classifications: CPCClassificationResult }) {
+  const artUnits = suggestArtUnits(classifications);
+
+  if (artUnits.length === 0) return null;
+
+  return (
+    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-4">
+      <p className="text-xs text-amber-700 font-medium mb-3 flex items-center gap-2">
+        <Shield className="w-4 h-4" />
+        SUGGESTED USPTO ART UNITS
+      </p>
+      <p className="text-xs text-amber-600 mb-3">
+        Based on your classifications, your application will likely be examined by one of these Tech Centers:
+      </p>
+      <div className="space-y-2">
+        {artUnits.map((unit, idx) => (
+          <div
+            key={idx}
+            className={`flex items-center justify-between p-3 rounded-lg ${
+              idx === 0 ? 'bg-amber-100 border border-amber-300' : 'bg-white border border-amber-100'
+            }`}
+          >
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-mono font-bold text-amber-800">TC {unit.techCenter}</span>
+                <span className="text-amber-600">|</span>
+                <span className="font-mono text-sm text-amber-700">Art Unit {unit.artUnit}</span>
+                {idx === 0 && (
+                  <span className="px-2 py-0.5 bg-amber-600 text-white text-xs rounded-full">
+                    Most Likely
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-amber-700 mt-1">{unit.description}</p>
+            </div>
+            <div className="text-right">
+              <div className="text-xs text-amber-600">Relevance</div>
+              <div className="font-bold text-amber-800">{Math.round(unit.relevance * 100)}%</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="text-xs text-amber-600 mt-3 italic">
+        Note: Final Art Unit assignment is determined by the USPTO during processing.
+      </p>
     </div>
   );
 }
