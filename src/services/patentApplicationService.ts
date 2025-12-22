@@ -1,5 +1,79 @@
 import { supabase } from '../lib/supabase';
 
+export type EntityStatus = 'regular' | 'small_entity' | 'micro_entity';
+
+export interface InventorInfo {
+  id: string;
+  fullName: string;
+  residence: {
+    city: string;
+    state: string;
+    country: string;
+  };
+  citizenship: string;
+  mailingAddress?: {
+    street: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    country: string;
+  };
+}
+
+export interface CorrespondenceAddressInfo {
+  name?: string;
+  street: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+  phone?: string;
+  email?: string;
+}
+
+export interface AttorneyInfoData {
+  name?: string;
+  registrationNumber?: string;
+  firm?: string;
+}
+
+export interface CPCClassificationData {
+  primary: string | null;
+  primaryDetails?: {
+    code: string;
+    title: string;
+    description?: string;
+    level: number;
+    category: string;
+    confidence?: number;
+  };
+  secondary: string[];
+  secondaryDetails?: Array<{
+    code: string;
+    title: string;
+    description?: string;
+    level: number;
+    category: string;
+    confidence?: number;
+  }>;
+  ai_suggested: boolean;
+  confidence: number | null;
+  rationale?: string;
+}
+
+export interface FilingChecklistStatus {
+  title?: { complete: boolean; value?: string };
+  specification?: { complete: boolean; word_count?: number };
+  abstract?: { complete: boolean; word_count?: number; valid?: boolean };
+  claims?: { complete: boolean; total?: number; independent?: number };
+  drawings?: { complete: boolean; count?: number };
+  inventors?: { complete: boolean; count?: number };
+  entity_status?: { complete: boolean; value?: string };
+  correspondence_address?: { complete: boolean; has_data?: boolean };
+  cpc_classification?: { complete: boolean; primary?: string };
+  ready_to_file?: boolean;
+}
+
 export interface PatentApplication {
   id: string;
   organization_id: string;
@@ -10,19 +84,16 @@ export interface PatentApplication {
   inventor_citizenship: string;
   specification: string | null;
   abstract: string | null;
-  // User-provided invention details
   invention_description: string | null;
   technical_field: string | null;
   problem_solved: string | null;
   key_features: string[];
-  // Structured specification fields
   field_of_invention: string | null;
   background_art: string | null;
   summary_invention: string | null;
   detailed_description: string | null;
   prior_art_patents: PriorArtReference[];
   prior_art_literature: PriorArtReference[];
-  // Patent intelligence fields
   prior_art_search_status?: string;
   prior_art_search_completed_at?: string | null;
   novelty_score?: number | null;
@@ -36,6 +107,21 @@ export interface PatentApplication {
   specification_generation_completed_at?: string | null;
   full_application_status?: string;
   full_application_completed_at?: string | null;
+  cpc_classifications: CPCClassificationData;
+  entity_status: EntityStatus;
+  inventors: InventorInfo[];
+  correspondence_address: CorrespondenceAddressInfo | null;
+  attorney_info: AttorneyInfoData | null;
+  government_interest: string | null;
+  foreign_priority_claims: Array<{
+    country: string;
+    application_number: string;
+    filing_date: string;
+  }>;
+  filing_checklist_status: FilingChecklistStatus;
+  provisional_filing_date: string | null;
+  conversion_deadline: string | null;
+  estimated_filing_fee: number | null;
   metadata: Record<string, unknown>;
   version: number;
   created_at: string;
@@ -153,7 +239,18 @@ export async function getPatentApplication(applicationId: string): Promise<Paten
       specification_generation_status,
       specification_generation_completed_at,
       full_application_status,
-      full_application_completed_at
+      full_application_completed_at,
+      cpc_classifications,
+      entity_status,
+      inventors,
+      correspondence_address,
+      attorney_info,
+      government_interest,
+      foreign_priority_claims,
+      filing_checklist_status,
+      provisional_filing_date,
+      conversion_deadline,
+      estimated_filing_fee
     `)
     .eq('id', applicationId)
     .maybeSingle();

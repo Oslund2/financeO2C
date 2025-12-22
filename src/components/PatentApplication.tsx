@@ -33,7 +33,8 @@ import {
   BarChart3,
   Lightbulb,
   FileImage,
-  Printer
+  Printer,
+  ClipboardCheck
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
@@ -86,8 +87,9 @@ import {
   type SelfPatentProgress
 } from '../services/selfPatentGenerationService';
 import jsPDF from 'jspdf';
+import { PatentFilingTab } from './PatentFilingTab';
 
-type TabId = 'overview' | 'specification' | 'claims' | 'drawings' | 'abstract' | 'prior-art' | 'analysis' | 'export';
+type TabId = 'overview' | 'specification' | 'claims' | 'drawings' | 'abstract' | 'prior-art' | 'analysis' | 'filing' | 'export';
 
 export function PatentApplication() {
   const { user } = useAuth();
@@ -492,6 +494,7 @@ export function PatentApplication() {
     { id: 'abstract', label: 'Abstract', icon: BookOpen },
     { id: 'prior-art', label: 'Prior Art', icon: Scroll },
     { id: 'analysis', label: 'AI Analysis', icon: BarChart3 },
+    { id: 'filing', label: 'Filing', icon: ClipboardCheck },
     { id: 'export', label: 'Export', icon: Download }
   ];
 
@@ -693,6 +696,19 @@ export function PatentApplication() {
 
                 {activeTab === 'analysis' && (
                   <AnalysisTab application={selectedApp} />
+                )}
+
+                {activeTab === 'filing' && (
+                  <PatentFilingTab
+                    application={selectedApp}
+                    onUpdate={async (updates) => {
+                      await updatePatentApplication(selectedApp.id, updates);
+                      const updated = await getPatentApplication(selectedApp.id);
+                      if (updated) {
+                        setSelectedApp(updated);
+                      }
+                    }}
+                  />
                 )}
 
                 {activeTab === 'export' && (
