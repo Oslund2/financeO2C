@@ -83,11 +83,28 @@ export async function suggestCPCClassifications(
   technicalField: string | null,
   claimsText: string | null
 ): Promise<CPCClassificationResult> {
-  const referenceData = await getCPCReferenceData();
+  let referenceData = await getCPCReferenceData();
+
+  if (referenceData.length === 0) {
+    console.warn('CPC reference data is empty, using built-in fallback classifications');
+    referenceData = COMMON_SOFTWARE_CPC_CLASSES.map(c => ({
+      code: c.code,
+      title: c.title,
+      description: c.description,
+      parent_code: null,
+      level: 3,
+      category: 'subclass',
+      keywords: c.description.toLowerCase().split(/[,\s]+/)
+    }));
+  }
 
   const availableClasses = referenceData
     .filter(r => r.level >= 3)
     .map(r => `${r.code}: ${r.title}`)
+    .join('\n');
+
+  const fallbackClasses = COMMON_SOFTWARE_CPC_CLASSES
+    .map(c => `${c.code}: ${c.title} - ${c.description}`)
     .join('\n');
 
   const prompt = `Analyze this patent application and suggest the most appropriate CPC (Cooperative Patent Classification) codes.
@@ -104,7 +121,10 @@ CLAIMS (if available):
 ${claimsText ? claimsText.substring(0, 2000) : 'Not yet generated'}
 
 AVAILABLE CPC CLASSIFICATIONS:
-${availableClasses}
+${availableClasses || fallbackClasses}
+
+COMMON SOFTWARE/TECH CPC CODES FOR REFERENCE:
+${fallbackClasses}
 
 Based on the invention description and technical field, select:
 1. ONE primary CPC classification that best describes the core innovation
@@ -116,6 +136,7 @@ Consider:
 - If it involves speech/voice, consider G10L
 - If it involves business processes/workflow, consider G06Q
 - If it involves data processing/software, consider G06F
+- If it involves animation, consider G06T13
 
 Respond in JSON format:
 {
@@ -138,7 +159,24 @@ Respond in JSON format:
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
 
-      const primaryRef = referenceData.find(r => r.code === parsed.primary?.code);
+      let primaryRef = referenceData.find(r => r.code === parsed.primary?.code);
+      if (!primaryRef && parsed.primary?.code) {
+        const commonMatch = COMMON_SOFTWARE_CPC_CLASSES.find(c =>
+          parsed.primary.code.startsWith(c.code) || c.code === parsed.primary.code
+        );
+        if (commonMatch) {
+          primaryRef = {
+            code: parsed.primary.code,
+            title: commonMatch.title + (parsed.primary.code !== commonMatch.code ? ` (${parsed.primary.code})` : ''),
+            description: commonMatch.description,
+            parent_code: commonMatch.code,
+            level: parsed.primary.code.includes('/') ? 5 : 4,
+            category: 'group',
+            keywords: []
+          };
+        }
+      }
+
       const primary: CPCClassification | null = primaryRef ? {
         code: primaryRef.code,
         title: primaryRef.title,
@@ -146,11 +184,41 @@ Respond in JSON format:
         level: primaryRef.level,
         category: primaryRef.category,
         confidence: parsed.primary?.confidence || 0.7
-      } : null;
+      } : (parsed.primary?.code ? {
+        code: parsed.primary.code,
+        title: parsed.primary.rationale || 'AI-suggested classification',
+        description: undefined,
+        level: 4,
+        category: 'group',
+        confidence: parsed.primary?.confidence || 0.6
+      } : null);
 
       const secondary: CPCClassification[] = (parsed.secondary || [])
         .map((s: any) => {
-          const ref = referenceData.find(r => r.code === s.code);
+          let ref = referenceData.find(r => r.code === s.code);
+          if (!ref && s.code) {
+            const commonMatch = COMMON_SOFTWARE_CPC_CLASSES.find(c =>
+              s.code.startsWith(c.code) || c.code === s.code
+            );
+            if (commonMatch) {
+              return {
+                code: s.code,
+                title: commonMatch.title,
+                description: commonMatch.description,
+                level: s.code.includes('/') ? 5 : 4,
+                category: 'group',
+                confidence: s.confidence || 0.5
+              };
+            }
+            return {
+              code: s.code,
+              title: s.rationale || 'Secondary classification',
+              description: undefined,
+              level: 4,
+              category: 'group',
+              confidence: s.confidence || 0.5
+            };
+          }
           if (!ref) return null;
           return {
             code: ref.code,
@@ -176,7 +244,35 @@ Respond in JSON format:
     console.error('AI classification suggestion failed:', error);
   }
 
-  return suggestClassificationFromKeywords(title, inventionDescription, technicalField, referenceData);
+  const keywordResult = suggestClassificationFromKeywords(title, inventionDescription, technicalField, referenceData);
+
+  if (!keywordResult.primary) {
+    return {
+      primary: {
+        code: 'G06F',
+        title: 'Electric Digital Data Processing',
+        description: 'General software and computing',
+        level: 3,
+        category: 'subclass',
+        confidence: 0.4
+      },
+      secondary: [
+        {
+          code: 'G06N',
+          title: 'Computing Based on Specific Models',
+          description: 'AI, ML, Neural Networks',
+          level: 3,
+          category: 'subclass',
+          confidence: 0.3
+        }
+      ],
+      aiSuggested: false,
+      confidence: 0.4,
+      analysisRationale: 'Default software classification assigned. Consider manually selecting a more specific classification.'
+    };
+  }
+
+  return keywordResult;
 }
 
 function suggestClassificationFromKeywords(

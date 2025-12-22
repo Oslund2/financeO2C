@@ -43,7 +43,7 @@ const VIDEO_PRODUCTION_FEATURES = [
     name: 'Multi-Tiered Cost Comparison Engine',
     type: 'algorithm' as const,
     description: 'Parallel cost calculation system comparing AI-assisted production, traditional animation, and creator-level costs with dynamic adjustments',
-    technicalDetails: 'Calculates per-minute costs across three production methodologies: (1) AI-assisted with human oversight, (2) Traditional claymation with labor hours and materials, (3) Individual creator costs with freelance rates. Incorporates frame rate multipliers, reshoot percentages, and platform fees.',
+    technicalDetails: 'Calculates per-minute costs across three production methodologies: (1) AI-assisted with human oversight, (2) Traditional animation production with labor hours and materials (supporting all styles including claymation, 2D, 3D, and photo-real), (3) Individual creator costs with freelance rates. Incorporates frame rate multipliers, reshoot percentages, and platform fees.',
     sourceFile: 'src/services/costCalculationService.ts',
     noveltyStrength: 'strong' as const,
     isCoreInnovation: true

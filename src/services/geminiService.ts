@@ -877,6 +877,7 @@ const PATENT_TOKEN_LIMITS: Record<string, number> = {
   'patent_section_regeneration': 8192,
   'patent_claims_generation': 6000,
   'patent_feature_extraction': 4000,
+  'cpc_classification': 2000,
 };
 
 export async function generateText(

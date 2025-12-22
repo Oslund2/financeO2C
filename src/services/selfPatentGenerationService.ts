@@ -18,13 +18,13 @@ export interface SelfPatentResult {
   error?: string;
 }
 
-const APPLICATION_TITLE = 'System and Method for AI-Assisted Claymation Animation Production with Integrated Patent Generation';
+const APPLICATION_TITLE = 'System and Method for AI-Assisted Animation Production with Integrated Patent Generation';
 
-const TECHNICAL_FIELD = `The present invention relates to computer-implemented methods and systems for automated video production, and more particularly to an integrated platform for creating claymation-style animated content using artificial intelligence models with hierarchical cost optimization, character consistency management, and self-documenting patent generation capabilities.`;
+const TECHNICAL_FIELD = `The present invention relates to computer-implemented methods and systems for automated video production, and more particularly to an integrated platform for creating animated content using artificial intelligence models with hierarchical cost optimization, character consistency management, and self-documenting patent generation capabilities. The scope of claims covers all animation styles including but not limited to claymation, stop-motion, 2D traditional, 3D computer-generated, hyper-realistic, and photo-real animation.`;
 
-const PROBLEM_STATEMENT = `Traditional claymation and stop-motion animation production requires extensive manual labor, with typical costs ranging from $50,000-$500,000 per minute of finished content. Production teams include animators, voice actors, set designers, lighting technicians, and post-production specialists, resulting in production timelines of 6-18 months for a single episode. This cost and time barrier makes professional animation production inaccessible to independent creators and small studios.
+const PROBLEM_STATEMENT = `Traditional animation production requires extensive manual labor, with typical costs ranging from $50,000-$500,000 per minute of finished content depending on the animation style. Production teams include animators, voice actors, set designers, lighting technicians, and post-production specialists, resulting in production timelines of 6-18 months for a single episode. This cost and time barrier makes professional animation production inaccessible to independent creators and small studios.
 
-Existing animation software provides tools but does not automate the creative pipeline. Current AI video generation services produce isolated clips without maintaining character consistency across scenes or episodes. No existing system integrates script generation, storyboarding, voice synthesis, lip-sync animation, and cost modeling into a unified workflow with multi-organization management.
+Existing animation software provides tools but does not automate the creative pipeline. Current AI video generation services produce isolated clips without maintaining character consistency across scenes or episodes. No existing system integrates script generation, storyboarding, voice synthesis, lip-sync animation, and cost modeling into a unified workflow with multi-organization management that supports multiple animation styles (including claymation, 2D, 3D, and photo-real animation).
 
 Furthermore, software development teams lack tools to automatically generate patent applications for their own inventions by analyzing their codebase, requiring expensive patent attorney consultations and manual documentation of technical features.`;
 
@@ -176,7 +176,7 @@ REQUIREMENTS:
 
 Write in clear, professional language suitable for a patent application. Focus on technical innovation and practical benefits.`;
 
-  const description = await generateText(prompt, {
+  const description = await generateText(prompt, undefined, {
     temperature: 0.7,
     maxTokens: 2000
   });
