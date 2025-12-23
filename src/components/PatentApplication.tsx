@@ -1029,6 +1029,7 @@ export function PatentApplication() {
                     specification={editingSpec ? tempSpec : selectedApp.specification || ''}
                     editing={editingSpec}
                     saving={saving}
+                    application={selectedApp}
                     onEdit={() => {
                       setTempSpec(selectedApp.specification || '');
                       setEditingSpec(true);
@@ -1560,6 +1561,7 @@ function SpecificationTab({
   specification,
   editing,
   saving,
+  application,
   onEdit,
   onChange,
   onSave,
@@ -1569,6 +1571,7 @@ function SpecificationTab({
   specification: string;
   editing: boolean;
   saving: boolean;
+  application: PatentApplicationWithDetails;
   onEdit: () => void;
   onChange: (value: string) => void;
   onSave: () => void;
@@ -1576,6 +1579,8 @@ function SpecificationTab({
   onRegenerate: () => void;
 }) {
   const isTemplate = specification === generateDefaultSpecification();
+  const hasDrawings = application.drawings && application.drawings.length > 0;
+  const hasReferenceNumbers = hasDrawings && application.drawings.some(d => d.blocks && d.blocks.length > 0);
 
   return (
     <div className="space-y-4">
@@ -1630,21 +1635,77 @@ function SpecificationTab({
         </div>
       </div>
 
-      {editing ? (
-        <textarea
-          value={specification}
-          onChange={e => onChange(e.target.value)}
-          className="w-full h-[600px] px-4 py-3 font-mono text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        />
-      ) : (
-        <div className="bg-gray-50 rounded-lg p-6 max-h-[600px] overflow-y-auto">
-          <pre className="whitespace-pre-wrap font-mono text-sm text-gray-800">{specification || 'No specification yet'}</pre>
-        </div>
-      )}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className={hasReferenceNumbers ? 'lg:col-span-2' : 'lg:col-span-3'}>
+          {editing ? (
+            <textarea
+              value={specification}
+              onChange={e => onChange(e.target.value)}
+              className="w-full h-[600px] px-4 py-3 font-mono text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          ) : (
+            <div className="bg-gray-50 rounded-lg p-6 max-h-[600px] overflow-y-auto">
+              <pre className="whitespace-pre-wrap font-mono text-sm text-gray-800">{specification || 'No specification yet'}</pre>
+            </div>
+          )}
 
-      <p className="text-sm text-gray-500">
-        Word count: {countWords(specification).toLocaleString()}
+          <p className="text-sm text-gray-500 mt-2">
+            Word count: {countWords(specification).toLocaleString()}
+          </p>
+        </div>
+
+        {hasReferenceNumbers && !editing && (
+          <div className="lg:col-span-1">
+            <ReferenceNumberLegend drawings={application.drawings} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ReferenceNumberLegend({ drawings }: { drawings: any[] }) {
+  const referenceMap = new Map<number, { label: string; figureNumber: number }>();
+
+  drawings.forEach(drawing => {
+    if (drawing.blocks) {
+      drawing.blocks.forEach((block: any) => {
+        if (block.calloutNumber && !referenceMap.has(block.calloutNumber)) {
+          referenceMap.set(block.calloutNumber, {
+            label: block.label,
+            figureNumber: drawing.figure_number
+          });
+        }
+      });
+    }
+  });
+
+  const sortedRefs = Array.from(referenceMap.entries()).sort((a, b) => a[0] - b[0]);
+
+  if (sortedRefs.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-h-[600px] overflow-y-auto sticky top-4">
+      <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+        <Info className="w-4 h-4 text-blue-600" />
+        Reference Numbers
+      </h3>
+      <p className="text-xs text-gray-600 mb-3">
+        Reference numerals used in the specification correspond to elements shown in the patent drawings.
       </p>
+      <div className="space-y-2">
+        {sortedRefs.map(([num, data]) => (
+          <div key={num} className="flex items-start gap-2 text-sm">
+            <span className="font-mono font-bold text-blue-600 flex-shrink-0 min-w-[3ch]">{num}</span>
+            <div>
+              <span className="text-gray-800">{data.label}</span>
+              <span className="text-gray-500 text-xs ml-1">(FIG. {data.figureNumber})</span>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

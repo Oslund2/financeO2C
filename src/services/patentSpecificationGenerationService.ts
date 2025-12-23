@@ -7,10 +7,17 @@ import {
   getPatentAbstractPrompt,
   getPatentSectionRegenerationPrompt
 } from './promptResolver';
+import {
+  buildReferenceNumberContext,
+  generateBriefDescriptionOfDrawings,
+  extractReferenceNumbersFromDrawings
+} from './referenceNumberCoordinator';
+import type { DrawingBlock } from './patentDrawingsService';
 
 export interface SpecificationSections {
   field: string;
   background: string;
+  briefDescriptionOfDrawings: string;
   summary: string;
   detailedDescription: string;
   abstract: string;
@@ -22,24 +29,42 @@ export interface InventionContext {
   problemSolved?: string;
 }
 
+export interface PatentDrawingData {
+  figure_number: number;
+  figure_title: string;
+  svg_content?: string;
+  blocks?: DrawingBlock[];
+}
+
 export async function generateIntelligentSpecification(
   title: string,
   features: any[],
   priorArt: any[],
   differentiationReports: any[],
   inventionContext?: InventionContext,
-  organizationId?: string | null
+  organizationId?: string | null,
+  drawings?: PatentDrawingData[]
 ): Promise<SpecificationSections> {
   const orgId = organizationId || null;
-  const field = await generateFieldSection(title, features, inventionContext, orgId);
-  const background = await generateBackgroundSection(priorArt, differentiationReports, inventionContext, orgId);
-  const summary = await generateSummarySection(title, features, differentiationReports, inventionContext, orgId);
-  const detailedDescription = await generateDetailedDescriptionSection(title, features, inventionContext, orgId);
+
+  const referenceContext = drawings && drawings.length > 0
+    ? buildReferenceNumberContext(drawings)
+    : null;
+
+  const briefDescriptionOfDrawings = drawings && drawings.length > 0
+    ? generateBriefDescriptionOfDrawings(drawings)
+    : '';
+
+  const field = await generateFieldSection(title, features, inventionContext, orgId, referenceContext);
+  const background = await generateBackgroundSection(priorArt, differentiationReports, inventionContext, orgId, referenceContext);
+  const summary = await generateSummarySection(title, features, differentiationReports, inventionContext, orgId, referenceContext);
+  const detailedDescription = await generateDetailedDescriptionSection(title, features, inventionContext, orgId, referenceContext, drawings);
   const abstract = await generateAbstractSection(title, features, inventionContext, orgId);
 
   return {
     field,
     background,
+    briefDescriptionOfDrawings,
     summary,
     detailedDescription,
     abstract
@@ -50,19 +75,29 @@ async function generateFieldSection(
   title: string,
   features: any[],
   inventionContext?: InventionContext,
-  organizationId?: string | null
+  organizationId?: string | null,
+  referenceContext?: string | null
 ): Promise<string> {
   const featuresText = features
     .map(f => `- ${f.name || f.feature_name}: ${f.type || f.feature_type}`)
     .join('\n');
 
   try {
-    const prompt = await getPatentFieldOfInventionPrompt(organizationId || null, {
+    let promptVars = {
       title,
       technicalField: inventionContext?.technicalField || '',
       inventionDescription: inventionContext?.description || '',
       features: featuresText
-    });
+    };
+
+    if (referenceContext) {
+      promptVars = {
+        ...promptVars,
+        inventionDescription: `${promptVars.inventionDescription}\n\n${referenceContext}`
+      } as any;
+    }
+
+    const prompt = await getPatentFieldOfInventionPrompt(organizationId || null, promptVars);
 
     const response = await generateText(prompt, 'patent_specification_field');
     return response.trim();
@@ -76,7 +111,8 @@ async function generateBackgroundSection(
   priorArt: any[],
   differentiationReports: any[],
   inventionContext?: InventionContext,
-  organizationId?: string | null
+  organizationId?: string | null,
+  referenceContext?: string | null
 ): Promise<string> {
   const priorArtText = priorArt.length > 0
     ? priorArt.map((pa, i) => `${i + 1}. ${pa.patent_number || 'Prior System'} - ${pa.patent_title || 'Existing Solution'}
@@ -89,12 +125,18 @@ async function generateBackgroundSection(
     : 'Novel approaches that address limitations in existing systems.';
 
   try {
-    const prompt = await getPatentBackgroundPrompt(organizationId || null, {
+    let promptVars = {
       inventionDescription: inventionContext?.description || '',
       problemSolved: inventionContext?.problemSolved || '',
       priorArt: priorArtText,
       differentiationPoints: differentiationText
-    });
+    };
+
+    if (referenceContext) {
+      promptVars.inventionDescription = `${promptVars.inventionDescription}\n\n${referenceContext}`;
+    }
+
+    const prompt = await getPatentBackgroundPrompt(organizationId || null, promptVars);
 
     const response = await generateText(prompt, 'patent_specification_background');
     return response.trim();
@@ -109,7 +151,8 @@ async function generateSummarySection(
   features: any[],
   differentiationReports: any[],
   inventionContext?: InventionContext,
-  organizationId?: string | null
+  organizationId?: string | null,
+  referenceContext?: string | null
 ): Promise<string> {
   const coreFeatures = features.filter(f => f.isCoreInnovation || f.is_core_innovation);
   const advantages = differentiationReports.flatMap(dr => dr.technical_advantages || []);
@@ -124,13 +167,19 @@ async function generateSummarySection(
     : 'Improved efficiency and streamlined workflow';
 
   try {
-    const prompt = await getPatentSummaryPrompt(organizationId || null, {
+    let promptVars = {
       title,
       features: featuresText,
       differentiationPoints: differentiationText,
       inventionDescription: inventionContext?.description || '',
       problemSolved: inventionContext?.problemSolved || ''
-    });
+    };
+
+    if (referenceContext) {
+      promptVars.inventionDescription = `${promptVars.inventionDescription}\n\n${referenceContext}`;
+    }
+
+    const prompt = await getPatentSummaryPrompt(organizationId || null, promptVars);
 
     const response = await generateText(prompt, 'patent_specification_summary');
     return response.trim();
@@ -159,13 +208,15 @@ async function generateDetailedDescriptionChunk(
     : features.slice(0, 6).map((f, i) => `${i + 1}. ${f.name || f.feature_name}: ${f.technicalDetails || f.technical_description || f.description || 'System component'}`).join('\n');
 
   try {
-    const prompt = await getPatentDetailedDescriptionPrompt(organizationId || null, {
+    let promptVars = {
       sectionType: chunkType,
       title,
       features: featuresText,
       inventionDescription: inventionContext?.description || '',
       technicalField: inventionContext?.technicalField || ''
-    });
+    };
+
+    const prompt = await getPatentDetailedDescriptionPrompt(organizationId || null, promptVars);
 
     const response = await generateText(prompt, 'patent_specification_detailed');
     return response.trim();
@@ -179,16 +230,37 @@ async function generateDetailedDescriptionSection(
   title: string,
   features: any[],
   inventionContext?: InventionContext,
-  organizationId?: string | null
+  organizationId?: string | null,
+  referenceContext?: string | null,
+  drawings?: PatentDrawingData[]
 ): Promise<string> {
+  const sections: string[] = [];
+
+  if (drawings && drawings.length > 0) {
+    const refs = extractReferenceNumbersFromDrawings(drawings);
+    if (refs.length > 0) {
+      sections.push('Referring now to the drawings, wherein like reference numerals designate corresponding parts throughout the several views:');
+      sections.push('');
+    }
+  }
+
+  const inventionContextWithRefs = referenceContext
+    ? {
+        ...inventionContext,
+        description: `${inventionContext?.description || ''}\n\n${referenceContext}`
+      }
+    : inventionContext;
+
   const chunks = await Promise.all([
-    generateDetailedDescriptionChunk('overview', title, features, inventionContext, organizationId),
-    generateDetailedDescriptionChunk('components', title, features, inventionContext, organizationId),
-    generateDetailedDescriptionChunk('algorithms', title, features, inventionContext, organizationId),
-    generateDetailedDescriptionChunk('embodiments', title, features, inventionContext, organizationId)
+    generateDetailedDescriptionChunk('overview', title, features, inventionContextWithRefs, organizationId),
+    generateDetailedDescriptionChunk('components', title, features, inventionContextWithRefs, organizationId),
+    generateDetailedDescriptionChunk('algorithms', title, features, inventionContextWithRefs, organizationId),
+    generateDetailedDescriptionChunk('embodiments', title, features, inventionContextWithRefs, organizationId)
   ]);
 
-  return chunks.filter(c => c.length > 0).join('\n\n');
+  sections.push(...chunks.filter(c => c.length > 0));
+
+  return sections.join('\n\n');
 }
 
 async function generateAbstractSection(

@@ -18,6 +18,10 @@ function formatSpecificationSections(spec: SpecificationSections): string {
     sections.push('BACKGROUND OF THE INVENTION\n\n' + spec.background);
   }
 
+  if (spec.briefDescriptionOfDrawings) {
+    sections.push(spec.briefDescriptionOfDrawings);
+  }
+
   if (spec.summary) {
     sections.push('SUMMARY OF THE INVENTION\n\n' + spec.summary);
   }
@@ -138,6 +142,12 @@ export async function generateCompletePatentApplication(
     const priorArt = await getPriorArtResults(config.applicationId);
     const differentiationReports = await getDifferentiationReports(config.applicationId);
 
+    const { data: existingDrawings } = await supabase
+      .from('patent_drawings')
+      .select('figure_number, figure_title, svg_content, blocks')
+      .eq('application_id', config.applicationId)
+      .order('figure_number', { ascending: true });
+
     const inventionContext: InventionContext | undefined = hasInventionDescription ? {
       description: appData.invention_description,
       technicalField: appData.technical_field || undefined,
@@ -149,10 +159,12 @@ export async function generateCompletePatentApplication(
       features.features,
       priorArt,
       differentiationReports,
-      inventionContext
+      inventionContext,
+      config.organizationId,
+      existingDrawings || undefined
     );
 
-    // Create concatenated specification for backward compatibility and UI display
+    // Create concatenated specification including Brief Description of Drawings
     const concatenatedSpecification = formatSpecificationSections(specification);
 
     await supabase
