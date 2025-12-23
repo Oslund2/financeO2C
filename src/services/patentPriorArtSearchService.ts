@@ -244,7 +244,18 @@ async function savePriorArtResults(
   results: PriorArtResult[],
   searchQuery: string
 ): Promise<void> {
-  const records = results.map(result => ({
+  const uniqueResults = results.filter((result, index, self) =>
+    index === self.findIndex(r => r.patentNumber === result.patentNumber)
+  );
+
+  console.log(`Deduplicating prior art: ${results.length} -> ${uniqueResults.length} unique results`);
+
+  await supabase
+    .from('patent_prior_art_search_results')
+    .delete()
+    .eq('patent_application_id', patentApplicationId);
+
+  const records = uniqueResults.map(result => ({
     organization_id: organizationId,
     patent_application_id: patentApplicationId,
     search_query: searchQuery,
