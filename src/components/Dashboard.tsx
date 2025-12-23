@@ -425,7 +425,7 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
       <div className="max-w-7xl mx-auto">
         <div className="mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-scripps-navy mb-1 sm:mb-2">Scripps AI Studio</h1>
-          <p className="text-sm sm:text-base lg:text-lg text-gray-600">AI-Powered Storytelling Assistant</p>
+          <p className="text-sm sm:text-base lg:text-lg text-gray-600">AI-Powered Storytelling Assistant (Patent Pending, filed 12-23-2025)</p>
         </div>
 
         <CastFilmStrip seriesId={seriesId} onNavigate={onNavigate} seriesName={seriesName} />
