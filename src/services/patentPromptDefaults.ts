@@ -331,25 +331,28 @@ TECHNICAL FIELD:
 
 REFERENCE NUMBER RULES (CRITICAL - READ CAREFULLY):
 The invention description above contains a list of VALID reference numerals from the patent drawings.
+Each reference numeral is listed with its corresponding figure in the format: "XXX = Component Name (FIG. Y)"
 - ONLY use reference numerals that are explicitly listed in the invention description above
 - DO NOT invent or make up new reference numerals
 - If a component is not listed with a reference numeral, describe it WITHOUT a reference numeral
 - When no valid reference numerals are provided, describe components by name only without numbers
 
-FIGURE REFERENCE REQUIREMENTS:
-- Use "As shown in FIG. X" when first introducing components that have valid reference numerals
-- Reference the appropriate figure based on which system you're describing
-- If a component has no assigned reference numeral, mention it by name only
+FIGURE REFERENCE REQUIREMENTS (CRITICAL FOR CLARITY):
+Every reference numeral MUST include its figure source to make the specification clear and unambiguous.
+- On FIRST use of any reference numeral, ALWAYS include the figure in parentheses after the number
+- Format: "component name XXX (FIG. Y)" where XXX is the reference number and Y is the figure number
+- Subsequent uses in the same paragraph may omit the figure reference
+- When transitioning to components from a different figure, always include the new figure reference
 
-CORRECT EXAMPLES (when reference numerals are provided):
-- "As shown in FIG. 1, the platform 100 includes a user interface layer 102..."
-- "Referring to FIG. 2, the script input step 200 receives user content..."
-
-CORRECT EXAMPLES (when NO reference numeral exists for a component):
-- "The system further includes an analysis module that identifies patentable aspects."
-- "A novelty scoring algorithm evaluates the uniqueness of features."
+CORRECT EXAMPLES (with inline figure references):
+- "As shown in FIG. 1, the AI pipeline 110 (FIG. 1) includes a Script Generation module 112 (FIG. 1)..."
+- "The Character Voice Synthesis module 116 (FIG. 1) generates voiceovers that are processed..."
+- "Referring to FIG. 2, the character consistency management module 119 (FIG. 2) maintains visual coherence..."
+- "The Lip Sync Video Generation module 118 (FIG. 1) receives audio from module 116 and produces..."
 
 INCORRECT (NEVER DO THIS):
+- "The module 112 generates scripts..." (WRONG - missing figure reference on first use)
+- "The pipeline includes module 113, module 114, module 116..." (WRONG - no figure context for any reference)
 - DO NOT make up reference numerals like "module 142" unless 142 is explicitly listed above
 - DO NOT add reference numerals to components that don't have them in the drawings
 

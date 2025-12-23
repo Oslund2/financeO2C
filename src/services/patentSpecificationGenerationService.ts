@@ -11,7 +11,8 @@ import {
   buildReferenceNumberContext,
   generateBriefDescriptionOfDrawings,
   extractReferenceNumbersFromDrawings,
-  validateReferenceNumbers
+  validateReferenceNumbers,
+  injectFigureReferences
 } from './referenceNumberCoordinator';
 import type { DrawingBlock } from './patentDrawingsService';
 
@@ -382,6 +383,24 @@ export function cleanSpecificationSections(
   };
 }
 
+function applyFigureReferencesToSections(
+  sections: SpecificationSections,
+  drawings: PatentDrawingData[]
+): SpecificationSections {
+  if (!drawings || drawings.length === 0) {
+    return sections;
+  }
+
+  return {
+    field: injectFigureReferences(sections.field, drawings),
+    background: injectFigureReferences(sections.background, drawings),
+    briefDescriptionOfDrawings: sections.briefDescriptionOfDrawings,
+    summary: injectFigureReferences(sections.summary, drawings),
+    detailedDescription: injectFigureReferences(sections.detailedDescription, drawings),
+    abstract: injectFigureReferences(sections.abstract, drawings)
+  };
+}
+
 export async function generateValidatedSpecification(
   title: string,
   features: any[],
@@ -410,8 +429,17 @@ export async function generateValidatedSpecification(
     cleanedSections = cleanSpecificationSections(sections, drawingsArray);
   }
 
+  let finalSections = autoClean && cleanedSections ? cleanedSections : sections;
+
+  if (drawingsArray.length > 0) {
+    finalSections = applyFigureReferencesToSections(finalSections, drawingsArray);
+    if (cleanedSections) {
+      cleanedSections = applyFigureReferencesToSections(cleanedSections, drawingsArray);
+    }
+  }
+
   return {
-    sections: autoClean && cleanedSections ? cleanedSections : sections,
+    sections: finalSections,
     validation,
     cleanedSections
   };

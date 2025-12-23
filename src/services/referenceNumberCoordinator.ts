@@ -184,6 +184,9 @@ export function buildReferenceNumberContext(
   const lines: string[] = [];
   lines.push('USE THESE SPECIFIC REFERENCE NUMERALS (from the actual patent drawings):');
   lines.push('');
+  lines.push('IMPORTANT: Each reference numeral belongs to a specific figure. When using a reference');
+  lines.push('numeral, ALWAYS include its figure source in parentheses on first use.');
+  lines.push('');
 
   const uniqueRefs = new Map<number, ReferenceNumberMap>();
   referenceMap.forEach(ref => {
@@ -195,12 +198,23 @@ export function buildReferenceNumberContext(
   Array.from(uniqueRefs.values())
     .sort((a, b) => a.number - b.number)
     .forEach(ref => {
-      lines.push(`${ref.number} = ${ref.label}`);
+      lines.push(`${ref.number} = ${ref.label} (FIG. ${ref.figureNumber})`);
     });
 
   lines.push('');
-  lines.push('When describing components, use these exact reference numerals from the drawings.');
-  lines.push('For example: "The system 100 includes a processor 102 and database 104..."');
+  lines.push('REFERENCE NUMERAL FORMAT REQUIREMENTS:');
+  lines.push('- On FIRST use of any reference numeral, include the figure: "module 112 (FIG. 1)"');
+  lines.push('- Subsequent uses in the same paragraph may omit the figure: "module 112"');
+  lines.push('- When switching to components from a different figure, always include the new figure reference');
+  lines.push('');
+  lines.push('CORRECT EXAMPLES:');
+  lines.push('- "The AI pipeline 110 (FIG. 1) includes a Script Generation module 112 (FIG. 1)..."');
+  lines.push('- "As shown in FIG. 2, the character consistency management module 119 (FIG. 2) maintains..."');
+  lines.push('- "The Voice Synthesis module 116 (FIG. 1) generates audio that is processed by..."');
+  lines.push('');
+  lines.push('INCORRECT (NEVER DO THIS):');
+  lines.push('- "The module 112 generates scripts..." (missing figure reference on first use)');
+  lines.push('- "The pipeline includes module 113, module 114, module 116..." (no figure context)');
   lines.push('');
   lines.push('Available Figures:');
 
@@ -211,6 +225,79 @@ export function buildReferenceNumberContext(
   });
 
   return lines.join('\n');
+}
+
+export function buildReferenceToFigureMap(
+  drawings: Array<{
+    figure_number: number;
+    figure_title: string;
+    svg_content?: string;
+    blocks?: DrawingBlock[];
+  }>
+): Map<number, number> {
+  const referenceMap = extractReferenceNumbersFromDrawings(drawings);
+  const refToFigure = new Map<number, number>();
+
+  referenceMap.forEach(ref => {
+    if (!refToFigure.has(ref.number)) {
+      refToFigure.set(ref.number, ref.figureNumber);
+    }
+  });
+
+  return refToFigure;
+}
+
+export function injectFigureReferences(
+  text: string,
+  drawings: Array<{
+    figure_number: number;
+    figure_title: string;
+    svg_content?: string;
+    blocks?: DrawingBlock[];
+  }>
+): string {
+  const refToFigure = buildReferenceToFigureMap(drawings);
+
+  if (refToFigure.size === 0) {
+    return text;
+  }
+
+  const validRefNumbers = Array.from(refToFigure.keys());
+  const seenRefs = new Set<number>();
+  let result = text;
+
+  const patterns = [
+    /(\b(?:module|component|system|unit|engine|layer|interface|processor|generator|manager|service|pipeline|step|block|element|apparatus|device|mechanism|circuit|controller|handler|analyzer|extractor)\s+)(\d{3})(?!\s*\(FIG\.?\s*\d+\))/gi,
+    /(\bthe\s+)(\d{3})(?!\s*\(FIG\.?\s*\d+\))/gi,
+  ];
+
+  for (const pattern of patterns) {
+    result = result.replace(pattern, (match, prefix, refNum) => {
+      const num = parseInt(refNum, 10);
+      if (validRefNumbers.includes(num)) {
+        const figNum = refToFigure.get(num);
+        if (!seenRefs.has(num)) {
+          seenRefs.add(num);
+          return `${prefix}${refNum} (FIG. ${figNum})`;
+        }
+      }
+      return match;
+    });
+  }
+
+  const standalonePattern = /(?<![a-zA-Z])(\d{3})(?!\s*\(FIG\.?\s*\d+\))(?=\s*(?:,|\.|\s+(?:and|or|includes|comprises|has|is|are|may|can|will|generates|processes|receives|transmits|stores|manages|handles|performs|executes)))/g;
+
+  result = result.replace(standalonePattern, (match, refNum) => {
+    const num = parseInt(refNum, 10);
+    if (validRefNumbers.includes(num) && !seenRefs.has(num)) {
+      const figNum = refToFigure.get(num);
+      seenRefs.add(num);
+      return `${refNum} (FIG. ${figNum})`;
+    }
+    return match;
+  });
+
+  return result;
 }
 
 export function formatSpecificationWithDrawings(
