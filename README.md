@@ -1,6 +1,6 @@
-# Clayville Craniums - AI Animation Studio
+# AI Animation Studio
 
-An AI-powered claymation animation production platform for creating episodes of "The Clayville Craniums" - a Scripps National Spelling Bee animated series.
+An AI-powered animation production platform for creating episodes of "The Clayville Craniums" - a Scripps National Spelling Bee animated series.
 
 ## Overview
 
