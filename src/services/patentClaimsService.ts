@@ -382,12 +382,32 @@ async function generateIndependentClaims(
     });
 
     const response = await generateText(prompt, 'patent_claims_independent');
+    console.log('AI independent claims response length:', response.length);
+    console.log('AI independent claims response preview:', response.substring(0, 500));
+
+    // Try to extract JSON array more robustly
     const jsonMatch = response.match(/\[[\s\S]*\]/);
     if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
+      try {
+        const parsed = JSON.parse(jsonMatch[0]);
+        console.log('Successfully parsed independent claims, count:', parsed.length);
+        if (parsed.length < 2) {
+          console.warn(`AI generated only ${parsed.length} claims, expected 2-4`);
+        }
+        return parsed;
+      } catch (parseError) {
+        console.error('JSON parsing failed for independent claims:', parseError);
+        console.error('Attempted to parse:', jsonMatch[0].substring(0, 500));
+        throw new Error('Failed to parse AI-generated independent claims JSON');
+      }
+    } else {
+      console.error('No JSON array found in AI independent claims response');
+      console.error('Full response:', response);
+      throw new Error('AI independent claims response did not contain valid JSON array');
     }
   } catch (error) {
     console.error('AI independent claims generation failed:', error);
+    console.error('Falling back to default independent claims');
   }
 
   return [
@@ -416,18 +436,50 @@ async function generateDependentClaims(
     });
 
     const response = await generateText(prompt, 'patent_claims_dependent');
+    console.log('AI dependent claims response length:', response.length);
+    console.log('AI dependent claims response preview:', response.substring(0, 500));
+
+    // Try to extract JSON array more robustly
     const jsonMatch = response.match(/\[[\s\S]*\]/);
     if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
+      try {
+        const parsed = JSON.parse(jsonMatch[0]);
+        console.log('Successfully parsed dependent claims, count:', parsed.length);
+        if (parsed.length < 15) {
+          console.warn(`AI generated only ${parsed.length} claims, expected 15-18`);
+        }
+        return parsed;
+      } catch (parseError) {
+        console.error('JSON parsing failed:', parseError);
+        console.error('Attempted to parse:', jsonMatch[0].substring(0, 500));
+        throw new Error('Failed to parse AI-generated claims JSON');
+      }
+    } else {
+      console.error('No JSON array found in AI response');
+      console.error('Full response:', response);
+      throw new Error('AI response did not contain valid JSON array');
     }
   } catch (error) {
     console.error('AI dependent claims generation failed:', error);
+    console.error('Falling back to default claims');
   }
 
+  // Expanded fallback with 15 dependent claims
   return [
     { claimText: 'The method of claim 1, wherein the hierarchical asset decay modeling comprises: calculating decay multiplier as max(floor_value, decay_rate^(episode_number - 1)); applying decay to human editing costs; maintaining flat costs for supervision; and generating comparative cost analysis.', parentClaimNumber: 1 },
     { claimText: 'The method of claim 1, wherein maintaining character consistency comprises: storing reference image URLs in cloud storage; generating prompts incorporating reference URLs; tracking consistency scores; and updating profiles based on usage patterns.', parentClaimNumber: 1 },
+    { claimText: 'The method of claim 1, wherein the prompt resolution engine implements a hierarchical lookup strategy comprising: checking an in-memory cache; querying an organization-specific prompt table upon cache miss; retrieving a system default prompt upon absence; and caching the retrieved prompt with a configurable time-to-live value.', parentClaimNumber: 1 },
+    { claimText: 'The method of claim 1, wherein generating image prompts comprises: constructing prompts that include character reference image URLs; incorporating physical description attributes from a character database; applying series-specific style guides; and transmitting the prompts to external AI image generation services.', parentClaimNumber: 1 },
+    { claimText: 'The method of claim 1, wherein calculating production costs comprises: implementing an asset decay model with exponential decay rate; tracking API costs per generation request; monitoring human editing time requirements; and generating cost projections over multiple episodes.', parentClaimNumber: 1 },
+    { claimText: 'The method of claim 1, wherein orchestrating external AI services comprises: maintaining a unified abstraction layer; implementing automatic failover logic; applying rate limiting with token bucket algorithm; and tracking usage metrics per service provider.', parentClaimNumber: 1 },
+    { claimText: 'The method of claim 1, wherein synthesizing audio files comprises: mapping characters to voice provider identifiers; supporting multiple voice synthesis providers; enabling voice cloning from sample audio; and generating lip synchronization timing data.', parentClaimNumber: 1 },
+    { claimText: 'The method of claim 1, further comprising: validating total runtime against target duration; identifying runtime discrepancies; generating recommendations for dialogue adjustment; and tracking episode completion progress across multiple generation stages.', parentClaimNumber: 1 },
+    { claimText: 'The method of claim 1, wherein parsing the script input comprises: tokenizing text using regular expressions; identifying act boundaries and scene transitions; extracting character dialogue with speaker attribution; and structuring visual descriptions for image generation.', parentClaimNumber: 1 },
     { claimText: 'The system of claim 2, wherein the multi-version prompt management comprises: storing multiple versions per prompt template; marking one version as deployed; enabling atomic deployment switching; and supporting organization-level overrides.', parentClaimNumber: 2 },
-    { claimText: 'The system of claim 2, wherein the unified abstraction layer comprises: provider interface defining common operations; provider-specific adapters; automatic failover on service errors; and cost-based provider selection.', parentClaimNumber: 2 }
+    { claimText: 'The system of claim 2, wherein the unified abstraction layer comprises: provider interface defining common operations; provider-specific adapters; automatic failover on service errors; and cost-based provider selection.', parentClaimNumber: 2 },
+    { claimText: 'The system of claim 2, wherein the character consistency database comprises: a relational database storing character profiles; reference image URLs with cloud storage integration; physical attribute schemas; and version tracking for character design iterations.', parentClaimNumber: 2 },
+    { claimText: 'The system of claim 2, wherein the cost calculation engine comprises: a decay rate configuration interface; episode-level cost tracking tables; comparative analysis algorithms; and export functionality for financial reporting.', parentClaimNumber: 2 },
+    { claimText: 'The system of claim 2, wherein coordinating assembly comprises: a job queue system managing generation tasks; progress tracking with percentage completion; error handling with retry logic; and final video compilation with timeline synchronization.', parentClaimNumber: 2 },
+    { claimText: 'The system of claim 2, further comprising: a caching layer reducing redundant API calls by at least 40%; a backup and recovery system for production data; and a multi-tenant architecture supporting organization isolation.', parentClaimNumber: 2 }
   ];
 }
