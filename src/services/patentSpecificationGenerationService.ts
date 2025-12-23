@@ -79,7 +79,7 @@ async function generateFieldSection(
   referenceContext?: string | null
 ): Promise<string> {
   const featuresText = features
-    .map(f => `- ${f.name || f.feature_name}: ${f.type || f.feature_type}`)
+    .map(f => `• ${f.name || f.feature_name}: ${f.type || f.feature_type}`)
     .join('\n');
 
   try {
@@ -158,9 +158,9 @@ async function generateSummarySection(
   const advantages = differentiationReports.flatMap(dr => dr.technical_advantages || []);
 
   const featuresText = coreFeatures.length > 0
-    ? coreFeatures.map((f, i) => `${i + 1}. ${f.name || f.feature_name}
+    ? coreFeatures.map(f => `• ${f.name || f.feature_name}
    Technical Details: ${f.technicalDetails || f.technical_description || f.description || 'Core component'}`).join('\n\n')
-    : features.slice(0, 5).map((f, i) => `${i + 1}. ${f.name || f.feature_name}: ${f.technicalDetails || f.technical_description || f.description || 'Component'}`).join('\n');
+    : features.slice(0, 5).map(f => `• ${f.name || f.feature_name}: ${f.technicalDetails || f.technical_description || f.description || 'Component'}`).join('\n');
 
   const differentiationText = advantages.length > 0
     ? advantages.map((adv, i) => `${i + 1}. ${adv}`).join('\n')
@@ -199,13 +199,13 @@ async function generateDetailedDescriptionChunk(
   const coreFeatures = features.filter(f => f.isCoreInnovation || f.is_core_innovation);
 
   const featuresText = chunkType === 'algorithms'
-    ? coreFeatures.map((f, i) => `${i + 1}. ${f.name || f.feature_name}
+    ? coreFeatures.map(f => `• ${f.name || f.feature_name}
    Technical: ${f.technicalDetails || f.technical_description || f.description || 'Algorithm component'}`).join('\n\n')
     : chunkType === 'components'
-    ? features.map((f, i) => `${i + 1}. ${f.name || f.feature_name} (${f.type || f.feature_type || 'component'})
+    ? features.map(f => `• ${f.name || f.feature_name} (${f.type || f.feature_type || 'component'})
    Description: ${f.technicalDetails || f.technical_description || f.description || 'N/A'}
    Novelty: ${f.noveltyStrength || f.novelty_strength || 'standard'}`).join('\n\n')
-    : features.slice(0, 6).map((f, i) => `${i + 1}. ${f.name || f.feature_name}: ${f.technicalDetails || f.technical_description || f.description || 'System component'}`).join('\n');
+    : features.slice(0, 6).map(f => `• ${f.name || f.feature_name}: ${f.technicalDetails || f.technical_description || f.description || 'System component'}`).join('\n');
 
   try {
     let promptVars = {

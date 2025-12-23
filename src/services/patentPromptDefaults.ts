@@ -292,7 +292,9 @@ USPTO REQUIREMENTS:
 - This section should provide a concise overview, not exhaustive detail
 - Mirror the language and scope of your broadest independent claim
 - Avoid absolute statements; use "may," "can," "in some embodiments"
-- Do not include claim numbers or reference specific claims`,
+- Do not include claim numbers or reference specific claims
+- NEVER write "(Feature X)" or "Feature X" - describe components by their technical names only
+- Features are listed for context - incorporate them naturally without numbering`,
     variables: [
       { name: 'title', description: 'Patent application title', type: 'string', required: true },
       { name: 'features', description: 'Key technical features', type: 'string', required: true },
@@ -326,8 +328,9 @@ Generate detailed technical content following USPTO requirements:
 **FOR SYSTEM OVERVIEW SECTIONS:**
 - Describe the overall architecture and components
 - Explain how components interact
-- Reference figure numbers if applicable ("As shown in FIG. 1...")
-- Use reference numerals for components (e.g., "processor 102", "database 104")
+- Reference figure numbers when describing components ("As shown in FIG. 1..." or "Referring now to FIG. 2...")
+- Use reference numerals consistently (e.g., "processor 102", "database 104", "system 100")
+- Example: "As shown in FIG. 1, the animation platform 100 includes a production engine 110..."
 
 **FOR METHOD/PROCESS SECTIONS:**
 - Describe step-by-step operation
@@ -351,8 +354,11 @@ USPTO REQUIREMENTS:
 - Use consistent terminology throughout
 - Provide enough detail to enable one skilled in the art to practice the invention
 - Include alternative embodiments to broaden protection
-- Use reference numerals consistently
-- Describe both preferred and alternative implementations`,
+- Use reference numerals consistently (e.g., "module 118", "system 100")
+- Describe both preferred and alternative implementations
+- NEVER write "(Feature X)" or "Feature X" - only use component names with reference numerals
+- Reference drawings using "As shown in FIG. X..." or "Referring to FIG. X..."
+- Do NOT number features - features are listed for context only`,
     variables: [
       { name: 'sectionType', description: 'Type of section being generated', type: 'string', required: true, example: 'system_overview' },
       { name: 'title', description: 'Patent application title', type: 'string', required: true },
