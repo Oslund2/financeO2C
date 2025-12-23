@@ -275,10 +275,11 @@ Generate a summary section with this structure:
 
 **PARAGRAPH 2-3: Key Technical Features**
 - Describe the main components or method steps at a high level
-- May optionally reference figures: "As shown in FIG. 1, the system 100 includes..."
+- ONLY use reference numerals that are explicitly provided in the invention description context
+- DO NOT invent reference numerals - if a component doesn't have one, describe it by name only
+- May optionally reference figures if reference numerals are available: "As shown in FIG. 1, the system 100 includes..."
 - Highlight what makes the approach novel
 - Connect features to the problems they solve
-- Use reference numerals when mentioning components (e.g., "system 100", "engine 110")
 
 **PARAGRAPH 4: Technical Advantages**
 - List specific advantages over prior art
@@ -296,7 +297,8 @@ USPTO REQUIREMENTS:
 - Avoid absolute statements; use "may," "can," "in some embodiments"
 - Do not include claim numbers or reference specific claims
 - NEVER write "(Feature X)" or "Feature X" - describe components by their technical names only
-- Always use reference numerals when mentioning components (e.g., "platform 100", "module 118")
+- ONLY use reference numerals that are provided in the invention description context - DO NOT invent numbers
+- If a component doesn't have a reference numeral assigned, describe it by name without a number
 - May reference figures but less frequently than in detailed description
 - Features are listed for context - incorporate them naturally without numbering`,
     variables: [
@@ -327,38 +329,39 @@ INVENTION CONTEXT:
 TECHNICAL FIELD:
 \${technicalField}
 
-FIGURE REFERENCE GUIDE:
-- FIG. 1: System architecture / overall platform (reference numerals 100-119)
-- FIG. 2: AI Production components and workflow (reference numerals 110-129)
-- FIG. 3: Cost modeling and analytics systems (reference numerals 120-129)
-- FIG. 4: IP Protection and workflow management (reference numerals 130-149)
-- FIG. 5-10: Detailed component views and process flowcharts
-- Use "As shown in FIG. X" when first introducing components in each figure
+REFERENCE NUMBER RULES (CRITICAL - READ CAREFULLY):
+The invention description above contains a list of VALID reference numerals from the patent drawings.
+- ONLY use reference numerals that are explicitly listed in the invention description above
+- DO NOT invent or make up new reference numerals
+- If a component is not listed with a reference numeral, describe it WITHOUT a reference numeral
+- When no valid reference numerals are provided, describe components by name only without numbers
+
+FIGURE REFERENCE REQUIREMENTS:
+- Use "As shown in FIG. X" when first introducing components that have valid reference numerals
 - Reference the appropriate figure based on which system you're describing
+- If a component has no assigned reference numeral, mention it by name only
 
-CRITICAL REQUIREMENT - FIGURE REFERENCES:
-You MUST reference figures throughout the description. Every major component and subsystem MUST be introduced with a figure reference.
+CORRECT EXAMPLES (when reference numerals are provided):
+- "As shown in FIG. 1, the platform 100 includes a user interface layer 102..."
+- "Referring to FIG. 2, the script input step 200 receives user content..."
 
-CORRECT EXAMPLES:
-✓ "As shown in FIG. 1, the animation platform 100 includes a production engine 110..."
-✓ "Referring to FIG. 2, the cost modeling system 120 tracks production expenses..."
-✓ "Turning to FIG. 3, the IP Protection Suite 130 provides mechanisms to safeguard..."
-✓ "With reference to FIG. 1, the AI pipeline 110 processes content..."
-✓ "As illustrated in FIG. 4, the asset decay model 122 accounts for depreciation..."
+CORRECT EXAMPLES (when NO reference numeral exists for a component):
+- "The system further includes an analysis module that identifies patentable aspects."
+- "A novelty scoring algorithm evaluates the uniqueness of features."
 
-INCORRECT EXAMPLES (NEVER DO THIS):
-✗ "The animation platform 100 includes a production engine 110..." (Missing figure reference)
-✗ "A cost modeling system 120 tracks production expenses..." (Missing figure reference)
-✗ "The IP Protection Suite 130 provides mechanisms..." (Missing figure reference)
+INCORRECT (NEVER DO THIS):
+- DO NOT make up reference numerals like "module 142" unless 142 is explicitly listed above
+- DO NOT add reference numerals to components that don't have them in the drawings
 
 Generate detailed technical content following USPTO requirements:
 
 **FOR SYSTEM OVERVIEW SECTIONS:**
-- START with a figure reference: "As shown in FIG. 1..." or "Referring to FIG. 1..."
+- START with a figure reference if reference numerals are available: "As shown in FIG. 1..." or "Referring to FIG. 1..."
 - Describe the overall architecture and components
 - Explain how components interact
-- Use reference numerals for every component (e.g., "processor 102", "database 104", "system 100")
-- Reference additional figures when discussing subsystems: "Turning to FIG. 2, the tracking module 118..."
+- ONLY use reference numerals that are explicitly provided in the context above
+- For components without assigned reference numerals, describe them by name only
+- Reference additional figures when discussing subsystems that have assigned reference numerals
 
 **FOR METHOD/PROCESS SECTIONS:**
 - Begin with figure reference to the flowchart: "As shown in FIG. 3..."
@@ -380,16 +383,15 @@ Generate detailed technical content following USPTO requirements:
 
 USPTO REQUIREMENTS:
 - Do NOT include section headings
-- MANDATORY: Reference figures at least once per paragraph or when introducing new components
-- MANDATORY: Every major component introduction MUST start with "As shown in FIG. X..." or "Referring to FIG. X..."
+- Reference figures when components have assigned reference numerals from the context
 - Use consistent terminology throughout
 - After referencing a figure, you can continue describing related components in that figure
 - When moving to components in a different figure, add a new figure reference
 - Provide enough detail to enable one skilled in the art to practice the invention
-- Use reference numerals consistently (e.g., "module 118", "system 100")
-- NEVER write "(Feature X)" or "Feature X" - only use component names with reference numerals
-- Do NOT number features - features are listed for context only
-- Example flow: "As shown in FIG. 2, the cost modeling system 120 tracks expenses. The system 120 includes an asset decay model 122 which accounts for depreciation. Turning to FIG. 3, the IP Protection Suite 130 provides safeguards..."`,
+- ONLY use reference numerals that appear in the provided context - NEVER invent new numbers
+- For components without reference numerals, describe them by name only (e.g., "the analysis module identifies..." NOT "the analysis module 142 identifies...")
+- NEVER write "(Feature X)" or "Feature X" - only use component names
+- Do NOT number features - features are listed for context only`,
     variables: [
       { name: 'sectionType', description: 'Type of section being generated', type: 'string', required: true, example: 'system_overview' },
       { name: 'title', description: 'Patent application title', type: 'string', required: true },

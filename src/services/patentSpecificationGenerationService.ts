@@ -10,9 +10,23 @@ import {
 import {
   buildReferenceNumberContext,
   generateBriefDescriptionOfDrawings,
-  extractReferenceNumbersFromDrawings
+  extractReferenceNumbersFromDrawings,
+  validateReferenceNumbers
 } from './referenceNumberCoordinator';
 import type { DrawingBlock } from './patentDrawingsService';
+
+export interface ReferenceValidationResult {
+  valid: boolean;
+  orphanedReferences: number[];
+  unusedDrawingReferences: number[];
+  warnings: string[];
+}
+
+export interface SpecificationWithValidation {
+  sections: SpecificationSections;
+  validation: ReferenceValidationResult;
+  cleanedSections?: SpecificationSections;
+}
 
 export interface SpecificationSections {
   field: string;
@@ -312,4 +326,93 @@ export async function regenerateSection(
     console.error('Section regeneration failed:', error);
     return currentContent;
   }
+}
+
+export function cleanOrphanedReferences(
+  text: string,
+  validReferenceNumbers: Set<number>
+): string {
+  const referencePattern = /(\b(?:module|system|platform|engine|component|unit|processor|database|interface|layer|manager|algorithm|service|handler|controller|generator|analyzer|tracker|pipeline|workflow|suite|model|storage|cache)\s+)(\d{3})(\b)/gi;
+
+  return text.replace(referencePattern, (match, prefix, numStr, suffix) => {
+    const num = parseInt(numStr, 10);
+    if (validReferenceNumbers.has(num)) {
+      return match;
+    }
+    return prefix.trim() + suffix;
+  });
+}
+
+export function validateSpecificationReferences(
+  sections: SpecificationSections,
+  drawings: PatentDrawingData[]
+): ReferenceValidationResult {
+  const fullText = [
+    sections.field,
+    sections.background,
+    sections.summary,
+    sections.detailedDescription,
+    sections.abstract
+  ].join('\n\n');
+
+  const validationResult = validateReferenceNumbers(fullText, drawings);
+
+  return {
+    valid: validationResult.valid,
+    orphanedReferences: validationResult.missingFromDrawings,
+    unusedDrawingReferences: validationResult.unusedInSpec,
+    warnings: validationResult.warnings
+  };
+}
+
+export function cleanSpecificationSections(
+  sections: SpecificationSections,
+  drawings: PatentDrawingData[]
+): SpecificationSections {
+  const refs = extractReferenceNumbersFromDrawings(drawings);
+  const validNumbers = new Set(refs.map(r => r.number));
+
+  return {
+    field: cleanOrphanedReferences(sections.field, validNumbers),
+    background: cleanOrphanedReferences(sections.background, validNumbers),
+    briefDescriptionOfDrawings: sections.briefDescriptionOfDrawings,
+    summary: cleanOrphanedReferences(sections.summary, validNumbers),
+    detailedDescription: cleanOrphanedReferences(sections.detailedDescription, validNumbers),
+    abstract: cleanOrphanedReferences(sections.abstract, validNumbers)
+  };
+}
+
+export async function generateValidatedSpecification(
+  title: string,
+  features: any[],
+  priorArt: any[],
+  differentiationReports: any[],
+  inventionContext?: InventionContext,
+  organizationId?: string | null,
+  drawings?: PatentDrawingData[],
+  autoClean: boolean = true
+): Promise<SpecificationWithValidation> {
+  const sections = await generateIntelligentSpecification(
+    title,
+    features,
+    priorArt,
+    differentiationReports,
+    inventionContext,
+    organizationId,
+    drawings
+  );
+
+  const drawingsArray = drawings || [];
+  const validation = validateSpecificationReferences(sections, drawingsArray);
+
+  let cleanedSections: SpecificationSections | undefined;
+  if (autoClean && !validation.valid && drawingsArray.length > 0) {
+    cleanedSections = cleanSpecificationSections(sections, drawingsArray);
+  }
+
+  return {
+    sections: autoClean && cleanedSections ? cleanedSections : sections,
+    validation,
+    cleanedSections
+  };
 }
