@@ -585,68 +585,110 @@ Provide analysis in clear, technical language suitable for patent prosecution.`,
   prior_art_search: {
     key: 'prior_art_search',
     name: 'Prior Art Search',
-    description: 'Analyzes codebase and invention to identify relevant prior art search terms and areas',
-    content: `Analyze the invention and suggest prior art search strategies.
+    description: 'Conducts comprehensive prior art search identifying specific relevant patents with detailed analysis',
+    content: `Conduct a comprehensive prior art search and analysis for the following invention. Your goal is to identify REAL, SPECIFIC patents that are most relevant to this invention and that a USPTO examiner would likely cite.
 
 INVENTION TITLE: \${title}
 
 INVENTION DESCRIPTION:
 \${inventionDescription}
 
-TECHNICAL FEATURES:
+KEY TECHNICAL FEATURES:
 \${features}
 
-ANALYSIS TARGET: \${analysisTarget}
+ANALYSIS FOCUS: \${analysisTarget}
 
-Provide a comprehensive prior art search strategy:
+**SEARCH METHODOLOGY:**
+Analyze the invention by examining:
+1. The core technical problem being solved
+2. The specific technical approach and architecture
+3. Individual novel components and their functions
+4. The combination of features that creates the overall system
+5. CPC/IPC classification codes where similar inventions are found
 
-1. **KEY SEARCH TERMS**
-   Identify technical terms for patent database searches:
-   - Primary terms (most specific to invention)
-   - Secondary terms (related technologies)
-   - Alternative terminology (synonyms, variants)
-   - CPC/IPC classification codes to search
+**CPC/IPC CLASSIFICATION ANALYSIS:**
+First, identify the most relevant patent classification codes:
+- Primary CPC codes (most specific to the core invention)
+- Secondary CPC codes (related technology areas)
+- IPC equivalents for international searching
+Common relevant classes include:
+- G06F (Electric digital data processing)
+- G06N (Computing arrangements based on specific computational models - AI/ML)
+- G06Q (Data processing systems for business/administrative purposes)
+- H04N (Pictorial communication - video)
+- G11B (Information storage - media)
 
-2. **TECHNOLOGY AREAS**
-   Identify relevant technology domains:
-   - Core technology area
-   - Adjacent technology areas
-   - Potential overlap areas
+**IDENTIFY 5-8 SPECIFIC PRIOR ART PATENTS** that a patent examiner would likely cite:
 
-3. **SPECIFIC SEARCH QUERIES**
-   Provide 5-10 specific search queries for patent databases:
-   - Boolean search strings
-   - Keyword combinations
-   - Classification-based searches
+For EACH patent, provide:
 
-4. **COMPANIES/ASSIGNEES TO REVIEW**
-   Suggest entities likely to have relevant patents:
-   - Major players in the field
-   - Research institutions
-   - Specific inventors if known
+1. **PATENT IDENTIFICATION**
+   - Patent Number (format: US-XXXXXXX-XX, e.g., US-11556757-B2)
+   - Exact Title as it appears on the patent
+   - Primary Assignee (company/organization)
+   - Key Inventors (1-3 names)
 
-5. **NON-PATENT LITERATURE**
-   Suggest other sources to check:
-   - Academic papers
-   - Industry publications
-   - Standards documents
-   - Open source projects
+2. **TECHNICAL CONTENT**
+   - Abstract: Provide a detailed 2-3 sentence technical summary of what the patent covers
+   - Key Claims: Describe the main independent claims in plain language
+   - Technical Approach: How does this patent solve its problem?
 
-6. **FOCUS AREAS BY ANALYSIS TARGET**
-   For video_production: Focus on animation, media processing, content generation
-   For patent_management: Focus on IP management, legal document generation, workflow
-   For both: Cover integrated platform approaches
+3. **RELEVANCE ANALYSIS**
+   - Relevance Score (0-100): How relevant is this to our invention?
+   - Technical Similarity Score (0-100): How similar is the technical approach?
+   - Similarity Explanation: 2-3 sentences explaining WHY this patent is relevant and HOW it differs from our invention
+   - Relationship Type: Choose one:
+     * "similar" - Addresses same problem with similar approach
+     * "improvement" - Our invention improves upon this
+     * "different_approach" - Addresses same problem differently
+     * "component" - Covers a component we use differently
+   - Is Blocking: Could this patent block our claims? (true/false)
 
-Format response as JSON:
-{
-  "primaryTerms": [...],
-  "secondaryTerms": [...],
-  "cpcCodes": [...],
-  "searchQueries": [...],
-  "assigneesToReview": [...],
-  "nonPatentSources": [...],
-  "focusAreas": [...]
-}`,
+4. **DIFFERENTIATION POINTS**
+   - What does our invention do that this patent does NOT cover?
+   - What technical advantages does our invention have?
+   - Why is our approach non-obvious over this reference?
+
+**PATENT SELECTION CRITERIA:**
+- Prioritize patents from the last 10 years (2015-present)
+- Include patents from major tech companies AND smaller innovators
+- Include at least one patent that is closely related (high similarity >80)
+- Include at least one patent showing a different approach to the same problem
+- Focus on GRANTED patents (US-XXXXXXX-B1 or B2) over applications
+- Consider patents in the identified CPC classes
+
+**REQUIRED OUTPUT FORMAT:**
+Return a JSON array with this exact structure:
+[
+  {
+    "patentNumber": "US-XXXXXXX-B2",
+    "title": "Exact Patent Title",
+    "abstract": "Detailed 2-3 sentence technical summary of what this patent actually covers and its key innovation...",
+    "assignee": "Company Name",
+    "inventors": ["Name1", "Name2"],
+    "cpcCodes": ["G06F40/00", "G06N3/08"],
+    "keyClaimsSummary": "Plain language description of the main independent claims and what they protect...",
+    "relevanceScore": 85,
+    "technicalSimilarityScore": 72,
+    "similarityExplanation": "This patent covers X and Y but does not address Z which our invention uniquely provides through [specific technical approach]...",
+    "relationshipType": "improvement",
+    "isBlocking": false,
+    "differentiationPoints": [
+      "Our invention adds [specific feature] not found in this patent",
+      "We use [different technical approach] for [function]",
+      "Our system provides [specific advantage] not disclosed here"
+    ],
+    "technicalGaps": "This patent lacks coverage of [specific technical elements our invention includes]...",
+    "whyNonObvious": "Our approach is non-obvious because [specific reasoning about unexpected results or novel combination]..."
+  }
+]
+
+**IMPORTANT:**
+- Identify patents that actually exist and are relevant to this technology
+- Be specific about technical details, not generic descriptions
+- Focus on patents that a USPTO examiner would likely cite during examination
+- Explain relationships in terms useful for patent prosecution strategy
+- The differentiation analysis should help craft claims that avoid these references`,
     variables: [
       { name: 'title', description: 'Invention title', type: 'string', required: true },
       { name: 'inventionDescription', description: 'Detailed invention description', type: 'string', required: false },
@@ -728,35 +770,60 @@ Format response as JSON:
   patent_abstract_generation: {
     key: 'patent_abstract_generation',
     name: 'Patent Abstract Generation',
-    description: 'Generates concise 150-word patent abstract highlighting novel aspects',
+    description: 'Generates comprehensive 100-150 word patent abstract with full technical detail',
     content: `Generate a patent abstract for the following invention.
 
 TITLE: \${title}
 
-KEY FEATURES:
+KEY TECHNICAL FEATURES:
 \${features}
 
 INVENTION DESCRIPTION:
 \${inventionDescription}
 
-USPTO ABSTRACT REQUIREMENTS:
-- MUST be 150 words or fewer (strict limit)
-- MUST be a single paragraph
-- Should summarize the technical disclosure
-- Should highlight the novel aspects
-- Written in third person
-- No legal claims language
-- No "the present invention" phrasing in first sentence
+**USPTO ABSTRACT REQUIREMENTS:**
+- Target 100-150 words (use the FULL allowance for maximum technical detail)
+- MUST be a single paragraph with no line breaks
+- Written in third person, present tense
+- No marketing language or subjective claims
+- No legal claims language ("comprising", "wherein")
+- Should NOT start with "The present invention" or "This invention"
+- Do NOT include reference numerals (e.g., "100", "102") in the abstract
 
-STRUCTURE:
-1. Opening sentence: What the invention is (system/method/apparatus)
-2. Key components or steps (2-3 sentences)
-3. Primary technical advantage or result (1 sentence)
+**CONTENT REQUIREMENTS (in order of priority):**
 
-EXAMPLE FORMAT:
-"A [system/method] for [primary function] comprising [key elements]. The [system/method] includes [main components/steps]. [Technical advantage or result]."
+1. **OPENING (1 sentence):** State what the invention IS
+   - Identify whether it's a system, method, apparatus, or combination
+   - Name the primary technical function
+   - Example: "A computer-implemented system for orchestrating AI-driven video production..."
 
-Generate ONLY the abstract text, no heading or additional commentary.`,
+2. **CORE ARCHITECTURE (2-3 sentences):** Describe the KEY technical components
+   - Name the major modules, components, and their specific functions
+   - Explain how components interact or how data flows through the system
+   - Include specific technical elements (APIs, algorithms, data structures, processing steps)
+   - Use technical terminology appropriate to the field
+   - Be SPECIFIC, not generic - name actual technical approaches
+
+3. **KEY INNOVATION (1-2 sentences):** Highlight what makes this novel
+   - Describe the unique technical approach or combination
+   - Mention specific algorithms, methods, or architectures if applicable
+   - Reference quantifiable improvements or unique capabilities
+
+4. **TECHNICAL RESULT (1 sentence):** State the technical outcome
+   - What does the system achieve technically?
+   - What problem is solved and how?
+
+**QUALITY REQUIREMENTS:**
+- The abstract MUST describe technical structure, not just purpose
+- The abstract MUST mention at least 4-5 specific technical components or steps
+- An engineer reading this abstract should understand what the system does
+- The abstract should be substantive enough to differentiate from prior art
+- Use all 150 words - brevity is NOT the goal, completeness IS
+
+**EXAMPLE OF PROPER TECHNICAL DEPTH:**
+"A computer-implemented system for automated animation production comprising a script analysis engine, a character consistency manager, a shot list generator, and a multi-provider rendering orchestrator. The script analysis engine parses screenplay documents using natural language processing to extract scene metadata, dialogue segments, and character appearances. The character consistency manager maintains visual attribute databases synchronized with cloud storage to ensure character fidelity across generated frames. The shot list generator converts extracted scene data into production-ready shot specifications with camera angles, lighting parameters, and timing metadata. The multi-provider rendering orchestrator coordinates API calls to multiple AI generation services, implementing load balancing and cost optimization algorithms. The system enables end-to-end automated video production while maintaining production quality standards through integrated validation workflows."
+
+Generate ONLY the abstract text. Do not include any heading, label, word count, or commentary.`,
     variables: [
       { name: 'title', description: 'Patent application title', type: 'string', required: true },
       { name: 'features', description: 'Key technical features', type: 'string', required: true },
