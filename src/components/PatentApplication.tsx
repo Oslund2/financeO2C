@@ -98,6 +98,9 @@ import {
   checkPageBreak as checkPdfPageBreak
 } from '../services/patentPdfFontService';
 import { PatentFilingTab } from './PatentFilingTab';
+import { PatentProgressDashboard, PatentCostEstimator } from './PatentProgressDashboard';
+import { PatentApplicationWizard } from './PatentApplicationWizard';
+import type { EntityStatus } from '../services/filingFeeService';
 
 type TabId = 'overview' | 'specification' | 'claims' | 'drawings' | 'abstract' | 'prior-art' | 'analysis' | 'filing' | 'export';
 
@@ -195,6 +198,7 @@ export function PatentApplication() {
     inventionDescription: string;
     technicalField: string;
     problemSolved: string;
+    entityStatus?: EntityStatus;
   }) => {
     if (!currentOrganization) return;
     setSaving(true);
@@ -205,7 +209,8 @@ export function PatentApplication() {
         technicalField: data.technicalField,
         problemSolved: data.problemSolved,
         specification: generateDefaultSpecification(),
-        abstract: generateDefaultAbstract()
+        abstract: generateDefaultAbstract(),
+        entityStatus: data.entityStatus || 'micro_entity'
       });
       await loadApplications();
       await loadApplication(app.id);
@@ -1021,6 +1026,7 @@ export function PatentApplication() {
                     onDelete={() => setShowDeleteModal(true)}
                     onAIGenerate={handleAIGeneration}
                     aiGenerating={aiGenerating}
+                    onNavigate={setActiveTab}
                   />
                 )}
 
@@ -1125,7 +1131,7 @@ export function PatentApplication() {
       </div>
 
       {showCreateModal && (
-        <CreateApplicationModal
+        <PatentApplicationWizard
           saving={saving}
           onClose={() => setShowCreateModal(false)}
           onCreate={handleCreateApplication}
@@ -1173,13 +1179,15 @@ function OverviewTab({
   onUpdate,
   onDelete,
   onAIGenerate,
-  aiGenerating
+  aiGenerating,
+  onNavigate
 }: {
   application: PatentApplicationWithDetails;
   onUpdate: (updates: Partial<PatentApplication>) => Promise<void>;
   onDelete: () => void;
   onAIGenerate: () => void;
   aiGenerating: boolean;
+  onNavigate: (tabId: string) => void;
 }) {
   const [editMode, setEditMode] = useState(false);
   const [title, setTitle] = useState(application.title);
@@ -1190,6 +1198,7 @@ function OverviewTab({
   const [technicalField, setTechnicalField] = useState(application.technical_field || '');
   const [problemSolved, setProblemSolved] = useState(application.problem_solved || '');
   const [saving, setSaving] = useState(false);
+  const [showProgressDashboard, setShowProgressDashboard] = useState(true);
 
   const handleSave = async () => {
     setSaving(true);
@@ -1230,8 +1239,31 @@ function OverviewTab({
 
   return (
     <div className="space-y-6">
+      {showProgressDashboard && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <PatentProgressDashboard
+            application={application}
+            onNavigate={(tabId) => onNavigate(tabId as TabId)}
+          />
+          <PatentCostEstimator
+            application={application}
+            onEntityChange={async (status) => {
+              await onUpdate({ entity_status: status });
+            }}
+          />
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900">Application Overview</h2>
+        <div className="flex items-center gap-4">
+          <h2 className="text-xl font-semibold text-gray-900">Application Overview</h2>
+          <button
+            onClick={() => setShowProgressDashboard(!showProgressDashboard)}
+            className="text-sm text-gray-500 hover:text-gray-700"
+          >
+            {showProgressDashboard ? 'Hide progress' : 'Show progress'}
+          </button>
+        </div>
         <div className="flex gap-2">
           {editMode ? (
             <>
