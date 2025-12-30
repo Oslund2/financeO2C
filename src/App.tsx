@@ -13,6 +13,7 @@ import { StoryboardViewer } from './components/StoryboardViewer';
 import { ProductionEconomics } from './components/ProductionEconomics';
 import ProductionWorkflow from './components/ProductionWorkflow';
 import { IPProtection } from './components/IPProtection';
+import BackupRecovery from './components/BackupRecovery';
 import { CommandPalette, useCommandPalette } from './components/CommandPalette';
 import { OnboardingFlow, useOnboarding } from './components/OnboardingFlow';
 import { supabase } from './lib/supabase';
@@ -245,6 +246,7 @@ function App() {
         )}
         {currentView === 'settings' && <Settings />}
         {currentView === 'ip-protection' && <IPProtection />}
+        {currentView === 'backup-recovery' && <BackupRecovery />}
       </Layout>
       <CommandPalette
         isOpen={commandPalette.isOpen}
