@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { generateStoryboardImage, isNanoBananaAvailable, calculateEstimatedCost, clearImageCache } from './nanoBananaService';
 import type { CharacterReference } from './nanoBananaService';
+import { findCharacterInList, extractKeyFeaturesFromDescription } from './characterMatchingService';
 
 type Scene = Database['public']['Tables']['script_scenes']['Row'];
 type Act = Database['public']['Tables']['script_acts']['Row'];
@@ -397,41 +398,67 @@ export function buildComprehensiveImagePrompt(
 
   const positions = shot.character_positions || [];
   if (positions.length > 0 || shot.dialogue_text) {
-    const characterLines: string[] = [];
+    const characterDescriptions: string[] = [];
     const requiredCharacters: string[] = [];
+    const criticalFeatures: string[] = [];
 
     for (const pos of positions) {
       const charName = pos?.character || pos?.name;
       if (!charName) continue;
 
-      const matchedChar = characters.find(c =>
-        c.name.toLowerCase() === charName.toLowerCase()
-      );
+      const matchResult = findCharacterInList(charName, characters);
+      const matchedChar = matchResult.found ? matchResult.match?.character : null;
 
-      requiredCharacters.push(charName);
-      const charParts: string[] = [charName];
+      const displayName = matchedChar?.name || charName;
+      requiredCharacters.push(displayName);
+
+      const charParts: string[] = [`${displayName}`];
+
+      if (matchedChar) {
+        if (matchedChar.description) {
+          charParts.push(`PHYSICAL APPEARANCE: ${matchedChar.description}`);
+
+          const features = matchedChar.required_visual_features?.length
+            ? matchedChar.required_visual_features
+            : extractKeyFeaturesFromDescription(matchedChar.description);
+
+          if (features.length > 0) {
+            criticalFeatures.push(`${displayName}: ${features.join(', ')}`);
+          }
+        }
+
+        if (matchedChar.clay_features) {
+          charParts.push(`ANIMATION TRAITS: ${matchedChar.clay_features}`);
+        }
+      }
+
       if (pos.position) charParts.push(`positioned ${pos.position}`);
       if (pos.expression) charParts.push(`expression: ${pos.expression}`);
-      if (matchedChar?.clay_features) {
-        charParts.push(`(${matchedChar.clay_features})`);
-      }
-      characterLines.push(charParts.join(', '));
+
+      characterDescriptions.push(charParts.join('. '));
     }
 
     if (shot.dialogue_text) {
       const emotionHints = inferEmotionFromDialogue(shot.dialogue_text);
       if (emotionHints) {
-        characterLines.push(`Emotional context: ${emotionHints}`);
+        characterDescriptions.push(`Emotional context: ${emotionHints}`);
       }
     }
 
-    if (characterLines.length > 0) {
-      if (requiredCharacters.length > 0) {
+    if (requiredCharacters.length > 0) {
+      promptSections.push(
+        `REQUIRED CHARACTERS - MUST BE CLEARLY VISIBLE AND RECOGNIZABLE: ${requiredCharacters.join(', ')}. These characters MUST appear exactly as described, with ALL their unique physical features intact.`
+      );
+
+      if (criticalFeatures.length > 0) {
         promptSections.push(
-          `REQUIRED CHARACTERS - MUST BE CLEARLY VISIBLE: ${requiredCharacters.join(', ')}. These specific characters MUST appear prominently in the image, matching their reference images exactly.`
+          `CRITICAL CHARACTER FEATURES (MUST BE VISIBLE IN IMAGE):\n${criticalFeatures.map(f => `- ${f}`).join('\n')}`
         );
       }
-      promptSections.push(`CHARACTER DETAILS: ${characterLines.join('. ')}`);
+    }
+
+    if (characterDescriptions.length > 0) {
+      promptSections.push(`CHARACTER DETAILS:\n${characterDescriptions.join('\n\n')}`);
     }
   }
 
@@ -897,21 +924,26 @@ export async function generateImagesForStoryboard(
       const genStartTime = Date.now();
 
       const characterReferences: CharacterReference[] = [];
+      const matchedCharactersForShot: Character[] = [];
       const positions = shot.character_positions as any[] || [];
 
       for (const pos of positions) {
         const charName = pos?.character || pos?.name;
         if (!charName) continue;
 
-        const matchedChar = characters.find(c =>
-          c.name.toLowerCase() === charName.toLowerCase()
-        );
+        const matchResult = findCharacterInList(charName, characters);
+        const matchedChar = matchResult.found ? matchResult.match?.character : null;
 
-        if (matchedChar?.reference_image_url) {
-          characterReferences.push({
-            name: matchedChar.name,
-            imageUrl: matchedChar.reference_image_url
-          });
+        if (matchedChar) {
+          matchedCharactersForShot.push(matchedChar);
+          if (matchedChar.reference_image_url) {
+            characterReferences.push({
+              name: matchedChar.name,
+              imageUrl: matchedChar.reference_image_url,
+              description: matchedChar.description || undefined,
+              requiredFeatures: matchedChar.required_visual_features || []
+            });
+          }
         }
       }
 
@@ -1369,6 +1401,138 @@ export async function getShotMetadata(shotId: string): Promise<{
       error: error instanceof Error ? error.message : 'Unknown error'
     };
   }
+}
+
+export interface CharacterValidationResult {
+  valid: boolean;
+  totalCharacters: number;
+  matchedCharacters: number;
+  charactersWithReferences: number;
+  charactersWithDescriptions: number;
+  warnings: string[];
+  errors: string[];
+  characterDetails: {
+    name: string;
+    matched: boolean;
+    hasReferenceImage: boolean;
+    hasDescription: boolean;
+    matchType?: string;
+  }[];
+}
+
+export async function validateStoryboardCharacters(
+  storyboardId: string
+): Promise<CharacterValidationResult> {
+  const { data: storyboard } = await supabase
+    .from('storyboards')
+    .select('*, scripts(*)')
+    .eq('id', storyboardId)
+    .single();
+
+  if (!storyboard) {
+    return {
+      valid: false,
+      totalCharacters: 0,
+      matchedCharacters: 0,
+      charactersWithReferences: 0,
+      charactersWithDescriptions: 0,
+      warnings: [],
+      errors: ['Storyboard not found'],
+      characterDetails: []
+    };
+  }
+
+  const seriesId = (storyboard.scripts as any)?.series_id;
+  if (!seriesId) {
+    return {
+      valid: false,
+      totalCharacters: 0,
+      matchedCharacters: 0,
+      charactersWithReferences: 0,
+      charactersWithDescriptions: 0,
+      warnings: [],
+      errors: ['No series associated with storyboard'],
+      characterDetails: []
+    };
+  }
+
+  const { data: characters } = await supabase
+    .from('characters')
+    .select('*')
+    .eq('series_id', seriesId);
+
+  const { data: shots } = await supabase
+    .from('storyboard_shots')
+    .select('character_positions')
+    .eq('storyboard_id', storyboardId);
+
+  const allCharacterNames = new Set<string>();
+  for (const shot of shots || []) {
+    const positions = shot.character_positions as any[] || [];
+    for (const pos of positions) {
+      const name = pos?.character || pos?.name;
+      if (name) allCharacterNames.add(name);
+    }
+  }
+
+  const warnings: string[] = [];
+  const errors: string[] = [];
+  const characterDetails: CharacterValidationResult['characterDetails'] = [];
+  let matchedCount = 0;
+  let withReferences = 0;
+  let withDescriptions = 0;
+
+  for (const charName of allCharacterNames) {
+    const matchResult = findCharacterInList(charName, characters || []);
+
+    if (matchResult.found && matchResult.match) {
+      const char = matchResult.match.character;
+      matchedCount++;
+
+      const hasRef = !!char.reference_image_url;
+      const hasDesc = !!char.description;
+
+      if (hasRef) withReferences++;
+      if (hasDesc) withDescriptions++;
+
+      characterDetails.push({
+        name: char.name,
+        matched: true,
+        hasReferenceImage: hasRef,
+        hasDescription: hasDesc,
+        matchType: matchResult.match.matchType
+      });
+
+      if (!hasRef && !hasDesc) {
+        errors.push(`${char.name}: No reference image or description - character may render incorrectly`);
+      } else if (!hasRef) {
+        warnings.push(`${char.name}: No reference image - using description only for consistency`);
+      }
+
+      if (matchResult.match.matchType === 'fuzzy' && matchResult.match.confidence < 0.85) {
+        warnings.push(`"${charName}" matched to "${char.name}" with low confidence - verify this is correct`);
+      }
+    } else {
+      characterDetails.push({
+        name: charName,
+        matched: false,
+        hasReferenceImage: false,
+        hasDescription: false
+      });
+      errors.push(`Character "${charName}" not found in database - add this character or check spelling`);
+    }
+  }
+
+  return {
+    valid: errors.length === 0,
+    totalCharacters: allCharacterNames.size,
+    matchedCharacters: matchedCount,
+    charactersWithReferences: withReferences,
+    charactersWithDescriptions: withDescriptions,
+    warnings,
+    errors,
+    characterDetails
+  };
 }
 
 export { isNanoBananaAvailable, calculateEstimatedCost };

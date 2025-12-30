@@ -10,6 +10,8 @@ import {
 export interface CharacterReference {
   name: string;
   imageUrl: string;
+  description?: string;
+  requiredFeatures?: string[];
 }
 
 export interface ImageGenerationOptions {
@@ -204,6 +206,8 @@ export async function generateStoryboardImage(
   const loadedReferences: { name: string; loaded: boolean }[] = [];
 
   if (characterRefs.length > 0) {
+    const loadedCharacterData: { name: string; description?: string; features?: string[] }[] = [];
+
     for (const ref of characterRefs) {
       const imageData = await fetchImageAsBase64(ref.imageUrl);
       if (imageData) {
@@ -214,6 +218,11 @@ export async function generateStoryboardImage(
           }
         });
         loadedReferences.push({ name: ref.name, loaded: true });
+        loadedCharacterData.push({
+          name: ref.name,
+          description: ref.description,
+          features: ref.requiredFeatures
+        });
       } else {
         loadedReferences.push({ name: ref.name, loaded: false });
       }
@@ -221,8 +230,35 @@ export async function generateStoryboardImage(
 
     const loadedNames = loadedReferences.filter(r => r.loaded).map(r => r.name);
     if (loadedNames.length > 0) {
+      const characterInstructions: string[] = [
+        '=== CRITICAL CHARACTER REFERENCE IMAGES ===',
+        '',
+        `Reference images provided for: ${loadedNames.join(', ')}`,
+        '',
+        'MANDATORY REQUIREMENTS:',
+        '1. Each character MUST be rendered EXACTLY as shown in their reference image',
+        '2. ALL unique physical features MUST be preserved - do NOT simplify or modify',
+        '3. Character proportions, colors, and distinctive traits MUST match exactly',
+        '4. These images are for animation production - consistency is ESSENTIAL',
+        ''
+      ];
+
+      for (const charData of loadedCharacterData) {
+        characterInstructions.push(`CHARACTER: ${charData.name}`);
+        if (charData.features && charData.features.length > 0) {
+          characterInstructions.push(`  REQUIRED FEATURES (MUST BE VISIBLE): ${charData.features.join(', ')}`);
+        }
+        if (charData.description) {
+          characterInstructions.push(`  Physical Description: ${charData.description}`);
+        }
+        characterInstructions.push('');
+      }
+
+      characterInstructions.push('WARNING: Do NOT render generic characters. Each character has unique physical traits that MUST appear.');
+      characterInstructions.push('');
+
       parts.push({
-        text: `CRITICAL: Reference images provided for characters: ${loadedNames.join(', ')}. You MUST use these reference images to ensure EXACT visual consistency. Each character MUST match their reference image in appearance, proportions, colors, features, and style. The characters ${loadedNames.join(', ')} MUST be clearly visible and recognizable in the generated image. This is essential for animation production continuity.\n\n`
+        text: characterInstructions.join('\n') + '\n'
       });
     }
   }

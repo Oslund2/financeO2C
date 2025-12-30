@@ -688,6 +688,8 @@ function CharacterForm({ character, seriesId, onClose, onSave }: CharacterFormPr
     clay_features: character?.clay_features || '',
     voice_characteristics: character?.voice_characteristics || '',
     tags: character?.tags.join(', ') || '',
+    aliases: character?.aliases?.join(', ') || '',
+    required_visual_features: character?.required_visual_features?.join(', ') || '',
   });
   const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(
     character?.chatterbox_voice_id || character?.eleven_labs_voice_id || null
@@ -763,6 +765,8 @@ function CharacterForm({ character, seriesId, onClose, onSave }: CharacterFormPr
         chatterbox_voice_id: selectedProvider === 'chatterbox' ? selectedVoiceId : null,
         reference_image_url: imageUrl,
         tags: formData.tags.split(',').map((t) => t.trim()).filter(Boolean),
+        aliases: formData.aliases.split(',').map((a) => a.trim()).filter(Boolean),
+        required_visual_features: formData.required_visual_features.split(',').map((f) => f.trim()).filter(Boolean),
       };
 
       if (character?.id) {
@@ -973,6 +977,49 @@ function CharacterForm({ character, seriesId, onClose, onSave }: CharacterFormPr
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent text-base"
               placeholder="Comma-separated tags (e.g., protagonist, anxious, smart)"
             />
+          </div>
+
+          <div className="border-t border-gray-200 pt-4 mt-2">
+            <h4 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-500" />
+              Character Consistency Settings
+            </h4>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Name Aliases
+                  <span className="font-normal text-gray-500 ml-2">(Alternative names used in scripts)</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.aliases}
+                  onChange={(e) => setFormData({ ...formData, aliases: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent text-base"
+                  placeholder="e.g., Mrs. H, Higgenbottom, Mrs. Higginbottom"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Comma-separated list of alternative names. Used to match character references in dialogue.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Required Visual Features
+                  <span className="font-normal text-gray-500 ml-2">(MUST appear in every image)</span>
+                </label>
+                <textarea
+                  value={formData.required_visual_features}
+                  onChange={(e) => setFormData({ ...formData, required_visual_features: e.target.value })}
+                  rows={2}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent text-base"
+                  placeholder="e.g., library cart lower body, index card cabinet on head, lightbulb in left ear"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Comma-separated list of critical visual features. These will be emphasized in AI image generation prompts.
+                </p>
+              </div>
+            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 pt-4">

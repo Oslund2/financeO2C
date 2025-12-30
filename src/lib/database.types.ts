@@ -147,6 +147,8 @@ export interface Database {
           lip_sync_reference_image_url: string | null
           tags: string[]
           role: string
+          aliases: string[]
+          required_visual_features: string[]
           created_at: string
           updated_at: string
         }
@@ -167,6 +169,8 @@ export interface Database {
           lip_sync_reference_image_url?: string | null
           tags?: string[]
           role?: string
+          aliases?: string[]
+          required_visual_features?: string[]
           created_at?: string
           updated_at?: string
         }
@@ -187,6 +191,8 @@ export interface Database {
           lip_sync_reference_image_url?: string | null
           tags?: string[]
           role?: string
+          aliases?: string[]
+          required_visual_features?: string[]
           created_at?: string
           updated_at?: string
         }
