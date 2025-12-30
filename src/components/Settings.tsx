@@ -2926,7 +2926,7 @@ export function Settings() {
                           {[
                             { name: 'character-images', desc: 'Character reference images and generated variations' },
                             { name: 'storyboard-images', desc: 'Scene storyboards and visual references' },
-                            { name: 'production-assets', desc: 'Generated videos, audio, and final assets' },
+                            { name: 'production-assets', desc: 'Generated videos, audio, and final assets (250MB max per file)' },
                           ].map((bucket) => (
                             <div key={bucket.name} className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
                               <div>
