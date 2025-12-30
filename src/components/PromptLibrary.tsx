@@ -15,7 +15,9 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
-  Sparkles
+  Sparkles,
+  Film,
+  Layers
 } from 'lucide-react';
 import { useOrganization } from '../contexts/OrganizationContext';
 import {
@@ -35,6 +37,13 @@ const CATEGORY_CONFIG: Record<PromptCategory | 'general', { label: string; icon:
   storyboard: { label: 'Storyboard', icon: Layout, color: 'bg-cyan-100 text-cyan-700' },
   style: { label: 'Style & Visual', icon: Palette, color: 'bg-rose-100 text-rose-700' },
   general: { label: 'General', icon: Settings2, color: 'bg-gray-100 text-gray-700' }
+};
+
+const WORKSPACE_TYPE_CONFIG: Record<string, { label: string; icon: typeof Palette; bgColor: string; textColor: string }> = {
+  claymation: { label: 'Claymation', icon: Palette, bgColor: 'bg-amber-100', textColor: 'text-amber-700' },
+  photoreal: { label: 'Photorealistic', icon: Film, bgColor: 'bg-blue-100', textColor: 'text-blue-700' },
+  documentary: { label: 'Documentary', icon: Video, bgColor: 'bg-emerald-100', textColor: 'text-emerald-700' },
+  general: { label: 'General', icon: Layers, bgColor: 'bg-gray-100', textColor: 'text-gray-700' },
 };
 
 interface PromptLibraryProps {
@@ -67,7 +76,10 @@ export function PromptLibrary({ expanded = false, onToggle }: PromptLibraryProps
 
     try {
       await initializeOrganizationPrompts(currentOrganization.id);
-      const data = await getAllPromptsForOrganization(currentOrganization.id);
+      const data = await getAllPromptsForOrganization(
+        currentOrganization.id,
+        currentOrganization.workspace_type
+      );
       setPrompts(data);
 
       const modified = new Set<string>();
@@ -123,6 +135,11 @@ export function PromptLibrary({ expanded = false, onToggle }: PromptLibraryProps
     return acc;
   }, {} as Record<PromptCategory, PromptTemplate[]>);
 
+  const workspaceTypeConfig = currentOrganization?.workspace_type
+    ? WORKSPACE_TYPE_CONFIG[currentOrganization.workspace_type]
+    : null;
+  const WorkspaceIcon = workspaceTypeConfig?.icon || Layers;
+
   return (
     <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
       <button
@@ -134,9 +151,17 @@ export function PromptLibrary({ expanded = false, onToggle }: PromptLibraryProps
             <Library className="w-5 h-5 text-white" />
           </div>
           <div className="text-left">
-            <h2 className="text-xl font-bold text-gray-900">Prompt Library</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-bold text-gray-900">Prompt Library</h2>
+              {workspaceTypeConfig && (
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${workspaceTypeConfig.bgColor} ${workspaceTypeConfig.textColor}`}>
+                  <WorkspaceIcon className="w-3 h-3" />
+                  {workspaceTypeConfig.label}
+                </span>
+              )}
+            </div>
             <p className="text-sm text-gray-600">
-              Customize AI prompts used throughout the application
+              Customize AI prompts for this workspace type
             </p>
           </div>
         </div>

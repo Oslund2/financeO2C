@@ -19,6 +19,7 @@ export interface PromptTemplate {
   is_system_default: boolean;
   is_active: boolean;
   variables_schema: PromptVariable[];
+  workspace_types: string[] | null;
   created_at: string;
   updated_at: string;
   deployed_version?: PromptVersion;
@@ -116,7 +117,8 @@ export async function getPromptsByCategory(
 }
 
 export async function getAllPromptsForOrganization(
-  organizationId: string
+  organizationId: string,
+  workspaceType?: string
 ): Promise<PromptTemplate[]> {
   const { data: orgPrompts, error: orgError } = await supabase
     .from('prompt_templates')
@@ -145,7 +147,16 @@ export async function getAllPromptsForOrganization(
     (p) => !existingKeys.has(p.prompt_key)
   );
 
-  const allPrompts = [...(orgPrompts || []), ...missingSystemPrompts];
+  let allPrompts = [...(orgPrompts || []), ...missingSystemPrompts];
+
+  if (workspaceType) {
+    allPrompts = allPrompts.filter((p) => {
+      if (!p.workspace_types || p.workspace_types.length === 0) {
+        return true;
+      }
+      return p.workspace_types.includes(workspaceType);
+    });
+  }
 
   const promptIds = allPrompts.map((p) => p.id);
   const { data: versions } = await supabase

@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 
+export type WorkspaceType = 'claymation' | 'photoreal' | 'documentary' | 'general';
+
 interface Organization {
   id: string;
   name: string;
@@ -9,6 +11,7 @@ interface Organization {
   logo_url: string | null;
   billing_tier: string;
   subdomain: string | null;
+  workspace_type: WorkspaceType;
 }
 
 interface OrganizationMembership {
@@ -60,7 +63,8 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
             slug,
             logo_url,
             billing_tier,
-            subdomain
+            subdomain,
+            workspace_type
           )
         `)
         .eq('user_id', user.id);

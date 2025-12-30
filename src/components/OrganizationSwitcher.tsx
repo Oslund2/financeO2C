@@ -1,8 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
-import { Building2, ChevronDown, Check, Settings, Plus } from 'lucide-react';
-import { useOrganization } from '../contexts/OrganizationContext';
+import { Building2, ChevronDown, Check, Settings, Plus, Palette, Film, Video, Layers } from 'lucide-react';
+import { useOrganization, WorkspaceType } from '../contexts/OrganizationContext';
 import { OrganizationSettingsModal } from './OrganizationSettingsModal';
 import { CreateWorkspaceModal } from './CreateWorkspaceModal';
+
+const WORKSPACE_TYPE_CONFIG: Record<WorkspaceType, { label: string; icon: typeof Palette; bgColor: string; textColor: string }> = {
+  claymation: { label: 'Claymation', icon: Palette, bgColor: 'bg-amber-100', textColor: 'text-amber-700' },
+  photoreal: { label: 'Photoreal', icon: Film, bgColor: 'bg-blue-100', textColor: 'text-blue-700' },
+  documentary: { label: 'Documentary', icon: Video, bgColor: 'bg-emerald-100', textColor: 'text-emerald-700' },
+  general: { label: 'General', icon: Layers, bgColor: 'bg-gray-100', textColor: 'text-gray-700' },
+};
 
 export function OrganizationSwitcher() {
   const { currentOrganization, organizations, switchOrganization, loading, refreshOrganizations } = useOrganization();
@@ -108,6 +115,8 @@ export function OrganizationSwitcher() {
             organizations.map(({ organization, role }) => {
               const isSelected = currentOrganization.id === organization.id;
               const tier = getTierBadge(organization.billing_tier);
+              const wsType = organization.workspace_type ? WORKSPACE_TYPE_CONFIG[organization.workspace_type] : null;
+              const WsIcon = wsType?.icon || Layers;
 
               return (
                 <button
@@ -135,7 +144,13 @@ export function OrganizationSwitcher() {
                       </span>
                       {isSelected && <Check className="w-4 h-4 text-scripps-blue flex-shrink-0" />}
                     </div>
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      {wsType && (
+                        <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${wsType.bgColor} ${wsType.textColor}`}>
+                          <WsIcon className="w-3 h-3" />
+                          {wsType.label}
+                        </span>
+                      )}
                       <span
                         className={`text-xs px-2 py-0.5 rounded-full font-medium ${getRoleBadgeColor(
                           role
