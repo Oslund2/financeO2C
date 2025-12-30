@@ -86,6 +86,28 @@ export const backupService = {
     if (error) throw error;
   },
 
+  async restoreFromRecoveryPoint(recoveryPointId: string): Promise<{
+    success: boolean;
+    recovery_point_id: string;
+    recovery_point_name: string;
+    safety_backup_id: string;
+    tables_restored: number;
+    storage_restoration: {
+      files_restored: number;
+      files_failed: number;
+    };
+    restored_at: string;
+    restored_by: string;
+  }> {
+    const { data, error } = await supabase.rpc('restore_from_recovery_point', {
+      p_recovery_point_id: recoveryPointId,
+      p_user_id: null
+    });
+
+    if (error) throw error;
+    return data;
+  },
+
   async runIntegrityCheck(): Promise<void> {
     const { error } = await supabase.rpc('check_data_integrity');
     if (error) throw error;

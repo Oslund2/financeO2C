@@ -9,7 +9,9 @@ import {
   Download,
   RefreshCw,
   Archive,
-  Activity
+  Activity,
+  RotateCcw,
+  X
 } from 'lucide-react';
 import { backupService } from '../services/backupService';
 import type {
@@ -29,6 +31,11 @@ export default function BackupRecovery() {
   const [selectedPoint, setSelectedPoint] = useState<RecoveryPoint | null>(null);
   const [newPointName, setNewPointName] = useState('');
   const [newPointDesc, setNewPointDesc] = useState('');
+  const [showRestoreModal, setShowRestoreModal] = useState(false);
+  const [restorePointId, setRestorePointId] = useState<string | null>(null);
+  const [restoreConfirmation, setRestoreConfirmation] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const [restoreSuccess, setRestoreSuccess] = useState<any>(null);
 
   useEffect(() => {
     loadData();
@@ -107,6 +114,41 @@ export default function BackupRecovery() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRestoreClick = (pointId: string) => {
+    setRestorePointId(pointId);
+    setShowRestoreModal(true);
+    setRestoreConfirmation(false);
+    setRestoreSuccess(null);
+    setError(null);
+  };
+
+  const handleRestoreConfirm = async () => {
+    if (!restorePointId || !restoreConfirmation) {
+      setError('Please confirm that you understand the risks before restoring');
+      return;
+    }
+
+    setRestoring(true);
+    setError(null);
+    try {
+      const result = await backupService.restoreFromRecoveryPoint(restorePointId);
+      setRestoreSuccess(result);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to restore from recovery point');
+    } finally {
+      setRestoring(false);
+    }
+  };
+
+  const handleCloseRestoreModal = () => {
+    setShowRestoreModal(false);
+    setRestorePointId(null);
+    setRestoreConfirmation(false);
+    setRestoreSuccess(null);
+    setError(null);
   };
 
   const formatDate = (dateString: string) => {
@@ -244,8 +286,7 @@ export default function BackupRecovery() {
                   recoveryPoints.map((point) => (
                     <div
                       key={point.id}
-                      className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors cursor-pointer"
-                      onClick={() => setSelectedPoint(point)}
+                      className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -267,6 +308,17 @@ export default function BackupRecovery() {
                             )}
                           </div>
                         </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRestoreClick(point.id);
+                          }}
+                          disabled={point.status !== 'valid'}
+                          className="ml-4 flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                        >
+                          <RotateCcw className="w-4 h-4" />
+                          Restore
+                        </button>
                       </div>
                     </div>
                   ))
@@ -450,6 +502,193 @@ export default function BackupRecovery() {
           )}
         </div>
       </div>
+
+      {showRestoreModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                <RotateCcw className="w-6 h-6 text-orange-600" />
+                Restore from Recovery Point
+              </h2>
+              <button
+                onClick={handleCloseRestoreModal}
+                disabled={restoring}
+                className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {restoreSuccess ? (
+                <div className="space-y-4">
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <h3 className="font-medium text-green-900 mb-2">Restoration Complete!</h3>
+                        <p className="text-green-700 text-sm mb-4">
+                          Your system has been successfully restored to the selected recovery point.
+                        </p>
+                        <div className="bg-white rounded border border-green-200 p-3 space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Recovery Point:</span>
+                            <span className="font-medium text-gray-900">{restoreSuccess.recovery_point_name}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Tables Restored:</span>
+                            <span className="font-medium text-gray-900">{restoreSuccess.tables_restored}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Storage Files Restored:</span>
+                            <span className="font-medium text-gray-900">{restoreSuccess.storage_restoration?.files_restored || 0}</span>
+                          </div>
+                          {restoreSuccess.storage_restoration?.files_failed > 0 && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Files Failed:</span>
+                              <span className="font-medium text-red-600">{restoreSuccess.storage_restoration.files_failed}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Safety Backup Created:</span>
+                            <span className="font-medium text-gray-900 text-xs">{restoreSuccess.safety_backup_id}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleCloseRestoreModal}
+                    className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-medium"
+                  >
+                    Close
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <h3 className="font-medium text-red-900 mb-2">Warning: Data Will Be Overwritten</h3>
+                        <p className="text-red-700 text-sm mb-3">
+                          This action will restore your entire system to the state captured in the selected recovery point.
+                          All current data will be replaced.
+                        </p>
+                        <ul className="text-sm text-red-700 space-y-1 list-disc list-inside">
+                          <li>All series, characters, assets, and scripts will be replaced</li>
+                          <li>Storage files will be restored from backup</li>
+                          <li>This action cannot be undone (but a safety backup will be created first)</li>
+                          <li>Any data created after this recovery point will be lost</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <Shield className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <h3 className="font-medium text-blue-900 mb-2">Safety Features</h3>
+                        <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
+                          <li>An automatic safety backup will be created before restoration begins</li>
+                          <li>The entire restoration process is transactional (all or nothing)</li>
+                          <li>If restoration fails, no changes will be made to your data</li>
+                          <li>You can restore from the safety backup if needed</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  {error && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <div className="flex items-start gap-3">
+                        <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                          <h3 className="font-medium text-red-900">Error</h3>
+                          <p className="text-red-700 text-sm">{error}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <h3 className="font-medium text-gray-900 mb-3">What will be restored:</h3>
+                    <div className="space-y-2 text-sm text-gray-700">
+                      {restorePointId && (() => {
+                        const point = recoveryPoints.find(p => p.id === restorePointId);
+                        if (!point) return null;
+                        return (
+                          <>
+                            <div className="flex justify-between">
+                              <span>Recovery Point:</span>
+                              <span className="font-medium">{point.point_name}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Created:</span>
+                              <span className="font-medium">{formatDate(point.created_at)}</span>
+                            </div>
+                            {point.description && (
+                              <div className="pt-2 border-t border-gray-300">
+                                <span className="text-gray-600">Description:</span>
+                                <p className="mt-1 text-gray-900">{point.description}</p>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </div>
+
+                  <label className="flex items-start gap-3 p-4 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-orange-500 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={restoreConfirmation}
+                      onChange={(e) => setRestoreConfirmation(e.target.checked)}
+                      className="mt-1 w-5 h-5 text-orange-600 rounded focus:ring-orange-500"
+                    />
+                    <div className="flex-1">
+                      <div className="font-medium text-gray-900">I understand the risks</div>
+                      <div className="text-sm text-gray-600 mt-1">
+                        I confirm that I want to restore from this recovery point and understand that current data will be overwritten.
+                        A safety backup will be created automatically before restoration.
+                      </div>
+                    </div>
+                  </label>
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleCloseRestoreModal}
+                      disabled={restoring}
+                      className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 disabled:opacity-50 font-medium"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleRestoreConfirm}
+                      disabled={!restoreConfirmation || restoring}
+                      className="flex-1 bg-orange-600 text-white py-3 rounded-lg hover:bg-orange-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
+                    >
+                      {restoring ? (
+                        <>
+                          <RefreshCw className="w-5 h-5 animate-spin" />
+                          Restoring...
+                        </>
+                      ) : (
+                        <>
+                          <RotateCcw className="w-5 h-5" />
+                          Restore System
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
