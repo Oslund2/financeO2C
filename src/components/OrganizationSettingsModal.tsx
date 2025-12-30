@@ -332,7 +332,7 @@ export function OrganizationSettingsModal({
 
     if (
       archiveConfirmation.step === 3 &&
-      archiveConfirmation.typedConfirmation === 'DELETE ALL DATA' &&
+      archiveConfirmation.typedConfirmation === 'DELETE' &&
       archiveConfirmation.confirmChecked
     ) {
       setLoading(true);
@@ -345,15 +345,15 @@ export function OrganizationSettingsModal({
         if (error) throw error;
 
         if (data.success) {
-          alert('Organization archived successfully. All members have been notified.');
+          alert(`"${organization.name}" has been scheduled for deletion. You have 7 days to restore it before permanent deletion.`);
           onUpdate();
           onClose();
         } else {
           throw new Error(data.error);
         }
       } catch (error) {
-        console.error('Error archiving organization:', error);
-        alert('Failed to archive organization');
+        console.error('Error scheduling deletion:', error);
+        alert('Failed to schedule workspace deletion');
       } finally {
         setLoading(false);
       }
@@ -742,61 +742,70 @@ export function OrganizationSettingsModal({
               {canDelete && deletionStatus && (
                 <>
                   {deletionStatus.is_deletion_scheduled && countdown && (
-                    <div className="bg-red-50 border-2 border-red-300 rounded-xl p-6">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="p-2 bg-red-100 rounded-full">
-                          <Clock className="w-6 h-6 text-red-600" />
+                    <div className="space-y-4">
+                      <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-6">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="p-2 bg-amber-100 rounded-full">
+                            <Clock className="w-6 h-6 text-amber-600" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-bold text-amber-900">"{organization.name}" Pending Deletion</h3>
+                            <p className="text-sm text-amber-700">
+                              Scheduled for permanent deletion on {new Date(deletionStatus.scheduled_deletion_at!).toLocaleDateString()}
+                            </p>
+                          </div>
                         </div>
+
+                        <div className="bg-white rounded-lg p-4 mb-4">
+                          <p className="text-sm text-gray-700 mb-3">Time remaining to restore this workspace:</p>
+                          <div className="grid grid-cols-4 gap-3">
+                            <div className="bg-amber-50 rounded-lg p-3 text-center">
+                              <div className="text-2xl font-bold text-amber-700">{countdown.days}</div>
+                              <div className="text-xs text-gray-600 uppercase tracking-wide">Days</div>
+                            </div>
+                            <div className="bg-amber-50 rounded-lg p-3 text-center">
+                              <div className="text-2xl font-bold text-amber-700">{countdown.hours}</div>
+                              <div className="text-xs text-gray-600 uppercase tracking-wide">Hours</div>
+                            </div>
+                            <div className="bg-amber-50 rounded-lg p-3 text-center">
+                              <div className="text-2xl font-bold text-amber-700">{countdown.minutes}</div>
+                              <div className="text-xs text-gray-600 uppercase tracking-wide">Minutes</div>
+                            </div>
+                            <div className="bg-amber-50 rounded-lg p-3 text-center">
+                              <div className="text-2xl font-bold text-amber-700">{countdown.seconds}</div>
+                              <div className="text-xs text-gray-600 uppercase tracking-wide">Seconds</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => handleCancelDeletion(true)}
+                          disabled={loading}
+                          className="w-full px-4 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 font-bold text-lg"
+                        >
+                          {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RotateCcw className="w-5 h-5" />}
+                          Restore Workspace
+                        </button>
+                        <p className="text-center text-sm text-gray-600 mt-2">
+                          Restoring will return this workspace to normal operation immediately.
+                        </p>
+                      </div>
+
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex gap-3">
+                        <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                         <div>
-                          <h3 className="text-lg font-bold text-red-900">Permanent Deletion Scheduled</h3>
-                          <p className="text-sm text-red-700">
-                            Scheduled for {new Date(deletionStatus.scheduled_deletion_at!).toLocaleString()}
+                          <h4 className="font-semibold text-green-900 mb-1">Your other workspaces are safe</h4>
+                          <p className="text-sm text-green-800">
+                            This pending deletion only affects "{organization.name}".
+                            Content in your other workspaces is NOT affected.
                           </p>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-4 gap-3 mb-6">
-                        <div className="bg-white rounded-lg p-4 text-center shadow-sm">
-                          <div className="text-3xl font-bold text-red-600">{countdown.days}</div>
-                          <div className="text-xs text-gray-600 uppercase tracking-wide">Days</div>
-                        </div>
-                        <div className="bg-white rounded-lg p-4 text-center shadow-sm">
-                          <div className="text-3xl font-bold text-red-600">{countdown.hours}</div>
-                          <div className="text-xs text-gray-600 uppercase tracking-wide">Hours</div>
-                        </div>
-                        <div className="bg-white rounded-lg p-4 text-center shadow-sm">
-                          <div className="text-3xl font-bold text-red-600">{countdown.minutes}</div>
-                          <div className="text-xs text-gray-600 uppercase tracking-wide">Minutes</div>
-                        </div>
-                        <div className="bg-white rounded-lg p-4 text-center shadow-sm">
-                          <div className="text-3xl font-bold text-red-600">{countdown.seconds}</div>
-                          <div className="text-xs text-gray-600 uppercase tracking-wide">Seconds</div>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col sm:flex-row gap-3">
-                        <button
-                          onClick={() => handleCancelDeletion(false)}
-                          disabled={loading}
-                          className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 font-semibold"
-                        >
-                          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-5 h-5" />}
-                          Cancel Deletion
-                        </button>
-                        <button
-                          onClick={() => handleCancelDeletion(true)}
-                          disabled={loading}
-                          className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 font-semibold"
-                        >
-                          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-5 h-5" />}
-                          Cancel & Restore Workspace
-                        </button>
-                      </div>
-
                       {deletionStatus.can_delete_now && (
-                        <div className="mt-6 pt-6 border-t border-red-200">
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                           <p className="text-sm text-red-800 mb-4">
-                            The grace period has elapsed. You can now permanently delete this workspace.
+                            The 7-day grace period has elapsed. You can now permanently delete this workspace.
                           </p>
                           <button
                             onClick={handlePermanentDelete}
@@ -814,26 +823,46 @@ export function OrganizationSettingsModal({
                   {deletionStatus.is_archived && !deletionStatus.is_deletion_scheduled && (
                     <>
                       <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex gap-3">
-                        <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                        <Clock className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                         <div>
-                          <h4 className="font-semibold text-amber-900 mb-1">Workspace Archived</h4>
+                          <h4 className="font-semibold text-amber-900 mb-1">"{organization.name}" Scheduled for Deletion</h4>
                           <p className="text-sm text-amber-800">
-                            This workspace was archived on {new Date(deletionStatus.archived_at!).toLocaleDateString()}.
-                            You can schedule permanent deletion or restore the workspace.
+                            Deletion was initiated on {new Date(deletionStatus.archived_at!).toLocaleDateString()}.
+                            You can restore the workspace or proceed to permanent deletion.
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => handleCancelDeletion(true)}
+                        disabled={loading}
+                        className="w-full px-4 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 font-bold text-lg"
+                      >
+                        {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RotateCcw className="w-5 h-5" />}
+                        Restore Workspace
+                      </button>
+
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex gap-3">
+                        <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <h4 className="font-semibold text-green-900 mb-1">Your other workspaces are safe</h4>
+                          <p className="text-sm text-green-800">
+                            This deletion only affects "{organization.name}".
+                            Content in your other workspaces is NOT affected.
                           </p>
                         </div>
                       </div>
 
                       <div className="bg-red-50 border border-red-200 rounded-xl p-6">
-                        <h4 className="font-bold text-red-900 text-lg mb-2">Schedule Permanent Deletion</h4>
+                        <h4 className="font-bold text-red-900 text-lg mb-2">Proceed to Permanent Deletion</h4>
                         <p className="text-sm text-red-800 mb-4">
-                          Once scheduled, you will have a 7-day grace period to cancel. After that, the workspace
-                          and ALL its data will be permanently and irreversibly deleted.
+                          You can skip the 7-day waiting period and permanently delete this workspace now.
+                          This action is immediate and irreversible.
                         </p>
 
                         {contentCount && (
                           <div className="bg-white rounded-lg p-4 mb-4 border border-red-100">
-                            <h5 className="font-semibold text-gray-900 mb-2 text-sm">Content that will be deleted:</h5>
+                            <h5 className="font-semibold text-gray-900 mb-2 text-sm">Content in "{organization.name}" that will be deleted:</h5>
                             <ul className="grid grid-cols-2 gap-2 text-sm text-gray-700">
                               <li>{contentCount.series} series</li>
                               <li>{contentCount.total_characters} characters</li>
@@ -887,7 +916,7 @@ export function OrganizationSettingsModal({
                                   I understand this action is IRREVERSIBLE
                                 </div>
                                 <div className="text-gray-600 mt-1">
-                                  After the 7-day grace period, the workspace and all its data will be permanently deleted with no possibility of recovery.
+                                  The workspace and all its data will be permanently deleted immediately with no possibility of recovery.
                                 </div>
                               </div>
                             </label>
@@ -902,18 +931,28 @@ export function OrganizationSettingsModal({
                       <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex gap-3">
                         <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                         <div>
-                          <h4 className="font-semibold text-red-900 mb-1">Danger Zone</h4>
+                          <h4 className="font-semibold text-red-900 mb-1">Delete "{organization.name}" Workspace</h4>
                           <p className="text-sm text-red-800">
-                            Archiving your workspace is the first step. All series, episodes, and data
-                            will be archived and can be restored within 30 days. After archiving, you
-                            can schedule permanent deletion.
+                            This will schedule the deletion of this workspace and all its content.
+                            You will have a <strong>7-day grace period</strong> to restore your workspace before permanent deletion.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex gap-3">
+                        <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <h4 className="font-semibold text-green-900 mb-1">Your other workspaces are safe</h4>
+                          <p className="text-sm text-green-800">
+                            This action only affects the "{organization.name}" workspace.
+                            Content in your other workspaces will NOT be affected.
                           </p>
                         </div>
                       </div>
 
                       {contentCount && (
                         <div className="bg-gray-50 rounded-lg p-4">
-                          <h4 className="font-semibold text-gray-900 mb-3">Content that will be archived:</h4>
+                          <h4 className="font-semibold text-gray-900 mb-3">Content in "{organization.name}" that will be deleted:</h4>
                           <ul className="space-y-2 text-sm text-gray-700">
                             <li>{contentCount.series} series with all their content</li>
                             <li>{contentCount.total_characters} characters</li>
@@ -944,14 +983,14 @@ export function OrganizationSettingsModal({
                         <>
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Type "DELETE ALL DATA" to confirm:
+                              Type "DELETE" to confirm:
                             </label>
                             <input
                               type="text"
                               value={archiveConfirmation.typedConfirmation}
                               onChange={(e) => setArchiveConfirmation({ ...archiveConfirmation, typedConfirmation: e.target.value })}
                               className="w-full px-4 py-2 border border-red-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                              placeholder="DELETE ALL DATA"
+                              placeholder="DELETE"
                             />
                           </div>
 
@@ -963,9 +1002,10 @@ export function OrganizationSettingsModal({
                               className="w-4 h-4 text-red-600 mt-1"
                             />
                             <div className="text-sm">
-                              <div className="font-semibold text-gray-900">I understand this action cannot be undone after 30 days</div>
+                              <div className="font-semibold text-gray-900">I understand I have 7 days to restore this workspace</div>
                               <div className="text-gray-600 mt-1">
-                                The workspace and all its data will be archived. You have 30 days to restore before permanent deletion.
+                                The workspace will be scheduled for deletion. You can restore it anytime within the 7-day grace period.
+                                After 7 days, all data will be permanently deleted.
                               </div>
                             </div>
                           </label>
@@ -1003,15 +1043,15 @@ export function OrganizationSettingsModal({
               disabled={
                 loading ||
                 (archiveConfirmation.step === 2 && archiveConfirmation.typedName !== organization.name) ||
-                (archiveConfirmation.step === 3 && (archiveConfirmation.typedConfirmation !== 'DELETE ALL DATA' || !archiveConfirmation.confirmChecked))
+                (archiveConfirmation.step === 3 && (archiveConfirmation.typedConfirmation !== 'DELETE' || !archiveConfirmation.confirmChecked))
               }
               className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-              <AlertTriangle className="w-4 h-4" />
-              {archiveConfirmation.step === 1 && 'Archive Workspace'}
+              <Trash2 className="w-4 h-4" />
+              {archiveConfirmation.step === 1 && 'Delete Workspace'}
               {archiveConfirmation.step === 2 && 'Confirm Name'}
-              {archiveConfirmation.step === 3 && 'Final Confirmation'}
+              {archiveConfirmation.step === 3 && 'Confirm Delete'}
             </button>
           )}
           {activeTab === 'danger' && canDelete && deletionStatus?.is_archived && !deletionStatus.is_deletion_scheduled && (
@@ -1026,9 +1066,9 @@ export function OrganizationSettingsModal({
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               <Trash2 className="w-4 h-4" />
-              {deleteConfirmation.step === 1 && 'Schedule Permanent Deletion'}
+              {deleteConfirmation.step === 1 && 'Delete Permanently'}
               {deleteConfirmation.step === 2 && 'Confirm Name'}
-              {deleteConfirmation.step === 3 && 'Confirm & Schedule'}
+              {deleteConfirmation.step === 3 && 'Confirm & Delete'}
             </button>
           )}
         </div>
