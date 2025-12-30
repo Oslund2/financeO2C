@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   X,
   Building2,
@@ -10,6 +10,10 @@ import {
   Mail,
   Trash2,
   Shield,
+  Clock,
+  RotateCcw,
+  CheckCircle,
+  XCircle,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,6 +25,21 @@ interface Organization {
   logo_url: string | null;
   billing_tier: string;
   subdomain: string | null;
+  archived_at?: string | null;
+  scheduled_deletion_at?: string | null;
+  deletion_confirmed_at?: string | null;
+}
+
+interface DeletionStatus {
+  exists: boolean;
+  is_archived: boolean;
+  archived_at: string | null;
+  is_deletion_scheduled: boolean;
+  scheduled_deletion_at: string | null;
+  deletion_confirmed_at: string | null;
+  time_remaining_seconds: number;
+  can_delete_now: boolean;
+  grace_period_days: number;
 }
 
 interface OrganizationMember {
@@ -47,6 +66,7 @@ interface OrganizationSettingsModalProps {
   userRole: string;
   onClose: () => void;
   onUpdate: () => void;
+  onDeleted?: () => void;
 }
 
 export function OrganizationSettingsModal({
@@ -54,6 +74,7 @@ export function OrganizationSettingsModal({
   userRole,
   onClose,
   onUpdate,
+  onDeleted,
 }: OrganizationSettingsModalProps) {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'general' | 'team' | 'usage' | 'danger'>('general');
@@ -62,6 +83,11 @@ export function OrganizationSettingsModal({
   const [contentCount, setContentCount] = useState<ContentCount | null>(null);
   const [members, setMembers] = useState<OrganizationMember[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [deletionStatus, setDeletionStatus] = useState<DeletionStatus | null>(null);
+  const [countdown, setCountdown] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
+  const [showDeletedConfirmation, setShowDeletedConfirmation] = useState(false);
+  const [deletedOrgName, setDeletedOrgName] = useState('');
 
   const [editForm, setEditForm] = useState({
     name: organization.name,
@@ -75,15 +101,66 @@ export function OrganizationSettingsModal({
     confirmChecked: false,
   });
 
+  const [deleteConfirmation, setDeleteConfirmation] = useState({
+    step: 1,
+    typedName: '',
+    typedConfirmation: '',
+    confirmChecked: false,
+  });
+
   const canEdit = ['owner', 'admin'].includes(userRole);
   const canArchive = userRole === 'owner';
+  const canDelete = userRole === 'owner';
+
+  const fetchDeletionStatus = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.rpc('get_organization_deletion_status', {
+        org_uuid: organization.id,
+      });
+      if (error) throw error;
+      setDeletionStatus(data);
+    } catch (error) {
+      console.error('Error fetching deletion status:', error);
+    }
+  }, [organization.id]);
 
   useEffect(() => {
     fetchContentCount();
+    fetchDeletionStatus();
     if (activeTab === 'team') {
       fetchMembers();
     }
-  }, [organization.id, activeTab]);
+  }, [organization.id, activeTab, fetchDeletionStatus]);
+
+  useEffect(() => {
+    if (!deletionStatus?.is_deletion_scheduled || !deletionStatus.scheduled_deletion_at) {
+      setCountdown(null);
+      return;
+    }
+
+    const updateCountdown = () => {
+      const now = new Date().getTime();
+      const target = new Date(deletionStatus.scheduled_deletion_at!).getTime();
+      const diff = target - now;
+
+      if (diff <= 0) {
+        setCountdown({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+        fetchDeletionStatus();
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      setCountdown({ days, hours, minutes, seconds });
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [deletionStatus?.is_deletion_scheduled, deletionStatus?.scheduled_deletion_at, fetchDeletionStatus]);
 
   const fetchContentCount = async () => {
     try {
@@ -281,6 +358,114 @@ export function OrganizationSettingsModal({
         setLoading(false);
       }
     }
+  };
+
+  const handleScheduleDeletion = async () => {
+    if (!user || !canDelete) return;
+
+    if (deleteConfirmation.step === 1) {
+      setDeleteConfirmation({ ...deleteConfirmation, step: 2 });
+      return;
+    }
+
+    if (deleteConfirmation.step === 2 && deleteConfirmation.typedName === organization.name) {
+      setDeleteConfirmation({ ...deleteConfirmation, step: 3 });
+      return;
+    }
+
+    if (
+      deleteConfirmation.step === 3 &&
+      deleteConfirmation.typedConfirmation === 'PERMANENTLY DELETE' &&
+      deleteConfirmation.confirmChecked
+    ) {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase.rpc('schedule_organization_deletion', {
+          org_uuid: organization.id,
+          user_uuid: user.id,
+        });
+
+        if (error) throw error;
+
+        if (data.success) {
+          await fetchDeletionStatus();
+          setDeleteConfirmation({ step: 1, typedName: '', typedConfirmation: '', confirmChecked: false });
+          onUpdate();
+        } else {
+          throw new Error(data.error);
+        }
+      } catch (error) {
+        console.error('Error scheduling deletion:', error);
+        alert('Failed to schedule deletion');
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleCancelDeletion = async (restoreFromArchive: boolean = false) => {
+    if (!user || !canDelete) return;
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('cancel_organization_deletion', {
+        org_uuid: organization.id,
+        user_uuid: user.id,
+        restore_from_archive: restoreFromArchive,
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        await fetchDeletionStatus();
+        onUpdate();
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error) {
+      console.error('Error canceling deletion:', error);
+      alert('Failed to cancel deletion');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePermanentDelete = async () => {
+    if (!user || !canDelete || !deletionStatus?.can_delete_now) return;
+
+    const confirmed = window.confirm(
+      `This is your FINAL confirmation. "${organization.name}" and ALL its data will be permanently deleted. This action CANNOT be undone.\n\nAre you absolutely sure?`
+    );
+
+    if (!confirmed) return;
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('permanently_delete_organization', {
+        org_uuid: organization.id,
+        user_uuid: user.id,
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        setDeletedOrgName(organization.name);
+        setShowDeletedConfirmation(true);
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error) {
+      console.error('Error permanently deleting organization:', error);
+      alert('Failed to delete organization');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCloseDeletedConfirmation = () => {
+    setShowDeletedConfirmation(false);
+    onDeleted?.();
+    onClose();
   };
 
   const tabs = [
@@ -545,108 +730,248 @@ export function OrganizationSettingsModal({
 
           {activeTab === 'danger' && (
             <div className="space-y-6">
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex gap-3">
-                <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <h4 className="font-semibold text-red-900 mb-1">Danger Zone</h4>
-                  <p className="text-sm text-red-800">
-                    Archiving your organization is a permanent action. All series, episodes, and data
-                    will be archived and can be restored within 30 days. After 30 days, everything
-                    will be permanently deleted.
-                  </p>
-                </div>
-              </div>
-
-              {!canArchive && (
+              {!canDelete && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                   <p className="text-sm text-yellow-900">
-                    Only the organization owner can archive the organization. Your current role is:{' '}
+                    Only the organization owner can manage workspace deletion. Your current role is:{' '}
                     <strong>{userRole}</strong>
                   </p>
                 </div>
               )}
 
-              {contentCount && canArchive && (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-semibold text-gray-900 mb-3">
-                    Content that will be archived:
-                  </h4>
-                  <ul className="space-y-2 text-sm text-gray-700">
-                    <li>• {contentCount.series} series with all their content</li>
-                    <li>• {contentCount.total_characters} characters</li>
-                    <li>• {contentCount.total_scripts} scripts</li>
-                    <li>• {contentCount.total_episodes} episodes</li>
-                    <li>• {contentCount.total_assets} assets ({contentCount.storage_gb} GB)</li>
-                    <li>• All team member access will be revoked</li>
-                  </ul>
-                </div>
-              )}
-
-              {canArchive && (
+              {canDelete && deletionStatus && (
                 <>
-                  {archiveConfirmation.step >= 2 && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Type the organization name "{organization.name}" to confirm:
-                      </label>
-                      <input
-                        type="text"
-                        value={archiveConfirmation.typedName}
-                        onChange={(e) =>
-                          setArchiveConfirmation({
-                            ...archiveConfirmation,
-                            typedName: e.target.value,
-                          })
-                        }
-                        className="w-full px-4 py-2 border border-red-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                        placeholder={organization.name}
-                      />
-                    </div>
-                  )}
-
-                  {archiveConfirmation.step >= 3 && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Type "DELETE ALL DATA" to confirm permanent deletion:
-                      </label>
-                      <input
-                        type="text"
-                        value={archiveConfirmation.typedConfirmation}
-                        onChange={(e) =>
-                          setArchiveConfirmation({
-                            ...archiveConfirmation,
-                            typedConfirmation: e.target.value,
-                          })
-                        }
-                        className="w-full px-4 py-2 border border-red-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                        placeholder="DELETE ALL DATA"
-                      />
-                    </div>
-                  )}
-
-                  {archiveConfirmation.step >= 3 && (
-                    <label className="flex items-start gap-3 p-4 border-2 border-red-200 rounded-lg cursor-pointer hover:bg-red-50">
-                      <input
-                        type="checkbox"
-                        checked={archiveConfirmation.confirmChecked}
-                        onChange={(e) =>
-                          setArchiveConfirmation({
-                            ...archiveConfirmation,
-                            confirmChecked: e.target.checked,
-                          })
-                        }
-                        className="w-4 h-4 text-red-600 mt-1"
-                      />
-                      <div className="text-sm">
-                        <div className="font-semibold text-gray-900">
-                          I understand this action cannot be undone after 30 days
+                  {deletionStatus.is_deletion_scheduled && countdown && (
+                    <div className="bg-red-50 border-2 border-red-300 rounded-xl p-6">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2 bg-red-100 rounded-full">
+                          <Clock className="w-6 h-6 text-red-600" />
                         </div>
-                        <div className="text-gray-600 mt-1">
-                          The organization and all its data will be archived. You have 30 days to
-                          restore before permanent deletion.
+                        <div>
+                          <h3 className="text-lg font-bold text-red-900">Permanent Deletion Scheduled</h3>
+                          <p className="text-sm text-red-700">
+                            Scheduled for {new Date(deletionStatus.scheduled_deletion_at!).toLocaleString()}
+                          </p>
                         </div>
                       </div>
-                    </label>
+
+                      <div className="grid grid-cols-4 gap-3 mb-6">
+                        <div className="bg-white rounded-lg p-4 text-center shadow-sm">
+                          <div className="text-3xl font-bold text-red-600">{countdown.days}</div>
+                          <div className="text-xs text-gray-600 uppercase tracking-wide">Days</div>
+                        </div>
+                        <div className="bg-white rounded-lg p-4 text-center shadow-sm">
+                          <div className="text-3xl font-bold text-red-600">{countdown.hours}</div>
+                          <div className="text-xs text-gray-600 uppercase tracking-wide">Hours</div>
+                        </div>
+                        <div className="bg-white rounded-lg p-4 text-center shadow-sm">
+                          <div className="text-3xl font-bold text-red-600">{countdown.minutes}</div>
+                          <div className="text-xs text-gray-600 uppercase tracking-wide">Minutes</div>
+                        </div>
+                        <div className="bg-white rounded-lg p-4 text-center shadow-sm">
+                          <div className="text-3xl font-bold text-red-600">{countdown.seconds}</div>
+                          <div className="text-xs text-gray-600 uppercase tracking-wide">Seconds</div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <button
+                          onClick={() => handleCancelDeletion(false)}
+                          disabled={loading}
+                          className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 font-semibold"
+                        >
+                          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-5 h-5" />}
+                          Cancel Deletion
+                        </button>
+                        <button
+                          onClick={() => handleCancelDeletion(true)}
+                          disabled={loading}
+                          className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 font-semibold"
+                        >
+                          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-5 h-5" />}
+                          Cancel & Restore Workspace
+                        </button>
+                      </div>
+
+                      {deletionStatus.can_delete_now && (
+                        <div className="mt-6 pt-6 border-t border-red-200">
+                          <p className="text-sm text-red-800 mb-4">
+                            The grace period has elapsed. You can now permanently delete this workspace.
+                          </p>
+                          <button
+                            onClick={handlePermanentDelete}
+                            disabled={loading}
+                            className="w-full px-4 py-3 bg-red-700 text-white rounded-lg hover:bg-red-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 font-bold"
+                          >
+                            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-5 h-5" />}
+                            Permanently Delete Now
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {deletionStatus.is_archived && !deletionStatus.is_deletion_scheduled && (
+                    <>
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex gap-3">
+                        <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <h4 className="font-semibold text-amber-900 mb-1">Workspace Archived</h4>
+                          <p className="text-sm text-amber-800">
+                            This workspace was archived on {new Date(deletionStatus.archived_at!).toLocaleDateString()}.
+                            You can schedule permanent deletion or restore the workspace.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+                        <h4 className="font-bold text-red-900 text-lg mb-2">Schedule Permanent Deletion</h4>
+                        <p className="text-sm text-red-800 mb-4">
+                          Once scheduled, you will have a 7-day grace period to cancel. After that, the workspace
+                          and ALL its data will be permanently and irreversibly deleted.
+                        </p>
+
+                        {contentCount && (
+                          <div className="bg-white rounded-lg p-4 mb-4 border border-red-100">
+                            <h5 className="font-semibold text-gray-900 mb-2 text-sm">Content that will be deleted:</h5>
+                            <ul className="grid grid-cols-2 gap-2 text-sm text-gray-700">
+                              <li>{contentCount.series} series</li>
+                              <li>{contentCount.total_characters} characters</li>
+                              <li>{contentCount.total_scripts} scripts</li>
+                              <li>{contentCount.total_episodes} episodes</li>
+                              <li>{contentCount.total_assets} assets</li>
+                              <li>{contentCount.storage_gb} GB storage</li>
+                            </ul>
+                          </div>
+                        )}
+
+                        {deleteConfirmation.step >= 2 && (
+                          <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Step 1: Type "{organization.name}" to confirm:
+                            </label>
+                            <input
+                              type="text"
+                              value={deleteConfirmation.typedName}
+                              onChange={(e) => setDeleteConfirmation({ ...deleteConfirmation, typedName: e.target.value })}
+                              className="w-full px-4 py-2 border border-red-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                              placeholder={organization.name}
+                            />
+                          </div>
+                        )}
+
+                        {deleteConfirmation.step >= 3 && (
+                          <>
+                            <div className="mb-4">
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Step 2: Type "PERMANENTLY DELETE" to confirm:
+                              </label>
+                              <input
+                                type="text"
+                                value={deleteConfirmation.typedConfirmation}
+                                onChange={(e) => setDeleteConfirmation({ ...deleteConfirmation, typedConfirmation: e.target.value })}
+                                className="w-full px-4 py-2 border border-red-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                                placeholder="PERMANENTLY DELETE"
+                              />
+                            </div>
+
+                            <label className="flex items-start gap-3 p-4 border-2 border-red-200 rounded-lg cursor-pointer hover:bg-red-100 mb-4 bg-white">
+                              <input
+                                type="checkbox"
+                                checked={deleteConfirmation.confirmChecked}
+                                onChange={(e) => setDeleteConfirmation({ ...deleteConfirmation, confirmChecked: e.target.checked })}
+                                className="w-4 h-4 text-red-600 mt-1"
+                              />
+                              <div className="text-sm">
+                                <div className="font-semibold text-gray-900">
+                                  I understand this action is IRREVERSIBLE
+                                </div>
+                                <div className="text-gray-600 mt-1">
+                                  After the 7-day grace period, the workspace and all its data will be permanently deleted with no possibility of recovery.
+                                </div>
+                              </div>
+                            </label>
+                          </>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  {!deletionStatus.is_archived && (
+                    <>
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex gap-3">
+                        <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <h4 className="font-semibold text-red-900 mb-1">Danger Zone</h4>
+                          <p className="text-sm text-red-800">
+                            Archiving your workspace is the first step. All series, episodes, and data
+                            will be archived and can be restored within 30 days. After archiving, you
+                            can schedule permanent deletion.
+                          </p>
+                        </div>
+                      </div>
+
+                      {contentCount && (
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <h4 className="font-semibold text-gray-900 mb-3">Content that will be archived:</h4>
+                          <ul className="space-y-2 text-sm text-gray-700">
+                            <li>{contentCount.series} series with all their content</li>
+                            <li>{contentCount.total_characters} characters</li>
+                            <li>{contentCount.total_scripts} scripts</li>
+                            <li>{contentCount.total_episodes} episodes</li>
+                            <li>{contentCount.total_assets} assets ({contentCount.storage_gb} GB)</li>
+                            <li>All team member access will be revoked</li>
+                          </ul>
+                        </div>
+                      )}
+
+                      {archiveConfirmation.step >= 2 && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Type "{organization.name}" to confirm:
+                          </label>
+                          <input
+                            type="text"
+                            value={archiveConfirmation.typedName}
+                            onChange={(e) => setArchiveConfirmation({ ...archiveConfirmation, typedName: e.target.value })}
+                            className="w-full px-4 py-2 border border-red-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                            placeholder={organization.name}
+                          />
+                        </div>
+                      )}
+
+                      {archiveConfirmation.step >= 3 && (
+                        <>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Type "DELETE ALL DATA" to confirm:
+                            </label>
+                            <input
+                              type="text"
+                              value={archiveConfirmation.typedConfirmation}
+                              onChange={(e) => setArchiveConfirmation({ ...archiveConfirmation, typedConfirmation: e.target.value })}
+                              className="w-full px-4 py-2 border border-red-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                              placeholder="DELETE ALL DATA"
+                            />
+                          </div>
+
+                          <label className="flex items-start gap-3 p-4 border-2 border-red-200 rounded-lg cursor-pointer hover:bg-red-50">
+                            <input
+                              type="checkbox"
+                              checked={archiveConfirmation.confirmChecked}
+                              onChange={(e) => setArchiveConfirmation({ ...archiveConfirmation, confirmChecked: e.target.checked })}
+                              className="w-4 h-4 text-red-600 mt-1"
+                            />
+                            <div className="text-sm">
+                              <div className="font-semibold text-gray-900">I understand this action cannot be undone after 30 days</div>
+                              <div className="text-gray-600 mt-1">
+                                The workspace and all its data will be archived. You have 30 days to restore before permanent deletion.
+                              </div>
+                            </div>
+                          </label>
+                        </>
+                      )}
+                    </>
                   )}
                 </>
               )}
@@ -672,28 +997,62 @@ export function OrganizationSettingsModal({
               Save Changes
             </button>
           )}
-          {activeTab === 'danger' && canArchive && (
+          {activeTab === 'danger' && canDelete && deletionStatus && !deletionStatus.is_archived && (
             <button
               onClick={handleArchive}
               disabled={
                 loading ||
-                (archiveConfirmation.step === 2 &&
-                  archiveConfirmation.typedName !== organization.name) ||
-                (archiveConfirmation.step === 3 &&
-                  (archiveConfirmation.typedConfirmation !== 'DELETE ALL DATA' ||
-                    !archiveConfirmation.confirmChecked))
+                (archiveConfirmation.step === 2 && archiveConfirmation.typedName !== organization.name) ||
+                (archiveConfirmation.step === 3 && (archiveConfirmation.typedConfirmation !== 'DELETE ALL DATA' || !archiveConfirmation.confirmChecked))
               }
               className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               <AlertTriangle className="w-4 h-4" />
-              {archiveConfirmation.step === 1 && 'Archive Organization'}
+              {archiveConfirmation.step === 1 && 'Archive Workspace'}
               {archiveConfirmation.step === 2 && 'Confirm Name'}
               {archiveConfirmation.step === 3 && 'Final Confirmation'}
             </button>
           )}
+          {activeTab === 'danger' && canDelete && deletionStatus?.is_archived && !deletionStatus.is_deletion_scheduled && (
+            <button
+              onClick={handleScheduleDeletion}
+              disabled={
+                loading ||
+                (deleteConfirmation.step === 2 && deleteConfirmation.typedName !== organization.name) ||
+                (deleteConfirmation.step === 3 && (deleteConfirmation.typedConfirmation !== 'PERMANENTLY DELETE' || !deleteConfirmation.confirmChecked))
+              }
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+              <Trash2 className="w-4 h-4" />
+              {deleteConfirmation.step === 1 && 'Schedule Permanent Deletion'}
+              {deleteConfirmation.step === 2 && 'Confirm Name'}
+              {deleteConfirmation.step === 3 && 'Confirm & Schedule'}
+            </button>
+          )}
         </div>
       </div>
+
+      {showDeletedConfirmation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-8 text-center">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <CheckCircle className="w-10 h-10 text-green-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-3">Workspace Deleted</h2>
+            <p className="text-gray-600 mb-6">
+              "{deletedOrgName}" and all its associated data have been permanently deleted.
+            </p>
+            <button
+              onClick={handleCloseDeletedConfirmation}
+              className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+            >
+              Return to Dashboard
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
