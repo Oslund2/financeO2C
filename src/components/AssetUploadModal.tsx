@@ -13,6 +13,8 @@ interface AssetUploadModalProps {
   seriesId: string | null;
 }
 
+const MAX_FILE_SIZE = 250 * 1024 * 1024;
+
 export function AssetUploadModal({ isOpen, onClose, onUploadComplete, seriesId }: AssetUploadModalProps) {
   const { currentOrganization } = useOrganization();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -78,6 +80,11 @@ export function AssetUploadModal({ isOpen, onClose, onUploadComplete, seriesId }
   };
 
   const handleFileSelect = (file: File) => {
+    if (file.size > MAX_FILE_SIZE) {
+      alert(`File size exceeds 250MB limit. Your file is ${(file.size / 1024 / 1024).toFixed(2)}MB. Please choose a smaller file.`);
+      return;
+    }
+
     setSelectedFile(file);
 
     if (!formData.name) {
@@ -273,8 +280,11 @@ export function AssetUploadModal({ isOpen, onClose, onUploadComplete, seriesId }
                 <p className="text-base sm:text-lg font-medium text-gray-900 mb-2">
                   Drop your file here or click to browse
                 </p>
-                <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4 px-2">
+                <p className="text-xs sm:text-sm text-gray-600 mb-1 px-2">
                   Supports images, videos, audio, and documents
+                </p>
+                <p className="text-xs text-gray-500 mb-3 sm:mb-4 px-2">
+                  Maximum file size: 250MB
                 </p>
                 <input
                   type="file"
