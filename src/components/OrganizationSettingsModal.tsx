@@ -394,9 +394,10 @@ export function OrganizationSettingsModal({
         } else {
           throw new Error(data.error);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error scheduling deletion:', error);
-        alert('Failed to schedule deletion');
+        const errorMessage = error?.message || error?.toString() || 'Unknown error';
+        alert(`Failed to schedule deletion: ${errorMessage}`);
       } finally {
         setLoading(false);
       }
