@@ -19,7 +19,7 @@ export function Settings() {
   const [apiStatus, setApiStatus] = useState<ReturnType<typeof getAPIKeyStatus> | null>(null);
   const [apiHealth, setApiHealth] = useState<AllAPIStatus | null>(null);
   const [healthCheckLoading, setHealthCheckLoading] = useState(false);
-  const [techDocsExpanded, setTechDocsExpanded] = useState(false);
+  const [techDocsExpanded, setTechDocsExpanded] = useState(true);
   const [backupExpanded, setBackupExpanded] = useState(false);
   const [promptLibraryExpanded, setPromptLibraryExpanded] = useState(false);
   const [nextStepsExpanded, setNextStepsExpanded] = useState(false);
@@ -36,7 +36,7 @@ export function Settings() {
   const [translationExpanded, setTranslationExpanded] = useState(false);
   const [patentSettingsExpanded, setPatentSettingsExpanded] = useState(false);
   const [releasesExpanded, setReleasesExpanded] = useState(false);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('how-to');
   const [copiedText, setCopiedText] = useState('');
 
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
