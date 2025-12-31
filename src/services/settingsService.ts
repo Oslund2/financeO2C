@@ -529,10 +529,10 @@ export function getConfigurationInstructions() {
         },
         {
           name: 'VITE_GEMINI_API_KEY',
-          description: 'Your Gemini API key (same key works for both Gemini and Vertex AI)',
+          description: 'Your Gemini API key (same key used for both Gemini text generation and Vertex AI video generation)',
           example: 'AIzaSy...',
           required: true,
-          note: 'Already configured above - this same key works for Vertex AI too!'
+          note: 'This is the same key configured in the Gemini section above. One key for both services!'
         },
         {
           name: 'VITE_VERTEX_AI_LOCATION',
@@ -556,7 +556,7 @@ export function getConfigurationInstructions() {
         }
       ],
       setupUrl: 'https://console.cloud.google.com/apis/credentials',
-      additionalInfo: 'Veo pricing varies by model: Veo 2.0 (~$0.35/sec), Veo 3.0/3.1 Fast (~$0.50/sec), Veo 3.1 Premium ($0.75/sec with audio). The same Gemini API key works for both Gemini text generation and Vertex AI video generation - just add your Google Cloud Project ID.'
+      additionalInfo: 'The same Gemini API key works for both Gemini text generation and Vertex AI video generation. Just add your Google Cloud Project ID above.\n\nVeo pricing:\n• Veo 3.1 Standard: $0.40/sec with audio, $0.20/sec video only\n• Veo 3.1 Fast: $0.15/sec with audio, $0.10/sec video only (62% savings)\n• Veo 3.0: Same pricing as 3.1\n• Veo 2.0: $0.50/sec (video only, no audio support)\n\nNote: Make sure to enable the Vertex AI API in your Google Cloud Console for your project.'
     },
     elevenLabs: {
       title: 'ElevenLabs Configuration',

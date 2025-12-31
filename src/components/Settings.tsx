@@ -797,7 +797,9 @@ export function Settings() {
                             <CheckCircle className="w-5 h-5 text-green-600" />
                           ) : apiStatus && secret.name === 'VITE_VERTEX_AI_LOCATION' && apiStatus.vertexAI.location ? (
                             <CheckCircle className="w-5 h-5 text-green-600" />
-                          ) : apiStatus && secret.name === 'VITE_VERTEX_AI_API_KEY' && apiStatus.vertexAI.apiKey ? (
+                          ) : apiStatus && secret.name === 'VITE_GEMINI_API_KEY' && apiStatus.vertexAI.apiKey ? (
+                            <CheckCircle className="w-5 h-5 text-green-600" />
+                          ) : apiStatus && secret.name === 'VITE_GEMINI_API_KEY' && apiStatus.gemini.apiKey ? (
                             <CheckCircle className="w-5 h-5 text-green-600" />
                           ) : secret.required ? (
                             <XCircle className="w-5 h-5 text-red-600" />

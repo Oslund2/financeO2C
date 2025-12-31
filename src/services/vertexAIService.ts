@@ -283,7 +283,14 @@ export async function submitVeo3Request(
     throw new Error(`Invalid request parameters: ${validationErrors.join(', ')}`);
   }
 
-  const endpoint = `https://${config.location}-aiplatform.googleapis.com/v1/projects/${config.projectId}/locations/${config.location}/publishers/google/models/${model}:predictLongRunning`;
+  const endpoint = `https://${config.location}-aiplatform.googleapis.com/v1/projects/${config.projectId}/locations/${config.location}/publishers/google/models/${model}:predictLongRunning?key=${config.apiKey}`;
+
+  console.log('Submitting Veo request:', {
+    projectId: config.projectId,
+    location: config.location,
+    model,
+    hasApiKey: !!config.apiKey
+  });
 
   const instance: any = {
     prompt: request.prompt
@@ -357,7 +364,6 @@ export async function submitVeo3Request(
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${config.apiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(requestBody)
@@ -365,7 +371,18 @@ export async function submitVeo3Request(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-      throw new Error(`Vertex AI API error (${response.status}): ${JSON.stringify(errorData)}`);
+      console.error('Vertex AI API error response:', errorData);
+
+      let errorMessage = `Vertex AI API error (${response.status})`;
+      if (response.status === 401 || response.status === 403) {
+        errorMessage = `Authentication failed: Invalid API key or insufficient permissions. Please check your VITE_GEMINI_API_KEY in Settings.`;
+      } else if (response.status === 404) {
+        errorMessage = `Vertex AI API not found. Make sure the API is enabled for project "${config.projectId}".`;
+      } else {
+        errorMessage += `: ${JSON.stringify(errorData)}`;
+      }
+
+      throw new Error(errorMessage);
     }
 
     const result = await response.json();
@@ -439,12 +456,11 @@ export async function checkJobStatus(jobId: string): Promise<Veo3Job> {
 
   try {
     const model = job.model_version || 'veo-3.1-generate-001';
-    const endpoint = `https://${config.location}-aiplatform.googleapis.com/v1/projects/${config.projectId}/locations/${config.location}/publishers/google/models/${model}:fetchPredictOperation`;
+    const endpoint = `https://${config.location}-aiplatform.googleapis.com/v1/projects/${config.projectId}/locations/${config.location}/publishers/google/models/${model}:fetchPredictOperation?key=${config.apiKey}`;
 
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${config.apiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -453,7 +469,9 @@ export async function checkJobStatus(jobId: string): Promise<Veo3Job> {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to check job status: ${response.statusText}`);
+      const errorData = await response.json().catch(() => ({}));
+      console.error('Failed to check job status:', response.status, errorData);
+      throw new Error(`Failed to check job status (${response.status}): ${response.statusText}`);
     }
 
     const result = await response.json();
@@ -527,17 +545,18 @@ export async function generateSignedUrl(cloudStorageUri: string): Promise<string
   const objectPath = pathParts.join('/');
 
   try {
-    const endpoint = `https://storage.googleapis.com/storage/v1/b/${bucket}/o/${encodeURIComponent(objectPath)}`;
+    const endpoint = `https://storage.googleapis.com/storage/v1/b/${bucket}/o/${encodeURIComponent(objectPath)}?key=${config.apiKey}`;
 
     const response = await fetch(endpoint, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${config.apiKey}`
+        'Content-Type': 'application/json'
       }
     });
 
     if (!response.ok) {
-      throw new Error('Failed to generate signed URL');
+      console.error('Failed to generate signed URL:', response.status);
+      throw new Error(`Failed to generate signed URL (${response.status})`);
     }
 
     const result = await response.json();
