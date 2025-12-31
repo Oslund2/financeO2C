@@ -363,7 +363,7 @@ export function StoryboardGenerator({ onNavigate }: StoryboardGeneratorProps) {
         </div>
       </div>
 
-      <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4">
+      <div className="relative flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-gray-500" />
@@ -399,14 +399,14 @@ export function StoryboardGenerator({ onNavigate }: StoryboardGeneratorProps) {
       </div>
 
       {selectedScript.synopsis && (
-        <div className="flex-shrink-0 px-6 py-4 bg-blue-50 border-b border-blue-200">
+        <div className="relative flex-shrink-0 px-6 py-4 bg-blue-50 border-b border-blue-200">
           <h3 className="text-sm font-semibold text-gray-700 mb-1">Synopsis</h3>
           <p className="text-gray-700 text-sm">{selectedScript.synopsis}</p>
         </div>
       )}
 
       {selectedScript.theme && (
-        <div className="flex-shrink-0 px-6 py-3 bg-yellow-50 border-b border-yellow-200">
+        <div className="relative flex-shrink-0 px-6 py-3 bg-yellow-50 border-b border-yellow-200">
           <div className="flex items-center gap-2">
             <Tag className="w-4 h-4 text-yellow-700" />
             <span className="text-sm font-semibold text-gray-700">Theme:</span>
@@ -416,9 +416,9 @@ export function StoryboardGenerator({ onNavigate }: StoryboardGeneratorProps) {
       )}
 
       {selectedScript.vocabulary_words && selectedScript.vocabulary_words.length > 0 && (
-        <div className="flex-shrink-0 px-6 py-3 bg-green-50 border-b border-green-200">
-          <div className="flex items-start gap-2 flex-wrap">
-            <span className="text-sm font-semibold text-gray-700 flex-shrink-0">Vocabulary:</span>
+        <div className="relative flex-shrink-0 px-6 py-3 bg-green-50 border-b border-green-200">
+          <div className="block">
+            <span className="text-sm font-semibold text-gray-700 block mb-2">Vocabulary:</span>
             <div className="flex flex-wrap gap-2">
               {selectedScript.vocabulary_words.map((word, index) => (
                 <span
@@ -449,7 +449,7 @@ export function StoryboardGenerator({ onNavigate }: StoryboardGeneratorProps) {
         </div>
       ) : scriptDetails ? (
         <>
-          <div className="flex-shrink-0 flex border-b border-gray-200 overflow-x-auto bg-white">
+          <div className="relative flex-shrink-0 flex border-b border-gray-200 overflow-x-auto bg-white">
             {scriptDetails.acts.map((act, index) => (
               <button
                 key={act.id}
@@ -466,7 +466,7 @@ export function StoryboardGenerator({ onNavigate }: StoryboardGeneratorProps) {
             ))}
           </div>
 
-          <div className="flex-1 overflow-y-auto p-6 bg-white">
+          <div className="relative flex-1 overflow-y-auto p-6 bg-white">
             {scriptDetails.acts[activeAct] && (
               <div className="max-w-6xl mx-auto space-y-6">
                 {scriptDetails.acts[activeAct].content && (
