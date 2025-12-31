@@ -1088,6 +1088,32 @@ export async function generateImagesForStoryboard(
         }
       }
 
+      const shotText = `${shot.shot_description || ''} ${shot.stage_directions || ''} ${shot.dialogue_text || ''}`.toLowerCase();
+      for (const char of characters) {
+        if (addedCharacterNames.has(char.name.toLowerCase())) continue;
+
+        const charNameLower = char.name.toLowerCase();
+        const aliases = (char.aliases as string[]) || [];
+        const allNames = [charNameLower, ...aliases.map(a => a.toLowerCase())];
+
+        const isInShot = allNames.some(name => {
+          const regex = new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+          return regex.test(shotText);
+        });
+
+        if (isInShot && char.reference_image_url) {
+          console.log(`Found character "${char.name}" mentioned in shot text, adding reference`);
+          characterReferences.push({
+            name: char.name,
+            imageUrl: char.reference_image_url,
+            description: char.description || undefined,
+            requiredFeatures: char.required_visual_features || []
+          });
+          addedCharacterNames.add(char.name.toLowerCase());
+          matchedCharactersForShot.push(char);
+        }
+      }
+
       const sceneContext: SceneContext = {
         setting: sceneData.setting,
         description: sceneData.description,
