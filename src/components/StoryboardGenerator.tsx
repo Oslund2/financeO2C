@@ -294,7 +294,7 @@ export function StoryboardGenerator({ onNavigate }: StoryboardGeneratorProps) {
 
   return (
     <div className="h-full flex flex-col bg-gray-50">
-      <div className="bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white">
+      <div className="flex-shrink-0 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white">
         <div className="px-6 py-4 border-b border-white border-opacity-20">
           <div className="flex items-center justify-between">
             <label className="text-sm font-medium text-blue-100">Select Script</label>
@@ -363,7 +363,7 @@ export function StoryboardGenerator({ onNavigate }: StoryboardGeneratorProps) {
         </div>
       </div>
 
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
+      <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-gray-500" />
@@ -399,14 +399,14 @@ export function StoryboardGenerator({ onNavigate }: StoryboardGeneratorProps) {
       </div>
 
       {selectedScript.synopsis && (
-        <div className="px-6 py-4 bg-blue-50 border-b border-blue-200">
+        <div className="flex-shrink-0 px-6 py-4 bg-blue-50 border-b border-blue-200">
           <h3 className="text-sm font-semibold text-gray-700 mb-1">Synopsis</h3>
           <p className="text-gray-700 text-sm">{selectedScript.synopsis}</p>
         </div>
       )}
 
       {selectedScript.theme && (
-        <div className="px-6 py-3 bg-yellow-50 border-b border-yellow-200">
+        <div className="flex-shrink-0 px-6 py-3 bg-yellow-50 border-b border-yellow-200">
           <div className="flex items-center gap-2">
             <Tag className="w-4 h-4 text-yellow-700" />
             <span className="text-sm font-semibold text-gray-700">Theme:</span>
@@ -416,9 +416,9 @@ export function StoryboardGenerator({ onNavigate }: StoryboardGeneratorProps) {
       )}
 
       {selectedScript.vocabulary_words && selectedScript.vocabulary_words.length > 0 && (
-        <div className="px-6 py-3 bg-green-50 border-b border-green-200">
-          <div className="flex items-start gap-2">
-            <span className="text-sm font-semibold text-gray-700">Vocabulary:</span>
+        <div className="flex-shrink-0 px-6 py-3 bg-green-50 border-b border-green-200">
+          <div className="flex items-start gap-2 flex-wrap">
+            <span className="text-sm font-semibold text-gray-700 flex-shrink-0">Vocabulary:</span>
             <div className="flex flex-wrap gap-2">
               {selectedScript.vocabulary_words.map((word, index) => (
                 <span
@@ -449,7 +449,7 @@ export function StoryboardGenerator({ onNavigate }: StoryboardGeneratorProps) {
         </div>
       ) : scriptDetails ? (
         <>
-          <div className="flex border-b border-gray-200 overflow-x-auto bg-white">
+          <div className="flex-shrink-0 flex border-b border-gray-200 overflow-x-auto bg-white">
             {scriptDetails.acts.map((act, index) => (
               <button
                 key={act.id}
@@ -583,7 +583,7 @@ export function StoryboardGenerator({ onNavigate }: StoryboardGeneratorProps) {
         </div>
       )}
 
-      <div className="border-t border-gray-200 px-6 py-4 bg-white flex justify-between items-center gap-3">
+      <div className="flex-shrink-0 border-t border-gray-200 px-6 py-4 bg-white flex justify-between items-center gap-3">
         <button
           onClick={() => setShowSettings(!showSettings)}
           className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-all font-medium"
