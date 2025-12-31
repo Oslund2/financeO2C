@@ -406,11 +406,35 @@ export function HowToGuide() {
   );
 
   const handleExportPDF = () => {
-    const element = contentRef.current;
-    if (!element) return;
-
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
+
+    let contentHTML = '';
+    sections.forEach(section => {
+      contentHTML += `
+        <div style="margin-bottom: 30px; page-break-inside: avoid;">
+          <h2 style="font-size: 24px; font-weight: bold; color: #1e40af; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+            <span>${section.icon}</span> ${section.title}
+          </h2>
+          <div style="margin-left: 20px;">
+      `;
+
+      section.content.forEach(paragraph => {
+        if (paragraph === '') {
+          contentHTML += '<div style="height: 15px;"></div>';
+        } else if (paragraph.startsWith('•')) {
+          contentHTML += `<p style="margin-bottom: 8px; color: #374151;">${paragraph}</p>`;
+        } else if (paragraph.match(/^\d+\./)) {
+          contentHTML += `<p style="margin-bottom: 8px; color: #374151;">${paragraph}</p>`;
+        } else if (paragraph.includes(':') && !paragraph.includes('Ensure')) {
+          contentHTML += `<p style="margin-top: 15px; margin-bottom: 10px; font-weight: 600; color: #111827;">${paragraph}</p>`;
+        } else {
+          contentHTML += `<p style="margin-bottom: 12px; color: #374151; line-height: 1.6;">${paragraph}</p>`;
+        }
+      });
+
+      contentHTML += '</div></div>';
+    });
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -423,13 +447,24 @@ export function HowToGuide() {
               line-height: 1.6;
               color: #333;
               margin: 0;
-              padding: 20px;
+              padding: 40px;
+              max-width: 900px;
             }
-            h1 { font-size: 28px; margin-bottom: 30px; color: #1e40af; }
-            h2 { font-size: 20px; margin-top: 30px; margin-bottom: 15px; color: #1e40af; page-break-after: avoid; }
-            p { margin-bottom: 12px; }
-            li { margin-bottom: 8px; }
-            @page { margin: 20mm; }
+            h1 {
+              font-size: 32px;
+              margin-bottom: 10px;
+              color: #1e40af;
+              font-weight: bold;
+            }
+            .subtitle {
+              font-size: 16px;
+              color: #64748b;
+              margin-bottom: 40px;
+            }
+            @page {
+              margin: 20mm;
+              size: letter;
+            }
             @media print {
               body { padding: 0; }
               h2 { page-break-after: avoid; }
@@ -438,7 +473,9 @@ export function HowToGuide() {
           </style>
         </head>
         <body>
-          ${element.innerHTML}
+          <h1>How To Guide</h1>
+          <p class="subtitle">Complete guide to creating animated content with AI Animation Studio</p>
+          ${contentHTML}
         </body>
       </html>
     `;
@@ -448,11 +485,91 @@ export function HowToGuide() {
 
     setTimeout(() => {
       printWindow.print();
-    }, 250);
+    }, 500);
   };
 
   const handlePrint = () => {
-    window.print();
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    let contentHTML = '';
+    sections.forEach(section => {
+      contentHTML += `
+        <div style="margin-bottom: 30px; page-break-inside: avoid;">
+          <h2 style="font-size: 24px; font-weight: bold; color: #1e40af; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+            <span>${section.icon}</span> ${section.title}
+          </h2>
+          <div style="margin-left: 20px;">
+      `;
+
+      section.content.forEach(paragraph => {
+        if (paragraph === '') {
+          contentHTML += '<div style="height: 15px;"></div>';
+        } else if (paragraph.startsWith('•')) {
+          contentHTML += `<p style="margin-bottom: 8px; color: #374151;">${paragraph}</p>`;
+        } else if (paragraph.match(/^\d+\./)) {
+          contentHTML += `<p style="margin-bottom: 8px; color: #374151;">${paragraph}</p>`;
+        } else if (paragraph.includes(':') && !paragraph.includes('Ensure')) {
+          contentHTML += `<p style="margin-top: 15px; margin-bottom: 10px; font-weight: 600; color: #111827;">${paragraph}</p>`;
+        } else {
+          contentHTML += `<p style="margin-bottom: 12px; color: #374151; line-height: 1.6;">${paragraph}</p>`;
+        }
+      });
+
+      contentHTML += '</div></div>';
+    });
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>AI Animation Studio How To Guide</title>
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+              line-height: 1.6;
+              color: #333;
+              margin: 0;
+              padding: 40px;
+              max-width: 900px;
+            }
+            h1 {
+              font-size: 32px;
+              margin-bottom: 10px;
+              color: #1e40af;
+              font-weight: bold;
+            }
+            .subtitle {
+              font-size: 16px;
+              color: #64748b;
+              margin-bottom: 40px;
+            }
+            @page {
+              margin: 20mm;
+              size: letter;
+            }
+            @media print {
+              body { padding: 0; }
+              h2 { page-break-after: avoid; }
+              p { orphans: 3; widows: 3; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>How To Guide</h1>
+          <p class="subtitle">Complete guide to creating animated content with AI Animation Studio</p>
+          ${contentHTML}
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 500);
   };
 
   const scrollToTop = () => {
