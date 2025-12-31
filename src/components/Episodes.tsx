@@ -11,6 +11,7 @@ import { LTVCalculationService } from '../services/ltvCalculationService';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { EpisodeProgressBreakdown } from './EpisodeProgressBreakdown';
 import { useNotification } from '../contexts/NotificationContext';
+import { useAuth } from '../contexts/AuthContext';
 
 type Episode = Database['public']['Tables']['episodes']['Row'];
 type Script = Database['public']['Tables']['scripts']['Row'];
@@ -24,6 +25,7 @@ interface EpisodesProps {
 export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps) {
   const { currentOrganization } = useOrganization();
   const { showSuccess, showError } = useNotification();
+  const { user } = useAuth();
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [loading, setLoading] = useState(true);
   const [scriptTitles, setScriptTitles] = useState<Map<string, string>>(new Map());
@@ -294,19 +296,24 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
   };
 
   const handleDeleteConfirm = async () => {
-    if (!deleteModal.episode) return;
+    if (!deleteModal.episode || !user) return;
 
     try {
-      const { error } = await supabase
-        .from('episodes')
-        .delete()
-        .eq('id', deleteModal.episode.id);
+      const { data, error } = await supabase.rpc('delete_episode_cascade', {
+        episode_uuid: deleteModal.episode.id,
+        user_uuid: user.id,
+      });
 
       if (error) {
         console.error('Error deleting episode:', error);
         throw new Error(error.message);
       }
 
+      if (!data?.success) {
+        throw new Error(data?.error || 'Failed to delete episode');
+      }
+
+      showSuccess('Episode Deleted', `"${deleteModal.episode.title}" and all related content have been permanently deleted.`);
       setEpisodes((prev) => prev.filter((e) => e.id !== deleteModal.episode!.id));
       setDeleteModal({ isOpen: false, episode: null, relatedItems: [] });
     } catch (error) {

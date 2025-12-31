@@ -3,6 +3,7 @@ import { X, Film, BarChart3, Copy, Archive, AlertTriangle, Loader2, CheckCircle,
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
+import { useNotification } from '../contexts/NotificationContext';
 
 interface Series {
   id: string;
@@ -30,6 +31,7 @@ interface SeriesManagementModalProps {
 
 export function SeriesManagementModal({ series, onClose, onUpdate }: SeriesManagementModalProps) {
   const { user } = useAuth();
+  const { showSuccess, showError } = useNotification();
   const [activeTab, setActiveTab] = useState<'edit' | 'stats' | 'duplicate' | 'archive' | 'delete'>('edit');
   const [loading, setLoading] = useState(false);
   const [contentCount, setContentCount] = useState<ContentCount | null>(null);
@@ -189,13 +191,13 @@ export function SeriesManagementModal({ series, onClose, onUpdate }: SeriesManag
         throw new Error(error.message);
       }
 
-      if (data.success) {
-        alert(`Series "${series.name}" has been permanently deleted`);
-        onUpdate();
-        onClose();
-      } else {
-        throw new Error(data.error);
+      if (!data?.success) {
+        throw new Error(data?.error || 'Failed to delete series');
       }
+
+      showSuccess('Series Deleted', `"${series.name}" and all related content have been permanently deleted.`);
+      onUpdate();
+      onClose();
     } catch (error) {
       console.error('Error deleting series:', error);
       throw error;
