@@ -346,17 +346,33 @@ export function StoryboardReferenceSetup({
           </div>
 
           <div className="p-4 border-t border-gray-200 bg-gray-50">
+            {summary && summary.unlinkedCharacters > 0 && (
+              <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-amber-900">
+                      Warning: {summary.unlinkedCharacters} character{summary.unlinkedCharacters !== 1 ? 's' : ''} without reference images
+                    </p>
+                    <p className="text-xs text-amber-700 mt-1">
+                      Characters without reference images may appear inconsistent or be generated incorrectly by the AI.
+                      It's highly recommended to link reference images for all characters before generating.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <div className="text-sm text-gray-600">
                 {summary && summary.unlinkedCharacters > 0 ? (
                   <span className="flex items-center gap-1 text-amber-600">
                     <AlertCircle className="w-4 h-4" />
-                    {summary.unlinkedCharacters} character{summary.unlinkedCharacters !== 1 ? 's' : ''} without reference images
+                    {summary.unlinkedCharacters} need{summary.unlinkedCharacters === 1 ? 's' : ''} reference
                   </span>
                 ) : (
                   <span className="flex items-center gap-1 text-green-600">
                     <CheckCircle className="w-4 h-4" />
-                    All characters have reference images
+                    All references linked
                   </span>
                 )}
               </div>
@@ -369,10 +385,14 @@ export function StoryboardReferenceSetup({
                 </button>
                 <button
                   onClick={onProceed}
-                  className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg hover:shadow-lg transition-all font-medium"
+                  className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-all font-medium ${
+                    summary && summary.unlinkedCharacters === 0
+                      ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:shadow-lg'
+                      : 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white hover:shadow-lg'
+                  }`}
                 >
                   <Wand2 className="w-4 h-4" />
-                  Continue to Generate
+                  {summary && summary.unlinkedCharacters === 0 ? 'Continue to Generate' : 'Generate Anyway'}
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </div>

@@ -863,9 +863,19 @@ export async function generateImagesForStoryboard(
     characters = seriesCharacters || [];
   }
 
+  onProgress?.(0, 'Initializing character references...');
+
+  const { initializeStoryboardReferences } = await import('./storyboardReferenceService');
+  try {
+    await initializeStoryboardReferences(storyboardId);
+  } catch (error) {
+    console.warn('Could not initialize references, continuing with fallback:', error);
+  }
+
   let savedReferencesMap: Map<string, { name: string; imageUrl: string; description?: string }>;
   try {
     savedReferencesMap = await getReferencesForGeneration(storyboardId);
+    console.log('Loaded saved references for generation:', Array.from(savedReferencesMap.keys()));
   } catch (error) {
     console.warn('Could not load saved references, falling back to character matching:', error);
     savedReferencesMap = new Map();
@@ -943,6 +953,7 @@ export async function generateImagesForStoryboard(
 
         const savedRef = savedReferencesMap.get(charName.toLowerCase());
         if (savedRef && savedRef.imageUrl && !addedCharacterNames.has(savedRef.name.toLowerCase())) {
+          console.log(`Using saved reference for "${charName}" -> "${savedRef.name}": ${savedRef.imageUrl}`);
           characterReferences.push({
             name: savedRef.name,
             imageUrl: savedRef.imageUrl,
@@ -959,6 +970,7 @@ export async function generateImagesForStoryboard(
         if (matchedChar && !addedCharacterNames.has(matchedChar.name.toLowerCase())) {
           matchedCharactersForShot.push(matchedChar);
           if (matchedChar.reference_image_url) {
+            console.log(`Using character library reference for "${charName}" -> "${matchedChar.name}": ${matchedChar.reference_image_url}`);
             characterReferences.push({
               name: matchedChar.name,
               imageUrl: matchedChar.reference_image_url,
@@ -966,7 +978,11 @@ export async function generateImagesForStoryboard(
               requiredFeatures: matchedChar.required_visual_features || []
             });
             addedCharacterNames.add(matchedChar.name.toLowerCase());
+          } else {
+            console.warn(`Character "${charName}" matched to "${matchedChar.name}" but has no reference image`);
           }
+        } else {
+          console.warn(`Character "${charName}" not found in saved references or character library`);
         }
       }
 
@@ -1021,8 +1037,13 @@ export async function generateImagesForStoryboard(
             generationTime: result.generationTime,
             estimatedCost: result.estimatedCost,
             generatedAt: new Date().toISOString(),
-            characterReferencesUsed: characterReferences.map(r => r.name),
-            promptUsed: comprehensivePrompt
+            characterReferencesUsed: characterReferences.map(r => ({
+              name: r.name,
+              imageUrl: r.imageUrl,
+              source: savedReferencesMap.has(r.name.toLowerCase()) ? 'saved_reference' : 'character_library'
+            })),
+            promptUsed: comprehensivePrompt,
+            characterPositions: positions.map(p => p?.character || p?.name).filter(Boolean)
           }
         })
         .eq('id', shot.id);
