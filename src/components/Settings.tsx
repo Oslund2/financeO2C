@@ -8,6 +8,7 @@ import type { RecoveryPoint, IntegrityCheck, BackupSchedule } from '../services/
 import { LipSyncSettings } from './LipSyncSettings';
 import { PromptLibrary } from './PromptLibrary';
 import { PatentIntelligenceSettings } from './PatentIntelligenceSettings';
+import { HowToGuide } from './HowToGuide';
 import { ANIMATION_STYLE_MULTIPLIERS, PRODUCTION_TIER_PRESETS, FREELANCE_TIER_PRESETS, fetchCostConfig, updateCostConfig } from '../services/costCalculationService';
 import type { AnimationStyle, ProductionTier, FreelanceTier, CostConfig } from '../services/costCalculationService';
 import { VEO_MODELS, type VeoModel } from '../services/vertexAIService';
@@ -2406,6 +2407,7 @@ export function Settings() {
               <div className="border-t border-gray-200">
                 <div className="flex border-b border-gray-200 overflow-x-auto">
                   {[
+                    { id: 'how-to', label: 'How To Guide', icon: BookOpen },
                     { id: 'overview', label: 'Overview', icon: Layers },
                     { id: 'architecture', label: 'Architecture', icon: Code },
                     { id: 'database', label: 'Database', icon: Database },
@@ -2430,6 +2432,8 @@ export function Settings() {
                 </div>
 
                 <div className="p-6">
+                  {activeTab === 'how-to' && <HowToGuide />}
+
                   {activeTab === 'overview' && (
                     <div className="space-y-6">
                       <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-lg p-5">
