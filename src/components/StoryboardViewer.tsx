@@ -901,6 +901,47 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
                   </p>
                 </div>
 
+                <div className={`rounded-lg p-4 border ${(currentShot.character_positions as any[])?.length > 0 ? 'bg-violet-50 border-violet-200' : 'bg-amber-50 border-amber-200'}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Users className={`w-5 h-5 ${(currentShot.character_positions as any[])?.length > 0 ? 'text-violet-600' : 'text-amber-600'}`} />
+                      <h3 className={`font-semibold ${(currentShot.character_positions as any[])?.length > 0 ? 'text-violet-900' : 'text-amber-900'}`}>
+                        Character References
+                      </h3>
+                    </div>
+                    {!(currentShot.character_positions as any[])?.length && (
+                      <button
+                        onClick={async () => {
+                          const { repairShotCharacterPositions } = await import('../services/storyboardService');
+                          const result = await repairShotCharacterPositions(currentShot.id);
+                          if (result.success) {
+                            alert(result.message);
+                            loadStoryboard();
+                          } else {
+                            alert(`Failed to repair: ${result.message}`);
+                          }
+                        }}
+                        className="text-xs px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded transition-colors"
+                      >
+                        Fix Characters
+                      </button>
+                    )}
+                  </div>
+                  {(currentShot.character_positions as any[])?.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {(currentShot.character_positions as any[]).map((pos: any, idx: number) => (
+                        <span key={idx} className="text-xs px-2 py-1 bg-violet-100 text-violet-700 rounded-full font-medium">
+                          {pos.character || pos.name}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-amber-800">
+                      No characters linked. This shot may generate with incorrect characters.
+                    </p>
+                  )}
+                </div>
+
                 {currentShot.dialogue_text && (
                   <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
                     <div className="flex items-center gap-2 mb-2">

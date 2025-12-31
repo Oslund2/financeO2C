@@ -112,6 +112,39 @@ export async function loadScriptWithDetails(scriptId: string) {
   };
 }
 
+function extractCharactersFromText(
+  text: string,
+  characters: Character[]
+): Character[] {
+  if (!text || !characters || characters.length === 0) {
+    return [];
+  }
+
+  const matchedCharacters: Character[] = [];
+  const textLower = text.toLowerCase();
+
+  for (const character of characters) {
+    const nameLower = character.name.toLowerCase();
+    const aliasesArray = character.character_aliases as string[] || [];
+
+    const namePattern = new RegExp(`\\b${nameLower}\\b`, 'i');
+    if (namePattern.test(text)) {
+      matchedCharacters.push(character);
+      continue;
+    }
+
+    for (const alias of aliasesArray) {
+      const aliasPattern = new RegExp(`\\b${alias.toLowerCase()}\\b`, 'i');
+      if (aliasPattern.test(text)) {
+        matchedCharacters.push(character);
+        break;
+      }
+    }
+  }
+
+  return matchedCharacters;
+}
+
 export function analyzeSceneForShots(
   scene: Scene,
   characters: Character[],
@@ -132,6 +165,17 @@ export function analyzeSceneForShots(
   const baseShots = Math.max(2, Math.ceil((dialogue?.length || 0) * 0.3 * densityMultiplier));
   const targetShots = Math.min(8, Math.max(3, baseShots));
 
+  const stageDirections = scene.stage_directions || '';
+  const sceneDescription = scene.description || '';
+  const textToAnalyze = `${stageDirections} ${sceneDescription}`;
+  const charactersInScene = extractCharactersFromText(textToAnalyze, characters);
+
+  const establishingCharacterPositions = charactersInScene.map(char => ({
+    character: char.name,
+    position: 'scene',
+    expression: 'neutral'
+  }));
+
   shots.push({
     shotNumber: shotCounter++,
     sceneShotNumber: 1,
@@ -140,7 +184,7 @@ export function analyzeSceneForShots(
     cameraMovement: 'static',
     shotDescription: `Establishing shot of ${scene.setting || 'the scene location'}. ${scene.description || ''}`,
     compositionNotes: 'Wide frame showing the full environment and setting the scene context',
-    characterPositions: [],
+    characterPositions: establishingCharacterPositions,
     lightingNotes: 'Natural lighting appropriate for the setting',
     propsNeeded: [],
     durationSeconds: 3,
@@ -622,6 +666,22 @@ export async function generateStoryboardForScript(
           options
         );
 
+        const charactersFromDescription = extractCharactersFromText(enhancedDescription, characters);
+        const existingCharacterNames = new Set(
+          shot.characterPositions.map((pos: any) => pos.character || pos.name)
+        );
+
+        const mergedCharacterPositions = [...shot.characterPositions];
+        for (const char of charactersFromDescription) {
+          if (!existingCharacterNames.has(char.name)) {
+            mergedCharacterPositions.push({
+              character: char.name,
+              position: 'scene',
+              expression: 'neutral'
+            });
+          }
+        }
+
         const sceneContext: SceneContext = {
           setting: scene.setting || scene.location,
           description: scene.description,
@@ -634,7 +694,7 @@ export async function generateStoryboardForScript(
           camera_movement: shot.cameraMovement,
           shot_description: enhancedDescription,
           composition_notes: shot.compositionNotes,
-          character_positions: shot.characterPositions,
+          character_positions: mergedCharacterPositions,
           lighting_notes: shot.lightingNotes,
           props_needed: shot.propsNeeded,
           dialogue_text: shot.dialogueText,
@@ -658,7 +718,7 @@ export async function generateStoryboardForScript(
           camera_movement: shot.cameraMovement,
           shot_description: enhancedDescription,
           composition_notes: shot.compositionNotes,
-          character_positions: shot.characterPositions,
+          character_positions: mergedCharacterPositions,
           lighting_notes: shot.lightingNotes,
           props_needed: shot.propsNeeded,
           duration_seconds: shot.durationSeconds,
@@ -1013,6 +1073,18 @@ export async function generateImagesForStoryboard(
         characters,
         useClaymation
       );
+
+      if (characterReferences.length === 0 && shot.shot_description) {
+        const descriptionLower = shot.shot_description.toLowerCase();
+        const hasCharacterMention = characters.some(char =>
+          descriptionLower.includes(char.name.toLowerCase())
+        );
+        if (hasCharacterMention) {
+          console.warn(`Shot #${shot.shot_number}: Description mentions characters but no character references loaded. This may result in incorrect character appearances.`);
+        }
+      }
+
+      console.log(`Shot #${shot.shot_number}: Generating with ${characterReferences.length} character reference(s): ${characterReferences.map(r => r.name).join(', ') || 'none'}`);
 
       const result = await generateStoryboardImage(
         {
@@ -1576,6 +1648,190 @@ export async function validateStoryboardCharacters(
     warnings,
     errors,
     characterDetails
+  };
+}
+
+export async function repairShotCharacterPositions(
+  shotId: string
+): Promise<{ success: boolean; message: string; updatedPositions: any[] }> {
+  const { data: shot, error: shotError } = await supabase
+    .from('storyboard_shots')
+    .select(`
+      *,
+      storyboards!inner(
+        id,
+        scripts!inner(
+          series_id
+        )
+      )
+    `)
+    .eq('id', shotId)
+    .single();
+
+  if (shotError || !shot) {
+    return {
+      success: false,
+      message: 'Shot not found',
+      updatedPositions: []
+    };
+  }
+
+  const seriesId = shot.storyboards?.scripts?.series_id;
+  if (!seriesId) {
+    return {
+      success: false,
+      message: 'Could not determine series for this shot',
+      updatedPositions: []
+    };
+  }
+
+  const { data: characters } = await supabase
+    .from('characters')
+    .select('*')
+    .eq('series_id', seriesId);
+
+  if (!characters || characters.length === 0) {
+    return {
+      success: false,
+      message: 'No characters found for this series',
+      updatedPositions: []
+    };
+  }
+
+  const shotDescription = shot.shot_description || '';
+  const stageDirections = shot.stage_directions || '';
+  const textToAnalyze = `${shotDescription} ${stageDirections}`;
+
+  const detectedCharacters = extractCharactersFromText(textToAnalyze, characters);
+
+  if (detectedCharacters.length === 0) {
+    return {
+      success: true,
+      message: 'No characters detected in shot description or stage directions',
+      updatedPositions: []
+    };
+  }
+
+  const updatedPositions = detectedCharacters.map(char => ({
+    character: char.name,
+    position: 'scene',
+    expression: 'neutral'
+  }));
+
+  const { error: updateError } = await supabase
+    .from('storyboard_shots')
+    .update({
+      character_positions: updatedPositions
+    })
+    .eq('id', shotId);
+
+  if (updateError) {
+    return {
+      success: false,
+      message: `Failed to update shot: ${updateError.message}`,
+      updatedPositions: []
+    };
+  }
+
+  return {
+    success: true,
+    message: `Successfully detected and added ${detectedCharacters.length} character(s): ${detectedCharacters.map(c => c.name).join(', ')}`,
+    updatedPositions
+  };
+}
+
+export async function repairStoryboardCharacterPositions(
+  storyboardId: string
+): Promise<{ success: boolean; message: string; repairedCount: number }> {
+  const { data: storyboard, error: storyboardError } = await supabase
+    .from('storyboards')
+    .select(`
+      id,
+      scripts!inner(
+        series_id
+      )
+    `)
+    .eq('id', storyboardId)
+    .single();
+
+  if (storyboardError || !storyboard) {
+    return {
+      success: false,
+      message: 'Storyboard not found',
+      repairedCount: 0
+    };
+  }
+
+  const seriesId = storyboard.scripts?.series_id;
+  if (!seriesId) {
+    return {
+      success: false,
+      message: 'Could not determine series for this storyboard',
+      repairedCount: 0
+    };
+  }
+
+  const { data: characters } = await supabase
+    .from('characters')
+    .select('*')
+    .eq('series_id', seriesId);
+
+  if (!characters || characters.length === 0) {
+    return {
+      success: false,
+      message: 'No characters found for this series',
+      repairedCount: 0
+    };
+  }
+
+  const { data: shots } = await supabase
+    .from('storyboard_shots')
+    .select('*')
+    .eq('storyboard_id', storyboardId);
+
+  if (!shots || shots.length === 0) {
+    return {
+      success: false,
+      message: 'No shots found for this storyboard',
+      repairedCount: 0
+    };
+  }
+
+  let repairedCount = 0;
+
+  for (const shot of shots) {
+    const positions = shot.character_positions as any[] || [];
+
+    if (positions.length === 0) {
+      const shotDescription = shot.shot_description || '';
+      const stageDirections = shot.stage_directions || '';
+      const textToAnalyze = `${shotDescription} ${stageDirections}`;
+
+      const detectedCharacters = extractCharactersFromText(textToAnalyze, characters);
+
+      if (detectedCharacters.length > 0) {
+        const updatedPositions = detectedCharacters.map(char => ({
+          character: char.name,
+          position: 'scene',
+          expression: 'neutral'
+        }));
+
+        await supabase
+          .from('storyboard_shots')
+          .update({
+            character_positions: updatedPositions
+          })
+          .eq('id', shot.id);
+
+        repairedCount++;
+      }
+    }
+  }
+
+  return {
+    success: true,
+    message: `Successfully repaired ${repairedCount} shot(s) in storyboard`,
+    repairedCount
   };
 }
 
