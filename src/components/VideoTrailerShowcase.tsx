@@ -36,7 +36,7 @@ export function VideoTrailerShowcase({ seriesId, onNavigate, onOpenSelector, isC
   const containerRef = useRef<HTMLDivElement>(null);
   const [trailerData, setTrailerData] = useState<TrailerData>({ asset: null, title: null, association: null });
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [showControls, setShowControls] = useState(false);
