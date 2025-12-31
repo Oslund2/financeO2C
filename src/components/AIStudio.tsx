@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Sparkles, Wand2, FileText, Users, Image as ImageIcon, Video, Mic, AlertCircle, CheckCircle, Settings as SettingsIcon, ArrowRight, Eye, X } from 'lucide-react';
+import { Sparkles, Wand2, FileText, Users, Image as ImageIcon, Video, Mic, AlertCircle, CheckCircle, Settings as SettingsIcon, ArrowRight, Eye, X, BookOpen, History } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { generateScriptWithGemini, checkVertexAIConfiguration } from '../services/geminiService';
@@ -11,6 +11,7 @@ import { FormatSelector } from './FormatSelector';
 import { FORMAT_PRESETS, type ProgramFormatConfig } from '../types/formatConfig';
 import { ImageGenerationTab } from './ImageGenerationTab';
 import { VideoGenerationTab } from './VideoGenerationTab';
+import { useWorkspaceCapabilities } from '../hooks/useWorkspaceCapabilities';
 
 type Character = Database['public']['Tables']['characters']['Row'];
 
@@ -88,6 +89,9 @@ interface ScriptGenerationProps {
 }
 
 function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
+  const { isPhotoreal, isClaymation, isFeatureEnabled } = useWorkspaceCapabilities();
+  const showCitations = isFeatureEnabled('citation_manager');
+
   const [characters, setCharacters] = useState<Character[]>([]);
   const [formData, setFormData] = useState({
     title: '',
@@ -97,7 +101,11 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
     mainCharacters: [] as string[],
     vocabularyWords: '',
     plotSummary: '',
-    tone: 'comedic',
+    tone: isPhotoreal ? 'balanced' : 'comedic',
+    historicalPeriod: '',
+    keyFigures: '',
+    documentaryStyle: 'narrative',
+    includeCitations: true,
   });
   const [generating, setGenerating] = useState(false);
   const [configStatus, setConfigStatus] = useState<{ configured: boolean; missing: string[] } | null>(null);
@@ -552,7 +560,22 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
         </div>
       </div>
 
-      {isSpellingBeeSeries(seriesTheme) && (
+      {isPhotoreal && (
+        <div className="bg-gradient-to-r from-slate-100 to-stone-100 border border-slate-200 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <History className="w-6 h-6 text-slate-600 mt-1" />
+            <div>
+              <h3 className="font-semibold text-slate-900 mb-1">Historical Documentary Mode</h3>
+              <p className="text-sm text-slate-700">
+                Generate historically accurate documentary scripts with citations. The AI will include source markers
+                and flag any claims that need verification.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!isPhotoreal && isSpellingBeeSeries(seriesTheme) && (
         <div className="space-y-4">
           <SpellingBeeWordSelector
             selectedWord={selectedSpellingBeeWord}
@@ -617,16 +640,107 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
 
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Theme/Focus *
+          {isPhotoreal ? 'Primary Theme *' : 'Theme/Focus *'}
         </label>
         <input
           type="text"
           value={formData.theme}
           onChange={(e) => setFormData({ ...formData, theme: e.target.value })}
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
-          placeholder="e.g., Overcoming anxiety in competition"
+          placeholder={isPhotoreal ? "e.g., The struggle for civil rights" : "e.g., Overcoming anxiety in competition"}
         />
       </div>
+
+      {isPhotoreal && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Historical Period *
+              </label>
+              <input
+                type="text"
+                value={formData.historicalPeriod}
+                onChange={(e) => setFormData({ ...formData, historicalPeriod: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
+                placeholder="e.g., 1960s Civil Rights Movement"
+              />
+              <p className="text-xs text-gray-600 mt-1">
+                Specify the era for accurate period details
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Key Historical Figures
+              </label>
+              <input
+                type="text"
+                value={formData.keyFigures}
+                onChange={(e) => setFormData({ ...formData, keyFigures: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
+                placeholder="e.g., Martin Luther King Jr., Rosa Parks"
+              />
+              <p className="text-xs text-gray-600 mt-1">
+                Real historical figures to feature or reference
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Documentary Style
+              </label>
+              <select
+                value={formData.documentaryStyle}
+                onChange={(e) => setFormData({ ...formData, documentaryStyle: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
+              >
+                <option value="narrative">Narrative - Story-driven with dramatic arc</option>
+                <option value="biographical">Biographical - Focus on key figure's life</option>
+                <option value="investigative">Investigative - Uncovering hidden history</option>
+                <option value="archival">Archival - Primary source centered</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Tone
+              </label>
+              <select
+                value={formData.tone}
+                onChange={(e) => setFormData({ ...formData, tone: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent"
+              >
+                <option value="balanced">Balanced - Objective and measured</option>
+                <option value="somber">Somber - Respectful and contemplative</option>
+                <option value="triumphant">Triumphant - Inspiring and uplifting</option>
+                <option value="analytical">Analytical - Academic and detailed</option>
+              </select>
+            </div>
+          </div>
+
+          {showCitations && (
+            <div className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-200 rounded-lg">
+              <input
+                type="checkbox"
+                id="includeCitations"
+                checked={formData.includeCitations}
+                onChange={(e) => setFormData({ ...formData, includeCitations: e.target.checked })}
+                className="w-5 h-5 rounded border-gray-300 text-scripps-blue focus:ring-scripps-blue"
+              />
+              <label htmlFor="includeCitations" className="flex-1">
+                <span className="font-medium text-gray-900">Generate Historical Citations</span>
+                <p className="text-sm text-gray-600 mt-0.5">
+                  AI will include source markers for verifiable claims. You can verify and edit citations after generation.
+                </p>
+              </label>
+              <BookOpen className="w-5 h-5 text-slate-400" />
+            </div>
+          )}
+        </>
+      )}
 
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -701,7 +815,7 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
         )}
       </div>
 
-      {!isSpellingBeeSeries(seriesTheme) && (
+      {!isPhotoreal && !isSpellingBeeSeries(seriesTheme) && (
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">
             Vocabulary Words

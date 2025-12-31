@@ -2,19 +2,30 @@ import { useEffect, useState } from 'react';
 import { useOrganization, WorkspaceType } from '../contexts/OrganizationContext';
 import { supabase } from '../lib/supabase';
 
+export interface WorkspaceFeatureConfig {
+  enabled: boolean;
+  [key: string]: unknown;
+}
+
 export interface WorkspaceFeatures {
-  vocabulary_randomizer: boolean;
-  historical_fact_checker: boolean;
-  clay_texture_settings: boolean;
-  miniature_set_designer: boolean;
-  character_rig_library: boolean;
-  spelling_word_integration: boolean;
-  documentary_narration: boolean;
-  realistic_environments: boolean;
-  citation_manager: boolean;
-  period_accuracy_checker: boolean;
-  interview_format: boolean;
-  archival_integration: boolean;
+  vocabulary_randomizer: boolean | WorkspaceFeatureConfig;
+  historical_fact_checker: boolean | WorkspaceFeatureConfig;
+  clay_texture_settings: boolean | WorkspaceFeatureConfig;
+  miniature_set_designer: boolean | WorkspaceFeatureConfig;
+  character_rig_library: boolean | WorkspaceFeatureConfig;
+  spelling_word_integration: boolean | WorkspaceFeatureConfig;
+  documentary_narration: boolean | WorkspaceFeatureConfig;
+  realistic_environments: boolean | WorkspaceFeatureConfig;
+  citation_manager: boolean | WorkspaceFeatureConfig;
+  period_accuracy_checker: boolean | WorkspaceFeatureConfig;
+  interview_format: boolean | WorkspaceFeatureConfig;
+  archival_integration: boolean | WorkspaceFeatureConfig;
+  script_regeneration: boolean | WorkspaceFeatureConfig;
+  documentary_format: boolean | WorkspaceFeatureConfig;
+  realistic_video_style: boolean | WorkspaceFeatureConfig;
+  period_accuracy: boolean | WorkspaceFeatureConfig;
+  children_format: boolean | WorkspaceFeatureConfig;
+  clay_video_style: boolean | WorkspaceFeatureConfig;
 }
 
 export interface WorkspaceSettings {
@@ -37,6 +48,9 @@ export interface WorkspaceCapabilities {
   loading: boolean;
   error: string | null;
   isFeatureEnabled: (featureName: keyof WorkspaceFeatures) => boolean;
+  getFeatureConfig: (featureName: keyof WorkspaceFeatures) => WorkspaceFeatureConfig | null;
+  isPhotoreal: boolean;
+  isClaymation: boolean;
 }
 
 const DEFAULT_FEATURES: WorkspaceFeatures = {
@@ -52,7 +66,21 @@ const DEFAULT_FEATURES: WorkspaceFeatures = {
   period_accuracy_checker: false,
   interview_format: false,
   archival_integration: false,
+  script_regeneration: false,
+  documentary_format: false,
+  realistic_video_style: false,
+  period_accuracy: false,
+  children_format: false,
+  clay_video_style: false,
 };
+
+function isFeatureEnabledValue(feature: boolean | WorkspaceFeatureConfig | undefined): boolean {
+  if (typeof feature === 'boolean') return feature;
+  if (typeof feature === 'object' && feature !== null) {
+    return feature.enabled === true;
+  }
+  return false;
+}
 
 const DEFAULT_SETTINGS: WorkspaceSettings = {
   video_fps: 24,
@@ -137,11 +165,26 @@ export function useWorkspaceCapabilities(): WorkspaceCapabilities {
 
   const isFeatureEnabled = (featureName: keyof WorkspaceFeatures): boolean => {
     if (!config) return false;
-    return config.features[featureName] ?? false;
+    const feature = config.features[featureName];
+    return isFeatureEnabledValue(feature);
   };
 
+  const getFeatureConfig = (featureName: keyof WorkspaceFeatures): WorkspaceFeatureConfig | null => {
+    if (!config) return null;
+    const feature = config.features[featureName];
+    if (typeof feature === 'object' && feature !== null && 'enabled' in feature) {
+      return feature as WorkspaceFeatureConfig;
+    }
+    if (typeof feature === 'boolean') {
+      return { enabled: feature };
+    }
+    return null;
+  };
+
+  const workspaceType = currentOrganization?.workspace_type || null;
+
   return {
-    workspaceType: currentOrganization?.workspace_type || null,
+    workspaceType,
     displayName: config?.displayName || 'Workspace',
     description: config?.description || '',
     iconName: config?.iconName || 'Layers',
@@ -151,5 +194,8 @@ export function useWorkspaceCapabilities(): WorkspaceCapabilities {
     loading,
     error,
     isFeatureEnabled,
+    getFeatureConfig,
+    isPhotoreal: workspaceType === 'photoreal',
+    isClaymation: workspaceType === 'claymation',
   };
 }

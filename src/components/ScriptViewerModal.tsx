@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react';
-import { X, FileText, Clock, Sparkles, Calendar, Tag, Globe, Printer, ChevronDown, ChevronUp, Info } from 'lucide-react';
+import { X, FileText, Clock, Sparkles, Calendar, Tag, Globe, Printer, ChevronDown, ChevronUp, Info, BookOpen, CheckCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { ScriptTranslationManager } from './ScriptTranslationManager';
+import CitationManager from './CitationManager';
+import AccuracyCheckPanel from './AccuracyCheckPanel';
+import { useWorkspaceCapabilities } from '../hooks/useWorkspaceCapabilities';
+import { citationService } from '../services/citationService';
+import { accuracyCheckService } from '../services/accuracyCheckService';
 
 type Script = Database['public']['Tables']['scripts']['Row'];
 
@@ -36,12 +41,29 @@ export function ScriptViewerModal({ script, onClose, onEdit }: ScriptViewerModal
   const [acts, setActs] = useState<Act[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeAct, setActiveAct] = useState<number>(0);
-  const [viewMode, setViewMode] = useState<'script' | 'translations'>('script');
+  const [viewMode, setViewMode] = useState<'script' | 'translations' | 'citations' | 'accuracy'>('script');
   const [metadataExpanded, setMetadataExpanded] = useState(false);
+  const [citationCount, setCitationCount] = useState(0);
+  const [accuracyStatus, setAccuracyStatus] = useState<string>('not_checked');
+
+  const { isFeatureEnabled, isPhotoreal } = useWorkspaceCapabilities();
+  const showCitations = isFeatureEnabled('citation_manager');
+  const showAccuracyCheck = isFeatureEnabled('historical_fact_checker');
 
   useEffect(() => {
     loadScriptContent();
   }, [script.id]);
+
+  useEffect(() => {
+    if (showCitations) {
+      citationService.getCitationCount(script.id).then(setCitationCount).catch(console.error);
+    }
+    if (showAccuracyCheck) {
+      accuracyCheckService.getAccuracySummary(script.id).then(summary => {
+        setAccuracyStatus(summary.status);
+      }).catch(console.error);
+    }
+  }, [script.id, showCitations, showAccuracyCheck]);
 
   const loadScriptContent = async () => {
     try {
@@ -337,6 +359,50 @@ export function ScriptViewerModal({ script, onClose, onEdit }: ScriptViewerModal
                   <Globe className="w-4 h-4" />
                   Translations
                 </button>
+                {showCitations && (
+                  <button
+                    onClick={() => setViewMode('citations')}
+                    className={`flex items-center gap-2 px-4 py-2 font-medium transition-all rounded-t-lg ${
+                      viewMode === 'citations'
+                        ? 'text-scripps-blue bg-blue-50 border-t-2 border-x-2 border-scripps-blue'
+                        : 'text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    Citations
+                    {citationCount > 0 && (
+                      <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
+                        {citationCount}
+                      </span>
+                    )}
+                  </button>
+                )}
+                {showAccuracyCheck && (
+                  <button
+                    onClick={() => setViewMode('accuracy')}
+                    className={`flex items-center gap-2 px-4 py-2 font-medium transition-all rounded-t-lg ${
+                      viewMode === 'accuracy'
+                        ? 'text-scripps-blue bg-blue-50 border-t-2 border-x-2 border-scripps-blue'
+                        : 'text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    Accuracy
+                    {accuracyStatus !== 'not_checked' && (
+                      <span className={`px-1.5 py-0.5 text-xs rounded-full ${
+                        accuracyStatus === 'verified' ? 'bg-green-100 text-green-700' :
+                        accuracyStatus === 'needs_review' ? 'bg-red-100 text-red-700' :
+                        accuracyStatus === 'needs_citations' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {accuracyStatus === 'verified' ? 'Verified' :
+                         accuracyStatus === 'needs_review' ? 'Needs Review' :
+                         accuracyStatus === 'needs_citations' ? 'Needs Citations' :
+                         'Checked'}
+                      </span>
+                    )}
+                  </button>
+                )}
               </div>
 
               {viewMode === 'script' && (
@@ -434,12 +500,28 @@ export function ScriptViewerModal({ script, onClose, onEdit }: ScriptViewerModal
                     </div>
                   </div>
                 )
-              ) : (
+              ) : viewMode === 'translations' ? (
                 <ScriptTranslationManager
                   scriptId={script.id}
                   scriptTitle={script.title}
                 />
-              )}
+              ) : viewMode === 'citations' ? (
+                <CitationManager
+                  scriptId={script.id}
+                  organizationId={script.organization_id || undefined}
+                  onCitationCountChange={setCitationCount}
+                />
+              ) : viewMode === 'accuracy' ? (
+                <AccuracyCheckPanel
+                  scriptId={script.id}
+                  organizationId={script.organization_id || undefined}
+                  scriptContent={acts.length > 0 ? { title: script.title, acts } : undefined}
+                  historicalPeriod={script.theme || 'General history'}
+                  onRegenerateRequest={() => {
+                    console.log('Script regeneration requested');
+                  }}
+                />
+              ) : null}
             </div>
           </>
         )}
