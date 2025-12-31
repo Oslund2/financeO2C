@@ -595,15 +595,10 @@ export function StoryboardGenerator({ onNavigate }: StoryboardGeneratorProps) {
         <div className="flex gap-3">
           {(selectedScript as any)?.storyboard?.id && (
             <button
-              onClick={async () => {
-                const { data: storyboard } = await supabase
-                  .from('storyboards')
-                  .select('id')
-                  .eq('script_id', selectedScript!.id)
-                  .maybeSingle();
-
-                if (storyboard) {
-                  onNavigate('storyboard-viewer', { storyboardId: storyboard.id });
+              onClick={() => {
+                const storyboardId = (selectedScript as any)?.storyboard?.id;
+                if (storyboardId) {
+                  onNavigate('storyboard-viewer', { storyboardId });
                 }
               }}
               className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-medium"

@@ -112,6 +112,10 @@ export async function loadScriptWithDetails(scriptId: string) {
   };
 }
 
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function extractCharactersFromText(
   text: string,
   characters: Character[]
@@ -121,20 +125,21 @@ function extractCharactersFromText(
   }
 
   const matchedCharacters: Character[] = [];
-  const textLower = text.toLowerCase();
 
   for (const character of characters) {
     const nameLower = character.name.toLowerCase();
-    const aliasesArray = character.character_aliases as string[] || [];
+    const aliasesArray = (character.aliases as string[]) || [];
 
-    const namePattern = new RegExp(`\\b${nameLower}\\b`, 'i');
+    const escapedName = escapeRegex(nameLower);
+    const namePattern = new RegExp(`\\b${escapedName}\\b`, 'i');
     if (namePattern.test(text)) {
       matchedCharacters.push(character);
       continue;
     }
 
     for (const alias of aliasesArray) {
-      const aliasPattern = new RegExp(`\\b${alias.toLowerCase()}\\b`, 'i');
+      const escapedAlias = escapeRegex(alias.toLowerCase());
+      const aliasPattern = new RegExp(`\\b${escapedAlias}\\b`, 'i');
       if (aliasPattern.test(text)) {
         matchedCharacters.push(character);
         break;
