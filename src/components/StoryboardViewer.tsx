@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight, Film, Camera, Clock, MessageSquare, Lightbulb, Download, Grid3x3, List, Upload, Wand2, RefreshCw, ZoomIn, Layers, Sparkles, Trash2, Edit3, FileEdit, Filter, CheckCircle, History, Shield, FileDown, Settings } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Film, Camera, Clock, MessageSquare, Lightbulb, Download, Grid3x3, List, Upload, Wand2, RefreshCw, ZoomIn, Layers, Sparkles, Trash2, Edit3, FileEdit, Filter, CheckCircle, History, Shield, FileDown, Settings, Users } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { uploadManualImage } from '../services/nanoBananaService';
@@ -14,6 +14,7 @@ import { PromptEditor } from './PromptEditor';
 import { ImageVersionHistory } from './ImageVersionHistory';
 import { ApprovalWorkflow } from './ApprovalWorkflow';
 import { ManualReferenceUploadModal } from './ManualReferenceUploadModal';
+import { StoryboardReferenceSetup } from './StoryboardReferenceSetup';
 
 type Storyboard = Database['public']['Tables']['storyboards']['Row'];
 type StoryboardShot = Database['public']['Tables']['storyboard_shots']['Row'];
@@ -44,6 +45,8 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
   const [filterApprovalStatus, setFilterApprovalStatus] = useState<string>('all');
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [showManualReferenceUpload, setShowManualReferenceUpload] = useState(false);
+  const [showReferenceSetup, setShowReferenceSetup] = useState(false);
+  const [seriesId, setSeriesId] = useState<string | null>(null);
   const [showExportOptions, setShowExportOptions] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
@@ -66,12 +69,17 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
     try {
       const { data: storyboardData, error: storyboardError } = await supabase
         .from('storyboards')
-        .select('*')
+        .select('*, scripts(series_id)')
         .eq('id', storyboardId)
         .single();
 
       if (storyboardError) throw storyboardError;
       setStoryboard(storyboardData);
+
+      const scriptData = storyboardData.scripts as { series_id: string } | null;
+      if (scriptData?.series_id) {
+        setSeriesId(scriptData.series_id);
+      }
 
       const { data: shotsData, error: shotsError } = await supabase
         .from('storyboard_shots')
@@ -407,7 +415,14 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
                 Bulk Upload
               </button>
               <button
-                onClick={() => setShowSelectiveGeneration(true)}
+                onClick={() => setShowReferenceSetup(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors"
+              >
+                <Users className="w-4 h-4" />
+                References
+              </button>
+              <button
+                onClick={() => setShowReferenceSetup(true)}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 <Sparkles className="w-4 h-4" />
@@ -638,7 +653,14 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
               Bulk Upload
             </button>
             <button
-              onClick={() => setShowSelectiveGeneration(true)}
+              onClick={() => setShowReferenceSetup(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors"
+            >
+              <Users className="w-4 h-4" />
+              References
+            </button>
+            <button
+              onClick={() => setShowReferenceSetup(true)}
               disabled={generating}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -1014,6 +1036,18 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
           onUploadComplete={() => {
             loadStoryboard();
             setShowBulkUpload(false);
+          }}
+        />
+      )}
+
+      {showReferenceSetup && (
+        <StoryboardReferenceSetup
+          storyboardId={storyboardId}
+          seriesId={seriesId}
+          onClose={() => setShowReferenceSetup(false)}
+          onProceed={() => {
+            setShowReferenceSetup(false);
+            setShowSelectiveGeneration(true);
           }}
         />
       )}

@@ -3,6 +3,7 @@ import type { Database } from '../lib/database.types';
 import { generateStoryboardImage, isNanoBananaAvailable, calculateEstimatedCost, clearImageCache } from './nanoBananaService';
 import type { CharacterReference } from './nanoBananaService';
 import { findCharacterInList, extractKeyFeaturesFromDescription } from './characterMatchingService';
+import { getReferencesForGeneration } from './storyboardReferenceService';
 
 type Scene = Database['public']['Tables']['script_scenes']['Row'];
 type Act = Database['public']['Tables']['script_acts']['Row'];
@@ -862,6 +863,14 @@ export async function generateImagesForStoryboard(
     characters = seriesCharacters || [];
   }
 
+  let savedReferencesMap: Map<string, { name: string; imageUrl: string; description?: string }>;
+  try {
+    savedReferencesMap = await getReferencesForGeneration(storyboardId);
+  } catch (error) {
+    console.warn('Could not load saved references, falling back to character matching:', error);
+    savedReferencesMap = new Map();
+  }
+
   clearImageCache();
 
   let query = supabase
@@ -926,15 +935,28 @@ export async function generateImagesForStoryboard(
       const characterReferences: CharacterReference[] = [];
       const matchedCharactersForShot: Character[] = [];
       const positions = shot.character_positions as any[] || [];
+      const addedCharacterNames = new Set<string>();
 
       for (const pos of positions) {
         const charName = pos?.character || pos?.name;
         if (!charName) continue;
 
+        const savedRef = savedReferencesMap.get(charName.toLowerCase());
+        if (savedRef && savedRef.imageUrl && !addedCharacterNames.has(savedRef.name.toLowerCase())) {
+          characterReferences.push({
+            name: savedRef.name,
+            imageUrl: savedRef.imageUrl,
+            description: savedRef.description,
+            requiredFeatures: []
+          });
+          addedCharacterNames.add(savedRef.name.toLowerCase());
+          continue;
+        }
+
         const matchResult = findCharacterInList(charName, characters);
         const matchedChar = matchResult.found ? matchResult.match?.character : null;
 
-        if (matchedChar) {
+        if (matchedChar && !addedCharacterNames.has(matchedChar.name.toLowerCase())) {
           matchedCharactersForShot.push(matchedChar);
           if (matchedChar.reference_image_url) {
             characterReferences.push({
@@ -943,6 +965,7 @@ export async function generateImagesForStoryboard(
               description: matchedChar.description || undefined,
               requiredFeatures: matchedChar.required_visual_features || []
             });
+            addedCharacterNames.add(matchedChar.name.toLowerCase());
           }
         }
       }
