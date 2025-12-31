@@ -543,9 +543,10 @@ export function getConfigurationInstructions() {
         },
         {
           name: 'VITE_VERTEX_AI_CLOUD_STORAGE_BUCKET',
-          description: 'Cloud Storage bucket name for video outputs (optional - base64 returned if not provided)',
-          example: 'my-veo-renders',
-          required: false
+          description: 'Cloud Storage bucket name for video outputs (videos stored in /AI Studio/ folder)',
+          example: 'asset_storage_scripps',
+          required: false,
+          note: 'Videos will be saved to: gs://your-bucket/AI Studio/'
         },
         {
           name: 'VITE_VERTEX_AI_DEFAULT_MODEL',

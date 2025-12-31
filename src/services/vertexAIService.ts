@@ -352,7 +352,7 @@ export async function submitVeo3Request(
   }
 
   if (request.storageUri || config.cloudStorageBucket) {
-    parameters.storageUri = request.storageUri || `gs://${config.cloudStorageBucket}/veo-outputs/`;
+    parameters.storageUri = request.storageUri || `gs://${config.cloudStorageBucket}/AI Studio/`;
   }
 
   const requestBody = {

@@ -811,6 +811,44 @@ export function Settings() {
                     </div>
                   ))}
                 </div>
+
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-blue-900 mb-2">Google Cloud Storage Configuration</h3>
+                      <div className="space-y-2 text-sm text-blue-800">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">Bucket:</span>
+                          {import.meta.env.VITE_VERTEX_AI_CLOUD_STORAGE_BUCKET ? (
+                            <>
+                              <code className="bg-white px-2 py-1 rounded text-xs">
+                                gs://{import.meta.env.VITE_VERTEX_AI_CLOUD_STORAGE_BUCKET}
+                              </code>
+                              <CheckCircle className="w-4 h-4 text-green-600" />
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-gray-500 italic">Not configured</span>
+                              <XCircle className="w-4 h-4 text-gray-400" />
+                            </>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">Storage Path:</span>
+                          <code className="bg-white px-2 py-1 rounded text-xs">
+                            AI Studio/
+                          </code>
+                        </div>
+                        <p className="text-xs mt-3 text-blue-700">
+                          Videos will be stored at: <code className="bg-white px-2 py-0.5 rounded">
+                            gs://{import.meta.env.VITE_VERTEX_AI_CLOUD_STORAGE_BUCKET || 'your-bucket'}/AI Studio/
+                          </code>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
