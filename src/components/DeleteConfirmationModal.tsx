@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { AlertTriangle, X, Trash2 } from 'lucide-react';
+import { AlertTriangle, X, Trash2, AlertCircle } from 'lucide-react';
 
 interface DeleteConfirmationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => Promise<void>;
+  onConfirm: (cascade?: boolean) => Promise<void>;
   entityType: string;
   entityName: string;
   relatedItems?: {
@@ -13,6 +13,13 @@ interface DeleteConfirmationModalProps {
   }[];
   warningMessage?: string;
   requireTyping?: boolean;
+  cascadeOption?: {
+    enabled: boolean;
+    label: string;
+    description: string;
+    blockedMessage?: string;
+  };
+  errorMessage?: string;
 }
 
 export function DeleteConfirmationModal({
@@ -24,12 +31,16 @@ export function DeleteConfirmationModal({
   relatedItems = [],
   warningMessage,
   requireTyping = false,
+  cascadeOption,
+  errorMessage,
 }: DeleteConfirmationModalProps) {
   const [step, setStep] = useState<1 | 2>(1);
   const [confirmText, setConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [countdown, setCountdown] = useState(3);
   const [canProceed, setCanProceed] = useState(false);
+  const [useCascade, setUseCascade] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -38,6 +49,8 @@ export function DeleteConfirmationModal({
       setIsDeleting(false);
       setCountdown(3);
       setCanProceed(false);
+      setUseCascade(false);
+      setLocalError(null);
     }
   }, [isOpen]);
 
@@ -64,15 +77,21 @@ export function DeleteConfirmationModal({
     if (!canProceed) return;
 
     setIsDeleting(true);
+    setLocalError(null);
     try {
-      await onConfirm();
+      await onConfirm(useCascade);
       onClose();
     } catch (error) {
       console.error('Error deleting:', error);
+      setLocalError(error instanceof Error ? error.message : 'Failed to delete. Please try again.');
     } finally {
       setIsDeleting(false);
     }
   };
+
+  const hasDependencies = relatedItems.some(item => item.count > 0);
+  const showCascadeOption = cascadeOption?.enabled && hasDependencies;
+  const isBlocked = showCascadeOption && !useCascade && cascadeOption?.blockedMessage;
 
   if (!isOpen) return null;
 
@@ -114,6 +133,16 @@ export function DeleteConfirmationModal({
               </p>
             </div>
 
+            {(errorMessage || localError) && (
+              <div className="bg-red-100 border-2 border-red-300 rounded-lg p-4 mb-4 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-red-900 font-medium">Deletion Failed</p>
+                  <p className="text-red-700 text-sm">{errorMessage || localError}</p>
+                </div>
+              </div>
+            )}
+
             {warningMessage && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
                 <p className="text-yellow-900 text-sm">{warningMessage}</p>
@@ -128,14 +157,67 @@ export function DeleteConfirmationModal({
                 <ul className="space-y-1">
                   {relatedItems.map((item, index) => (
                     <li key={index} className="text-gray-700 text-sm">
-                      • {item.label}: <span className="font-semibold">{item.count}</span>
+                      - {item.label}: <span className="font-semibold">{item.count}</span>
                     </li>
                   ))}
                 </ul>
               </div>
             )}
 
-            {step === 1 && (
+            {showCascadeOption && step === 1 && (
+              <div className="space-y-3 mb-4">
+                <p className="text-sm font-medium text-gray-900">Choose deletion method:</p>
+
+                <label className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                  !useCascade
+                    ? 'border-gray-400 bg-gray-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}>
+                  <input
+                    type="radio"
+                    name="deleteMethod"
+                    checked={!useCascade}
+                    onChange={() => setUseCascade(false)}
+                    className="mt-1"
+                  />
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-900">Delete {entityType} Only</p>
+                    {cascadeOption.blockedMessage ? (
+                      <p className="text-sm text-red-600 mt-1">{cascadeOption.blockedMessage}</p>
+                    ) : (
+                      <p className="text-sm text-gray-600 mt-1">
+                        Only delete this {entityType.toLowerCase()}, keeping related items
+                      </p>
+                    )}
+                  </div>
+                </label>
+
+                <label className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                  useCascade
+                    ? 'border-red-400 bg-red-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}>
+                  <input
+                    type="radio"
+                    name="deleteMethod"
+                    checked={useCascade}
+                    onChange={() => setUseCascade(true)}
+                    className="mt-1"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-gray-900">{cascadeOption.label}</p>
+                      <span className="px-2 py-0.5 bg-red-600 text-white text-xs font-bold rounded">
+                        CASCADE
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 mt-1">{cascadeOption.description}</p>
+                  </div>
+                </label>
+              </div>
+            )}
+
+            {step === 1 && !showCascadeOption && (
               <div className="text-gray-700 text-sm">
                 <p className="font-medium mb-2">
                   This action cannot be undone. Please review carefully before proceeding.
@@ -145,7 +227,19 @@ export function DeleteConfirmationModal({
 
             {step === 2 && (
               <div>
-                {requireTyping ? (
+                {useCascade && (
+                  <div className="bg-red-100 border-2 border-red-300 rounded-lg p-4 mb-4">
+                    <div className="flex items-center gap-2 text-red-800 font-bold mb-2">
+                      <AlertTriangle className="w-5 h-5" />
+                      CASCADE DELETE ENABLED
+                    </div>
+                    <p className="text-red-700 text-sm">
+                      This will permanently delete the {entityType.toLowerCase()} AND all related items listed above.
+                    </p>
+                  </div>
+                )}
+
+                {requireTyping || useCascade ? (
                   <div className="mb-4">
                     <label className="block text-sm font-medium text-gray-900 mb-2">
                       Type "{entityName}" to confirm deletion:
@@ -188,11 +282,20 @@ export function DeleteConfirmationModal({
                   Cancel
                 </button>
                 <button
-                  onClick={() => setStep(2)}
-                  disabled={isDeleting}
-                  className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50"
+                  onClick={() => {
+                    setCountdown(3);
+                    setCanProceed(false);
+                    setConfirmText('');
+                    setStep(2);
+                  }}
+                  disabled={isDeleting || isBlocked}
+                  className={`flex-1 px-4 py-3 rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
+                    useCascade
+                      ? 'bg-red-700 text-white hover:bg-red-800'
+                      : 'bg-red-600 text-white hover:bg-red-700'
+                  }`}
                 >
-                  Continue to Step 2
+                  {useCascade ? 'Continue with Cascade Delete' : 'Continue to Step 2'}
                 </button>
               </>
             ) : (
@@ -207,7 +310,11 @@ export function DeleteConfirmationModal({
                 <button
                   onClick={handleDelete}
                   disabled={!canProceed || isDeleting}
-                  className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className={`flex-1 px-4 py-3 rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+                    useCascade
+                      ? 'bg-red-700 text-white hover:bg-red-800'
+                      : 'bg-red-600 text-white hover:bg-red-700'
+                  }`}
                 >
                   {isDeleting ? (
                     <>
@@ -217,7 +324,7 @@ export function DeleteConfirmationModal({
                   ) : (
                     <>
                       <Trash2 className="w-4 h-4" />
-                      Delete Permanently
+                      {useCascade ? 'Delete All Permanently' : 'Delete Permanently'}
                     </>
                   )}
                 </button>

@@ -204,7 +204,34 @@ export function Characters({ seriesId, onNavigate }: CharactersProps) {
         .eq('character_id', character.id);
 
       if (assetCount) {
-        relatedItems.push({ label: 'Related Character Assets', count: assetCount });
+        relatedItems.push({ label: 'Character Assets', count: assetCount });
+      }
+
+      const { count: voiceSamplesCount } = await supabase
+        .from('voice_samples')
+        .select('*', { count: 'exact', head: true })
+        .eq('character_id', character.id);
+
+      if (voiceSamplesCount) {
+        relatedItems.push({ label: 'Voice Samples', count: voiceSamplesCount });
+      }
+
+      const { count: voiceCloningCount } = await supabase
+        .from('voice_cloning_jobs')
+        .select('*', { count: 'exact', head: true })
+        .eq('character_id', character.id);
+
+      if (voiceCloningCount) {
+        relatedItems.push({ label: 'Voice Cloning Jobs', count: voiceCloningCount });
+      }
+
+      const { count: consistencyCount } = await supabase
+        .from('character_consistency_profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('character_id', character.id);
+
+      if (consistencyCount) {
+        relatedItems.push({ label: 'Consistency Profiles', count: consistencyCount });
       }
     } catch (error) {
       console.error('Error checking related items:', error);
@@ -220,18 +247,23 @@ export function Characters({ seriesId, onNavigate }: CharactersProps) {
   const handleDeleteConfirm = async () => {
     if (!deleteModal.character) return;
 
-    const { error } = await supabase
-      .from('characters')
-      .delete()
-      .eq('id', deleteModal.character.id);
+    try {
+      const { error } = await supabase
+        .from('characters')
+        .delete()
+        .eq('id', deleteModal.character.id);
 
-    if (error) {
-      console.error('Error deleting character:', error);
+      if (error) {
+        console.error('Error deleting character:', error);
+        throw new Error(error.message);
+      }
+
+      setCharacters((prev) => prev.filter((c) => c.id !== deleteModal.character!.id));
+      setDeleteModal({ isOpen: false, character: null, relatedItems: [] });
+    } catch (error) {
+      console.error('Error in delete:', error);
       throw error;
     }
-
-    setCharacters((prev) => prev.filter((c) => c.id !== deleteModal.character!.id));
-    setDeleteModal({ isOpen: false, character: null, relatedItems: [] });
   };
 
   const handleDuplicate = (character: Character) => {

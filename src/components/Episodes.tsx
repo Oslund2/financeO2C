@@ -246,6 +246,42 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
       if (assetCount) {
         relatedItems.push({ label: 'Related Assets', count: assetCount });
       }
+
+      const { count: shotPlansCount } = await supabase
+        .from('production_shot_plans')
+        .select('*', { count: 'exact', head: true })
+        .eq('episode_id', episode.id);
+
+      if (shotPlansCount) {
+        relatedItems.push({ label: 'Production Shot Plans', count: shotPlansCount });
+      }
+
+      const { count: audioClipsCount } = await supabase
+        .from('dialogue_audio_clips')
+        .select('*', { count: 'exact', head: true })
+        .eq('episode_id', episode.id);
+
+      if (audioClipsCount) {
+        relatedItems.push({ label: 'Dialogue Audio Clips', count: audioClipsCount });
+      }
+
+      const { count: lipSyncCount } = await supabase
+        .from('lip_sync_jobs')
+        .select('*', { count: 'exact', head: true })
+        .eq('episode_id', episode.id);
+
+      if (lipSyncCount) {
+        relatedItems.push({ label: 'Lip Sync Jobs', count: lipSyncCount });
+      }
+
+      const { count: productionJobsCount } = await supabase
+        .from('production_jobs')
+        .select('*', { count: 'exact', head: true })
+        .eq('episode_id', episode.id);
+
+      if (productionJobsCount) {
+        relatedItems.push({ label: 'Production Jobs', count: productionJobsCount });
+      }
     } catch (error) {
       console.error('Error checking related items:', error);
     }
@@ -260,18 +296,23 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
   const handleDeleteConfirm = async () => {
     if (!deleteModal.episode) return;
 
-    const { error } = await supabase
-      .from('episodes')
-      .delete()
-      .eq('id', deleteModal.episode.id);
+    try {
+      const { error } = await supabase
+        .from('episodes')
+        .delete()
+        .eq('id', deleteModal.episode.id);
 
-    if (error) {
-      console.error('Error deleting episode:', error);
+      if (error) {
+        console.error('Error deleting episode:', error);
+        throw new Error(error.message);
+      }
+
+      setEpisodes((prev) => prev.filter((e) => e.id !== deleteModal.episode!.id));
+      setDeleteModal({ isOpen: false, episode: null, relatedItems: [] });
+    } catch (error) {
+      console.error('Error in delete:', error);
       throw error;
     }
-
-    setEpisodes((prev) => prev.filter((e) => e.id !== deleteModal.episode!.id));
-    setDeleteModal({ isOpen: false, episode: null, relatedItems: [] });
   };
 
   if (loading) {

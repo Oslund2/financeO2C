@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, FileText, Trash2, Edit2, CheckCircle, Clock, Sparkles, Lock, Film, AlertCircle, DollarSign, ArrowRight, Zap, X, Eye, Filter, PlayCircle, Copyright } from 'lucide-react';
+import { Plus, Search, FileText, Trash2, Edit2, CheckCircle, Clock, Sparkles, Lock, Film, AlertCircle, DollarSign, ArrowRight, Zap, X, Eye, Filter, PlayCircle, Copyright, Copy } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
@@ -10,6 +10,7 @@ import { calculateProductionCosts, type CostComparison as CostComparisonType, ty
 import { CostComparison } from './CostComparison';
 import { useNotification } from '../contexts/NotificationContext';
 import { FormatBadge } from './FormatSelector';
+import { useAuth } from '../contexts/AuthContext';
 
 type Script = Database['public']['Tables']['scripts']['Row'];
 
@@ -19,6 +20,7 @@ interface ScriptsProps {
 }
 
 export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
+  const { user } = useAuth();
   const { showSuccess, showError } = useNotification();
   const [scripts, setScripts] = useState<Script[]>([]);
   const [filteredScripts, setFilteredScripts] = useState<Script[]>([]);
@@ -29,6 +31,7 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
   const [viewingScript, setViewingScript] = useState<Script | null>(null);
   const [scriptLocks, setScriptLocks] = useState<Map<string, ScriptLockInfo>>(new Map());
   const [episodeCounts, setEpisodeCounts] = useState<Map<string, number>>(new Map());
+  const [duplicateTitles, setDuplicateTitles] = useState<Set<string>>(new Set());
   const [createEpisodeModal, setCreateEpisodeModal] = useState<{
     isOpen: boolean;
     script: Script | null;
@@ -40,10 +43,12 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
     isOpen: boolean;
     script: Script | null;
     relatedItems: { label: string; count: number }[];
+    hasEpisodes: boolean;
   }>({
     isOpen: false,
     script: null,
     relatedItems: [],
+    hasEpisodes: false,
   });
 
   useEffect(() => {
@@ -126,6 +131,17 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
 
       setScriptLocks(locks);
       setEpisodeCounts(episodes);
+
+      const titleCounts = new Map<string, number>();
+      scriptList.forEach((s: Script) => {
+        const normalizedTitle = s.title.toLowerCase().trim();
+        titleCounts.set(normalizedTitle, (titleCounts.get(normalizedTitle) || 0) + 1);
+      });
+      const duplicates = new Set<string>();
+      titleCounts.forEach((count, title) => {
+        if (count > 1) duplicates.add(title);
+      });
+      setDuplicateTitles(duplicates);
     } catch (error) {
       console.error('Error loading scripts:', error);
     } finally {
@@ -133,8 +149,13 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
     }
   };
 
+  const isDuplicate = (script: Script) => {
+    return duplicateTitles.has(script.title.toLowerCase().trim());
+  };
+
   const handleDeleteClick = async (script: Script) => {
     const relatedItems: { label: string; count: number }[] = [];
+    let hasEpisodes = false;
 
     try {
       const { count: actsCount } = await supabase
@@ -171,6 +192,16 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
 
       if (episodesCount) {
         relatedItems.push({ label: 'Episodes', count: episodesCount });
+        hasEpisodes = true;
+      }
+
+      const { count: storyboardsCount } = await supabase
+        .from('storyboards')
+        .select('*', { count: 'exact', head: true })
+        .eq('script_id', script.id);
+
+      if (storyboardsCount) {
+        relatedItems.push({ label: 'Storyboards', count: storyboardsCount });
       }
     } catch (error) {
       console.error('Error checking related items:', error);
@@ -180,24 +211,48 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
       isOpen: true,
       script,
       relatedItems,
+      hasEpisodes,
     });
   };
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = async (cascade?: boolean) => {
     if (!deleteModal.script) return;
 
-    const { error } = await supabase
-      .from('scripts')
-      .delete()
-      .eq('id', deleteModal.script.id);
+    if (cascade && user) {
+      const { data, error } = await supabase.rpc('delete_script_cascade', {
+        script_uuid: deleteModal.script.id,
+        user_uuid: user.id,
+      });
 
-    if (error) {
-      console.error('Error deleting script:', error);
-      throw error;
+      if (error) {
+        console.error('Error deleting script (cascade):', error);
+        throw new Error(error.message);
+      }
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Failed to delete script');
+      }
+
+      showSuccess('Script Deleted', `"${deleteModal.script.title}" and all related content have been permanently deleted.`);
+    } else {
+      const { error } = await supabase
+        .from('scripts')
+        .delete()
+        .eq('id', deleteModal.script.id);
+
+      if (error) {
+        console.error('Error deleting script:', error);
+        if (error.message.includes('violates foreign key constraint')) {
+          throw new Error('Cannot delete this script because it has linked episodes. Use cascade delete to remove everything.');
+        }
+        throw new Error(error.message);
+      }
+
+      showSuccess('Script Deleted', `"${deleteModal.script.title}" has been permanently deleted.`);
     }
 
     setScripts((prev) => prev.filter((s) => s.id !== deleteModal.script!.id));
-    setDeleteModal({ isOpen: false, script: null, relatedItems: [] });
+    setDeleteModal({ isOpen: false, script: null, relatedItems: [], hasEpisodes: false });
   };
 
   const handleApproveScript = async (scriptId: string) => {
@@ -458,6 +513,12 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
                             NEW
                           </div>
                         )}
+                        {isDuplicate(script) && (
+                          <div className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-800 border border-amber-300 font-medium flex-shrink-0" title="Multiple scripts have this title">
+                            <Copy className="w-3 h-3" />
+                            <span className="hidden sm:inline">DUPLICATE</span>
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-1 sm:hidden flex-shrink-0">
                         <button
@@ -647,17 +708,25 @@ export function Scripts({ seriesId, onNavigate }: ScriptsProps) {
 
       <DeleteConfirmationModal
         isOpen={deleteModal.isOpen}
-        onClose={() => setDeleteModal({ isOpen: false, script: null, relatedItems: [] })}
+        onClose={() => setDeleteModal({ isOpen: false, script: null, relatedItems: [], hasEpisodes: false })}
         onConfirm={handleDeleteConfirm}
         entityType="Script"
         entityName={deleteModal.script?.title || ''}
         relatedItems={deleteModal.relatedItems}
         warningMessage={
-          deleteModal.relatedItems.length > 0
-            ? 'This script has associated acts, scenes, or episodes. All related content will be permanently deleted.'
+          deleteModal.hasEpisodes
+            ? 'This script has linked episodes. You must use CASCADE delete to remove the script and all its episodes together.'
+            : deleteModal.relatedItems.length > 0
+            ? 'This script has associated acts, scenes, or storyboards. All related content will be permanently deleted.'
             : 'This script will be permanently deleted from your series.'
         }
         requireTyping={deleteModal.relatedItems.length > 0}
+        cascadeOption={deleteModal.hasEpisodes ? {
+          enabled: true,
+          label: 'Delete Script and All Episodes',
+          description: 'Permanently delete this script along with all linked episodes, storyboards, and production data.',
+          blockedMessage: 'Episodes are linked to this script. Delete episodes first, or use cascade delete.',
+        } : undefined}
       />
 
       {createEpisodeModal.isOpen && createEpisodeModal.script && (
