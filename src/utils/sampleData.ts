@@ -4,7 +4,7 @@ export const SAMPLE_CHARACTERS = [
   {
     name: 'Barnaby',
     age: 10,
-    description: 'The main protagonist. A worrywart made of blue clay',
+    description: 'The main protagonist. A worrywart who rises to challenges.',
     personality: 'Anxious but determined. Overthinks everything but rises to challenges when it matters. His anxiety manifests physically in his clay form.',
     clay_features: 'Head literally inflates slightly when he knows a big word and deflates with a squeak when panicked. Sweats little clay droplets when nervous. Can shrink to grape size when terrified.',
     voice_characteristics: 'High pitched squeak when nervous, normal voice when confident',
@@ -215,14 +215,14 @@ export const STORYBOARD_ASSETS = [
     asset_type: 'scene_image',
     name: 'The Nightmare - Falling Dictionary',
     description: 'Key storyboard scene from the teaser sequence',
-    generation_prompt: 'A claymation still from a nightmare sequence. A terrified young boy made of blue clay, BARNABY, stands on a dark stage under a harsh spotlight. His head is comically shrunken to the size of a grape. A giant, monstrous dictionary made of dark, gnarled clay with jagged teeth is falling from the ceiling directly toward him. The style is tactile, scary but silly stop-motion. Visible fingerprints, matte finish clay, miniature set lighting with hard shadows.',
+    generation_prompt: 'A claymation still from a nightmare sequence. A terrified young boy, BARNABY, stands on a dark stage under a harsh spotlight. His head is comically shrunken to the size of a grape. A giant, monstrous dictionary made of dark, gnarled clay with jagged teeth is falling from the ceiling directly toward him. The style is tactile, scary but silly stop-motion. Visible fingerprints, matte finish clay, miniature set lighting with hard shadows.',
     tags: ['storyboard', 'teaser', 'nightmare', 'spell-mageddon', 'key-scene'],
   },
   {
     asset_type: 'scene_image',
     name: 'The Word Monster - Sesquipedalian',
     description: 'The physical manifestation of a difficult word as a monster',
-    generation_prompt: 'A claymation wide shot of a school gym stage during a spelling bee. BARNABY (blue clay boy) is cowering at a microphone. Floating above him is a physical manifestation of a difficult word: a giant, messy, scary monster sculpted entirely out of tangled, sharp-looking clay alphabet letters scowling at him. A banner behind reads "CLAYVILLE SPELLING BEE." Visible fingerprints, squash and stretch physics, miniature set lighting.',
+    generation_prompt: 'A claymation wide shot of a school gym stage during a spelling bee. BARNABY is cowering at a microphone. Floating above him is a physical manifestation of a difficult word: a giant, messy, scary monster sculpted entirely out of tangled, sharp-looking clay alphabet letters scowling at him. A banner behind reads "CLAYVILLE SPELLING BEE." Visible fingerprints, squash and stretch physics, miniature set lighting.',
     tags: ['storyboard', 'act-one', 'word-monster', 'spell-mageddon', 'key-scene'],
   },
   {

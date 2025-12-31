@@ -1,7 +1,7 @@
 # Character Reference Image Fix for Storyboard Generation
 
 ## Problem Solved
-Previously, when generating storyboard images, characters like "Barnaby" would appear as random incorrect characters (like a random blue claymation character) instead of using their actual reference images from the Character Library. This happened because the character reference system wasn't being properly initialized and validated before image generation.
+Previously, when generating storyboard images, characters like "Barnaby" would appear as random incorrect characters instead of using their actual reference images from the Character Library. This happened because the character reference system wasn't being properly initialized and validated before image generation.
 
 ## What Was Fixed
 

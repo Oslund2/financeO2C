@@ -9,7 +9,7 @@ The application is now populated with the complete "Spell-Mageddon!" episode, re
 **Main Cast:**
 
 1. **Barnaby** (Age 10) - Protagonist
-   - Blue clay with inflating/deflating head
+   - Claymation character with inflating/deflating head
    - Anxious but determined
    - Head shrinks to grape size when terrified
    - Sweats clay droplets when nervous
@@ -124,7 +124,7 @@ Ready-to-use AI generation prompts for Gemini 3:
 
 1. **The Nightmare - Falling Dictionary**
    - Teaser scene
-   - Blue clay Barnaby with grape-sized head
+   - Barnaby with grape-sized head
    - Giant monstrous dictionary falling
    - Dark spotlight, hard shadows
 
