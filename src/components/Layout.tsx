@@ -152,7 +152,7 @@ export function Layout({ children, currentView, onNavigate, currentSeriesId, onS
               onClick={() => setMobileMenuOpen(false)}
             />
             <aside
-              className="fixed top-0 left-0 bottom-0 w-72 bg-white shadow-2xl z-50 flex flex-col lg:hidden transform transition-transform"
+              className="fixed top-0 left-0 bottom-0 w-[85vw] max-w-72 bg-white shadow-2xl z-50 flex flex-col lg:hidden transform transition-transform"
               style={{
                 paddingLeft: 'env(safe-area-inset-left)',
                 paddingTop: 'env(safe-area-inset-top)'

@@ -571,22 +571,22 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-3 gap-1 sm:gap-4">
+                      <div className="grid grid-cols-3 gap-2 sm:gap-4">
                         <div className="min-w-0">
-                          <div className="text-[10px] sm:text-xs text-gray-600 mb-0.5 sm:mb-1 truncate">Annual Rev</div>
-                          <div className="text-xs sm:text-lg font-bold text-gray-900 truncate">
+                          <div className="text-[11px] sm:text-xs text-gray-600 mb-0.5 sm:mb-1 truncate">Annual Rev</div>
+                          <div className="text-sm sm:text-lg font-bold text-gray-900 truncate">
                             {LTVCalculationService.formatCurrency(ltvMetrics.annualRevenue)}
                           </div>
                         </div>
                         <div className="min-w-0">
-                          <div className="text-[10px] sm:text-xs text-gray-600 mb-0.5 sm:mb-1 truncate">Lifetime Profit</div>
-                          <div className={`text-xs sm:text-lg font-bold truncate ${isProfit ? 'text-green-700' : 'text-red-700'}`}>
+                          <div className="text-[11px] sm:text-xs text-gray-600 mb-0.5 sm:mb-1 truncate">LTV Profit</div>
+                          <div className={`text-sm sm:text-lg font-bold truncate ${isProfit ? 'text-green-700' : 'text-red-700'}`}>
                             {LTVCalculationService.formatCurrency(ltvMetrics.lifetimeProfit)}
                           </div>
                         </div>
                         <div className="min-w-0">
-                          <div className="text-[10px] sm:text-xs text-gray-600 mb-0.5 sm:mb-1 truncate">Margin</div>
-                          <div className={`text-xs sm:text-lg font-bold truncate ${isProfit ? 'text-green-700' : 'text-red-700'}`}>
+                          <div className="text-[11px] sm:text-xs text-gray-600 mb-0.5 sm:mb-1 truncate">Margin</div>
+                          <div className={`text-sm sm:text-lg font-bold truncate ${isProfit ? 'text-green-700' : 'text-red-700'}`}>
                             {ltvMetrics.lifetimeMargin.toFixed(0)}%
                           </div>
                         </div>
@@ -745,17 +745,17 @@ function CostViewModal({ episode, onClose }: CostViewModalProps) {
 
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-0 sm:p-4"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+        className="bg-white sm:rounded-xl shadow-2xl max-w-4xl w-full h-full sm:h-auto sm:max-h-[90vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Production Cost Analysis</h2>
-            <p className="text-sm text-gray-600">{episode.title}</p>
+        <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between flex-shrink-0">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">Production Cost Analysis</h2>
+            <p className="text-xs sm:text-sm text-gray-600 truncate">{episode.title}</p>
           </div>
           <button
             type="button"
@@ -764,42 +764,42 @@ function CostViewModal({ episode, onClose }: CostViewModalProps) {
               e.stopPropagation();
               onClose();
             }}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0 ml-2"
           >
             <X className="w-5 h-5 text-gray-600" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
           {costComparison ? (
             <div className="space-y-6">
               <CostComparison comparison={costComparison} showDetailed={true} />
 
               {episode.actual_cost && (
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Actual vs Estimated</h3>
-                  <div className="grid grid-cols-3 gap-4">
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 sm:p-6">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Actual vs Estimated</h3>
+                  <div className="grid grid-cols-3 gap-2 sm:gap-4">
                     <div>
-                      <div className="text-sm text-gray-600 mb-1">Estimated Cost</div>
-                      <div className="text-2xl font-bold text-green-700">
-                        ${episode.estimated_cost?.toFixed(2)}
+                      <div className="text-xs sm:text-sm text-gray-600 mb-1">Estimated</div>
+                      <div className="text-sm sm:text-2xl font-bold text-green-700">
+                        ${episode.estimated_cost?.toFixed(0)}
                       </div>
                     </div>
                     <div>
-                      <div className="text-sm text-gray-600 mb-1">Actual Cost</div>
-                      <div className="text-2xl font-bold text-gray-900">
-                        ${episode.actual_cost.toFixed(2)}
+                      <div className="text-xs sm:text-sm text-gray-600 mb-1">Actual</div>
+                      <div className="text-sm sm:text-2xl font-bold text-gray-900">
+                        ${episode.actual_cost.toFixed(0)}
                       </div>
                     </div>
                     <div>
-                      <div className="text-sm text-gray-600 mb-1">Variance</div>
-                      <div className={`text-2xl font-bold ${
+                      <div className="text-xs sm:text-sm text-gray-600 mb-1">Variance</div>
+                      <div className={`text-sm sm:text-2xl font-bold ${
                         episode.actual_cost <= (episode.estimated_cost || 0)
                           ? 'text-green-700'
                           : 'text-red-700'
                       }`}>
                         {episode.actual_cost <= (episode.estimated_cost || 0) ? '-' : '+'}
-                        ${Math.abs((episode.actual_cost || 0) - (episode.estimated_cost || 0)).toFixed(2)}
+                        ${Math.abs((episode.actual_cost || 0) - (episode.estimated_cost || 0)).toFixed(0)}
                       </div>
                     </div>
                   </div>

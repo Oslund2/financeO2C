@@ -353,11 +353,11 @@ export function Production({ seriesId, episodeId: initialEpisodeId }: Production
 
   if (viewMode === 'scripts') {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <div className="max-w-7xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Production Pipeline</h1>
-            <p className="text-gray-600">Select a script to begin shot list generation and video production</p>
+          <div className="mb-6 sm:mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Production Pipeline</h1>
+            <p className="text-sm sm:text-base text-gray-600">Select a script to begin shot list generation and video production</p>
           </div>
 
           {error && (
@@ -462,26 +462,28 @@ export function Production({ seriesId, episodeId: initialEpisodeId }: Production
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-6 flex items-center gap-4">
-          <button
-            onClick={handleBackToScripts}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <ArrowLeft className="w-6 h-6 text-gray-600" />
-          </button>
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold text-gray-900 mb-1">{selectedScript?.title}</h1>
-            <p className="text-gray-600">AI-powered shot list generation and Veo 3 rendering</p>
+        <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <button
+              onClick={handleBackToScripts}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
+            >
+              <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
+            </button>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-0.5 sm:mb-1 truncate">{selectedScript?.title}</h1>
+              <p className="text-xs sm:text-sm text-gray-600">AI-powered shot list generation and Veo 3 rendering</p>
+            </div>
           </div>
           {selectedStoryboard && (
             <button
               onClick={() => handleViewStoryboard(selectedStoryboard)}
-              className="px-4 py-2 border-2 border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors font-medium flex items-center gap-2"
+              className="px-3 sm:px-4 py-2 border-2 border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors font-medium flex items-center justify-center gap-2 text-sm sm:text-base w-full sm:w-auto"
             >
               <Eye className="w-4 h-4" />
-              View Storyboard
+              <span className="hidden sm:inline">View</span> Storyboard
             </button>
           )}
         </div>

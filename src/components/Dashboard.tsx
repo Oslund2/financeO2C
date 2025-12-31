@@ -557,12 +557,12 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
           {statCards.map((card) => (
             <button
               key={card.label}
               onClick={card.onClick}
-              className="bg-white rounded-xl shadow-md hover:shadow-xl active:shadow-lg transition-all p-4 sm:p-6 text-left group border border-gray-200 hover:border-scripps-light-blue min-h-[120px] sm:min-h-0"
+              className="bg-white rounded-xl shadow-md hover:shadow-xl active:shadow-lg transition-all p-3 sm:p-4 md:p-6 text-left group border border-gray-200 hover:border-scripps-light-blue"
             >
               <div className="flex items-start justify-between mb-3 sm:mb-4">
                 <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br ${card.color} flex items-center justify-center text-xl sm:text-2xl shadow-md flex-shrink-0`}>
@@ -604,70 +604,70 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             <button
               onClick={() => onNavigate('scripts')}
-              className="bg-white rounded-lg p-5 border-2 border-gray-200 hover:border-gray-300 hover:shadow-md transition-all text-left group"
+              className="bg-white rounded-lg p-3 sm:p-4 md:p-5 border-2 border-gray-200 hover:border-gray-300 hover:shadow-md transition-all text-left group"
             >
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-gray-200 transition-colors">
-                  <FileText className="w-5 h-5 text-gray-600" />
+              <div className="flex items-center justify-between mb-2 sm:mb-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-gray-200 transition-colors">
+                  <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
                 </div>
-                <div className="text-3xl font-bold text-gray-900">{pipelineStats.draftScripts}</div>
+                <div className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">{pipelineStats.draftScripts}</div>
               </div>
-              <div className="text-sm font-semibold text-gray-700 mb-1">Draft Scripts</div>
-              <div className="text-xs text-gray-500">Needs approval</div>
+              <div className="text-xs sm:text-sm font-semibold text-gray-700 mb-0.5 sm:mb-1">Draft Scripts</div>
+              <div className="text-[10px] sm:text-xs text-gray-500">Needs approval</div>
             </button>
 
             <button
               onClick={() => onNavigate('scripts')}
-              className="bg-white rounded-lg p-5 border-2 border-blue-200 hover:border-blue-300 hover:shadow-md transition-all text-left group relative"
+              className="bg-white rounded-lg p-3 sm:p-4 md:p-5 border-2 border-blue-200 hover:border-blue-300 hover:shadow-md transition-all text-left group relative"
             >
-              <div className="absolute -left-3 top-1/2 -translate-y-1/2">
+              <div className="absolute -left-3 top-1/2 -translate-y-1/2 hidden md:block">
                 <ArrowRight className="w-6 h-6 text-blue-400" />
               </div>
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                  <CheckCircle className="w-5 h-5 text-blue-600" />
+              <div className="flex items-center justify-between mb-2 sm:mb-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                  <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                 </div>
-                <div className="text-3xl font-bold text-blue-700">{pipelineStats.approvedScripts}</div>
+                <div className="text-xl sm:text-2xl md:text-3xl font-bold text-blue-700">{pipelineStats.approvedScripts}</div>
               </div>
-              <div className="text-sm font-semibold text-gray-700 mb-1">Approved Scripts</div>
-              <div className="text-xs text-blue-600 font-medium">Ready to produce!</div>
+              <div className="text-xs sm:text-sm font-semibold text-gray-700 mb-0.5 sm:mb-1">Approved</div>
+              <div className="text-[10px] sm:text-xs text-blue-600 font-medium">Ready to produce!</div>
             </button>
 
             <button
               onClick={() => onNavigate('episodes')}
-              className="bg-white rounded-lg p-5 border-2 border-yellow-200 hover:border-yellow-300 hover:shadow-md transition-all text-left group relative"
+              className="bg-white rounded-lg p-3 sm:p-4 md:p-5 border-2 border-yellow-200 hover:border-yellow-300 hover:shadow-md transition-all text-left group relative"
             >
-              <div className="absolute -left-3 top-1/2 -translate-y-1/2">
+              <div className="absolute -left-3 top-1/2 -translate-y-1/2 hidden md:block">
                 <ArrowRight className="w-6 h-6 text-yellow-400" />
               </div>
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center group-hover:bg-yellow-200 transition-colors">
-                  <Film className="w-5 h-5 text-yellow-600" />
+              <div className="flex items-center justify-between mb-2 sm:mb-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-yellow-100 rounded-lg flex items-center justify-center group-hover:bg-yellow-200 transition-colors">
+                  <Film className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-600" />
                 </div>
-                <div className="text-3xl font-bold text-yellow-700">{pipelineStats.episodesInProduction}</div>
+                <div className="text-xl sm:text-2xl md:text-3xl font-bold text-yellow-700">{pipelineStats.episodesInProduction}</div>
               </div>
-              <div className="text-sm font-semibold text-gray-700 mb-1">In Production</div>
-              <div className="text-xs text-yellow-600 font-medium">Active episodes</div>
+              <div className="text-xs sm:text-sm font-semibold text-gray-700 mb-0.5 sm:mb-1">In Production</div>
+              <div className="text-[10px] sm:text-xs text-yellow-600 font-medium">Active episodes</div>
             </button>
 
             <button
               onClick={() => onNavigate('episodes')}
-              className="bg-white rounded-lg p-5 border-2 border-green-200 hover:border-green-300 hover:shadow-md transition-all text-left group relative"
+              className="bg-white rounded-lg p-3 sm:p-4 md:p-5 border-2 border-green-200 hover:border-green-300 hover:shadow-md transition-all text-left group relative"
             >
-              <div className="absolute -left-3 top-1/2 -translate-y-1/2">
+              <div className="absolute -left-3 top-1/2 -translate-y-1/2 hidden md:block">
                 <ArrowRight className="w-6 h-6 text-green-400" />
               </div>
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center group-hover:bg-green-200 transition-colors">
-                  <CheckCircle className="w-5 h-5 text-green-600" />
+              <div className="flex items-center justify-between mb-2 sm:mb-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-100 rounded-lg flex items-center justify-center group-hover:bg-green-200 transition-colors">
+                  <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
                 </div>
-                <div className="text-3xl font-bold text-green-700">{pipelineStats.completedEpisodes}</div>
+                <div className="text-xl sm:text-2xl md:text-3xl font-bold text-green-700">{pipelineStats.completedEpisodes}</div>
               </div>
-              <div className="text-sm font-semibold text-gray-700 mb-1">Completed</div>
-              <div className="text-xs text-green-600 font-medium">Ready to air!</div>
+              <div className="text-xs sm:text-sm font-semibold text-gray-700 mb-0.5 sm:mb-1">Completed</div>
+              <div className="text-[10px] sm:text-xs text-green-600 font-medium">Ready to air!</div>
             </button>
           </div>
 
@@ -689,13 +689,13 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
           )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 bg-white rounded-xl shadow-md p-6 border border-gray-200">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900">Recent Episodes</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="lg:col-span-2 bg-white rounded-xl shadow-md p-4 sm:p-6 border border-gray-200">
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900">Recent Episodes</h2>
               <button
                 onClick={() => onNavigate('episodes')}
-                className="text-sm font-medium text-scripps-blue hover:text-scripps-navy"
+                className="text-sm font-medium text-scripps-blue hover:text-scripps-navy min-h-[44px] flex items-center"
               >
                 View all
               </button>
@@ -734,10 +734,10 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 sm:gap-3">
                         <div className="text-right">
-                          <div className="text-sm font-medium text-gray-900">{episode.progress_percentage}%</div>
-                          <div className="w-24 h-2 bg-gray-200 rounded-full mt-1 overflow-hidden">
+                          <div className="text-xs sm:text-sm font-medium text-gray-900">{episode.progress_percentage}%</div>
+                          <div className="w-16 sm:w-24 h-1.5 sm:h-2 bg-gray-200 rounded-full mt-1 overflow-hidden">
                             <div
                               className="h-full bg-gradient-to-r from-scripps-blue to-scripps-light-blue rounded-full transition-all"
                               style={{ width: `${episode.progress_percentage}%` }}
@@ -745,9 +745,9 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
                           </div>
                         </div>
                         {expandedEpisodeId === episode.id ? (
-                          <ChevronUp className="w-5 h-5 text-gray-400" />
+                          <ChevronUp className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                         ) : (
-                          <ChevronDown className="w-5 h-5 text-gray-400" />
+                          <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                         )}
                       </div>
                     </div>
@@ -762,8 +762,8 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
             )}
           </div>
 
-          <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">Quick Actions</h2>
+          <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 border border-gray-200">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6">Quick Actions</h2>
             <div className="space-y-3">
               <button
                 onClick={() => onNavigate('characters')}
@@ -799,15 +799,15 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200 mt-6">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <FileText className="w-6 h-6 text-scripps-blue" />
-              <h2 className="text-xl font-bold text-gray-900">Recent Scripts</h2>
+        <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 border border-gray-200 mt-4 sm:mt-6">
+          <div className="flex items-center justify-between mb-4 sm:mb-6">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-scripps-blue" />
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900">Recent Scripts</h2>
             </div>
             <button
               onClick={() => onNavigate('scripts')}
-              className="text-sm font-medium text-scripps-blue hover:text-scripps-navy flex items-center gap-1"
+              className="text-sm font-medium text-scripps-blue hover:text-scripps-navy flex items-center gap-1 min-h-[44px]"
             >
               View all
               <ArrowRight className="w-4 h-4" />
@@ -886,16 +886,16 @@ export function Dashboard({ seriesId, onNavigate }: DashboardProps) {
 
       {fullscreenCard && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-8 animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 lg:p-8 animate-in fade-in duration-200"
           onClick={() => setFullscreenCard(null)}
         >
           <button
             type="button"
             onClick={() => setFullscreenCard(null)}
-            className="absolute top-6 right-6 w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all border border-white/20 hover:scale-110"
+            className="absolute top-4 right-4 sm:top-6 sm:right-6 w-10 h-10 sm:w-12 sm:h-12 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all border border-white/20 hover:scale-110"
             aria-label="Close fullscreen view"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
 
           <div

@@ -31,22 +31,22 @@ export function AIStudio({ seriesId, onNavigate }: AIStudioProps) {
   ];
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
+        <div className="mb-6 sm:mb-8">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg flex items-center justify-center shadow-md">
-              <Sparkles className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg flex items-center justify-center shadow-md flex-shrink-0">
+              <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">AI Studio</h1>
-              <p className="text-gray-600">Generate content using AI</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">AI Studio</h1>
+              <p className="text-sm sm:text-base text-gray-600">Generate content using AI</p>
             </div>
           </div>
         </div>
 
         <div className="bg-white rounded-xl shadow-md border border-gray-200 mb-6">
-          <div className="flex border-b border-gray-200 overflow-x-auto">
+          <div className="flex border-b border-gray-200 overflow-x-auto scrollbar-hide">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -55,20 +55,21 @@ export function AIStudio({ seriesId, onNavigate }: AIStudioProps) {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 font-medium transition-all whitespace-nowrap ${
+                  className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-4 lg:px-6 py-3 sm:py-4 font-medium transition-all whitespace-nowrap text-xs sm:text-sm lg:text-base ${
                     isActive
                       ? 'text-scripps-blue border-b-2 border-scripps-blue bg-blue-50'
                       : 'text-gray-600 hover:bg-gray-50'
                   }`}
                 >
-                  <Icon className="w-5 h-5" />
-                  {tab.label}
+                  <Icon className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                  <span className="hidden sm:inline">{tab.label}</span>
+                  <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
                 </button>
               );
             })}
           </div>
 
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             {activeTab === 'script' && <ScriptGeneration seriesId={seriesId} onNavigate={onNavigate} />}
             {activeTab === 'storyboard' && <StoryboardGeneration onNavigate={onNavigate} />}
             {activeTab === 'image' && <ImageGeneration seriesId={seriesId} />}
