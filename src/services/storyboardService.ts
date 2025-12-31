@@ -219,6 +219,32 @@ export function analyzeSceneForShots(
         cameraAngle = 'low';
       }
 
+      const dialogueText = dialogueChunk.map(d => `${d.character}: ${d.line}`).join(' ');
+
+      const initialCharacterPositions = dialogueChunk.map(d => ({
+        character: d.character,
+        position: 'center',
+        expression: 'speaking'
+      }));
+
+      const mentionedCharacters = extractCharactersFromText(dialogueText, characters);
+      const characterPositionsMap = new Map<string, any>();
+
+      for (const pos of initialCharacterPositions) {
+        characterPositionsMap.set(pos.character.toLowerCase(), pos);
+      }
+
+      for (const char of mentionedCharacters) {
+        const charNameLower = char.name.toLowerCase();
+        if (!characterPositionsMap.has(charNameLower)) {
+          characterPositionsMap.set(charNameLower, {
+            character: char.name,
+            position: 'scene',
+            expression: 'neutral'
+          });
+        }
+      }
+
       shots.push({
         shotNumber: shotCounter++,
         sceneShotNumber: shots.length + 1,
@@ -227,15 +253,11 @@ export function analyzeSceneForShots(
         cameraMovement: 'static',
         shotDescription: `${shotType} shot of ${speakingCharacter || 'characters'} during dialogue`,
         compositionNotes: `Frame focusing on ${speakingCharacter || 'the speakers'} with appropriate headroom`,
-        characterPositions: dialogueChunk.map(d => ({
-          character: d.character,
-          position: 'center',
-          expression: 'speaking'
-        })),
+        characterPositions: Array.from(characterPositionsMap.values()),
         lightingNotes: 'Character key lighting with soft fill',
         propsNeeded: [],
         durationSeconds: Math.ceil(dialogueChunk.reduce((sum, d) => sum + (d.line?.length || 0) * 0.05, 0)),
-        dialogueText: dialogueChunk.map(d => `${d.character}: ${d.line}`).join(' '),
+        dialogueText,
         stageDirections: dialogueChunk.map(d => d.stage_direction).filter(Boolean).join('; '),
         imagePrompt: ''
       });
@@ -284,6 +306,14 @@ export async function generateShotDescription(
     `${c.name}: ${c.description || ''} - ${c.clay_features || 'claymation character'}`
   ).join('\n');
 
+  const charactersInShot = shot.characterPositions
+    .map((pos: any) => pos.character || pos.name)
+    .filter(Boolean);
+
+  const charactersInShotList = charactersInShot.length > 0
+    ? charactersInShot.join(', ')
+    : 'None specified';
+
   const prompt = `You are a professional storyboard artist for claymation animation. Create a detailed visual description for this shot.
 
 Script: ${script.title}
@@ -297,13 +327,15 @@ Shot Details:
 - Dialogue: ${shot.dialogueText || 'None'}
 - Stage Directions: ${shot.stageDirections || 'None'}
 
+IMPORTANT - Characters that MUST be visible in this shot: ${charactersInShotList}
+
 Characters in this Series:
 ${characterInfo}
 
 Visual Style: Claymation animation with handcrafted clay characters, tactile textures, and whimsical design. ${options.visualStyle || 'Bright, colorful, educational tone suitable for children ages 6-10.'}
 
 Create a detailed shot description (2-3 sentences) that includes:
-1. What is visible in the frame
+1. What is visible in the frame - ENSURE ALL LISTED CHARACTERS (${charactersInShotList}) ARE MENTIONED
 2. Character positions, expressions, and actions
 3. Important props or background elements
 4. Lighting mood and color palette
@@ -667,18 +699,28 @@ export async function generateStoryboardForScript(
         );
 
         const charactersFromDescription = extractCharactersFromText(enhancedDescription, characters);
-        const existingCharacterNames = new Set(
-          shot.characterPositions.map((pos: any) => pos.character || pos.name)
+        const charactersFromDialogue = shot.dialogueText
+          ? extractCharactersFromText(shot.dialogueText, characters)
+          : [];
+
+        const existingCharacterNamesLower = new Set(
+          shot.characterPositions.map((pos: any) => (pos.character || pos.name).toLowerCase())
         );
 
         const mergedCharacterPositions = [...shot.characterPositions];
-        for (const char of charactersFromDescription) {
-          if (!existingCharacterNames.has(char.name)) {
+
+        const allMentionedCharacters = [...charactersFromDescription, ...charactersFromDialogue];
+        const seenCharacterIds = new Set<string>();
+
+        for (const char of allMentionedCharacters) {
+          if (!seenCharacterIds.has(char.id) && !existingCharacterNamesLower.has(char.name.toLowerCase())) {
             mergedCharacterPositions.push({
               character: char.name,
               position: 'scene',
               expression: 'neutral'
             });
+            existingCharacterNamesLower.add(char.name.toLowerCase());
+            seenCharacterIds.add(char.id);
           }
         }
 
@@ -1700,7 +1742,8 @@ export async function repairShotCharacterPositions(
 
   const shotDescription = shot.shot_description || '';
   const stageDirections = shot.stage_directions || '';
-  const textToAnalyze = `${shotDescription} ${stageDirections}`;
+  const dialogueText = shot.dialogue_text || '';
+  const textToAnalyze = `${shotDescription} ${stageDirections} ${dialogueText}`;
 
   const detectedCharacters = extractCharactersFromText(textToAnalyze, characters);
 
@@ -1712,11 +1755,20 @@ export async function repairShotCharacterPositions(
     };
   }
 
-  const updatedPositions = detectedCharacters.map(char => ({
-    character: char.name,
-    position: 'scene',
-    expression: 'neutral'
-  }));
+  const seenCharacterNamesLower = new Set<string>();
+  const updatedPositions = [];
+
+  for (const char of detectedCharacters) {
+    const nameLower = char.name.toLowerCase();
+    if (!seenCharacterNamesLower.has(nameLower)) {
+      updatedPositions.push({
+        character: char.name,
+        position: 'scene',
+        expression: 'neutral'
+      });
+      seenCharacterNamesLower.add(nameLower);
+    }
+  }
 
   const { error: updateError } = await supabase
     .from('storyboard_shots')
