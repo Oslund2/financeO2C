@@ -178,23 +178,26 @@ ${batchText}`;
 
     console.log(`[Translation] Batch translation result preview: "${result.substring(0, 100)}..."`);
 
-    const translatedLines = result.trim().split('\n\n');
+    // Parse all [LINE X] markers from the entire result
     const parsed: DialogueLine[] = [];
 
     for (let i = 0; i < dialogueLines.length; i++) {
-      const translatedLine = translatedLines[i];
-      if (translatedLine) {
-        const match = translatedLine.match(/\[LINE \d+\]\s*([^:]+):\s*(.+)/s);
-        const translatedText = match ? match[2].trim() : translatedLine.replace(/\[LINE \d+\]\s*/g, '').trim();
+      const lineNum = i + 1;
+      // Match this specific line number with flexible whitespace handling
+      const linePattern = new RegExp(`\\[LINE ${lineNum}\\]\\s*([^:]+):\\s*([^\\[]+?)(?=\\[LINE ${lineNum + 1}\\]|$)`, 's');
+      const match = result.match(linePattern);
+
+      if (match) {
+        const translatedText = match[2].trim();
 
         // Preserve the original property name (text or line)
-        const result = { ...dialogueLines[i] };
+        const resultObj = { ...dialogueLines[i] };
         if (dialogueLines[i].line !== undefined) {
-          result.line = translatedText;
+          resultObj.line = translatedText;
         } else {
-          result.text = translatedText;
+          resultObj.text = translatedText;
         }
-        parsed.push(result);
+        parsed.push(resultObj);
         console.log(`[Translation] Line ${i + 1} translated: "${dialogueLines[i].character}": "${translatedText.substring(0, 40)}..."`);
       } else {
         console.warn(`[Translation] Missing translation for line ${i + 1}, keeping original`);
