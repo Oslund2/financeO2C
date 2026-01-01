@@ -9,6 +9,7 @@ import type { VoiceProvider } from '../services/voiceService';
 import { getVoiceService } from '../services/voiceService';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { useNotification } from '../contexts/NotificationContext';
+import { useWorkspaceCapabilities } from '../hooks/useWorkspaceCapabilities';
 
 type Character = Database['public']['Tables']['characters']['Row'];
 
@@ -20,6 +21,7 @@ interface CharactersProps {
 export function Characters({ seriesId, onNavigate }: CharactersProps) {
   const { currentOrganization } = useOrganization();
   const { showError, showSuccess } = useNotification();
+  const { workspaceType, isClaymation, isPhotoreal } = useWorkspaceCapabilities();
   const [characters, setCharacters] = useState<Character[]>([]);
   const [filteredCharacters, setFilteredCharacters] = useState<Character[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -522,7 +524,7 @@ export function Characters({ seriesId, onNavigate }: CharactersProps) {
                     <p className="text-sm text-gray-700 mb-3 line-clamp-2">{character.description}</p>
                   )}
 
-                  {character.clay_features && (
+                  {isClaymation && character.clay_features && (
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 mb-3">
                       <p className="text-xs text-scripps-navy font-medium">Clay Feature:</p>
                       <p className="text-xs text-scripps-blue line-clamp-1">{character.clay_features}</p>
@@ -629,7 +631,7 @@ export function Characters({ seriesId, onNavigate }: CharactersProps) {
                   </div>
                 )}
 
-                {fullscreenCharacter.clay_features && (
+                {isClaymation && fullscreenCharacter.clay_features && (
                   <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 sm:p-6 lg:p-8 border border-white/20">
                     <div className="flex items-center gap-3 mb-3 sm:mb-4">
                       <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-scripps-yellow" />
@@ -953,18 +955,20 @@ function CharacterForm({ character, seriesId, onClose, onSave }: CharacterFormPr
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Clay Features
-            </label>
-            <textarea
-              value={formData.clay_features}
-              onChange={(e) => setFormData({ ...formData, clay_features: e.target.value })}
-              rows={2}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent text-base"
-              placeholder="Special claymation characteristics (e.g., head inflates when excited)"
-            />
-          </div>
+          {isClaymation && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Clay Features
+              </label>
+              <textarea
+                value={formData.clay_features}
+                onChange={(e) => setFormData({ ...formData, clay_features: e.target.value })}
+                rows={2}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent text-base"
+                placeholder="Special claymation characteristics (e.g., head inflates when excited)"
+              />
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
