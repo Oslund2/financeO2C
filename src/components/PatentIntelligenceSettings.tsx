@@ -5,29 +5,29 @@ export function PatentIntelligenceSettings() {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200">
+    <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50"
+        className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
       >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-            <Shield className="w-5 h-5 text-purple-600" />
+          <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg flex items-center justify-center">
+            <Shield className="w-5 h-5 text-white" />
           </div>
           <div className="text-left">
-            <h3 className="font-semibold text-gray-900">Patent Intelligence System</h3>
+            <h2 className="text-xl font-bold text-gray-900">Patent Intelligence System</h2>
             <p className="text-sm text-gray-600">AI-powered patent analysis and generation</p>
           </div>
         </div>
         {expanded ? (
-          <ChevronUp className="w-5 h-5 text-gray-400" />
+          <ChevronUp className="w-6 h-6 text-gray-400" />
         ) : (
-          <ChevronDown className="w-5 h-5 text-gray-400" />
+          <ChevronDown className="w-6 h-6 text-gray-400" />
         )}
       </button>
 
       {expanded && (
-        <div className="px-6 pb-6 space-y-6">
+        <div className="border-t border-gray-200 p-6 space-y-6">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-start gap-3">
               <Info className="w-5 h-5 text-blue-600 mt-0.5" />
