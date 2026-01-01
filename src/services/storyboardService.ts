@@ -58,6 +58,17 @@ const CAMERA_ANGLES = {
 
 type WorkspaceType = 'claymation' | 'photoreal' | null;
 
+async function getWorkspaceTypeFromSeries(seriesId: string): Promise<WorkspaceType> {
+  const { data } = await supabase
+    .from('series')
+    .select('organization:organization_id(workspace_type)')
+    .eq('id', seriesId)
+    .maybeSingle();
+
+  const org = data?.organization as { workspace_type?: string } | null;
+  return (org?.workspace_type as WorkspaceType) || 'claymation';
+}
+
 const STYLE_PRESETS = {
   claymation: {
     base: 'High-quality claymation animation, handcrafted clay characters with visible fingerprint textures, stop-motion aesthetic, tangible 3D miniature sets, soft studio lighting, colorful and whimsical design.',
@@ -656,6 +667,9 @@ export async function generateStoryboardForScript(
 
     const { script, acts, characters } = await loadScriptWithDetails(scriptId);
 
+    const workspaceType = await getWorkspaceTypeFromSeries(script.series_id);
+    const isPhotoreal = workspaceType === 'photoreal';
+
     const { data: existingStoryboards } = await supabase
       .from('storyboards')
       .select('id, status')
@@ -746,7 +760,8 @@ export async function generateStoryboardForScript(
           scene,
           script,
           characters,
-          options
+          options,
+          workspaceType
         );
 
         const charactersFromDescription = extractCharactersFromText(enhancedDescription, characters);
@@ -798,7 +813,8 @@ export async function generateStoryboardForScript(
           shotDataForPrompt,
           sceneContext,
           characters,
-          options.claymationEmphasis
+          !isPhotoreal,
+          workspaceType
         );
 
         shotsToInsert.push({
@@ -1007,6 +1023,7 @@ export async function generateImagesForStoryboard(
 
   const seriesId = (storyboard.scripts as any)?.series_id;
   let characters: Character[] = [];
+  let workspaceType: WorkspaceType = 'claymation';
 
   if (seriesId) {
     const { data: seriesCharacters } = await supabase
@@ -1014,7 +1031,10 @@ export async function generateImagesForStoryboard(
       .select('*')
       .eq('series_id', seriesId);
     characters = seriesCharacters || [];
+    workspaceType = await getWorkspaceTypeFromSeries(seriesId);
   }
+
+  const isPhotoreal = workspaceType === 'photoreal';
 
   onProgress?.(0, 'Initializing character references...');
 
@@ -1171,9 +1191,6 @@ export async function generateImagesForStoryboard(
         actNumber
       };
 
-      const stylePrefs = storyboard.style_preferences as any;
-      const useClaymation = stylePrefs?.claymationEmphasis !== false;
-
       const comprehensivePrompt = buildComprehensiveImagePrompt(
         {
           shot_type: shot.shot_type,
@@ -1190,7 +1207,8 @@ export async function generateImagesForStoryboard(
         },
         sceneContext,
         characters,
-        useClaymation
+        !isPhotoreal,
+        workspaceType
       );
 
       if (characterReferences.length === 0 && shot.shot_description) {
@@ -1441,6 +1459,9 @@ export async function regenerateShotPrompt(
       .select('*')
       .eq('series_id', seriesId);
 
+    const workspaceType = seriesId ? await getWorkspaceTypeFromSeries(seriesId) : 'claymation';
+    const isPhotoreal = workspaceType === 'photoreal';
+
     const sceneContext: SceneContext = {
       setting: scene?.setting || scene?.location || '',
       description: scene?.description || '',
@@ -1464,7 +1485,8 @@ export async function regenerateShotPrompt(
       shotData,
       sceneContext,
       characters || [],
-      useClaymation
+      !isPhotoreal,
+      workspaceType
     );
 
     const { error: updateError } = await supabase
@@ -1526,9 +1548,10 @@ export function mergeUserEditsWithMetadata(
   shotData: ShotData,
   sceneContext: SceneContext,
   characters: Character[],
-  useClaymation: boolean = true
+  useClaymation: boolean = true,
+  workspaceType?: WorkspaceType
 ): string {
-  const freshPrompt = buildComprehensiveImagePrompt(shotData, sceneContext, characters, useClaymation);
+  const freshPrompt = buildComprehensiveImagePrompt(shotData, sceneContext, characters, useClaymation, workspaceType);
 
   const sectionMap: Record<string, string> = {};
   const freshSections = freshPrompt.split('\n\n');
