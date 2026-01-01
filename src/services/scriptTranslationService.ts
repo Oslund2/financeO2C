@@ -410,150 +410,185 @@ export class ScriptTranslationService {
         .eq('id', translationId);
 
       for (const act of acts) {
-        console.log(`\n[Translation] === Translating Act ${act.act_number} (${act.scenes.length} scenes) ===`);
+        try {
+          console.log(`\n[Translation] === Translating Act ${act.act_number} (${act.scenes.length} scenes) ===`);
 
-        const translatedContent = await this.translateText(
-          act.content || '',
-          languageName,
-          `This is Act ${act.act_number} of a script. Translate it completely.`,
-          organizationId,
-          scriptId
-        );
-
-        console.log(`[Translation] Act ${act.act_number} content translated: "${translatedContent.substring(0, 50)}..."`);
-
-
-        const translatedNotes = act.notes
-          ? await this.translateText(act.notes, languageName, 'These are act notes', organizationId, scriptId)
-          : null;
-
-        await supabase.from('script_act_translations').upsert({
-          act_id: act.id,
-          language_code: languageCode,
-          translated_content: translatedContent,
-          translated_notes: translatedNotes
-        });
-
-        updateProgress();
-
-        for (const scene of act.scenes) {
-          console.log(`\n[Translation] === Translating Scene ${scene.scene_number} ===`);
-
-          // Translate setting
-          console.log(`[Translation] Setting (original): "${(scene.setting || '').substring(0, 50)}..."`);
-          const translatedSetting = await this.translateText(
-            scene.setting || '',
+          const translatedContent = await this.translateText(
+            act.content || '',
             languageName,
-            'This is a scene setting/location description. Translate it completely.',
+            `This is Act ${act.act_number} of a script. Translate it completely.`,
             organizationId,
             scriptId
           );
-          console.log(`[Translation] Setting (translated): "${translatedSetting.substring(0, 50)}..."`);
 
-          // Translate description
-          console.log(`[Translation] Description (original): "${(scene.description || '').substring(0, 50)}..."`);
-          const translatedDescription = await this.translateText(
-            scene.description || '',
-            languageName,
-            'This is a scene description. Translate it completely.',
-            organizationId,
-            scriptId
-          );
-          console.log(`[Translation] Description (translated): "${translatedDescription.substring(0, 50)}..."`);
+          console.log(`[Translation] Act ${act.act_number} content translated: "${translatedContent.substring(0, 50)}..."`);
 
-          // Translate dialogue
-          let translatedDialogue = scene.dialogue;
-          console.log(`[Translation] Processing dialogue for scene ${scene.scene_number}`);
-          console.log(`[Translation] Dialogue type: ${typeof scene.dialogue}, isArray: ${Array.isArray(scene.dialogue)}`);
 
-          if (scene.dialogue && typeof scene.dialogue === 'object') {
-            if (Array.isArray(scene.dialogue)) {
-              console.log(`[Translation] Found array with ${scene.dialogue.length} items`);
-
-              const dialogueLines: DialogueLine[] = scene.dialogue.filter(
-                (line: any) => typeof line === 'object' && (line.text || line.line)
-              );
-
-              console.log(`[Translation] Scene ${scene.scene_number}: Filtered to ${dialogueLines.length} valid dialogue lines`);
-
-              if (dialogueLines.length > 0) {
-                // Log sample of what we're translating
-                console.log(`[Translation] Sample dialogue line:`, {
-                  character: dialogueLines[0].character,
-                  text: (dialogueLines[0].text || dialogueLines[0].line || '').substring(0, 50)
-                });
-
-                const batches: DialogueLine[][] = [];
-                for (let i = 0; i < dialogueLines.length; i += BATCH_SIZE) {
-                  batches.push(dialogueLines.slice(i, i + BATCH_SIZE));
-                }
-
-                console.log(`[Translation] Translating ${batches.length} batches of dialogue`);
-
-                const translatedBatches = await Promise.all(
-                  batches.map(batch => translateDialogueBatch(batch, languageName, organizationId, scriptId))
-                );
-
-                translatedDialogue = translatedBatches.flat();
-
-                // Validate translation
-                console.log(`[Translation] Scene ${scene.scene_number}: Successfully translated ${translatedDialogue.length} dialogue lines`);
-                if (translatedDialogue.length !== dialogueLines.length) {
-                  console.error(`[Translation] ERROR: Dialogue count mismatch! Original: ${dialogueLines.length}, Translated: ${translatedDialogue.length}`);
-                }
-
-                // Log sample of translated result
-                if (translatedDialogue.length > 0) {
-                  console.log(`[Translation] Sample translated dialogue:`, {
-                    character: translatedDialogue[0].character,
-                    text: (translatedDialogue[0].text || translatedDialogue[0].line || '').substring(0, 50)
-                  });
-                }
-              } else if (scene.dialogue.length > 0) {
-                console.warn(`[Translation] Scene ${scene.scene_number}: No dialogue lines found with valid text/line properties.`);
-                console.warn(`[Translation] Original dialogue structure:`, JSON.stringify(scene.dialogue[0], null, 2));
-              }
-            } else {
-              console.warn(`[Translation] Scene ${scene.scene_number}: Dialogue is not an array, type is: ${typeof scene.dialogue}`);
-            }
-          } else {
-            console.log(`[Translation] Scene ${scene.scene_number}: No dialogue to translate`);
-          }
-
-          // Translate stage directions
-          const translatedStageDirections = scene.stage_directions
-            ? await this.translateText(
-                scene.stage_directions,
-                languageName,
-                'These are stage directions. Translate them completely.',
-                organizationId,
-                scriptId
-              )
+          const translatedNotes = act.notes
+            ? await this.translateText(act.notes, languageName, 'These are act notes', organizationId, scriptId)
             : null;
 
-          if (translatedStageDirections) {
-            console.log(`[Translation] Stage directions translated: "${translatedStageDirections.substring(0, 50)}..."`);
-          }
-
-          // Save to database
-          console.log(`[Translation] Saving translations to database for scene ${scene.scene_number}`);
-          const { error: upsertError } = await supabase.from('script_scene_translations').upsert({
-            scene_id: scene.id,
+          await supabase.from('script_act_translations').upsert({
+            act_id: act.id,
             language_code: languageCode,
-            translated_setting: translatedSetting,
-            translated_description: translatedDescription,
-            translated_dialogue: translatedDialogue,
-            translated_stage_directions: translatedStageDirections
+            translated_content: translatedContent,
+            translated_notes: translatedNotes
           });
 
-          if (upsertError) {
-            console.error(`[Translation] ERROR saving scene ${scene.scene_number} translations:`, upsertError);
-            throw upsertError;
-          } else {
-            console.log(`[Translation] Successfully saved scene ${scene.scene_number} translations`);
-          }
-
           updateProgress();
+        } catch (actError) {
+          console.error(`[Translation] ERROR in Act ${act.act_number}:`, actError);
+          throw new Error(`Act ${act.act_number} failed: ${actError instanceof Error ? actError.message : 'Unknown error'}`);
+        }
+
+        for (const scene of act.scenes) {
+          try {
+            console.log(`\n[Translation] === Translating Scene ${scene.scene_number} ===`);
+
+            // Translate setting
+            console.log(`[Translation] Setting (original): "${(scene.setting || '').substring(0, 50)}..."`);
+            let translatedSetting = '';
+            try {
+              translatedSetting = await this.translateText(
+                scene.setting || '',
+                languageName,
+                'This is a scene setting/location description. Translate it completely.',
+                organizationId,
+                scriptId
+              );
+              console.log(`[Translation] Setting (translated): "${translatedSetting.substring(0, 50)}..."`);
+            } catch (error) {
+              console.error(`[Translation] ERROR translating setting for scene ${scene.scene_number}:`, error);
+              throw new Error(`Failed to translate setting for scene ${scene.scene_number}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            }
+
+            // Translate description
+            console.log(`[Translation] Description (original): "${(scene.description || '').substring(0, 50)}..."`);
+            let translatedDescription = '';
+            try {
+              translatedDescription = await this.translateText(
+                scene.description || '',
+                languageName,
+                'This is a scene description. Translate it completely.',
+                organizationId,
+                scriptId
+              );
+              console.log(`[Translation] Description (translated): "${translatedDescription.substring(0, 50)}..."`);
+            } catch (error) {
+              console.error(`[Translation] ERROR translating description for scene ${scene.scene_number}:`, error);
+              throw new Error(`Failed to translate description for scene ${scene.scene_number}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            }
+
+            // Translate dialogue
+            let translatedDialogue = scene.dialogue;
+            console.log(`[Translation] Processing dialogue for scene ${scene.scene_number}`);
+            console.log(`[Translation] Dialogue type: ${typeof scene.dialogue}, isArray: ${Array.isArray(scene.dialogue)}`);
+
+            if (scene.dialogue && typeof scene.dialogue === 'object') {
+              if (Array.isArray(scene.dialogue)) {
+                console.log(`[Translation] Found array with ${scene.dialogue.length} items`);
+
+                const dialogueLines: DialogueLine[] = scene.dialogue.filter(
+                  (line: any) => typeof line === 'object' && (line.text || line.line)
+                );
+
+                console.log(`[Translation] Scene ${scene.scene_number}: Filtered to ${dialogueLines.length} valid dialogue lines`);
+
+                if (dialogueLines.length > 0) {
+                  try {
+                    // Log sample of what we're translating
+                    console.log(`[Translation] Sample dialogue line:`, {
+                      character: dialogueLines[0].character,
+                      text: (dialogueLines[0].text || dialogueLines[0].line || '').substring(0, 50)
+                    });
+
+                    const batches: DialogueLine[][] = [];
+                    for (let i = 0; i < dialogueLines.length; i += BATCH_SIZE) {
+                      batches.push(dialogueLines.slice(i, i + BATCH_SIZE));
+                    }
+
+                    console.log(`[Translation] Translating ${batches.length} batches of dialogue`);
+
+                    const translatedBatches = await Promise.all(
+                      batches.map(batch => translateDialogueBatch(batch, languageName, organizationId, scriptId))
+                    );
+
+                    translatedDialogue = translatedBatches.flat();
+
+                    // Validate translation
+                    console.log(`[Translation] Scene ${scene.scene_number}: Successfully translated ${translatedDialogue.length} dialogue lines`);
+                    if (translatedDialogue.length !== dialogueLines.length) {
+                      console.error(`[Translation] ERROR: Dialogue count mismatch! Original: ${dialogueLines.length}, Translated: ${translatedDialogue.length}`);
+                    }
+
+                    // Log sample of translated result
+                    if (translatedDialogue.length > 0) {
+                      console.log(`[Translation] Sample translated dialogue:`, {
+                        character: translatedDialogue[0].character,
+                        text: (translatedDialogue[0].text || translatedDialogue[0].line || '').substring(0, 50)
+                      });
+                    }
+                  } catch (error) {
+                    console.error(`[Translation] ERROR translating dialogue for scene ${scene.scene_number}:`, error);
+                    throw new Error(`Failed to translate dialogue for scene ${scene.scene_number}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                  }
+                } else if (scene.dialogue.length > 0) {
+                  console.warn(`[Translation] Scene ${scene.scene_number}: No dialogue lines found with valid text/line properties.`);
+                  console.warn(`[Translation] Original dialogue structure:`, JSON.stringify(scene.dialogue[0], null, 2));
+                }
+              } else {
+                console.warn(`[Translation] Scene ${scene.scene_number}: Dialogue is not an array, type is: ${typeof scene.dialogue}`);
+              }
+            } else {
+              console.log(`[Translation] Scene ${scene.scene_number}: No dialogue to translate`);
+            }
+
+            // Translate stage directions
+            let translatedStageDirections = null;
+            if (scene.stage_directions) {
+              try {
+                translatedStageDirections = await this.translateText(
+                  scene.stage_directions,
+                  languageName,
+                  'These are stage directions. Translate them completely.',
+                  organizationId,
+                  scriptId
+                );
+                console.log(`[Translation] Stage directions translated: "${translatedStageDirections.substring(0, 50)}..."`);
+              } catch (error) {
+                console.error(`[Translation] ERROR translating stage directions for scene ${scene.scene_number}:`, error);
+                throw new Error(`Failed to translate stage directions for scene ${scene.scene_number}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+              }
+            }
+
+            // Save to database
+            console.log(`[Translation] Saving translations to database for scene ${scene.scene_number}`);
+            try {
+              const { error: upsertError } = await supabase.from('script_scene_translations').upsert({
+                scene_id: scene.id,
+                language_code: languageCode,
+                translated_setting: translatedSetting,
+                translated_description: translatedDescription,
+                translated_dialogue: translatedDialogue,
+                translated_stage_directions: translatedStageDirections
+              });
+
+              if (upsertError) {
+                console.error(`[Translation] ERROR saving scene ${scene.scene_number} translations:`, upsertError);
+                throw upsertError;
+              } else {
+                console.log(`[Translation] Successfully saved scene ${scene.scene_number} translations`);
+              }
+            } catch (error) {
+              console.error(`[Translation] ERROR saving to database for scene ${scene.scene_number}:`, error);
+              throw new Error(`Failed to save translations for scene ${scene.scene_number}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            }
+
+            updateProgress();
+          } catch (sceneError) {
+            console.error(`[Translation] CRITICAL ERROR in scene ${scene.scene_number}:`, sceneError);
+            throw new Error(`Scene ${scene.scene_number} failed: ${sceneError instanceof Error ? sceneError.message : 'Unknown error'}`);
+          }
         }
       }
 
@@ -575,14 +610,39 @@ export class ScriptTranslationService {
 
       return { success: true };
     } catch (error) {
-      console.error('Translation error:', error);
-      let errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error('\n========================================');
+      console.error('[Translation] TRANSLATION FAILED');
+      console.error('========================================');
+      console.error('[Translation] Error details:', error);
 
-      if (errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('RESOURCE_EXHAUSTED')) {
-        errorMessage = 'Translation failed: Gemini API quota exceeded. Please try again later or contact support if the issue persists. Using Gemini 2.5 Flash model.';
-      } else if (errorMessage.includes('API error')) {
-        errorMessage = `Translation service error: ${errorMessage}. Please check your API configuration.`;
+      if (error instanceof Error) {
+        console.error('[Translation] Error name:', error.name);
+        console.error('[Translation] Error message:', error.message);
+        console.error('[Translation] Error stack:', error.stack);
       }
+
+      let errorMessage = 'Translation failed: ';
+
+      if (error instanceof Error) {
+        // Check for specific error types
+        if (error.message.includes('429') || error.message.includes('quota') || error.message.includes('RESOURCE_EXHAUSTED')) {
+          errorMessage += 'Gemini API quota exceeded. Please try again in a few minutes. The service uses Gemini 2.5 Flash which has rate limits.';
+        } else if (error.message.includes('INVALID_ARGUMENT')) {
+          errorMessage += 'Invalid request to Gemini API. This might be due to content length or formatting issues.';
+        } else if (error.message.includes('DEADLINE_EXCEEDED') || error.message.includes('timeout')) {
+          errorMessage += 'Request timed out. The translation is taking too long. Try translating in smaller batches.';
+        } else if (error.message.includes('PERMISSION_DENIED')) {
+          errorMessage += 'API authentication failed. Please check your Gemini API key in settings.';
+        } else if (error.message.includes('fetch')) {
+          errorMessage += 'Network error. Please check your internet connection and try again.';
+        } else {
+          errorMessage += error.message;
+        }
+      } else {
+        errorMessage += 'Unknown error occurred. Please check the console for details.';
+      }
+
+      console.error('[Translation] User-friendly error message:', errorMessage);
 
       // Get the translation record to find its ID
       const { data: translationRecord } = await supabase
@@ -603,6 +663,8 @@ export class ScriptTranslationService {
           })
           .eq('id', translationRecord.id);
       }
+
+      console.error('========================================\n');
 
       return { success: false, error: errorMessage };
     }

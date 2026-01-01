@@ -1202,20 +1202,46 @@ export async function generateText(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(`Gemini API error: ${response.status} ${response.statusText}. ${JSON.stringify(errorData)}`);
+      console.error('[Gemini API] Error response:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorData
+      });
+
+      // Parse Gemini-specific error codes
+      if (response.status === 429) {
+        throw new Error('RESOURCE_EXHAUSTED: Gemini API rate limit exceeded. Please wait a few minutes and try again.');
+      } else if (response.status === 400) {
+        throw new Error(`INVALID_ARGUMENT: ${JSON.stringify(errorData)}`);
+      } else if (response.status === 401 || response.status === 403) {
+        throw new Error(`PERMISSION_DENIED: API key is invalid or lacks permissions`);
+      } else if (response.status === 503) {
+        throw new Error('SERVICE_UNAVAILABLE: Gemini service is temporarily unavailable. Please try again later.');
+      }
+
+      throw new Error(`Gemini API error (${response.status}): ${response.statusText}. ${JSON.stringify(errorData)}`);
     }
 
     const data = await response.json();
 
     if (!data.candidates || data.candidates.length === 0) {
-      throw new Error('No response generated from Gemini');
+      console.error('[Gemini API] No candidates in response:', data);
+      throw new Error('No response generated from Gemini. The API may have blocked the content.');
     }
 
     const textContent = data.candidates[0].content.parts[0].text;
     return textContent;
 
   } catch (error) {
+    console.error('[Gemini API] Exception during text generation:', error);
     if (error instanceof Error) {
+      // Don't wrap the error if it's already a Gemini error
+      if (error.message.includes('RESOURCE_EXHAUSTED') ||
+          error.message.includes('INVALID_ARGUMENT') ||
+          error.message.includes('PERMISSION_DENIED') ||
+          error.message.includes('SERVICE_UNAVAILABLE')) {
+        throw error;
+      }
       throw new Error(`Text generation failed: ${error.message}`);
     }
     throw new Error('Text generation failed with unknown error');
