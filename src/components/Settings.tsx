@@ -9,6 +9,7 @@ import { LipSyncSettings } from './LipSyncSettings';
 import { PromptLibrary } from './PromptLibrary';
 import { PatentIntelligenceSettings } from './PatentIntelligenceSettings';
 import { HowToGuide } from './HowToGuide';
+import { WorkspaceSpecificSettings } from './WorkspaceSpecificSettings';
 import { ANIMATION_STYLE_MULTIPLIERS, PRODUCTION_TIER_PRESETS, FREELANCE_TIER_PRESETS, fetchCostConfig, updateCostConfig } from '../services/costCalculationService';
 import type { AnimationStyle, ProductionTier, FreelanceTier, CostConfig } from '../services/costCalculationService';
 import { VEO_MODELS, type VeoModel } from '../services/vertexAIService';
@@ -1481,6 +1482,11 @@ export function Settings() {
               </div>
             )}
           </div>
+
+          <WorkspaceSpecificSettings
+            expanded={workspaceExpanded}
+            onToggle={() => setWorkspaceExpanded(!workspaceExpanded)}
+          />
 
           <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
             <button
