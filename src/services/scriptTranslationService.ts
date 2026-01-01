@@ -176,31 +176,57 @@ ${batchText}`;
     await delay(RATE_LIMIT_DELAY);
     const result = await generateText(prompt);
 
-    console.log(`[Translation] Batch translation result preview: "${result.substring(0, 100)}..."`);
+    console.log(`[Translation] Batch translation FULL result:\n${result}`);
+    console.log(`[Translation] Result length: ${result.length} characters`);
 
-    // Parse all [LINE X] markers from the entire result
+    // Split by [LINE X] markers
+    const lineMarkerRegex = /\[LINE (\d+)\]/g;
+    const markers: Array<{ index: number; lineNum: number }> = [];
+    let match;
+
+    while ((match = lineMarkerRegex.exec(result)) !== null) {
+      markers.push({ index: match.index, lineNum: parseInt(match[1]) });
+    }
+
+    console.log(`[Translation] Found ${markers.length} line markers for ${dialogueLines.length} lines`);
+
     const parsed: DialogueLine[] = [];
 
     for (let i = 0; i < dialogueLines.length; i++) {
       const lineNum = i + 1;
-      // Match this specific line number with flexible whitespace handling
-      const linePattern = new RegExp(`\\[LINE ${lineNum}\\]\\s*([^:]+):\\s*([^\\[]+?)(?=\\[LINE ${lineNum + 1}\\]|$)`, 's');
-      const match = result.match(linePattern);
+      const marker = markers.find(m => m.lineNum === lineNum);
 
-      if (match) {
-        const translatedText = match[2].trim();
+      if (marker) {
+        const startIndex = marker.index;
+        const nextMarker = markers.find(m => m.lineNum === lineNum + 1);
+        const endIndex = nextMarker ? nextMarker.index : result.length;
 
-        // Preserve the original property name (text or line)
-        const resultObj = { ...dialogueLines[i] };
-        if (dialogueLines[i].line !== undefined) {
-          resultObj.line = translatedText;
+        // Extract the content for this line
+        const lineContent = result.substring(startIndex, endIndex);
+
+        // Extract just the dialogue text after the character name
+        const contentMatch = lineContent.match(/\[LINE \d+\]\s*([^:]+):\s*(.+)/s);
+
+        if (contentMatch) {
+          let translatedText = contentMatch[2].trim();
+
+          // Clean up any trailing content before next line marker
+          translatedText = translatedText.replace(/\s*\[LINE \d+\].*$/s, '').trim();
+
+          const resultObj = { ...dialogueLines[i] };
+          if (dialogueLines[i].line !== undefined) {
+            resultObj.line = translatedText;
+          } else {
+            resultObj.text = translatedText;
+          }
+          parsed.push(resultObj);
+          console.log(`[Translation] Line ${i + 1} translated: "${dialogueLines[i].character}": "${translatedText.substring(0, 60)}..."`);
         } else {
-          resultObj.text = translatedText;
+          console.warn(`[Translation] Could not parse line ${i + 1}, keeping original`);
+          parsed.push(dialogueLines[i]);
         }
-        parsed.push(resultObj);
-        console.log(`[Translation] Line ${i + 1} translated: "${dialogueLines[i].character}": "${translatedText.substring(0, 40)}..."`);
       } else {
-        console.warn(`[Translation] Missing translation for line ${i + 1}, keeping original`);
+        console.warn(`[Translation] Missing marker for line ${i + 1}, keeping original`);
         parsed.push(dialogueLines[i]);
       }
     }
