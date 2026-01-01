@@ -60,32 +60,21 @@ export function ScriptTranslationManager({ scriptId, scriptTitle }: ScriptTransl
     for (const lang of languages) {
       if (lang.code !== 'en') {
         const status = await ScriptTranslationService.getTranslationStatus(scriptId, lang.code);
-        console.log(`[TranslationManager] Status for ${lang.code}:`, status);
-
         if (status) {
           statuses.set(lang.code, status);
 
           // Check if translation is incomplete (completed but has no content)
           if (status.status === 'completed') {
             const content = await ScriptTranslationService.getTranslatedScript(scriptId, lang.code);
-            console.log(`[TranslationManager] Content for ${lang.code}:`, content ? 'found' : 'not found');
-
             if (content && content.acts) {
               let hasDialogue = false;
-              let totalDialogueCount = 0;
-
               for (const act of content.acts) {
-                console.log(`[TranslationManager] ${lang.code} Act ${act.act_number}: ${act.scenes?.length || 0} scenes`);
-
                 for (const scene of act.scenes) {
                   if (scene.dialogue && Array.isArray(scene.dialogue) && scene.dialogue.length > 0) {
-                    totalDialogueCount += scene.dialogue.length;
                     const hasText = scene.dialogue.some((line: any) => {
                       const text = line.text || line.line || '';
                       return text.trim().length > 0;
                     });
-                    console.log(`[TranslationManager] ${lang.code} Scene ${scene.scene_number}: ${scene.dialogue.length} dialogue, hasText: ${hasText}`);
-
                     if (hasText) {
                       hasDialogue = true;
                       break;
@@ -95,22 +84,14 @@ export function ScriptTranslationManager({ scriptId, scriptTitle }: ScriptTransl
                 if (hasDialogue) break;
               }
 
-              console.log(`[TranslationManager] ${lang.code} Final check: hasDialogue=${hasDialogue}, total=${totalDialogueCount}`);
-
               if (!hasDialogue) {
                 incomplete.add(lang.code);
-                console.warn(`[TranslationManager] Marking ${lang.code} as incomplete - no dialogue found`);
-              } else {
-                console.log(`[TranslationManager] ${lang.code} is complete with dialogue`);
               }
             }
           }
         }
       }
     }
-
-    console.log(`[TranslationManager] Final statuses:`, Array.from(statuses.entries()));
-    console.log(`[TranslationManager] Incomplete translations:`, Array.from(incomplete));
 
     setTranslationStatuses(statuses);
     setIncompleteTranslations(incomplete);

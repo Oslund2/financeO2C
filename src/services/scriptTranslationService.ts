@@ -4,7 +4,7 @@ import { trackGeminiUsage } from './geminiUsageTrackingService';
 
 const RATE_LIMIT_DELAY = parseInt(import.meta.env.VITE_GEMINI_RATE_LIMIT_DELAY || '100', 10);
 const MAX_RETRIES = 3;
-const BATCH_SIZE = 10;
+const BATCH_SIZE = 5;
 
 interface TranslationProgress {
   totalItems: number;
@@ -158,18 +158,19 @@ async function translateDialogueBatch(
   const prompt = `You are translating dialogue from an animated script to ${targetLanguage}.
 
 CRITICAL TRANSLATION RULES:
-1. Translate EVERY dialogue line completely to ${targetLanguage}
-2. Maintain the exact format: [LINE X] CHARACTER: translated dialogue
-3. Preserve ALL character names EXACTLY as shown (Mrs. Higginbottom, Barnaby, Zora, Emma, Chad, Pickle, Sesquipedalian, etc.) - NEVER translate character names
-4. Translate ONLY the dialogue text after the colon, NOT the character names
-5. Keep the line numbers and formatting identical
-6. Return ALL lines, do not skip any
+1. You MUST translate ALL ${dialogueLines.length} dialogue lines completely to ${targetLanguage}
+2. Maintain the EXACT format: [LINE X] CHARACTER: translated dialogue text
+3. Character names (Mrs. Higginbottom, Barnaby, Zora, Emma, Chad, Pickle, Sesquipedalian, etc.) must NEVER be translated - keep them in English
+4. Translate ONLY the dialogue text after the colon
+5. Keep line numbers and formatting IDENTICAL
+6. Return ALL ${dialogueLines.length} lines - do not skip any lines
 
-IMPORTANT: The output MUST be in ${targetLanguage}, not English. Translate every word of dialogue.
+VERIFICATION: Your response must contain exactly ${dialogueLines.length} lines starting with [LINE 1] through [LINE ${dialogueLines.length}].
 
-Only return the translated lines in the exact same format, nothing else.
+IMPORTANT: Every word of dialogue MUST be translated to ${targetLanguage}. Do not leave any dialogue in English.
 
-Dialogue to translate:
+Return ONLY the translated lines in the exact format shown below, with no additional text:
+
 ${batchText}`;
 
   try {
@@ -234,6 +235,18 @@ ${batchText}`;
     if (parsed.length !== dialogueLines.length) {
       console.error(`[Translation] Mismatch in line count: expected ${dialogueLines.length}, got ${parsed.length}`);
       throw new Error('Line count mismatch in batch translation');
+    }
+
+    // Verify all lines were actually translated (not just kept as original)
+    const untranslatedCount = parsed.filter((line, idx) => {
+      const originalText = dialogueLines[idx].text || dialogueLines[idx].line || '';
+      const translatedText = line.text || line.line || '';
+      return originalText === translatedText;
+    }).length;
+
+    if (untranslatedCount > 0) {
+      console.error(`[Translation] ${untranslatedCount} out of ${dialogueLines.length} lines were not translated!`);
+      throw new Error(`${untranslatedCount} lines were not translated in batch`);
     }
 
     return parsed;
