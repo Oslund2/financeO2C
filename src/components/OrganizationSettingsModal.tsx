@@ -783,8 +783,29 @@ export function OrganizationSettingsModal({
                 </div>
               )}
 
+              {!deletionStatus && canDelete && (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <p className="text-sm text-gray-600">Loading deletion status...</p>
+                </div>
+              )}
+
               {canDelete && deletionStatus && (
                 <>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h3 className="font-semibold text-blue-900 mb-2">Workspace Deletion Status</h3>
+                    <div className="text-sm text-blue-800">
+                      {!deletionStatus.is_archived && (
+                        <p>This workspace is <strong>active</strong>. Click the red "Delete Workspace" button below to begin the deletion process.</p>
+                      )}
+                      {deletionStatus.is_archived && !deletionStatus.is_deletion_scheduled && (
+                        <p>This workspace is <strong>archived and ready for deletion</strong>. Scroll down to see the "Delete Immediately" button.</p>
+                      )}
+                      {deletionStatus.is_deletion_scheduled && (
+                        <p>This workspace is <strong>scheduled for permanent deletion</strong>.</p>
+                      )}
+                    </div>
+                  </div>
+
                   {deletionStatus.is_deletion_scheduled && countdown && (
                     <div className="space-y-4">
                       <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-6">
