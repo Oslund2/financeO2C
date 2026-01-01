@@ -1,5 +1,7 @@
 import { supabase } from '../lib/supabase';
 
+type WorkspaceType = 'claymation' | 'photoreal' | null;
+
 export interface CharacterProfile {
   id?: string;
   character_id: string;
@@ -29,6 +31,15 @@ export interface LocationProfile {
   usage_count: number;
 }
 
+async function getOrganizationWorkspaceType(organizationId: string): Promise<WorkspaceType> {
+  const { data } = await supabase
+    .from('organizations')
+    .select('workspace_type')
+    .eq('id', organizationId)
+    .maybeSingle();
+  return data?.workspace_type || 'claymation';
+}
+
 export async function createCharacterProfile(
   characterId: string,
   seriesId: string,
@@ -44,9 +55,19 @@ export async function createCharacterProfile(
     throw new Error('Character not found');
   }
 
-  const canonicalDescription = `${character.name}, ${character.age} years old. ${character.description}. Physical appearance: ${character.clay_features}. Personality: ${character.personality}.`;
+  const workspaceType = await getOrganizationWorkspaceType(organizationId);
+  const isPhotoreal = workspaceType === 'photoreal';
 
-  const promptTemplate = `${character.name} (claymation character): ${character.clay_features}. ${character.personality}. Clay texture visible, stop-motion aesthetic.`;
+  let canonicalDescription: string;
+  let promptTemplate: string;
+
+  if (isPhotoreal) {
+    canonicalDescription = `${character.name}${character.age ? `, ${character.age} years old` : ''}. ${character.description || ''}. Personality: ${character.personality || 'Professional demeanor'}.`;
+    promptTemplate = `${character.name} (documentary subject): ${character.description || ''}. ${character.personality || ''}. Photorealistic, period-accurate appearance.`;
+  } else {
+    canonicalDescription = `${character.name}, ${character.age} years old. ${character.description}. Physical appearance: ${character.clay_features}. Personality: ${character.personality}.`;
+    promptTemplate = `${character.name} (claymation character): ${character.clay_features}. ${character.personality}. Clay texture visible, stop-motion aesthetic.`;
+  }
 
   const { data, error } = await supabase
     .from('character_consistency_profiles')
@@ -146,9 +167,32 @@ export async function createLocationProfile(
   locationName: string,
   description: string
 ): Promise<string> {
-  const canonicalDescription = description || `${locationName}: A typical location in the series' claymation world.`;
+  const workspaceType = await getOrganizationWorkspaceType(organizationId);
+  const isPhotoreal = workspaceType === 'photoreal';
 
-  const promptTemplate = `Location: ${locationName}. ${canonicalDescription} Claymation style, handmade set, visible clay texture.`;
+  let canonicalDescription: string;
+  let promptTemplate: string;
+  let timeVariants: { morning: string; afternoon: string; evening: string; night: string };
+
+  if (isPhotoreal) {
+    canonicalDescription = description || `${locationName}: A historical or documentary location.`;
+    promptTemplate = `Location: ${locationName}. ${canonicalDescription} Photorealistic, period-accurate, cinematic quality.`;
+    timeVariants = {
+      morning: `${canonicalDescription} Early morning light, soft shadows, period-accurate atmosphere.`,
+      afternoon: `${canonicalDescription} Natural daylight, clear visibility, documentary quality.`,
+      evening: `${canonicalDescription} Golden hour, warm cinematic lighting, atmospheric.`,
+      night: `${canonicalDescription} Nighttime, practical lighting sources, period-appropriate illumination.`
+    };
+  } else {
+    canonicalDescription = description || `${locationName}: A typical location in the series' claymation world.`;
+    promptTemplate = `Location: ${locationName}. ${canonicalDescription} Claymation style, handmade set, visible clay texture.`;
+    timeVariants = {
+      morning: `${canonicalDescription} Bright morning sunlight.`,
+      afternoon: `${canonicalDescription} Warm afternoon light.`,
+      evening: `${canonicalDescription} Golden hour lighting.`,
+      night: `${canonicalDescription} Dark with artificial lighting.`
+    };
+  }
 
   const { data, error } = await supabase
     .from('location_consistency_profiles')
@@ -158,12 +202,7 @@ export async function createLocationProfile(
       location_name: locationName,
       canonical_description: canonicalDescription,
       veo3_location_prompt_template: promptTemplate,
-      time_of_day_variants: {
-        morning: `${canonicalDescription} Bright morning sunlight.`,
-        afternoon: `${canonicalDescription} Warm afternoon light.`,
-        evening: `${canonicalDescription} Golden hour lighting.`,
-        night: `${canonicalDescription} Dark with artificial lighting.`
-      },
+      time_of_day_variants: timeVariants,
       reference_image_cloud_storage_uris: [],
       usage_count: 0,
       consistency_score: 0

@@ -56,6 +56,21 @@ const CAMERA_ANGLES = {
   pov: 'Point of view - from character\'s perspective'
 };
 
+type WorkspaceType = 'claymation' | 'photoreal' | null;
+
+const STYLE_PRESETS = {
+  claymation: {
+    base: 'High-quality claymation animation, handcrafted clay characters with visible fingerprint textures, stop-motion aesthetic, tangible 3D miniature sets, soft studio lighting, colorful and whimsical design.',
+    negative: 'photorealistic, live-action, CGI, digital, smooth surfaces, realistic skin, natural photography',
+    character_suffix: 'Clay texture visible, stop-motion aesthetic.'
+  },
+  photoreal: {
+    base: 'Cinematic documentary style, photorealistic quality, professional cinematography, natural lighting, film grain appropriate to era, high production value, broadcast quality.',
+    negative: 'animation, cartoon, claymation, clay texture, stop-motion, anime, illustration, drawing, painting',
+    character_suffix: 'Realistic appearance, period-accurate clothing and styling.'
+  }
+};
+
 export function getGeminiAPIKey() {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
@@ -303,12 +318,17 @@ export async function generateShotDescription(
   scene: Scene,
   script: Script,
   characters: Character[],
-  options: StoryboardGenerationOptions
+  options: StoryboardGenerationOptions,
+  workspaceType?: WorkspaceType
 ): Promise<string> {
   const apiKey = getGeminiAPIKey();
 
+  const isPhotoreal = workspaceType === 'photoreal';
+
   const characterInfo = characters.map(c =>
-    `${c.name}: ${c.description || ''} - ${c.clay_features || 'claymation character'}`
+    isPhotoreal
+      ? `${c.name}: ${c.description || ''} - realistic historical figure/subject`
+      : `${c.name}: ${c.description || ''} - ${c.clay_features || 'claymation character'}`
   ).join('\n');
 
   const charactersInShot = shot.characterPositions
@@ -319,7 +339,29 @@ export async function generateShotDescription(
     ? charactersInShot.join(', ')
     : 'None specified';
 
-  const prompt = `You are a professional storyboard artist for claymation animation. Create a detailed visual description for this shot.
+  const styleContext = isPhotoreal
+    ? `Visual Style: Cinematic documentary with photorealistic quality, professional cinematography, period-accurate visuals. ${options.visualStyle || 'Serious documentary tone suitable for adult general audiences.'}`
+    : `Visual Style: Claymation animation with handcrafted clay characters, tactile textures, and whimsical design. ${options.visualStyle || 'Bright, colorful, educational tone suitable for children ages 6-10.'}`;
+
+  const roleDescription = isPhotoreal
+    ? 'You are a professional cinematographer for historical documentaries. Create a detailed visual description for this shot.'
+    : 'You are a professional storyboard artist for claymation animation. Create a detailed visual description for this shot.';
+
+  const descriptionInstructions = isPhotoreal
+    ? `Create a detailed shot description (2-3 sentences) that includes:
+1. What is visible in the frame - ENSURE ALL LISTED SUBJECTS (${charactersInShotList}) ARE MENTIONED
+2. Subject positions, expressions, and actions
+3. Important props, artifacts, or background elements
+4. Lighting mood, time period atmosphere, and color grading
+5. Any documentary techniques (Ken Burns effect, archival integration, etc.)`
+    : `Create a detailed shot description (2-3 sentences) that includes:
+1. What is visible in the frame - ENSURE ALL LISTED CHARACTERS (${charactersInShotList}) ARE MENTIONED
+2. Character positions, expressions, and actions
+3. Important props or background elements
+4. Lighting mood and color palette
+5. Any special claymation effects or vocabulary word visualizations`;
+
+  const prompt = `${roleDescription}
 
 Script: ${script.title}
 Scene Setting: ${scene.setting || 'Unknown'}
@@ -332,19 +374,14 @@ Shot Details:
 - Dialogue: ${shot.dialogueText || 'None'}
 - Stage Directions: ${shot.stageDirections || 'None'}
 
-IMPORTANT - Characters that MUST be visible in this shot: ${charactersInShotList}
+IMPORTANT - ${isPhotoreal ? 'Subjects' : 'Characters'} that MUST be visible in this shot: ${charactersInShotList}
 
-Characters in this Series:
+${isPhotoreal ? 'Subjects' : 'Characters'} in this Series:
 ${characterInfo}
 
-Visual Style: Claymation animation with handcrafted clay characters, tactile textures, and whimsical design. ${options.visualStyle || 'Bright, colorful, educational tone suitable for children ages 6-10.'}
+${styleContext}
 
-Create a detailed shot description (2-3 sentences) that includes:
-1. What is visible in the frame - ENSURE ALL LISTED CHARACTERS (${charactersInShotList}) ARE MENTIONED
-2. Character positions, expressions, and actions
-3. Important props or background elements
-4. Lighting mood and color palette
-5. Any special claymation effects or vocabulary word visualizations
+${descriptionInstructions}
 
 Shot description:`;
 
@@ -429,19 +466,17 @@ export function buildComprehensiveImagePrompt(
   shot: ShotData,
   sceneContext: SceneContext,
   characters: Character[],
-  useClaymation: boolean = true
+  useClaymation: boolean = true,
+  workspaceType?: WorkspaceType
 ): string {
   const promptSections: string[] = [];
 
-  if (useClaymation) {
-    promptSections.push(
-      'STYLE: High-quality claymation animation, handcrafted clay characters with visible fingerprint textures, stop-motion aesthetic, tangible 3D miniature sets, soft studio lighting, colorful and whimsical design.'
-    );
-  } else {
-    promptSections.push(
-      'STYLE: Professional animation storyboard, clean lines, vibrant colors, production-ready reference.'
-    );
-  }
+  const effectiveWorkspaceType = workspaceType || (useClaymation ? 'claymation' : null);
+  const stylePreset = effectiveWorkspaceType && STYLE_PRESETS[effectiveWorkspaceType]
+    ? STYLE_PRESETS[effectiveWorkspaceType]
+    : STYLE_PRESETS.claymation;
+
+  promptSections.push(`STYLE: ${stylePreset.base}`);
 
   if (sceneContext.setting || sceneContext.description) {
     const sceneLines: string[] = [];
@@ -509,7 +544,11 @@ export function buildComprehensiveImagePrompt(
           }
         }
 
-        if (matchedChar.clay_features) {
+        if (effectiveWorkspaceType === 'photoreal') {
+          if (matchedChar.description) {
+            charParts.push(`VISUAL STYLE: ${stylePreset.character_suffix}`);
+          }
+        } else if (matchedChar.clay_features) {
           charParts.push(`ANIMATION TRAITS: ${matchedChar.clay_features}`);
         }
       }
@@ -558,9 +597,16 @@ export function buildComprehensiveImagePrompt(
     promptSections.push(`TECHNICAL: ${technicalParts.join('. ')}`);
   }
 
-  promptSections.push(
-    'FORMAT: Professional storyboard panel, 16:9 aspect ratio, clear character silhouettes, readable composition.'
-  );
+  if (effectiveWorkspaceType === 'photoreal') {
+    promptSections.push(
+      'FORMAT: Cinematic documentary frame, 16:9 aspect ratio, photorealistic quality, period-accurate visuals, professional cinematography.'
+    );
+    promptSections.push(`NEGATIVE: ${stylePreset.negative}`);
+  } else {
+    promptSections.push(
+      'FORMAT: Professional storyboard panel, 16:9 aspect ratio, clear character silhouettes, readable composition.'
+    );
+  }
 
   return promptSections.join('\n\n');
 }

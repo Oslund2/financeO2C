@@ -2,6 +2,8 @@ import { supabase } from '../lib/supabase';
 import { getCharacterProfilesForShot, getLocationProfileForShot } from './consistencyManagementService';
 import { extractDialogueFromScene, formatDialogueForPrompt, type ExtractedDialogue } from './dialogueExtractionService';
 
+type WorkspaceType = 'claymation' | 'photoreal' | null;
+
 export interface PromptComponents {
   subject: string;
   action: string;
@@ -24,21 +26,43 @@ export interface GeneratedPrompt {
 
 const CLAYMATION_STYLE_BASE = 'Claymation animation style, stop-motion aesthetic, clay texture visible on all surfaces, handmade appearance, physical clay models, tangible materials';
 
-const NEGATIVE_PROMPTS = [
-  'CGI',
-  'digital rendering',
-  '3D computer graphics',
-  'smooth surfaces',
-  'photorealistic',
-  'live action',
-  'blurry',
-  'low quality',
-  'distorted',
-  'watermark',
-  'background music',
-  'musical score',
-  'soundtrack'
-].join(', ');
+const PHOTOREAL_STYLE_BASE = 'Cinematic documentary style, photorealistic quality, professional cinematography, natural lighting, period-accurate visuals, film grain appropriate to era, broadcast quality';
+
+const NEGATIVE_PROMPTS = {
+  claymation: [
+    'CGI',
+    'digital rendering',
+    '3D computer graphics',
+    'smooth surfaces',
+    'photorealistic',
+    'live action',
+    'blurry',
+    'low quality',
+    'distorted',
+    'watermark',
+    'background music',
+    'musical score',
+    'soundtrack'
+  ].join(', '),
+  photoreal: [
+    'animation',
+    'cartoon',
+    'claymation',
+    'clay texture',
+    'stop-motion',
+    'anime',
+    'illustration',
+    'drawing',
+    'painting',
+    'blurry',
+    'low quality',
+    'distorted',
+    'watermark',
+    'background music',
+    'musical score',
+    'soundtrack'
+  ].join(', ')
+};
 
 const AUDIO_DIRECTIVES = 'NO MUSIC. Dialogue and natural sound effects only. Music will be added in post-production.';
 
@@ -109,17 +133,23 @@ function getLightingForTimeAndLocation(timeOfDay?: string, isInterior?: boolean)
 
 export async function generatePromptForShot(
   shotPlanId: string,
-  timeOfDay?: string
+  timeOfDay?: string,
+  workspaceType?: WorkspaceType
 ): Promise<GeneratedPrompt> {
   const { data: shot, error: shotError } = await supabase
     .from('production_shot_plans')
-    .select('*, series:series_id(*)')
+    .select('*, series:series_id(*, organization:organization_id(workspace_type))')
     .eq('id', shotPlanId)
     .single();
 
   if (shotError || !shot) {
     throw shotError || new Error('Shot not found');
   }
+
+  const effectiveWorkspaceType = workspaceType
+    || shot.series?.organization?.workspace_type
+    || 'claymation';
+  const isPhotoreal = effectiveWorkspaceType === 'photoreal';
 
   const characterProfiles = await getCharacterProfilesForShot(shotPlanId);
   const locationProfile = await getLocationProfileForShot(shotPlanId);
@@ -163,13 +193,16 @@ export async function generatePromptForShot(
     dialoguePromptText = formatDialogueForPrompt(dialogueExtracted);
   }
 
+  const styleBase = isPhotoreal ? PHOTOREAL_STYLE_BASE : CLAYMATION_STYLE_BASE;
+  const defaultSubject = isPhotoreal ? 'documentary subjects' : 'claymation characters';
+
   const components: PromptComponents = {
-    subject: characterDescriptions || 'claymation characters',
+    subject: characterDescriptions || defaultSubject,
     action: actionDescription,
     environment: locationDescription,
     camera: cameraInstruction,
     lighting: lightingInstruction,
-    style: [CLAYMATION_STYLE_BASE, seriesStyle].filter(Boolean).join('. '),
+    style: [styleBase, seriesStyle].filter(Boolean).join('. '),
     audio: AUDIO_DIRECTIVES,
     dialogue: dialoguePromptText
   };
@@ -194,9 +227,11 @@ export async function generatePromptForShot(
     ? characterProfiles[0].reference_image_cloud_storage_uris[0]
     : undefined;
 
+  const negativePrompt = isPhotoreal ? NEGATIVE_PROMPTS.photoreal : NEGATIVE_PROMPTS.claymation;
+
   return {
     veo3_prompt_text: promptText,
-    negative_prompt: NEGATIVE_PROMPTS,
+    negative_prompt: negativePrompt,
     style_directives: components.style,
     audio_cues: AUDIO_DIRECTIVES,
     dialogue_cues: dialogueExtracted?.lines || [],
@@ -251,8 +286,9 @@ export async function savePromptForShot(
   return data.id;
 }
 
-export function validatePrompt(promptText: string): string[] {
+export function validatePrompt(promptText: string, workspaceType?: WorkspaceType): string[] {
   const errors: string[] = [];
+  const isPhotoreal = workspaceType === 'photoreal';
 
   if (!promptText || promptText.trim().length === 0) {
     errors.push('Prompt text is empty');
@@ -280,8 +316,17 @@ export function validatePrompt(promptText: string): string[] {
     }
   });
 
-  if (!promptText.toLowerCase().includes('clay')) {
-    errors.push('Warning: Prompt should include claymation/clay reference for style consistency');
+  if (isPhotoreal) {
+    if (lowerPrompt.includes('claymation') || lowerPrompt.includes('clay texture') || lowerPrompt.includes('stop-motion')) {
+      errors.push('Warning: Prompt contains animation references in a photoreal workspace');
+    }
+    if (!lowerPrompt.includes('documentary') && !lowerPrompt.includes('cinematic') && !lowerPrompt.includes('photorealistic')) {
+      errors.push('Warning: Prompt should include documentary/cinematic reference for style consistency');
+    }
+  } else {
+    if (!lowerPrompt.includes('clay')) {
+      errors.push('Warning: Prompt should include claymation/clay reference for style consistency');
+    }
   }
 
   return errors;

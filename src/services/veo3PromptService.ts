@@ -1,6 +1,8 @@
 import { supabase } from '../lib/supabase';
 import type { DialogueLine } from './dialogueExtractionService';
 
+type WorkspaceType = 'claymation' | 'photoreal' | null;
+
 export interface Veo3PromptConfig {
   shot_type: string;
   camera_angle: string;
@@ -13,6 +15,7 @@ export interface Veo3PromptConfig {
   props: string[];
   dialogue_content?: DialogueLine[];
   no_music?: boolean;
+  workspaceType?: WorkspaceType;
 }
 
 export interface GeneratedPrompt {
@@ -24,18 +27,42 @@ export interface GeneratedPrompt {
   location_reference: string;
 }
 
-const CLAYMATION_STYLE = 'Claymation style animation with tactile clay textures, hand-crafted aesthetic, stop-motion feel, warm lighting, detailed clay surfaces';
+const STYLE_CONFIGS = {
+  claymation: {
+    base: 'Claymation style animation with tactile clay textures, hand-crafted aesthetic, stop-motion feel, warm lighting, detailed clay surfaces',
+    directives: 'Maintain consistent claymation aesthetic, preserve character proportions, ensure proper lighting continuity, avoid anachronistic elements',
+    negative: [
+      'photorealistic',
+      'live-action',
+      'CGI',
+      'smooth 3D rendering',
+      'plastic appearance',
+      'digital artifacts',
+      'motion blur',
+      'lens flare'
+    ]
+  },
+  photoreal: {
+    base: 'Cinematic documentary style, photorealistic quality, professional cinematography, natural lighting, film grain appropriate to era, broadcast quality, period-accurate visuals',
+    directives: 'Maintain documentary aesthetic, ensure period accuracy, use cinematic camera movements, natural color grading, professional lighting continuity',
+    negative: [
+      'animation',
+      'cartoon',
+      'claymation',
+      'clay texture',
+      'stop-motion',
+      'anime',
+      'illustration',
+      'drawing',
+      'digital artifacts',
+      'oversaturated'
+    ]
+  }
+};
 
-const NEGATIVE_PROMPTS = [
-  'photorealistic',
-  'live-action',
-  'CGI',
-  'smooth 3D rendering',
-  'plastic appearance',
-  'digital artifacts',
-  'motion blur',
-  'lens flare'
-];
+const CLAYMATION_STYLE = STYLE_CONFIGS.claymation.base;
+
+const NEGATIVE_PROMPTS = STYLE_CONFIGS.claymation.negative;
 
 function buildCameraDirective(shotType: string, angle: string, movement: string): string {
   const directives: string[] = [];
@@ -168,40 +195,50 @@ function extractAudioCues(
 }
 
 export function generateVeo3Prompt(config: Veo3PromptConfig): GeneratedPrompt {
+  const workspaceType = config.workspaceType || 'claymation';
+  const styleConfig = STYLE_CONFIGS[workspaceType] || STYLE_CONFIGS.claymation;
+  const isPhotoreal = workspaceType === 'photoreal';
+
   const cameraDirective = buildCameraDirective(
     config.shot_type,
     config.camera_angle,
     config.camera_movement
   );
 
-  const characterDesc = buildCharacterDescription(config.characters);
+  const characterDesc = isPhotoreal
+    ? buildSubjectDescription(config.characters)
+    : buildCharacterDescription(config.characters);
 
   const locationDesc = config.location ? `in ${config.location}` : '';
 
   const propsDesc = config.props.length > 0
-    ? `with props: ${config.props.join(', ')}`
+    ? `with ${isPhotoreal ? 'artifacts/elements' : 'props'}: ${config.props.join(', ')}`
     : '';
 
   const dialogueSection = config.dialogue_content && config.dialogue_content.length > 0
     ? formatDialogueForPrompt(config.dialogue_content)
     : '';
 
+  const technicalDetails = isPhotoreal
+    ? 'professional cinematography, period-accurate details'
+    : 'detailed textures and lighting';
+
   const promptParts: string[] = [
-    CLAYMATION_STYLE,
+    styleConfig.base,
     cameraDirective,
     characterDesc,
     locationDesc,
     config.narrative_description.substring(0, 200),
     propsDesc,
-    'detailed textures and lighting',
+    technicalDetails,
     'cinematic composition'
   ].filter(p => p);
 
   const veo3_prompt_text = promptParts.join(', ') + '.' + dialogueSection;
 
-  const negative_prompt = NEGATIVE_PROMPTS.join(', ');
+  const negative_prompt = styleConfig.negative.join(', ');
 
-  const style_directives = 'Maintain consistent claymation aesthetic, preserve character proportions, ensure proper lighting continuity, avoid anachronistic elements';
+  const style_directives = styleConfig.directives;
 
   const audio_cues = extractAudioCues(
     config.narrative_description,
@@ -218,6 +255,13 @@ export function generateVeo3Prompt(config: Veo3PromptConfig): GeneratedPrompt {
     character_references: config.characters,
     location_reference: config.location
   };
+}
+
+function buildSubjectDescription(subjects: string[]): string {
+  if (subjects.length === 0) return '';
+  if (subjects.length === 1) return `featuring ${subjects[0]}`;
+  if (subjects.length === 2) return `featuring ${subjects[0]} and ${subjects[1]}`;
+  return `featuring ${subjects.slice(0, -1).join(', ')}, and ${subjects[subjects.length - 1]}`;
 }
 
 export async function generatePromptsForShots(

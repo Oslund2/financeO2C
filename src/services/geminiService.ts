@@ -1,6 +1,8 @@
 import type { ProgramFormatConfig } from '../types/formatConfig';
 import { calculateTotalBreakTime, formatTimecode as formatTimecodeUtil } from '../types/formatConfig';
 
+type WorkspaceType = 'claymation' | 'photoreal' | null;
+
 interface Character {
   id: string;
   name: string;
@@ -8,6 +10,14 @@ interface Character {
   role: string;
   voice_id?: string;
   image_url?: string;
+}
+
+interface PhotorealScriptOptions {
+  historicalPeriod?: string;
+  keyFigures?: string;
+  documentaryStyle?: 'narrative' | 'biographical' | 'investigative' | 'archival';
+  includeCitations?: boolean;
+  tone?: string;
 }
 
 interface VocabularyWord {
@@ -449,18 +459,290 @@ CRITICAL REMINDERS
 Generate the complete script now with ALL segments and scenes filled in:`;
 }
 
+function buildPhotorealScriptPrompt(
+  episode: Episode,
+  characters: Character[],
+  options: GenerationOptions,
+  formatConfig?: ProgramFormatConfig,
+  photorealOptions?: PhotorealScriptOptions
+): string {
+  const { tone } = { ...DEFAULT_OPTIONS, ...options };
+
+  const config = formatConfig || {
+    program_length_minutes: 22,
+    total_episode_minutes: 30,
+    break_structure: {
+      segment_count: 4,
+      break_positions: ['00:05:30', '00:11:00', '00:16:30'],
+      break_durations: [120, 120, 120],
+      break_types: ['commercial', 'commercial', 'commercial'],
+      end_break_duration: 120,
+    },
+    format_type: 'broadcast',
+    content_only_seconds: 22 * 60,
+    total_seconds: 30 * 60,
+  };
+
+  const totalBreakSeconds = calculateTotalBreakTime(config.break_structure);
+  const contentSeconds = config.content_only_seconds;
+  const totalMinutes = config.total_episode_minutes;
+  const segmentCount = config.break_structure.segment_count;
+
+  const openingStingSeconds = 60;
+  const closingStingSeconds = 30;
+
+  const openTime = formatTimecodeUtil(openingStingSeconds);
+  const closeTime = formatTimecodeUtil((totalMinutes * 60) - closingStingSeconds);
+
+  const segmentDurations: number[] = [];
+  if (segmentCount === 1) {
+    segmentDurations.push(contentSeconds);
+  } else {
+    const baseSegmentSeconds = Math.floor(contentSeconds / segmentCount);
+    const lastSegmentExtra = contentSeconds - (baseSegmentSeconds * (segmentCount - 1));
+    for (let i = 0; i < segmentCount - 1; i++) {
+      segmentDurations.push(baseSegmentSeconds);
+    }
+    segmentDurations.push(lastSegmentExtra);
+  }
+
+  let currentTimecode = openingStingSeconds;
+  const chapterTimings: Array<{
+    chapterNumber: number;
+    title: string;
+    startTimecode: string;
+    endTimecode: string;
+    durationSeconds: number;
+    breakAfter: boolean;
+    breakDuration?: number;
+  }> = [];
+
+  const chapterTitles = [
+    'Opening Hook',
+    'Historical Context',
+    'Key Events',
+    'Analysis & Impact',
+    'Legacy & Conclusion'
+  ];
+
+  for (let i = 0; i < segmentCount; i++) {
+    const startTC = currentTimecode;
+    currentTimecode += segmentDurations[i];
+    const endTC = currentTimecode;
+
+    const hasBreak = i < config.break_structure.break_durations.length;
+    const breakDuration = hasBreak ? config.break_structure.break_durations[i] : 0;
+
+    chapterTimings.push({
+      chapterNumber: i + 1,
+      title: chapterTitles[i] || `Chapter ${i + 1}`,
+      startTimecode: formatTimecodeUtil(startTC),
+      endTimecode: formatTimecodeUtil(endTC),
+      durationSeconds: segmentDurations[i],
+      breakAfter: hasBreak,
+      breakDuration,
+    });
+
+    if (hasBreak) {
+      currentTimecode += breakDuration;
+    }
+  }
+
+  const historicalFiguresSection = characters.length > 0
+    ? `\nHistorical Figures/Interview Subjects:\n${characters.map(c => `- ${c.name}: ${c.personality_traits.join(', ')}`).join('\n')}`
+    : '';
+
+  const keyFiguresSection = photorealOptions?.keyFigures
+    ? `\nKey Historical Figures to Feature: ${photorealOptions.keyFigures}`
+    : '';
+
+  const periodSection = photorealOptions?.historicalPeriod
+    ? `\nHistorical Period: ${photorealOptions.historicalPeriod}`
+    : '';
+
+  const documentaryStyleMap: Record<string, string> = {
+    narrative: 'Story-driven documentary with dramatic narrative arc, emotional beats, and engaging storytelling',
+    biographical: 'Focus on the life and impact of key historical figures, personal stories and legacy',
+    investigative: 'Uncovering hidden history, presenting multiple perspectives, evidence-based analysis',
+    archival: 'Primary source centered, heavy use of historical records, documents, and artifacts'
+  };
+
+  const styleDescription = documentaryStyleMap[photorealOptions?.documentaryStyle || 'narrative'];
+
+  const toneMap: Record<string, string> = {
+    balanced: 'Objective and measured, presenting facts without sensationalism',
+    somber: 'Respectful and contemplative, acknowledging the weight of historical events',
+    triumphant: 'Inspiring and uplifting, celebrating achievements and progress',
+    analytical: 'Academic and detailed, thorough examination of causes and effects'
+  };
+
+  const toneDescription = toneMap[photorealOptions?.tone || 'balanced'];
+
+  return `You are a professional documentary scriptwriter specializing in historical documentaries for premium streaming platforms.
+
+Episode Information:
+- Title: ${episode.title}
+- Synopsis: ${episode.synopsis || 'To be determined based on historical research'}
+- Theme: ${episode.theme || 'Historical documentary'}
+- Target Audience: Adult general audience interested in history
+${periodSection}
+${keyFiguresSection}
+${historicalFiguresSection}
+
+DOCUMENTARY STYLE: ${styleDescription}
+TONE: ${toneDescription}
+
+================================================================================
+DOCUMENTARY SCRIPT STRUCTURE (CHAPTER-BASED FORMAT)
+================================================================================
+
+This is a HISTORICAL DOCUMENTARY, NOT animated children's content.
+- Use [NARRATOR] as the primary voice throughout
+- Historical figures speak through [ARCHIVAL] quotes or [DRAMATIZATION] recreations
+- Include [B-ROLL] markers for visual cutaway suggestions
+${photorealOptions?.includeCitations ? '- Include [CITATION: source] markers for factual claims that need verification' : ''}
+
+Total Episode TRT: ${formatTimecodeUtil(totalMinutes * 60)} (${totalMinutes * 60} seconds)
+- Opening Sting: ${formatTimecodeUtil(openingStingSeconds)} (${openingStingSeconds} seconds) - NOT part of script
+- Closing Sting: ${formatTimecodeUtil(closingStingSeconds)} (${closingStingSeconds} seconds) - NOT part of script
+- Content: ${formatTimecodeUtil(contentSeconds)} (${contentSeconds} seconds) - YOUR SCRIPT FILLS THIS
+
+OPEN TIME: ${openTime} | CLOSE TIME: ${closeTime}
+
+${segmentCount > 1 ? `The content includes ${config.break_structure.break_durations.length} BREAK${config.break_structure.break_durations.length > 1 ? 'S' : ''} (${Math.floor(totalBreakSeconds / 60)}:${(totalBreakSeconds % 60).toString().padStart(2, '0')} total).` : 'This is a CONTINUOUS format with NO commercial breaks.'}
+
+CHAPTER STRUCTURE:
+${chapterTimings.map((ch, idx) => `${idx + 1}. CHAPTER ${ch.chapterNumber}: "${ch.title}" - ${formatTimecodeUtil(ch.durationSeconds)} (${ch.durationSeconds} seconds)
+   - Timecode: ${ch.startTimecode} to ${ch.endTimecode}${ch.breakAfter ? `\n   - [BREAK: ${Math.floor(ch.breakDuration! / 60)} minutes]` : ''}`).join('\n\n')}
+
+================================================================================
+DOCUMENTARY DIALOGUE FORMATTING
+================================================================================
+
+Use these dialogue markers:
+- [NARRATOR]: Main documentary narrator voice - authoritative, engaging, professional
+- [ARCHIVAL]: Direct quotes from historical figures (sourced from documents, speeches, letters)
+- [DRAMATIZATION]: Recreated dialogue for dramatic scenes (clearly labeled as interpretation)
+- [INTERVIEW]: Modern expert or witness interviews (if applicable)
+
+Each dialogue entry should include:
+- character: The speaker type (NARRATOR, ARCHIVAL, DRAMATIZATION, or character name)
+- line: The spoken text
+- stage_direction: Visual context or B-roll suggestions
+
+================================================================================
+SCENE REQUIREMENTS FOR PHOTOREAL VIDEO GENERATION
+================================================================================
+
+- Location descriptions should be historically accurate for the period
+- Include specific visual references: real places, period-accurate settings, archival imagery
+- Mark scenes with "reusable_setup": true for recurring locations
+- Include "location" field with specific historical locations
+- Include "time_of_day" and "period_date" for historical accuracy
+- List any "historical_figures_present" in each scene
+- Each scene needs substantial narration with supporting visuals
+
+SCENE VISUAL STYLE NOTES:
+- Describe scenes for PHOTOREAL video generation, not animation
+- Reference cinematic documentary techniques: Ken Burns effect, slow pans, static interviews
+- Include archival footage integration points
+- Suggest period-appropriate color grading and film grain
+
+================================================================================
+JSON OUTPUT FORMAT
+================================================================================
+
+{
+  "title": "Episode title",
+  "synopsis": "Documentary episode summary (2-3 sentences)",
+  "open_time": "${openTime}",
+  "close_time": "${closeTime}",
+  "total_scripted_duration_seconds": ${contentSeconds},
+  "script_type": "documentary",
+  "segments": [
+${chapterTimings.map((ch, idx) => `    {
+      "segment_number": ${ch.chapterNumber},
+      "title": "Chapter ${ch.chapterNumber}: ${ch.title}",
+      "description": "Chapter description",
+      "start_timecode": "${ch.startTimecode}",
+      "end_timecode": "${ch.endTimecode}",
+      "duration_seconds": ${ch.durationSeconds},
+      "break_after": ${ch.breakAfter},
+      "scenes": [${idx === 0 ? `
+        {
+          "scene_number": 1,
+          "title": "OPENING - ESTABLISHING",
+          "location": "Historical Location Name",
+          "time_of_day": "DAY",
+          "period_date": "Specific date or era",
+          "description": "Opening visual description for documentary",
+          "start_timecode": "${ch.startTimecode}",
+          "end_timecode": "...",
+          "duration_seconds": 60,
+          "historical_figures_present": [],
+          "reusable_setup": true,
+          "dialogue": [
+            {
+              "character": "NARRATOR",
+              "line": "Opening narration that hooks the viewer and sets up the story...",
+              "stage_direction": "Sweeping aerial shot of location, slow pan across historical site"
+            },
+            {
+              "character": "ARCHIVAL",
+              "line": "A powerful quote from a primary source...",
+              "stage_direction": "Cut to archival photograph or document with Ken Burns effect"
+            }
+          ],
+          "production_notes": "Photoreal documentary style. Cinematic establishing shots. Period-accurate color grading.",
+          "b_roll_suggestions": ["aerial view of location", "archival photographs", "period artifacts"]${photorealOptions?.includeCitations ? `,
+          "citations": ["Source reference for key facts"]` : ''}
+        }
+      ` : ' /* Add scenes here */ '}]
+    }${idx < segmentCount - 1 ? ',' : ''}`).join('\n')}
+  ],
+  "location_summary": [
+    {
+      "location": "LOCATION_NAME",
+      "scene_count": 4,
+      "total_duration_seconds": 320
+    }
+  ]
+}
+
+================================================================================
+CRITICAL REQUIREMENTS
+================================================================================
+
+1. TIMING IS NON-NEGOTIABLE: Total scripted content must be ${contentSeconds} seconds (${formatTimecodeUtil(contentSeconds)})
+2. This is a HISTORICAL DOCUMENTARY - NO children's content, NO animation references
+3. [NARRATOR] should carry 60-70% of the dialogue with supporting archival quotes
+4. All historical claims should be accurate and attributable
+${photorealOptions?.includeCitations ? '5. Include [CITATION: source] markers for factual claims' : '5. Maintain factual accuracy throughout'}
+6. Each chapter must end with a compelling transition or hook (except the final chapter)
+7. Use period-appropriate language and terminology
+8. Production notes should reference PHOTOREAL techniques, not animation
+9. Include specific B-roll suggestions for each scene
+10. Location_summary must reflect actual historical locations used
+
+Generate the complete documentary script now with ALL chapters and scenes filled in:`;
+}
+
 export async function generateScriptWithGemini(
   episode: Episode,
   characters: Character[],
   options: GenerationOptions = {},
   signal?: AbortSignal,
-  formatConfig?: ProgramFormatConfig
+  formatConfig?: ProgramFormatConfig,
+  workspaceType?: WorkspaceType,
+  photorealOptions?: PhotorealScriptOptions
 ): Promise<GeneratedScript> {
   try {
     const apiKey = getGeminiAPIKey();
     const mergedOptions = { ...DEFAULT_OPTIONS, ...options };
 
-    const prompt = buildScriptGenerationPrompt(episode, characters, mergedOptions, formatConfig);
+    const prompt = workspaceType === 'photoreal'
+      ? buildPhotorealScriptPrompt(episode, characters, mergedOptions, formatConfig, photorealOptions)
+      : buildScriptGenerationPrompt(episode, characters, mergedOptions, formatConfig);
 
     console.log('Starting script generation...');
     console.log('Prompt length:', prompt.length, 'characters');

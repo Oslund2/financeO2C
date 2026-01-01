@@ -347,6 +347,16 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
         total_seconds: selectedPreset.total_episode_minutes * 60,
       };
 
+      const workspaceType = isPhotoreal ? 'photoreal' : isClaymation ? 'claymation' : null;
+
+      const photorealOptions = isPhotoreal ? {
+        historicalPeriod: formData.historicalPeriod,
+        keyFigures: formData.keyFigures,
+        documentaryStyle: formData.documentaryStyle as 'narrative' | 'biographical' | 'investigative' | 'archival',
+        includeCitations: formData.includeCitations,
+        tone: formData.tone
+      } : undefined;
+
       const generatedScript = await generateScriptWithGemini(
         episodeData,
         selectedCharacters.map(c => ({
@@ -359,7 +369,9 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
         })),
         settings.generation_preferences,
         controller.signal,
-        formatConfig
+        formatConfig,
+        workspaceType,
+        photorealOptions
       );
 
       clearTimeout(timeout);
@@ -976,10 +988,24 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
                           ))}
                         </div>
 
-                        {scene.claymation_notes && (
+                        {(scene.claymation_notes || scene.production_notes) && (
                           <div className="mt-3 pt-3 border-t border-gray-200">
                             <p className="text-xs text-gray-600">
-                              <span className="font-semibold">Production Notes:</span> {scene.claymation_notes}
+                              <span className="font-semibold">Production Notes:</span> {scene.production_notes || scene.claymation_notes}
+                            </p>
+                          </div>
+                        )}
+                        {scene.b_roll_suggestions && scene.b_roll_suggestions.length > 0 && (
+                          <div className="mt-2">
+                            <p className="text-xs text-gray-600">
+                              <span className="font-semibold">B-Roll:</span> {scene.b_roll_suggestions.join(', ')}
+                            </p>
+                          </div>
+                        )}
+                        {scene.citations && scene.citations.length > 0 && (
+                          <div className="mt-2">
+                            <p className="text-xs text-blue-600">
+                              <span className="font-semibold">Citations:</span> {scene.citations.join('; ')}
                             </p>
                           </div>
                         )}
@@ -1060,7 +1086,11 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
                       mainCharacters: [],
                       vocabularyWords: '',
                       plotSummary: '',
-                      tone: 'comedic',
+                      tone: isPhotoreal ? 'balanced' : 'comedic',
+                      historicalPeriod: '',
+                      keyFigures: '',
+                      documentaryStyle: 'narrative',
+                      includeCitations: true,
                     });
                     setGeneratedData(null);
                     setSelectedSpellingBeeWord(null);
