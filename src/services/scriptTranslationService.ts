@@ -428,12 +428,19 @@ export class ScriptTranslationService {
             ? await this.translateText(act.notes, languageName, 'These are act notes', organizationId, scriptId)
             : null;
 
-          await supabase.from('script_act_translations').upsert({
-            act_id: act.id,
-            language_code: languageCode,
-            translated_content: translatedContent,
-            translated_notes: translatedNotes
-          });
+          await supabase
+            .from('script_act_translations')
+            .upsert(
+              {
+                act_id: act.id,
+                language_code: languageCode,
+                translated_content: translatedContent,
+                translated_notes: translatedNotes
+              },
+              {
+                onConflict: 'act_id,language_code'
+              }
+            );
 
           updateProgress();
         } catch (actError) {
@@ -564,14 +571,21 @@ export class ScriptTranslationService {
             // Save to database
             console.log(`[Translation] Saving translations to database for scene ${scene.scene_number}`);
             try {
-              const { error: upsertError } = await supabase.from('script_scene_translations').upsert({
-                scene_id: scene.id,
-                language_code: languageCode,
-                translated_setting: translatedSetting,
-                translated_description: translatedDescription,
-                translated_dialogue: translatedDialogue,
-                translated_stage_directions: translatedStageDirections
-              });
+              const { error: upsertError } = await supabase
+                .from('script_scene_translations')
+                .upsert(
+                  {
+                    scene_id: scene.id,
+                    language_code: languageCode,
+                    translated_setting: translatedSetting,
+                    translated_description: translatedDescription,
+                    translated_dialogue: translatedDialogue,
+                    translated_stage_directions: translatedStageDirections
+                  },
+                  {
+                    onConflict: 'scene_id,language_code'
+                  }
+                );
 
               if (upsertError) {
                 console.error(`[Translation] ERROR saving scene ${scene.scene_number} translations:`, upsertError);
