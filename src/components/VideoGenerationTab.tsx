@@ -50,6 +50,8 @@ import {
 import { FORMAT_PRESETS } from '../types/formatConfig';
 import { generateVeo3Prompt, type Veo3PromptConfig } from '../services/veo3PromptService';
 import { useOrganization } from '../contexts/OrganizationContext';
+import { useWorkspaceCapabilities } from '../hooks/useWorkspaceCapabilities';
+import { getVideoStylePromptForWorkspace } from '../services/workspacePromptService';
 
 type Asset = Database['public']['Tables']['assets']['Row'];
 type Character = Database['public']['Tables']['characters']['Row'];
@@ -186,10 +188,12 @@ const VIDEO_TASKS: VideoTaskOption[] = [
 
 export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabProps) {
   const { currentOrganization } = useOrganization();
+  const { workspaceType, isPhotoreal, isClaymation } = useWorkspaceCapabilities();
   const [configured, setConfigured] = useState(false);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [workspaceVideoStyle, setWorkspaceVideoStyle] = useState<string>('');
 
   const [selectedTask, setSelectedTask] = useState<VideoTask>('text-to-video');
   const [inputImage, setInputImage] = useState<{ file: File; dataUrl: string } | null>(null);
@@ -229,7 +233,19 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
   useEffect(() => {
     setConfigured(isVertexAIConfigured());
     loadData();
-  }, [seriesId, currentOrganization]);
+    loadWorkspaceVideoStyle();
+  }, [seriesId, currentOrganization, workspaceType]);
+
+  const loadWorkspaceVideoStyle = async () => {
+    if (!currentOrganization?.id || !workspaceType) return;
+
+    try {
+      const videoStyle = await getVideoStylePromptForWorkspace(currentOrganization.id, workspaceType);
+      setWorkspaceVideoStyle(videoStyle);
+    } catch (error) {
+      console.error('Error loading workspace video style:', error);
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -241,11 +257,18 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
   };
 
   const loadCharacters = async () => {
+    if (!currentOrganization?.id) return;
+
     try {
-      let query = supabase.from('characters').select('*');
+      let query = supabase
+        .from('characters')
+        .select('*, series!inner(organization_id, workspace_type)')
+        .eq('series.organization_id', currentOrganization.id);
+
       if (seriesId) {
         query = query.eq('series_id', seriesId);
       }
+
       const { data } = await query.order('name');
       setCharacters(data || []);
     } catch (err) {
@@ -254,12 +277,13 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
   };
 
   const loadAssets = async () => {
-    if (!currentOrganization) return;
+    if (!currentOrganization?.id) return;
+
     try {
       let query = supabase
         .from('assets')
-        .select('*')
-        .or(`organization_id.eq.${currentOrganization.id},organization_id.is.null`)
+        .select('*, series!inner(organization_id, workspace_type)')
+        .eq('series.organization_id', currentOrganization.id)
         .order('created_at', { ascending: false });
 
       if (seriesId) {
@@ -381,7 +405,8 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
         voice_id: d.voiceId || 'default',
         voice_provider: d.voiceProvider || 'elevenlabs',
         emotion: 'neutral'
-      }))
+      })),
+      workspaceType: workspaceType as 'claymation' | 'photoreal' | null
     };
 
     const generated = generateVeo3Prompt(config);
@@ -646,10 +671,21 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <div className="flex items-start gap-3">
             <CheckCircle className="w-6 h-6 text-green-600 mt-1" />
-            <div>
-              <h3 className="font-semibold text-green-900 mb-1">Veo 3 Ready</h3>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="font-semibold text-green-900">Veo 3 Ready</h3>
+                {workspaceType && (
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                    isPhotoreal
+                      ? 'bg-slate-100 text-slate-700 border border-slate-300'
+                      : 'bg-teal-100 text-teal-700 border border-teal-300'
+                  }`}>
+                    {isPhotoreal ? 'Photoreal Mode' : 'Claymation Mode'}
+                  </span>
+                )}
+              </div>
               <p className="text-sm text-green-800">
-                Create animated claymation clips with voice audio from your scene composition.
+                Create {isPhotoreal ? 'photorealistic documentary' : 'animated claymation'} clips with voice audio from your scene composition.
               </p>
             </div>
           </div>

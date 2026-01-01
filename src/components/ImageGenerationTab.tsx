@@ -26,6 +26,9 @@ import {
   type CharacterReference,
   type ImageGenerationOptions
 } from '../services/nanoBananaService';
+import { useWorkspaceCapabilities } from '../hooks/useWorkspaceCapabilities';
+import { useOrganization } from '../contexts/OrganizationContext';
+import { getStylePromptsForWorkspace } from '../services/workspacePromptService';
 
 type Asset = Database['public']['Tables']['assets']['Row'];
 type Character = Database['public']['Tables']['characters']['Row'];
@@ -91,6 +94,9 @@ const ASSET_TYPE_CONFIG = {
 };
 
 export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
+  const { workspaceType, isPhotoreal, isClaymation } = useWorkspaceCapabilities();
+  const { currentOrganization } = useOrganization();
+
   const [assetType, setAssetType] = useState<AssetType>('character');
   const [prompt, setPrompt] = useState('');
   const [referenceImages, setReferenceImages] = useState<ReferenceImage[]>([]);
@@ -110,6 +116,7 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
   const [transparentBackground, setTransparentBackground] = useState(false);
   const [processingTransparency, setProcessingTransparency] = useState(false);
   const [uploadTypeSelection, setUploadTypeSelection] = useState<AssetType | null>(null);
+  const [workspaceStyleGuide, setWorkspaceStyleGuide] = useState<string>('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -118,13 +125,28 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
     setConfigured(status.configured);
     loadAssets();
     loadCharacters();
-  }, [seriesId]);
+    loadWorkspaceStyle();
+  }, [seriesId, currentOrganization, workspaceType]);
+
+  const loadWorkspaceStyle = async () => {
+    if (!currentOrganization?.id || !workspaceType) return;
+
+    try {
+      const styleConfig = await getStylePromptsForWorkspace(currentOrganization.id, workspaceType);
+      setWorkspaceStyleGuide(styleConfig.baseStyle);
+    } catch (error) {
+      console.error('Error loading workspace style:', error);
+    }
+  };
 
   const loadAssets = async () => {
+    if (!currentOrganization?.id) return;
+
     try {
       let query = supabase
         .from('assets')
-        .select('*')
+        .select('*, series!inner(organization_id, workspace_type)')
+        .eq('series.organization_id', currentOrganization.id)
         .order('created_at', { ascending: false });
 
       if (seriesId) {
@@ -139,11 +161,18 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
   };
 
   const loadCharacters = async () => {
+    if (!currentOrganization?.id) return;
+
     try {
-      let query = supabase.from('characters').select('*');
+      let query = supabase
+        .from('characters')
+        .select('*, series!inner(organization_id, workspace_type)')
+        .eq('series.organization_id', currentOrganization.id);
+
       if (seriesId) {
         query = query.eq('series_id', seriesId);
       }
+
       const { data } = await query.order('name');
       setCharacters(data || []);
     } catch (error) {
@@ -251,12 +280,17 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
   };
 
   const buildSmartPrompt = () => {
-    const styleGuide = "claymation style, vibrant colors, playful animation aesthetic, smooth rounded shapes, friendly character design";
+    const styleGuide = workspaceStyleGuide || (isPhotoreal
+      ? "photorealistic, cinematic lighting, historically accurate, documentary style"
+      : "claymation style, vibrant colors, playful animation aesthetic, smooth rounded shapes");
     const typeConfig = ASSET_TYPE_CONFIG[assetType];
 
     let enhanced = prompt.trim();
 
-    if (!enhanced.toLowerCase().includes('claymation')) {
+    const styleKeywords = ['claymation', 'photorealistic', 'photoreal', 'documentary', 'cinematic'];
+    const hasStyleKeyword = styleKeywords.some(kw => enhanced.toLowerCase().includes(kw));
+
+    if (!hasStyleKeyword) {
       enhanced = `${enhanced}. ${styleGuide}, ${typeConfig.promptGuide}`;
     }
 
@@ -461,10 +495,21 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <div className="flex items-start gap-3">
             <CheckCircle className="w-6 h-6 text-green-600 mt-1" />
-            <div>
-              <h3 className="font-semibold text-green-900 mb-1">Gemini Imagen 3 Connected</h3>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="font-semibold text-green-900">Gemini Imagen 3 Connected</h3>
+                {workspaceType && (
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                    isPhotoreal
+                      ? 'bg-slate-100 text-slate-700 border border-slate-300'
+                      : 'bg-teal-100 text-teal-700 border border-teal-300'
+                  }`}>
+                    {isPhotoreal ? 'Photoreal Mode' : 'Claymation Mode'}
+                  </span>
+                )}
+              </div>
               <p className="text-sm text-green-800">
-                Ready to generate character references, backgrounds, and props with Nano Banana style consistency.
+                Ready to generate {isPhotoreal ? 'photorealistic' : 'claymation'} assets with consistent style.
               </p>
             </div>
           </div>
@@ -477,7 +522,7 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
           <div>
             <h3 className="font-semibold text-blue-900 mb-1">Style-Consistent Asset Generation</h3>
             <p className="text-sm text-blue-800">
-              Generate characters, backgrounds, and props that match your show's visual style. Add reference images to ensure consistency across all generated assets.
+              Generate {isPhotoreal ? 'photorealistic characters and environments' : 'claymation characters, backgrounds, and props'} that match your show's visual style. Add reference images to ensure consistency across all generated assets.
             </p>
           </div>
         </div>
