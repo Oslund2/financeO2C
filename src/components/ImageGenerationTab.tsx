@@ -140,17 +140,16 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
   };
 
   const loadAssets = async () => {
-    if (!currentOrganization?.id) return;
-
     try {
       let query = supabase
         .from('assets')
-        .select('*, series!inner(organization_id, workspace_type)')
-        .eq('series.organization_id', currentOrganization.id)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (seriesId) {
         query = query.eq('series_id', seriesId);
+      } else if (currentOrganization?.id) {
+        query = query.or(`series_id.in.(select id from series where organization_id = '${currentOrganization.id}'),organization_id.eq.${currentOrganization.id}`);
       }
 
       const { data } = await query;
@@ -161,16 +160,13 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
   };
 
   const loadCharacters = async () => {
-    if (!currentOrganization?.id) return;
-
     try {
-      let query = supabase
-        .from('characters')
-        .select('*, series!inner(organization_id, workspace_type)')
-        .eq('series.organization_id', currentOrganization.id);
+      let query = supabase.from('characters').select('*');
 
       if (seriesId) {
         query = query.eq('series_id', seriesId);
+      } else if (currentOrganization?.id) {
+        query = query.or(`series_id.in.(select id from series where organization_id = '${currentOrganization.id}'),organization_id.eq.${currentOrganization.id}`);
       }
 
       const { data } = await query.order('name');
