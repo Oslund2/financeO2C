@@ -463,6 +463,49 @@ export function OrganizationSettingsModal({
     }
   };
 
+  const handleImmediateDelete = async () => {
+    if (!user || !canDelete) return;
+
+    if (deleteConfirmation.step === 1) {
+      setDeleteConfirmation({ ...deleteConfirmation, step: 2 });
+      return;
+    }
+
+    if (deleteConfirmation.step === 2 && deleteConfirmation.typedName === organization.name) {
+      setDeleteConfirmation({ ...deleteConfirmation, step: 3 });
+      return;
+    }
+
+    if (
+      deleteConfirmation.step === 3 &&
+      deleteConfirmation.typedConfirmation === 'DELETE IMMEDIATELY' &&
+      deleteConfirmation.confirmChecked
+    ) {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase.rpc('immediately_delete_organization', {
+          org_uuid: organization.id,
+          user_uuid: user.id,
+        });
+
+        if (error) throw error;
+
+        if (data.success) {
+          setDeletedOrgName(organization.name);
+          setShowDeletedConfirmation(true);
+        } else {
+          throw new Error(data.error);
+        }
+      } catch (error: any) {
+        console.error('Error immediately deleting organization:', error);
+        const errorMessage = error?.message || error?.toString() || 'Unknown error';
+        alert(`Failed to delete workspace: ${errorMessage}`);
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
   const handleCloseDeletedConfirmation = () => {
     setShowDeletedConfirmation(false);
     onDeleted?.();
@@ -855,9 +898,9 @@ export function OrganizationSettingsModal({
                       </div>
 
                       <div className="bg-red-50 border border-red-200 rounded-xl p-6">
-                        <h4 className="font-bold text-red-900 text-lg mb-2">Proceed to Permanent Deletion</h4>
+                        <h4 className="font-bold text-red-900 text-lg mb-2">Delete Workspace Immediately</h4>
                         <p className="text-sm text-red-800 mb-4">
-                          You can skip the 7-day waiting period and permanently delete this workspace now.
+                          As the owner, you can permanently delete this workspace immediately without waiting 7 days.
                           This action is immediate and irreversible.
                         </p>
 
@@ -894,14 +937,14 @@ export function OrganizationSettingsModal({
                           <>
                             <div className="mb-4">
                               <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Step 2: Type "PERMANENTLY DELETE" to confirm:
+                                Step 2: Type "DELETE IMMEDIATELY" to confirm:
                               </label>
                               <input
                                 type="text"
                                 value={deleteConfirmation.typedConfirmation}
                                 onChange={(e) => setDeleteConfirmation({ ...deleteConfirmation, typedConfirmation: e.target.value })}
                                 className="w-full px-4 py-2 border border-red-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                                placeholder="PERMANENTLY DELETE"
+                                placeholder="DELETE IMMEDIATELY"
                               />
                             </div>
 
@@ -1057,17 +1100,17 @@ export function OrganizationSettingsModal({
           )}
           {activeTab === 'danger' && canDelete && deletionStatus?.is_archived && !deletionStatus.is_deletion_scheduled && (
             <button
-              onClick={handleScheduleDeletion}
+              onClick={handleImmediateDelete}
               disabled={
                 loading ||
                 (deleteConfirmation.step === 2 && deleteConfirmation.typedName !== organization.name) ||
-                (deleteConfirmation.step === 3 && (deleteConfirmation.typedConfirmation !== 'PERMANENTLY DELETE' || !deleteConfirmation.confirmChecked))
+                (deleteConfirmation.step === 3 && (deleteConfirmation.typedConfirmation !== 'DELETE IMMEDIATELY' || !deleteConfirmation.confirmChecked))
               }
               className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               <Trash2 className="w-4 h-4" />
-              {deleteConfirmation.step === 1 && 'Delete Permanently'}
+              {deleteConfirmation.step === 1 && 'Delete Immediately'}
               {deleteConfirmation.step === 2 && 'Confirm Name'}
               {deleteConfirmation.step === 3 && 'Confirm & Delete'}
             </button>

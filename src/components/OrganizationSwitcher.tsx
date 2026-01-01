@@ -207,6 +207,17 @@ export function OrganizationSwitcher() {
           onUpdate={() => {
             refreshOrganizations();
           }}
+          onDeleted={() => {
+            refreshOrganizations().then(() => {
+              setShowSettings(false);
+              if (organizations.length > 1) {
+                const nextOrg = organizations.find(m => m.organization.id !== currentOrganization.id);
+                if (nextOrg) {
+                  switchOrganization(nextOrg.organization.id);
+                }
+              }
+            });
+          }}
         />
       )}
 
