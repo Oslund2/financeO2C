@@ -10,6 +10,7 @@ import { PromptLibrary } from './PromptLibrary';
 import { PatentIntelligenceSettings } from './PatentIntelligenceSettings';
 import { HowToGuide } from './HowToGuide';
 import { WorkspaceSpecificSettings } from './WorkspaceSpecificSettings';
+import { HeyGenConfigPanel } from './HeyGenConfigPanel';
 import { ANIMATION_STYLE_MULTIPLIERS, PRODUCTION_TIER_PRESETS, FREELANCE_TIER_PRESETS, fetchCostConfig, updateCostConfig } from '../services/costCalculationService';
 import type { AnimationStyle, ProductionTier, FreelanceTier, CostConfig } from '../services/costCalculationService';
 import { VEO_MODELS, type VeoModel } from '../services/vertexAIService';
@@ -35,6 +36,7 @@ export function Settings() {
   const [voiceSettingsExpanded, setVoiceSettingsExpanded] = useState(false);
   const [videoSettingsExpanded, setVideoSettingsExpanded] = useState(false);
   const [translationExpanded, setTranslationExpanded] = useState(false);
+  const [heygenExpanded, setHeygenExpanded] = useState(false);
   const [patentSettingsExpanded, setPatentSettingsExpanded] = useState(false);
   const [releasesExpanded, setReleasesExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState('how-to');
@@ -1604,6 +1606,50 @@ export function Settings() {
                       </label>
                     </div>
                   </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+            <button
+              onClick={() => setHeygenExpanded(!heygenExpanded)}
+              className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
+                  <Video className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <h2 className="text-xl font-bold text-gray-900">HeyGen Video Translation</h2>
+                  <p className="text-sm text-gray-600">Configure video-to-video translation with AI lip sync and voice cloning</p>
+                </div>
+              </div>
+              {heygenExpanded ? (
+                <ChevronUp className="w-6 h-6 text-gray-400" />
+              ) : (
+                <ChevronDown className="w-6 h-6 text-gray-400" />
+              )}
+            </button>
+
+            {heygenExpanded && (
+              <div className="border-t border-gray-200 p-6">
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-6">
+                  <div className="flex items-start gap-3">
+                    <Info className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-purple-800">
+                      <p className="font-medium mb-1">AI-Powered Video Localization</p>
+                      <p>
+                        HeyGen provides automatic video translation with natural lip sync and voice cloning
+                        in 175+ languages. Translate your videos while maintaining the original speaker's
+                        voice characteristics and natural lip movements.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {currentOrganization?.id && (
+                  <HeyGenConfigPanel organizationId={currentOrganization.id} />
                 )}
               </div>
             )}
