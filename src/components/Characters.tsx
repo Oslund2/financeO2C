@@ -713,6 +713,7 @@ interface CharacterFormProps {
 
 function CharacterForm({ character, seriesId, onClose, onSave }: CharacterFormProps) {
   const { showSuccess, showError } = useNotification();
+  const { isClaymation } = useWorkspaceCapabilities();
   const [formData, setFormData] = useState({
     name: character?.name || '',
     age: character?.age?.toString() || '',
