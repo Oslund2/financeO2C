@@ -273,24 +273,12 @@ export async function submitVeo3Request(
   request: Veo3Request
 ): Promise<string> {
   const config = getVertexAIConfig();
-  if (!config) {
-    throw new Error('Vertex AI is not configured. Please add Google Cloud credentials in Settings.');
-  }
+  const model = request.model || config?.defaultModel || 'veo-3.1-generate-001';
 
-  const model = request.model || config.defaultModel || 'veo-3.1-generate-001';
   const validationErrors = validateVeo3Request(request, model);
   if (validationErrors.length > 0) {
     throw new Error(`Invalid request parameters: ${validationErrors.join(', ')}`);
   }
-
-  const endpoint = `https://${config.location}-aiplatform.googleapis.com/v1/projects/${config.projectId}/locations/${config.location}/publishers/google/models/${model}:predictLongRunning?key=${config.apiKey}`;
-
-  console.log('Submitting Veo request:', {
-    projectId: config.projectId,
-    location: config.location,
-    model,
-    hasApiKey: !!config.apiKey
-  });
 
   const instance: any = {
     prompt: request.prompt
@@ -351,7 +339,7 @@ export async function submitVeo3Request(
     parameters.resizeMode = request.parameters.resizeMode;
   }
 
-  if (request.storageUri || config.cloudStorageBucket) {
+  if (request.storageUri || config?.cloudStorageBucket) {
     parameters.storageUri = request.storageUri || `gs://${config.cloudStorageBucket}/AI Studio/`;
   }
 
@@ -361,35 +349,49 @@ export async function submitVeo3Request(
   };
 
   try {
-    const response = await fetch(endpoint, {
+    const edgeFunctionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-video`;
+
+    const response = await fetch(edgeFunctionUrl, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
       },
-      body: JSON.stringify(requestBody)
+      body: JSON.stringify({
+        prompt: request.prompt,
+        negativePrompt: request.negativePrompt,
+        image: request.image,
+        referenceImages: request.referenceImages,
+        parameters: {
+          ...parameters,
+          model
+        }
+      })
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-      console.error('Vertex AI API error response:', errorData);
+      console.error('Edge function error response:', errorData);
 
-      let errorMessage = `Vertex AI API error (${response.status})`;
-      if (response.status === 401 || response.status === 403) {
-        errorMessage = `Authentication failed: Invalid API key or insufficient permissions. Please check your VITE_GEMINI_API_KEY in Settings.`;
-      } else if (response.status === 404) {
-        errorMessage = `Vertex AI API not found. Make sure the API is enabled for project "${config.projectId}".`;
+      let errorMessage = `Video generation failed (${response.status})`;
+      if (errorData.error_code === 'MISSING_GCP_CREDENTIALS') {
+        errorMessage = 'GCP credentials not configured. Please add GCP_CLIENT_EMAIL and GCP_PRIVATE_KEY secrets in Supabase Dashboard.';
+      } else if (errorData.error_code === 'AUTH_ERROR') {
+        errorMessage = 'GCP authentication failed. Check that credentials have Vertex AI permissions.';
+      } else if (errorData.error_code === 'RATE_LIMIT_EXCEEDED') {
+        errorMessage = 'Vertex AI rate limit exceeded. Please wait before trying again.';
       } else {
-        errorMessage += `: ${JSON.stringify(errorData)}`;
+        errorMessage += `: ${errorData.error || JSON.stringify(errorData)}`;
       }
 
       throw new Error(errorMessage);
     }
 
     const result = await response.json();
-    const operationName = result.name;
+    const operationName = result.operationName;
 
     if (!operationName) {
-      throw new Error('No operation name returned from API');
+      throw new Error('No operation name returned from video generation');
     }
 
     const jobId = operationName.split('/').pop() || crypto.randomUUID();

@@ -7,8 +7,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
-const VERTEX_AI_ENDPOINT =
-  "https://us-central1-aiplatform.googleapis.com/v1/projects/scripps-ai/locations/us-central1/publishers/google/models/veo-3.1-generate-001:predictLongRunning";
+const VERTEX_AI_PROJECT = "scripps-ai";
+const VERTEX_AI_LOCATION = "us-central1";
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -77,10 +77,10 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const privateKey = privateKeyRaw.replace(/\\n/g, "\n");
+    const privateKey = privateKeyRaw.replace(/\\\\n/g, "\n");
 
     const body = await req.json();
-    const { prompt } = body;
+    const { prompt, negativePrompt, image, referenceImages, parameters } = body;
 
     if (!prompt || typeof prompt !== "string") {
       return new Response(
@@ -126,9 +126,24 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    const instance: any = { prompt };
+
+    if (negativePrompt) {
+      instance.negativePrompt = negativePrompt;
+    }
+
+    if (image) {
+      instance.image = image;
+    }
+
+    if (referenceImages && Array.isArray(referenceImages) && referenceImages.length > 0) {
+      instance.referenceImages = referenceImages;
+    }
+
+    const model = parameters?.model || "veo-3.1-generate-001";
     const vertexRequestBody = {
-      instances: [{ prompt }],
-      parameters: {
+      instances: [instance],
+      parameters: parameters || {
         sampleCount: 1,
         resolution: "720p",
         aspectRatio: "16:9",
@@ -136,7 +151,9 @@ Deno.serve(async (req: Request) => {
       },
     };
 
-    const response = await fetch(VERTEX_AI_ENDPOINT, {
+    const endpoint = `https://${VERTEX_AI_LOCATION}-aiplatform.googleapis.com/v1/projects/${VERTEX_AI_PROJECT}/locations/${VERTEX_AI_LOCATION}/publishers/google/models/${model}:predictLongRunning`;
+
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${accessToken.token}`,
