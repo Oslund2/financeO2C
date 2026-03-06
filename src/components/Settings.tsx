@@ -10,6 +10,7 @@ import { PromptLibrary } from './PromptLibrary';
 import { PatentIntelligenceSettings } from './PatentIntelligenceSettings';
 import { HowToGuide } from './HowToGuide';
 import { WorkspaceSpecificSettings } from './WorkspaceSpecificSettings';
+import { MissionControlPanel } from './MissionControlPanel';
 import { HeyGenConfigPanel } from './HeyGenConfigPanel';
 import { ANIMATION_STYLE_MULTIPLIERS, PRODUCTION_TIER_PRESETS, FREELANCE_TIER_PRESETS, fetchCostConfig, updateCostConfig } from '../services/costCalculationService';
 import type { AnimationStyle, ProductionTier, FreelanceTier, CostConfig } from '../services/costCalculationService';
@@ -25,6 +26,7 @@ export function Settings() {
   const [backupExpanded, setBackupExpanded] = useState(false);
   const [promptLibraryExpanded, setPromptLibraryExpanded] = useState(false);
   const [nextStepsExpanded, setNextStepsExpanded] = useState(false);
+  const [missionControlExpanded, setMissionControlExpanded] = useState(false);
   const [workspaceExpanded, setWorkspaceExpanded] = useState(false);
   const [vertexAIExpanded, setVertexAIExpanded] = useState(false);
   const [elevenLabsExpanded, setElevenLabsExpanded] = useState(false);
@@ -1484,6 +1486,11 @@ export function Settings() {
               </div>
             )}
           </div>
+
+          <MissionControlPanel
+            expanded={missionControlExpanded}
+            onToggle={() => setMissionControlExpanded(!missionControlExpanded)}
+          />
 
           <WorkspaceSpecificSettings
             expanded={workspaceExpanded}

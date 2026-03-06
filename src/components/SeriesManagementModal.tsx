@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
 import { useNotification } from '../contexts/NotificationContext';
+import { SeriesMissionPanel } from './SeriesMissionPanel';
 
 interface Series {
   id: string;
@@ -322,6 +323,8 @@ export function SeriesManagementModal({ series, onClose, onUpdate }: SeriesManag
                   This value will be used as the default number of episodes in revenue projections and profit analytics for this series. Range: 0-100 episodes.
                 </p>
               </div>
+
+              <SeriesMissionPanel seriesId={series.id} />
             </div>
           )}
 
