@@ -17,6 +17,7 @@ export interface AllAPIStatus {
   veedIo: APIHealthStatus;
   nanoBanana: APIHealthStatus;
   supabase: APIHealthStatus;
+  shotstack: APIHealthStatus;
 }
 
 export interface UserSettings {
@@ -448,6 +449,21 @@ export async function checkVeedIoHealth(): Promise<APIHealthStatus> {
   };
 }
 
+export async function checkShotstackHealth(): Promise<APIHealthStatus> {
+  const apiKey = import.meta.env.VITE_SHOTSTACK_API_KEY;
+
+  if (!apiKey) {
+    return { configured: false, healthy: false, checking: false };
+  }
+
+  return {
+    configured: true,
+    healthy: true,
+    checking: false,
+    lastChecked: Date.now()
+  };
+}
+
 export async function checkNanoBananaHealth(): Promise<APIHealthStatus> {
   const apiKey = import.meta.env.VITE_NANO_BANANA_API_KEY;
 
@@ -492,7 +508,7 @@ export async function checkSupabaseHealth(): Promise<APIHealthStatus> {
 }
 
 export async function checkAllAPIHealth(): Promise<AllAPIStatus> {
-  const [gemini, vertexAI, elevenLabs, chatterbox, syncLabs, veedIo, nanoBanana, supabaseStatus] = await Promise.all([
+  const [gemini, vertexAI, elevenLabs, chatterbox, syncLabs, veedIo, nanoBanana, supabaseStatus, shotstack] = await Promise.all([
     checkGeminiHealth(),
     checkVertexAIHealth(),
     checkElevenLabsHealth(),
@@ -500,7 +516,8 @@ export async function checkAllAPIHealth(): Promise<AllAPIStatus> {
     checkSyncLabsHealth(),
     checkVeedIoHealth(),
     checkNanoBananaHealth(),
-    checkSupabaseHealth()
+    checkSupabaseHealth(),
+    checkShotstackHealth()
   ]);
 
   return {
@@ -511,7 +528,8 @@ export async function checkAllAPIHealth(): Promise<AllAPIStatus> {
     syncLabs,
     veedIo,
     nanoBanana,
-    supabase: supabaseStatus
+    supabase: supabaseStatus,
+    shotstack
   };
 }
 

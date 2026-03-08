@@ -138,7 +138,7 @@ export function Settings() {
   };
 
   const countConfiguredAPIs = (): { configured: number; total: number } => {
-    if (!apiHealth) return { configured: 0, total: 8 };
+    if (!apiHealth) return { configured: 0, total: 9 };
     const apis = [
       apiHealth.gemini,
       apiHealth.vertexAI,
@@ -147,7 +147,8 @@ export function Settings() {
       apiHealth.syncLabs,
       apiHealth.veedIo,
       apiHealth.nanoBanana,
-      apiHealth.supabase
+      apiHealth.supabase,
+      apiHealth.shotstack
     ];
     return {
       configured: apis.filter(a => a.configured && a.healthy).length,
@@ -257,6 +258,7 @@ export function Settings() {
               { key: 'veedIo', label: 'Veed.io', health: apiHealth?.veedIo },
               { key: 'chatterbox', label: 'Chatterbox', health: apiHealth?.chatterbox },
               { key: 'nanoBanana', label: 'Image Gen', health: apiHealth?.nanoBanana },
+              { key: 'shotstack', label: 'Shotstack', health: apiHealth?.shotstack },
             ].map(({ key, label, health }) => (
               <div
                 key={key}
@@ -507,9 +509,61 @@ export function Settings() {
                   </div>
                 </div>
 
+                  <div className="border border-gray-200 rounded-lg p-5 hover:border-blue-300 transition-colors">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Film className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="font-bold text-gray-900">Video Assembly (Shotstack)</h3>
+                          <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">Required for Assembly</span>
+                          <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">Final Step</span>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-3">
+                          Assembles rendered shots into a complete episode rough cut with transitions, audio mixing, and optional slate/end-card. Configured per-organisation in the Assembly panel.
+                        </p>
+                        <div className="bg-gray-50 rounded-lg p-3 mb-3">
+                          <div className="text-xs font-medium text-gray-700 mb-2">API key is stored in the Assembly settings drawer — open any production, go to the <strong>Assembly</strong> step, and click the settings icon.</div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1">Env var (optional override)</div>
+                              <code className="text-xs bg-gray-200 px-2 py-1 rounded block">VITE_SHOTSTACK_API_KEY</code>
+                            </div>
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1">Pricing</div>
+                              <span className="text-xs text-gray-700">~$0.05–$0.20 per render minute</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm">
+                          <a
+                            href="https://shotstack.io"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                          >
+                            shotstack.io <ExternalLink className="w-3 h-3" />
+                          </a>
+                          <a
+                            href="https://shotstack.io/docs/guide/getting-started/core-concepts/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                          >
+                            Docs <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0">
+                        <XCircle className="w-6 h-6 text-red-500" />
+                      </div>
+                    </div>
+                  </div>
+
                 <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-lg">
                   <h4 className="font-semibold text-blue-900 mb-3">Production Pipeline Overview</h4>
-                  <div className="flex items-center gap-2 text-sm">
+                  <div className="flex items-center gap-2 text-sm flex-wrap">
                     <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-blue-200">
                       <FileCode className="w-4 h-4 text-blue-600" />
                       <span className="text-gray-700">Script</span>
@@ -533,6 +587,11 @@ export function Settings() {
                     <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-blue-200">
                       <Mic2 className="w-4 h-4 text-pink-600" />
                       <span className="text-gray-700">Lip Sync</span>
+                    </div>
+                    <span className="text-gray-400">→</span>
+                    <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-violet-300 bg-violet-50">
+                      <Film className="w-4 h-4 text-violet-600" />
+                      <span className="text-violet-700 font-medium">Assembly</span>
                     </div>
                     <span className="text-gray-400">→</span>
                     <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-green-300 bg-green-50">
