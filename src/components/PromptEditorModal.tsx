@@ -33,18 +33,19 @@ interface PromptEditorModalProps {
   prompt: PromptTemplate;
   onClose: () => void;
   onSave: () => void;
+  initialSidePanel?: SidePanel;
 }
 
 type EditorTab = 'editor' | 'variables' | 'preview';
 type SidePanel = 'none' | 'history' | 'enhance' | 'test';
 
-export function PromptEditorModal({ prompt, onClose, onSave }: PromptEditorModalProps) {
+export function PromptEditorModal({ prompt, onClose, onSave, initialSidePanel = 'none' }: PromptEditorModalProps) {
   const { currentOrganization } = useOrganization();
   const [content, setContent] = useState('');
   const [originalContent, setOriginalContent] = useState('');
   const [changeNotes, setChangeNotes] = useState('');
   const [activeTab, setActiveTab] = useState<EditorTab>('editor');
-  const [sidePanel, setSidePanel] = useState<SidePanel>('none');
+  const [sidePanel, setSidePanel] = useState<SidePanel>(initialSidePanel);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);

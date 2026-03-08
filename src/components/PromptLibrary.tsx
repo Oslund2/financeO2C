@@ -17,9 +17,12 @@ import {
   AlertCircle,
   Sparkles,
   Film,
-  Layers
+  Layers,
+  Building2,
+  Clapperboard
 } from 'lucide-react';
 import { useOrganization } from '../contexts/OrganizationContext';
+import { supabase } from '../lib/supabase';
 import {
   getAllPromptsForOrganization,
   initializeOrganizationPrompts,
@@ -46,13 +49,24 @@ const WORKSPACE_TYPE_CONFIG: Record<string, { label: string; icon: typeof Palett
   general: { label: 'General', icon: Layers, bgColor: 'bg-gray-100', textColor: 'text-gray-700' },
 };
 
+interface Series {
+  id: string;
+  name: string;
+}
+
 interface PromptLibraryProps {
   expanded?: boolean;
   onToggle?: () => void;
 }
 
 export function PromptLibrary({ expanded = false, onToggle }: PromptLibraryProps) {
-  const { currentOrganization } = useOrganization();
+  const { currentOrganization, organizations } = useOrganization();
+
+  // Local workspace selection (independent from the global org switch)
+  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
+  const [series, setSeries] = useState<Series[]>([]);
+  const [selectedSeriesId, setSelectedSeriesId] = useState<string | null>(null);
+
   const [prompts, setPrompts] = useState<PromptTemplate[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,38 +74,60 @@ export function PromptLibrary({ expanded = false, onToggle }: PromptLibraryProps
   const [selectedCategory, setSelectedCategory] = useState<PromptCategory | 'all'>('all');
   const [modifiedPrompts, setModifiedPrompts] = useState<Set<string>>(new Set());
   const [selectedPrompt, setSelectedPrompt] = useState<PromptTemplate | null>(null);
+  const [openWithEnhance, setOpenWithEnhance] = useState(false);
   const [resettingPrompt, setResettingPrompt] = useState<string | null>(null);
 
+  // Derive the active organization object
+  const activeOrg =
+    organizations.find((m) => m.organization.id === selectedOrgId)?.organization ??
+    currentOrganization;
+
+  // Seed selectedOrgId from currentOrganization on first mount
   useEffect(() => {
-    if (expanded && currentOrganization) {
+    if (currentOrganization && !selectedOrgId) {
+      setSelectedOrgId(currentOrganization.id);
+    }
+  }, [currentOrganization]);
+
+  // Fetch series whenever the selected workspace changes
+  useEffect(() => {
+    if (!selectedOrgId) return;
+    setSelectedSeriesId(null);
+    setSeries([]);
+    supabase
+      .from('series')
+      .select('id, name')
+      .eq('organization_id', selectedOrgId)
+      .order('name')
+      .then(({ data }) => setSeries(data ?? []));
+  }, [selectedOrgId]);
+
+  // Reload prompts when the panel is opened or the selected workspace changes
+  useEffect(() => {
+    if (expanded && activeOrg) {
       loadPrompts();
     }
-  }, [expanded, currentOrganization]);
+  }, [expanded, selectedOrgId, activeOrg?.id]);
 
   const loadPrompts = async () => {
-    if (!currentOrganization) return;
+    if (!activeOrg) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      await initializeOrganizationPrompts(currentOrganization.id);
+      await initializeOrganizationPrompts(activeOrg.id);
       const data = await getAllPromptsForOrganization(
-        currentOrganization.id,
-        currentOrganization.workspace_type
+        activeOrg.id,
+        activeOrg.workspace_type
       );
       setPrompts(data);
 
       const modified = new Set<string>();
       for (const prompt of data) {
         if (prompt.organization_id) {
-          const isModified = await checkIfModifiedFromDefault(
-            currentOrganization.id,
-            prompt.prompt_key
-          );
-          if (isModified) {
-            modified.add(prompt.id);
-          }
+          const isModified = await checkIfModifiedFromDefault(activeOrg.id, prompt.prompt_key);
+          if (isModified) modified.add(prompt.id);
         }
       }
       setModifiedPrompts(modified);
@@ -103,17 +139,22 @@ export function PromptLibrary({ expanded = false, onToggle }: PromptLibraryProps
   };
 
   const handleResetToDefault = async (prompt: PromptTemplate) => {
-    if (!currentOrganization) return;
+    if (!activeOrg) return;
 
     setResettingPrompt(prompt.id);
     try {
-      await resetPromptToDefault(currentOrganization.id, prompt.prompt_key);
+      await resetPromptToDefault(activeOrg.id, prompt.prompt_key);
       await loadPrompts();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to reset prompt');
     } finally {
       setResettingPrompt(null);
     }
+  };
+
+  const openEditor = (prompt: PromptTemplate, withEnhance = false) => {
+    setOpenWithEnhance(withEnhance);
+    setSelectedPrompt(prompt);
   };
 
   const filteredPrompts = prompts.filter((prompt) => {
@@ -128,17 +169,17 @@ export function PromptLibrary({ expanded = false, onToggle }: PromptLibraryProps
 
   const groupedPrompts = filteredPrompts.reduce((acc, prompt) => {
     const category = prompt.category as PromptCategory;
-    if (!acc[category]) {
-      acc[category] = [];
-    }
+    if (!acc[category]) acc[category] = [];
     acc[category].push(prompt);
     return acc;
   }, {} as Record<PromptCategory, PromptTemplate[]>);
 
-  const workspaceTypeConfig = currentOrganization?.workspace_type
-    ? WORKSPACE_TYPE_CONFIG[currentOrganization.workspace_type]
+  const workspaceTypeConfig = activeOrg?.workspace_type
+    ? WORKSPACE_TYPE_CONFIG[activeOrg.workspace_type]
     : null;
   const WorkspaceIcon = workspaceTypeConfig?.icon || Layers;
+
+  const selectedSeries = series.find((s) => s.id === selectedSeriesId);
 
   return (
     <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
@@ -161,7 +202,7 @@ export function PromptLibrary({ expanded = false, onToggle }: PromptLibraryProps
               )}
             </div>
             <p className="text-sm text-gray-600">
-              Customize AI prompts for this workspace type
+              {activeOrg?.name ?? 'Select a workspace'}{selectedSeries ? ` · ${selectedSeries.name}` : ''}
             </p>
           </div>
         </div>
@@ -174,6 +215,78 @@ export function PromptLibrary({ expanded = false, onToggle }: PromptLibraryProps
 
       {expanded && (
         <div className="border-t border-gray-200 p-6">
+
+          {/* ── Workspace selector ───────────────────────────── */}
+          {organizations.length > 1 && (
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Building2 className="w-4 h-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-700">Workspace</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {organizations.map(({ organization }) => {
+                  const wConfig = WORKSPACE_TYPE_CONFIG[organization.workspace_type] ?? WORKSPACE_TYPE_CONFIG['general'];
+                  const isActive = organization.id === selectedOrgId;
+                  return (
+                    <button
+                      key={organization.id}
+                      onClick={() => setSelectedOrgId(organization.id)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                        isActive
+                          ? `${wConfig.bgColor} ${wConfig.textColor} ring-2 ring-offset-1 ring-current`
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      <wConfig.icon className="w-3.5 h-3.5" />
+                      {organization.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ── Series selector ──────────────────────────────── */}
+          {series.length > 0 && (
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Clapperboard className="w-4 h-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-700">Series / Show</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setSelectedSeriesId(null)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    selectedSeriesId === null
+                      ? 'bg-teal-100 text-teal-700'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  All Series
+                </button>
+                {series.map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => setSelectedSeriesId(s.id)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                      selectedSeriesId === s.id
+                        ? 'bg-teal-100 text-teal-700'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {s.name}
+                  </button>
+                ))}
+              </div>
+              {selectedSeries && (
+                <p className="mt-2 text-xs text-gray-500">
+                  Showing workspace prompts in the context of <span className="font-medium">{selectedSeries.name}</span>. Use "Enhance with AI" to tailor a prompt for this series.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* ── Category filter + search ─────────────────────── */}
           <div className="mb-6 flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -304,7 +417,7 @@ export function PromptLibrary({ expanded = false, onToggle }: PromptLibraryProps
                                 </div>
                               </div>
 
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-shrink-0">
                                 {isModified && (
                                   <button
                                     onClick={() => handleResetToDefault(prompt)}
@@ -320,11 +433,18 @@ export function PromptLibrary({ expanded = false, onToggle }: PromptLibraryProps
                                   </button>
                                 )}
                                 <button
-                                  onClick={() => setSelectedPrompt(prompt)}
+                                  onClick={() => openEditor(prompt, false)}
                                   className="px-3 py-1.5 bg-teal-50 text-teal-700 hover:bg-teal-100 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5"
                                 >
                                   <Edit3 className="w-3.5 h-3.5" />
                                   Edit
+                                </button>
+                                <button
+                                  onClick={() => openEditor(prompt, true)}
+                                  className="px-3 py-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5"
+                                >
+                                  <Sparkles className="w-3.5 h-3.5" />
+                                  Enhance with AI
                                 </button>
                               </div>
                             </div>
@@ -344,8 +464,8 @@ export function PromptLibrary({ expanded = false, onToggle }: PromptLibraryProps
               <div className="text-sm text-teal-800">
                 <p className="font-medium mb-1">AI-Powered Prompt Enhancement</p>
                 <p>
-                  Edit any prompt to access AI-powered enhancement tools. The AI can help improve
-                  clarity, add detail, or optimize prompts for better generation results.
+                  Click <strong>Enhance with AI</strong> on any prompt to instantly open the AI
+                  enhancement panel, or use <strong>Edit</strong> to make manual changes.
                 </p>
               </div>
             </div>
@@ -356,9 +476,11 @@ export function PromptLibrary({ expanded = false, onToggle }: PromptLibraryProps
       {selectedPrompt && (
         <PromptEditorModal
           prompt={selectedPrompt}
-          onClose={() => setSelectedPrompt(null)}
+          initialSidePanel={openWithEnhance ? 'enhance' : 'none'}
+          onClose={() => { setSelectedPrompt(null); setOpenWithEnhance(false); }}
           onSave={() => {
             setSelectedPrompt(null);
+            setOpenWithEnhance(false);
             loadPrompts();
           }}
         />
