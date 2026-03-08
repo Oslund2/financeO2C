@@ -222,7 +222,7 @@ export function PromptLibrary({ expanded = false, onToggle }: PromptLibraryProps
   const subtitle = [activeOrg?.name, selectedSeries?.name].filter(Boolean).join(' · ');
 
   // ── Whether to show the AI generate CTA ────────────────────────────────────
-  const hasApiKey = !!import.meta.env.VITE_ANTHROPIC_API_KEY;
+  const hasApiKey = !!import.meta.env.VITE_GEMINI_API_KEY;
   const isEmpty = !loading && prompts.length === 0;
 
   return (
@@ -410,8 +410,8 @@ export function PromptLibrary({ expanded = false, onToggle }: PromptLibraryProps
                 </button>
               ) : (
                 <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 max-w-sm mx-auto text-left">
-                  <strong>VITE_ANTHROPIC_API_KEY</strong> is not set.
-                  Add your Anthropic API key to <code>.env</code> to enable AI prompt generation.
+                  <strong>VITE_GEMINI_API_KEY</strong> is not set.
+                  Add your Gemini API key to <code>.env</code> to enable AI prompt generation.
                 </div>
               )}
 
