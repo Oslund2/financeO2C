@@ -17,6 +17,7 @@ import {
   Sparkles,
   Film,
   Layers,
+  Wand2,
   ChevronDown as SelectChevron,
 } from 'lucide-react';
 import { useOrganization } from '../contexts/OrganizationContext';
@@ -29,6 +30,14 @@ import {
   type PromptTemplate,
   type PromptCategory,
 } from '../services/promptLibraryService';
+import {
+  getWorkspaceMission,
+  getSeriesMission,
+} from '../services/missionService';
+import {
+  generatePromptsForWorkspace,
+  type GenerationProgressCallback,
+} from '../services/aiPromptGenerationService';
 import { PromptEditorModal } from './PromptEditorModal';
 
 const CATEGORY_CONFIG: Record<PromptCategory | 'general', { label: string; icon: typeof FileText; color: string }> = {
@@ -57,6 +66,16 @@ interface PromptLibraryProps {
   onToggle?: () => void;
 }
 
+// ── Generation progress UI state ─────────────────────────────────────────────
+interface GenState {
+  active: boolean;
+  phase: 'thinking' | 'saving' | 'done' | 'error';
+  message: string;
+  progress: number;     // 0–100
+}
+
+const GEN_IDLE: GenState = { active: false, phase: 'thinking', message: '', progress: 0 };
+
 export function PromptLibrary({ expanded = false, onToggle }: PromptLibraryProps) {
   const { currentOrganization, organizations } = useOrganization();
 
@@ -72,6 +91,7 @@ export function PromptLibrary({ expanded = false, onToggle }: PromptLibraryProps
   const [selectedPrompt, setSelectedPrompt]      = useState<PromptTemplate | null>(null);
   const [openWithEnhance, setOpenWithEnhance]    = useState(false);
   const [resettingPrompt, setResettingPrompt]    = useState<string | null>(null);
+  const [genState, setGenState]                  = useState<GenState>(GEN_IDLE);
 
   // Active org object derived from selection
   const activeOrg =
@@ -129,6 +149,41 @@ export function PromptLibrary({ expanded = false, onToggle }: PromptLibraryProps
     }
   };
 
+  // ── AI generation ───────────────────────────────────────────────────────────
+  const handleGenerateWithAI = async () => {
+    if (!activeOrg) return;
+    setGenState({ active: true, phase: 'thinking', message: 'Starting AI generation…', progress: 5 });
+    setError(null);
+
+    try {
+      const onProgress: GenerationProgressCallback = (phase, message, progress = 0) => {
+        setGenState({ active: true, phase, message, progress });
+      };
+
+      const mission      = await getWorkspaceMission(activeOrg.id);
+      const seriesMission = selectedSeriesId ? await getSeriesMission(selectedSeriesId) : null;
+
+      const result = await generatePromptsForWorkspace(
+        activeOrg.id,
+        activeOrg.workspace_type,
+        mission,
+        seriesMission,
+        onProgress
+      );
+
+      if (result.errors.length > 0) {
+        setError(`Generated ${result.generated} prompts. Some failed: ${result.errors.join('; ')}`);
+      }
+
+      setGenState({ active: false, phase: 'done', message: '', progress: 100 });
+      await loadPrompts();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'AI generation failed';
+      setGenState({ active: false, phase: 'error', message: msg, progress: 0 });
+      setError(msg);
+    }
+  };
+
   const handleResetToDefault = async (prompt: PromptTemplate) => {
     if (!activeOrg) return;
     setResettingPrompt(prompt.id);
@@ -164,9 +219,11 @@ export function PromptLibrary({ expanded = false, onToggle }: PromptLibraryProps
   const WsIcon = wsConfig?.icon ?? Layers;
 
   const selectedSeries = series.find((s) => s.id === selectedSeriesId);
-
-  // Subtitle shown in the collapsed header
   const subtitle = [activeOrg?.name, selectedSeries?.name].filter(Boolean).join(' · ');
+
+  // ── Whether to show the AI generate CTA ────────────────────────────────────
+  const hasApiKey = !!import.meta.env.VITE_GEMINI_API_KEY;
+  const isEmpty = !loading && prompts.length === 0;
 
   return (
     <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
@@ -249,7 +306,8 @@ export function PromptLibrary({ expanded = false, onToggle }: PromptLibraryProps
           {selectedSeries && (
             <p className="text-xs text-teal-700 bg-teal-50 border border-teal-200 rounded-lg px-4 py-2">
               Viewing workspace prompts in the context of <strong>{selectedSeries.name}</strong>.
-              Use <strong>Enhance with AI</strong> to tailor any prompt specifically for this series.
+              Use <strong>Enhance with AI</strong> on any prompt to tailor it for this series, or use
+              <strong> Generate from Mission</strong> below to create a full series-specific prompt set.
             </p>
           )}
 
@@ -299,17 +357,74 @@ export function PromptLibrary({ expanded = false, onToggle }: PromptLibraryProps
             </div>
           )}
 
+          {/* ── Generation progress bar ───────────────────────── */}
+          {genState.active && (
+            <div className="p-4 bg-purple-50 border border-purple-200 rounded-xl space-y-3">
+              <div className="flex items-center gap-2">
+                <Wand2 className="w-5 h-5 text-purple-600 animate-pulse" />
+                <span className="text-sm font-medium text-purple-800">{genState.message}</span>
+              </div>
+              <div className="h-2 bg-purple-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-purple-500 rounded-full transition-all duration-700"
+                  style={{ width: `${genState.progress}%` }}
+                />
+              </div>
+              <p className="text-xs text-purple-600">
+                {genState.phase === 'thinking'
+                  ? 'Claude is reading your Mission Control guidelines and crafting tailored prompts…'
+                  : 'Saving to your prompt library…'}
+              </p>
+            </div>
+          )}
+
           {/* ── Prompt list ───────────────────────────────────── */}
           {loading ? (
             <div className="text-center py-12">
               <div className="animate-spin w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full mx-auto mb-4" />
               <p className="text-gray-600">Loading prompts…</p>
             </div>
-          ) : filteredPrompts.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">
-              <Library className="w-12 h-12 mx-auto mb-4 opacity-40" />
-              <p className="font-medium">No prompts found for this workspace</p>
-              <p className="text-sm mt-1">Prompts are initialized automatically — try reloading.</p>
+          ) : isEmpty && !genState.active ? (
+            /* ── Empty state with AI generation CTA ─────────── */
+            <div className="text-center py-10 space-y-5">
+              <div className="w-16 h-16 bg-gradient-to-br from-purple-100 to-purple-200 rounded-2xl flex items-center justify-center mx-auto">
+                <Wand2 className="w-8 h-8 text-purple-500" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">No prompts yet</h3>
+                <p className="text-sm text-gray-500 mt-1 max-w-sm mx-auto">
+                  Generate a full set of production prompts tailored to your{' '}
+                  <strong>{wsConfig?.label ?? activeOrg?.workspace_type}</strong> workspace
+                  {selectedSeries ? ` and the "${selectedSeries.name}" series` : ''} using your
+                  Mission Control guidelines.
+                </p>
+              </div>
+
+              {hasApiKey ? (
+                <button
+                  onClick={handleGenerateWithAI}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl shadow-sm transition-colors"
+                >
+                  <Wand2 className="w-5 h-5" />
+                  Generate from Mission
+                </button>
+              ) : (
+                <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 max-w-sm mx-auto text-left">
+                  <strong>VITE_GEMINI_API_KEY</strong> is not set.
+                  Add your Gemini API key to <code>.env</code> to enable AI prompt generation.
+                </div>
+              )}
+
+              <p className="text-xs text-gray-400">
+                Or{' '}
+                <button
+                  onClick={loadPrompts}
+                  className="underline hover:text-gray-600"
+                >
+                  reload
+                </button>{' '}
+                if prompts were recently added elsewhere.
+              </p>
             </div>
           ) : (
             <div className="space-y-6">
@@ -379,7 +494,7 @@ export function PromptLibrary({ expanded = false, onToggle }: PromptLibraryProps
                                   <button
                                     onClick={() => handleResetToDefault(prompt)}
                                     disabled={isResetting}
-                                    title="Reset to system default"
+                                    title="Reset to default"
                                     className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors disabled:opacity-50"
                                   >
                                     {isResetting
@@ -410,6 +525,20 @@ export function PromptLibrary({ expanded = false, onToggle }: PromptLibraryProps
                   </div>
                 );
               })}
+
+              {/* Re-generate CTA at bottom when prompts exist */}
+              {hasApiKey && (
+                <div className="pt-4 border-t border-gray-100 flex justify-end">
+                  <button
+                    onClick={handleGenerateWithAI}
+                    disabled={genState.active}
+                    className="inline-flex items-center gap-2 px-4 py-2 text-sm text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg font-medium transition-colors disabled:opacity-50"
+                  >
+                    <Wand2 className="w-4 h-4" />
+                    Re-generate from Mission
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
