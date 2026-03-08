@@ -2032,7 +2032,7 @@ export function Settings() {
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-900">NIL Release Agreement</h4>
-                              <p className="text-sm text-gray-600 mt-1">Standard Name, Image, and Likeness release form for Spelling Bee champions and talent appearances.</p>
+                              <p className="text-sm text-gray-600 mt-1">Standard Name, Image, and Likeness release form for talent appearances across any show or production.</p>
                               <div className="flex items-center gap-2 mt-2">
                                 <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">DOCX Format</span>
                                 <span className="text-xs bg-teal-100 text-teal-700 px-2 py-1 rounded">Template</span>
@@ -2041,7 +2041,7 @@ export function Settings() {
                           </div>
                           <div className="flex gap-2">
                             <a
-                              href="/releases/sch-awesome!_nil_release.docx"
+                              href="/releases/nil_release.docx"
                               download="NIL_Release_Agreement.docx"
                               className="flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
                             >
@@ -2050,7 +2050,7 @@ export function Settings() {
                             </a>
                             <button
                               onClick={() => {
-                                const printWindow = window.open('/releases/sch-awesome!_nil_release.docx', '_blank');
+                                const printWindow = window.open('/releases/nil_release.docx', '_blank');
                                 if (printWindow) {
                                   printWindow.focus();
                                 }
