@@ -31,6 +31,7 @@ export function Settings() {
   const [databaseExpanded, setDatabaseExpanded] = useState(false);
   const [creatorCostExpanded, setCreatorCostExpanded] = useState(false);
   const [lipSyncExpanded, setLipSyncExpanded] = useState(false);
+  const [assemblyExpanded, setAssemblyExpanded] = useState(false);
   const [productionCostExpanded, setProductionCostExpanded] = useState(false);
   const [geminiExpanded, setGeminiExpanded] = useState(false);
   const [voiceSettingsExpanded, setVoiceSettingsExpanded] = useState(false);
@@ -1843,6 +1844,141 @@ export function Settings() {
             )}
           </div>
 
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+            <button
+              onClick={() => setAssemblyExpanded(!assemblyExpanded)}
+              className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
+              aria-expanded={assemblyExpanded}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-600 rounded-lg flex items-center justify-center">
+                  <Film className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <h2 className="text-xl font-bold text-gray-900">Assembly / Editing</h2>
+                  <p className="text-sm text-gray-600">Configure Shotstack for automated rough cut assembly</p>
+                </div>
+              </div>
+              {assemblyExpanded ? (
+                <ChevronUp className="w-6 h-6 text-gray-400" />
+              ) : (
+                <ChevronDown className="w-6 h-6 text-gray-400" />
+              )}
+            </button>
+
+            {assemblyExpanded && (
+              <div className="border-t border-gray-200 p-6 space-y-6">
+
+                {/* What it does */}
+                <div className="bg-violet-50 border border-violet-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <Film className="w-5 h-5 text-violet-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-violet-900">
+                      <p className="font-semibold mb-1">Automated Rough Cut Assembly</p>
+                      <p>Once ≥80% of your shots have finished rendering, the platform can automatically assemble them into a complete episode rough cut — with transitions, audio mixing, and an optional slate/end-card — using the <strong>Shotstack</strong> cloud video editing API.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Setup steps */}
+                <div>
+                  <h3 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Key className="w-4 h-4 text-violet-600" />
+                    Setup Instructions
+                  </h3>
+                  <ol className="space-y-4">
+                    <li className="flex gap-4">
+                      <span className="flex-shrink-0 w-7 h-7 bg-violet-100 text-violet-700 rounded-full flex items-center justify-center text-sm font-bold">1</span>
+                      <div>
+                        <p className="font-medium text-gray-900">Create a Shotstack account</p>
+                        <p className="text-sm text-gray-600 mt-1">Sign up at <a href="https://shotstack.io" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">shotstack.io</a>. A free sandbox tier is available for testing (watermarked output).</p>
+                      </div>
+                    </li>
+                    <li className="flex gap-4">
+                      <span className="flex-shrink-0 w-7 h-7 bg-violet-100 text-violet-700 rounded-full flex items-center justify-center text-sm font-bold">2</span>
+                      <div>
+                        <p className="font-medium text-gray-900">Get your API key</p>
+                        <p className="text-sm text-gray-600 mt-1">In the Shotstack dashboard go to <strong>API Keys</strong> and copy either your <em>Stage</em> (sandbox/testing) or <em>Production</em> key.</p>
+                      </div>
+                    </li>
+                    <li className="flex gap-4">
+                      <span className="flex-shrink-0 w-7 h-7 bg-violet-100 text-violet-700 rounded-full flex items-center justify-center text-sm font-bold">3</span>
+                      <div>
+                        <p className="font-medium text-gray-900">Add the key — two options</p>
+                        <div className="mt-2 space-y-3">
+                          <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                            <p className="text-sm font-semibold text-gray-800 mb-1">Option A — per-organisation (recommended)</p>
+                            <p className="text-sm text-gray-600">Open any production → navigate to the <strong>Assembly</strong> step → click the <Sliders className="w-3 h-3 inline" /> settings icon → paste your API key and save. This key is stored per-org in the database and shared across all productions in your workspace.</p>
+                          </div>
+                          <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                            <p className="text-sm font-semibold text-gray-800 mb-1">Option B — environment variable</p>
+                            <p className="text-sm text-gray-600 mb-2">Add to your Bolt / .env secrets:</p>
+                            <code className="text-xs bg-gray-200 px-2 py-1 rounded block">VITE_SHOTSTACK_API_KEY=your_key_here</code>
+                          </div>
+                        </div>
+                      </div>
+                    </li>
+                    <li className="flex gap-4">
+                      <span className="flex-shrink-0 w-7 h-7 bg-violet-100 text-violet-700 rounded-full flex items-center justify-center text-sm font-bold">4</span>
+                      <div>
+                        <p className="font-medium text-gray-900">Trigger an assembly</p>
+                        <p className="text-sm text-gray-600 mt-1">The platform will auto-trigger when ≥80% of shots are complete, or you can click <strong>"Assemble Rough Cut"</strong> manually from the Batches step or the Assembly panel. Renders typically take 1–5 minutes depending on episode length.</p>
+                      </div>
+                    </li>
+                  </ol>
+                </div>
+
+                {/* Assembly panel features */}
+                <div>
+                  <h3 className="text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Sliders className="w-4 h-4 text-violet-600" />
+                    Assembly Settings (in the panel)
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { label: 'Transition type', desc: 'Cut, fade, or dissolve between shots' },
+                      { label: 'Resolution', desc: '720p, 1080p, or 4K output' },
+                      { label: 'Frame rate', desc: '24, 30, or 60 fps' },
+                      { label: 'Dialogue volume', desc: 'Mix level for character audio' },
+                      { label: 'Music track', desc: 'Optional background music URL' },
+                      { label: 'Slate / end-card', desc: 'Auto-prepend / append title card' },
+                    ].map(({ label, desc }) => (
+                      <div key={label} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                        <p className="text-sm font-semibold text-gray-800">{label}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Pricing */}
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <DollarSign className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-amber-900">
+                      <p className="font-semibold mb-1">Pricing</p>
+                      <p>Shotstack charges ~<strong>$0.05–$0.20 per minute</strong> of rendered output on the production tier. Sandbox renders are free but watermarked. See <a href="https://shotstack.io/pricing/" target="_blank" rel="noopener noreferrer" className="underline">shotstack.io/pricing</a> for current rates.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Links */}
+                <div className="flex items-center gap-4 text-sm">
+                  <a href="https://shotstack.io" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 flex items-center gap-1 font-medium">
+                    shotstack.io <ExternalLink className="w-3 h-3" />
+                  </a>
+                  <a href="https://shotstack.io/docs/guide/getting-started/core-concepts/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                    Core Concepts Docs <ExternalLink className="w-3 h-3" />
+                  </a>
+                  <a href="https://dashboard.shotstack.io" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                    Dashboard <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+
+              </div>
+            )}
+          </div>
+
           <PromptLibrary
             expanded={promptLibraryExpanded}
             onToggle={() => setPromptLibraryExpanded(!promptLibraryExpanded)}
@@ -1896,7 +2032,7 @@ export function Settings() {
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-900">NIL Release Agreement</h4>
-                              <p className="text-sm text-gray-600 mt-1">Standard Name, Image, and Likeness release form for Spelling Bee champions and talent appearances.</p>
+                              <p className="text-sm text-gray-600 mt-1">Standard Name, Image, and Likeness release form for talent appearances across any show or production.</p>
                               <div className="flex items-center gap-2 mt-2">
                                 <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">DOCX Format</span>
                                 <span className="text-xs bg-teal-100 text-teal-700 px-2 py-1 rounded">Template</span>
@@ -1905,7 +2041,7 @@ export function Settings() {
                           </div>
                           <div className="flex gap-2">
                             <a
-                              href="/releases/sch-awesome!_nil_release.docx"
+                              href="/releases/nil_release.docx"
                               download="NIL_Release_Agreement.docx"
                               className="flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
                             >
@@ -1914,7 +2050,7 @@ export function Settings() {
                             </a>
                             <button
                               onClick={() => {
-                                const printWindow = window.open('/releases/sch-awesome!_nil_release.docx', '_blank');
+                                const printWindow = window.open('/releases/nil_release.docx', '_blank');
                                 if (printWindow) {
                                   printWindow.focus();
                                 }
