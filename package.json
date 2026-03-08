@@ -16,6 +16,7 @@
     "verify:setup": "bash scripts/verify-setup.sh"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
     "@supabase/supabase-js": "^2.57.4",
     "jspdf": "^3.0.4",
     "lucide-react": "^0.344.0",
