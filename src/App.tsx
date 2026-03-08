@@ -18,7 +18,7 @@ const ProductionWorkflow = lazy(() => import('./components/ProductionWorkflow'))
 const IPProtection = lazy(() => import('./components/IPProtection').then(m => ({ default: m.IPProtection })));
 const BackupRecovery = lazy(() => import('./components/BackupRecovery'));
 import { supabase } from './lib/supabase';
-import { initializeSampleData } from './utils/sampleData';
+import { initializeSampleData, cleanupMisseededSampleData } from './utils/sampleData';
 import { useAuth } from './contexts/AuthContext';
 import { useOrganization } from './contexts/OrganizationContext';
 
@@ -61,7 +61,15 @@ function App() {
         const defaultSeries = allSeries.find((s: any) => s.name === 'Schwawsome');
         selectedSeries = defaultSeries || allSeries[0];
         setSeriesId(selectedSeries.id);
-        await initializeSampleData(selectedSeries.id);
+
+        if (currentOrganization.workspace_type === 'claymation') {
+          // Only seed Spelling Bee sample data into claymation workspaces
+          await initializeSampleData(selectedSeries.id);
+        } else {
+          // Remove any Spelling Bee sample data that was accidentally seeded
+          // into this workspace's series on a previous load
+          await cleanupMisseededSampleData(currentOrganization.id);
+        }
       } else {
         const { data: newSeries, error: insertError } = await supabase
           .from('series')
@@ -79,7 +87,10 @@ function App() {
 
         if (insertError) throw insertError;
         setSeriesId(newSeries.id);
-        await initializeSampleData(newSeries.id);
+
+        if (currentOrganization.workspace_type === 'claymation') {
+          await initializeSampleData(newSeries.id);
+        }
       }
     } catch (error) {
       console.error('Error initializing series:', error);

@@ -318,6 +318,72 @@ export const STORYBOARD_ASSETS = [
   },
 ];
 
+const SAMPLE_CHARACTER_NAMES = SAMPLE_CHARACTERS.map((c) => c.name);
+const SAMPLE_SCRIPT_TITLE = SPELL_MAGEDDON_SCRIPT.title;
+const SAMPLE_ASSET_NAMES = STORYBOARD_ASSETS.map((a) => a.name);
+
+/**
+ * Removes Spelling Bee sample data that was accidentally seeded into series
+ * belonging to non-claymation workspaces.
+ */
+export async function cleanupMisseededSampleData(organizationId: string) {
+  try {
+    const { data: seriesList } = await supabase
+      .from('series')
+      .select('id')
+      .eq('organization_id', organizationId);
+
+    if (!seriesList || seriesList.length === 0) return;
+
+    const seriesIds = seriesList.map((s) => s.id);
+
+    // Remove sample characters
+    const { error: charErr } = await supabase
+      .from('characters')
+      .delete()
+      .in('series_id', seriesIds)
+      .in('name', SAMPLE_CHARACTER_NAMES);
+    if (charErr) console.error('Cleanup – characters:', charErr.message);
+
+    // Find the sample script(s)
+    const { data: sampleScripts } = await supabase
+      .from('scripts')
+      .select('id')
+      .in('series_id', seriesIds)
+      .eq('title', SAMPLE_SCRIPT_TITLE);
+
+    if (sampleScripts && sampleScripts.length > 0) {
+      const scriptIds = sampleScripts.map((s) => s.id);
+
+      // Remove acts
+      await supabase.from('script_acts').delete().in('script_id', scriptIds);
+
+      // Remove episodes tied to these scripts
+      const { error: epErr } = await supabase
+        .from('episodes')
+        .delete()
+        .in('series_id', seriesIds)
+        .in('script_id', scriptIds);
+      if (epErr) console.error('Cleanup – episodes:', epErr.message);
+
+      // Remove scripts
+      await supabase.from('scripts').delete().in('id', scriptIds);
+    }
+
+    // Remove sample assets by name
+    const { error: assetErr } = await supabase
+      .from('assets')
+      .delete()
+      .in('series_id', seriesIds)
+      .in('name', SAMPLE_ASSET_NAMES);
+    if (assetErr) console.error('Cleanup – assets:', assetErr.message);
+
+    console.log('Sample data cleanup complete for org:', organizationId);
+  } catch (error) {
+    console.error('Error during sample data cleanup:', error);
+  }
+}
+
 export async function initializeSampleData(seriesId: string) {
   try {
     const { data: existingData } = await supabase
