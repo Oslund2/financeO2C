@@ -5,15 +5,18 @@ import './index.css';
 import { AuthProvider } from './contexts/AuthContext';
 import { OrganizationProvider } from './contexts/OrganizationContext';
 import { NotificationProvider } from './contexts/NotificationContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AuthProvider>
-      <OrganizationProvider>
-        <NotificationProvider position="top-right">
-          <App />
-        </NotificationProvider>
-      </OrganizationProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <OrganizationProvider>
+          <NotificationProvider position="top-right">
+            <App />
+          </NotificationProvider>
+        </OrganizationProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   </StrictMode>
 );

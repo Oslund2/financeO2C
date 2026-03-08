@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { elevenLabsService } from './elevenLabsService';
+import { getElevenLabsService } from './elevenLabsService';
 
 interface DialogueShot {
   id: string;
@@ -77,7 +77,7 @@ class DialogueAudioService {
     let cost = 0;
 
     if (provider === 'elevenlabs' && params.voiceId) {
-      const result = await elevenLabsService.generateSpeech(params.dialogue, params.voiceId);
+      const result = await getElevenLabsService().generateSpeech(params.dialogue, params.voiceId);
       audioBlob = result.audio;
       cost = result.cost;
     } else {

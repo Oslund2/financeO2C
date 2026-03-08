@@ -80,34 +80,25 @@ export async function getScriptWithDetails(scriptId: string) {
   if (scriptError) throw scriptError;
   if (!script) throw new Error('Script not found');
 
-  const { data: acts, error: actsError } = await supabase
+  const { data: actsWithScenes, error: actsError } = await supabase
     .from('script_acts')
-    .select('*')
+    .select('*, script_scenes(*)')
     .eq('script_id', scriptId)
     .order('act_number', { ascending: true });
 
   if (actsError) throw actsError;
 
-  const actsWithScenes = await Promise.all(
-    (acts || []).map(async (act) => {
-      const { data: scenes, error: scenesError } = await supabase
-        .from('script_scenes')
-        .select('*')
-        .eq('act_id', act.id)
-        .order('scene_number', { ascending: true });
-
-      if (scenesError) throw scenesError;
-
-      return {
-        ...act,
-        scenes: scenes || [],
-      };
-    })
-  );
+  const formattedActs = (actsWithScenes || []).map(act => ({
+    ...act,
+    scenes: (act.script_scenes || []).sort(
+      (a: Scene, b: Scene) => a.scene_number - b.scene_number
+    ),
+    script_scenes: undefined,
+  }));
 
   return {
     script: script as Script,
-    acts: actsWithScenes as Array<Act & { scenes: Scene[] }>,
+    acts: formattedActs as Array<Act & { scenes: Scene[] }>,
   };
 }
 

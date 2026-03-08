@@ -116,17 +116,19 @@ export class EpisodeProgressService {
       if (error) throw error;
       if (!episodes) return { success: 0, failed: 0 };
 
-      let success = 0;
-      let failed = 0;
+      const results = await Promise.allSettled(
+        episodes.map(episode => this.calculateEpisodeProgress(episode.id))
+      );
 
-      for (const episode of episodes) {
-        try {
-          await this.calculateEpisodeProgress(episode.id);
-          success++;
-        } catch (err) {
-          console.error(`Failed to recalculate progress for episode ${episode.id}:`, err);
-          failed++;
-        }
+      const success = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+
+      if (failed > 0) {
+        results.forEach((r, i) => {
+          if (r.status === 'rejected') {
+            console.error(`Failed to recalculate progress for episode ${episodes[i].id}:`, r.reason);
+          }
+        });
       }
 
       return { success, failed };

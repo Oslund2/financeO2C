@@ -1,21 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { Layout } from './components/Layout';
-import { Dashboard } from './components/Dashboard';
-import { Characters } from './components/Characters';
-import { Scripts } from './components/Scripts';
-import { Assets } from './components/Assets';
-import { Episodes } from './components/Episodes';
-import { Production } from './components/Production';
-import { AIStudio } from './components/AIStudio';
-import { Settings } from './components/Settings';
-import { StoryboardGenerator } from './components/StoryboardGenerator';
-import { StoryboardViewer } from './components/StoryboardViewer';
-import { ProductionEconomics } from './components/ProductionEconomics';
-import ProductionWorkflow from './components/ProductionWorkflow';
-import { IPProtection } from './components/IPProtection';
-import BackupRecovery from './components/BackupRecovery';
 import { CommandPalette, useCommandPalette } from './components/CommandPalette';
 import { OnboardingFlow, useOnboarding } from './components/OnboardingFlow';
+
+const Dashboard = lazy(() => import('./components/Dashboard').then(m => ({ default: m.Dashboard })));
+const Characters = lazy(() => import('./components/Characters').then(m => ({ default: m.Characters })));
+const Scripts = lazy(() => import('./components/Scripts').then(m => ({ default: m.Scripts })));
+const Assets = lazy(() => import('./components/Assets').then(m => ({ default: m.Assets })));
+const Episodes = lazy(() => import('./components/Episodes').then(m => ({ default: m.Episodes })));
+const Production = lazy(() => import('./components/Production').then(m => ({ default: m.Production })));
+const AIStudio = lazy(() => import('./components/AIStudio').then(m => ({ default: m.AIStudio })));
+const Settings = lazy(() => import('./components/Settings').then(m => ({ default: m.Settings })));
+const StoryboardGenerator = lazy(() => import('./components/StoryboardGenerator').then(m => ({ default: m.StoryboardGenerator })));
+const StoryboardViewer = lazy(() => import('./components/StoryboardViewer').then(m => ({ default: m.StoryboardViewer })));
+const ProductionEconomics = lazy(() => import('./components/ProductionEconomics').then(m => ({ default: m.ProductionEconomics })));
+const ProductionWorkflow = lazy(() => import('./components/ProductionWorkflow'));
+const IPProtection = lazy(() => import('./components/IPProtection').then(m => ({ default: m.IPProtection })));
+const BackupRecovery = lazy(() => import('./components/BackupRecovery'));
 import { supabase } from './lib/supabase';
 import { initializeSampleData } from './utils/sampleData';
 import { useAuth } from './contexts/AuthContext';
@@ -232,6 +233,11 @@ function App() {
         currentSeriesId={seriesId}
         onSeriesChange={handleSeriesChange}
       >
+        <Suspense fallback={
+          <div className="flex items-center justify-center h-64">
+            <div className="w-10 h-10 border-4 border-scripps-blue border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        }>
         {currentView === 'dashboard' && <Dashboard seriesId={seriesId} onNavigate={handleNavigate} />}
         {currentView === 'characters' && <Characters seriesId={seriesId} />}
         {currentView === 'scripts' && <Scripts seriesId={seriesId} onNavigate={handleNavigate} />}
@@ -269,6 +275,7 @@ function App() {
         {currentView === 'settings' && <Settings />}
         {currentView === 'ip-protection' && <IPProtection />}
         {currentView === 'backup-recovery' && <BackupRecovery />}
+        </Suspense>
       </Layout>
       <CommandPalette
         isOpen={commandPalette.isOpen}

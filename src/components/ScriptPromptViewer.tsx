@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { FileText, Film, ChevronLeft, ChevronRight, Maximize2, Minimize2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -46,6 +46,8 @@ export default function ScriptPromptViewer({ scriptId, shotIds, episodeId }: Scr
 
   const scriptPanelRef = useRef<HTMLDivElement>(null);
   const shotsPanelRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const dragCleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     loadData();
@@ -210,17 +212,39 @@ export default function ScriptPromptViewer({ scriptId, shotIds, episodeId }: Scr
     return shot ? [shot] : [];
   };
 
-  const handleDrag = (e: React.MouseEvent) => {
-    const container = e.currentTarget.parentElement;
+  // Clean up any active drag listeners on unmount
+  useEffect(() => {
+    return () => {
+      if (dragCleanupRef.current) {
+        dragCleanupRef.current();
+      }
+    };
+  }, []);
+
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    const container = containerRef.current;
     if (!container) return;
 
-    const containerRect = container.getBoundingClientRect();
-    const newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const containerRect = container.getBoundingClientRect();
+      const newWidth = ((moveEvent.clientX - containerRect.left) / containerRect.width) * 100;
+      if (newWidth >= 30 && newWidth <= 70) {
+        setPanelWidth(newWidth);
+      }
+    };
 
-    if (newWidth >= 30 && newWidth <= 70) {
-      setPanelWidth(newWidth);
-    }
-  };
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      dragCleanupRef.current = null;
+    };
+
+    // Store cleanup so we can call it on unmount
+    dragCleanupRef.current = handleMouseUp;
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, []);
 
   if (loading) {
     return (
@@ -283,7 +307,7 @@ export default function ScriptPromptViewer({ scriptId, shotIds, episodeId }: Scr
         </div>
       </div>
 
-      <div className="flex h-[600px]">
+      <div ref={containerRef} className="flex h-[600px]">
         <div
           ref={scriptPanelRef}
           style={{ width: `${panelWidth}%` }}
@@ -304,25 +328,7 @@ export default function ScriptPromptViewer({ scriptId, shotIds, episodeId }: Scr
 
         <div
           className="w-1 bg-gray-200 hover:bg-blue-400 cursor-col-resize flex items-center justify-center group"
-          onMouseDown={(e) => {
-            const handleMouseMove = (moveEvent: MouseEvent) => {
-              const container = e.currentTarget.parentElement;
-              if (!container) return;
-              const containerRect = container.getBoundingClientRect();
-              const newWidth = ((moveEvent.clientX - containerRect.left) / containerRect.width) * 100;
-              if (newWidth >= 30 && newWidth <= 70) {
-                setPanelWidth(newWidth);
-              }
-            };
-
-            const handleMouseUp = () => {
-              document.removeEventListener('mousemove', handleMouseMove);
-              document.removeEventListener('mouseup', handleMouseUp);
-            };
-
-            document.addEventListener('mousemove', handleMouseMove);
-            document.addEventListener('mouseup', handleMouseUp);
-          }}
+          onMouseDown={handleDragStart}
         >
           <div className="w-1 h-12 bg-gray-400 rounded-full group-hover:bg-blue-500" />
         </div>
