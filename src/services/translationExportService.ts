@@ -146,48 +146,67 @@ export class TranslationExportService {
       .eq('script_id', scriptId)
       .order('act_number', { ascending: true });
 
-    const translatedActs = await Promise.all(
-      (acts || []).map(async (act) => {
-        const { data: actTranslation } = await supabase
-          .from('script_act_translations')
+    const actIds = (acts || []).map(a => a.id);
+
+    // Batch fetch all related data in parallel instead of per-act/per-scene loops
+    const [actTranslationsResult, scenesResult] = await Promise.all([
+      actIds.length > 0
+        ? supabase
+            .from('script_act_translations')
+            .select('*')
+            .in('act_id', actIds)
+            .eq('language_code', languageCode)
+        : { data: [] },
+      actIds.length > 0
+        ? supabase
+            .from('script_scenes')
+            .select('*')
+            .in('act_id', actIds)
+            .order('scene_number', { ascending: true })
+        : { data: [] },
+    ]);
+
+    const allScenes = scenesResult.data || [];
+    const sceneIds = allScenes.map(s => s.id);
+
+    const { data: allSceneTranslations } = sceneIds.length > 0
+      ? await supabase
+          .from('script_scene_translations')
           .select('*')
-          .eq('act_id', act.id)
+          .in('scene_id', sceneIds)
           .eq('language_code', languageCode)
-          .maybeSingle();
+      : { data: [] as any[] };
 
-        const { data: scenes } = await supabase
-          .from('script_scenes')
-          .select('*')
-          .eq('act_id', act.id)
-          .order('scene_number', { ascending: true });
-
-        const translatedScenes = await Promise.all(
-          (scenes || []).map(async (scene) => {
-            const { data: sceneTranslation } = await supabase
-              .from('script_scene_translations')
-              .select('*')
-              .eq('scene_id', scene.id)
-              .eq('language_code', languageCode)
-              .maybeSingle();
-
-            return {
-              ...scene,
-              setting: sceneTranslation?.translated_setting || scene.setting,
-              description: sceneTranslation?.translated_description || scene.description,
-              dialogue: sceneTranslation?.translated_dialogue || scene.dialogue,
-              stage_directions: sceneTranslation?.translated_stage_directions || scene.stage_directions
-            };
-          })
-        );
-
-        return {
-          ...act,
-          content: actTranslation?.translated_content || act.content,
-          notes: actTranslation?.translated_notes || act.notes,
-          scenes: translatedScenes
-        };
-      })
+    // Index translations by their foreign keys for O(1) lookup
+    const actTranslationMap = new Map(
+      (actTranslationsResult.data || []).map(t => [t.act_id, t])
     );
+    const sceneTranslationMap = new Map(
+      (allSceneTranslations || []).map(t => [t.scene_id, t])
+    );
+
+    const translatedActs = (acts || []).map(act => {
+      const actTranslation = actTranslationMap.get(act.id);
+      const actScenes = allScenes
+        .filter(s => s.act_id === act.id)
+        .map(scene => {
+          const sceneTranslation = sceneTranslationMap.get(scene.id);
+          return {
+            ...scene,
+            setting: sceneTranslation?.translated_setting || scene.setting,
+            description: sceneTranslation?.translated_description || scene.description,
+            dialogue: sceneTranslation?.translated_dialogue || scene.dialogue,
+            stage_directions: sceneTranslation?.translated_stage_directions || scene.stage_directions
+          };
+        });
+
+      return {
+        ...act,
+        content: actTranslation?.translated_content || act.content,
+        notes: actTranslation?.translated_notes || act.notes,
+        scenes: actScenes
+      };
+    });
 
     return {
       ...translation,
