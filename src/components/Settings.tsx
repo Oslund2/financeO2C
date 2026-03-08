@@ -138,7 +138,7 @@ export function Settings() {
   };
 
   const countConfiguredAPIs = (): { configured: number; total: number } => {
-    if (!apiHealth) return { configured: 0, total: 8 };
+    if (!apiHealth) return { configured: 0, total: 9 };
     const apis = [
       apiHealth.gemini,
       apiHealth.vertexAI,
@@ -147,7 +147,8 @@ export function Settings() {
       apiHealth.syncLabs,
       apiHealth.veedIo,
       apiHealth.nanoBanana,
-      apiHealth.supabase
+      apiHealth.supabase,
+      apiHealth.shotstack
     ];
     return {
       configured: apis.filter(a => a.configured && a.healthy).length,
@@ -257,6 +258,7 @@ export function Settings() {
               { key: 'veedIo', label: 'Veed.io', health: apiHealth?.veedIo },
               { key: 'chatterbox', label: 'Chatterbox', health: apiHealth?.chatterbox },
               { key: 'nanoBanana', label: 'Image Gen', health: apiHealth?.nanoBanana },
+              { key: 'shotstack', label: 'Shotstack', health: apiHealth?.shotstack },
             ].map(({ key, label, health }) => (
               <div
                 key={key}
