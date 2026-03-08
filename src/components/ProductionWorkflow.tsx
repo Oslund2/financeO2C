@@ -13,9 +13,11 @@ import { getUserSettings, updateUserSettings } from '../services/settingsService
 import { ScriptUploadService, ParsedScript } from '../services/scriptUploadService';
 import ShotListManager from './ShotListManager';
 import BatchRecommendations from './BatchRecommendations';
+import VideoAssemblyPanel from './VideoAssemblyPanel';
+import { autoTriggerAssemblyIfReady } from '../services/videoAssemblyService';
 
 type ProductionMode = 'episode' | 'script';
-type WorkflowStep = 'select' | 'upload' | 'configure' | 'generating' | 'review' | 'batches';
+type WorkflowStep = 'select' | 'upload' | 'configure' | 'generating' | 'review' | 'batches' | 'assembly';
 type ScriptStatusFilter = 'all' | 'draft' | 'approved';
 
 interface Script {
@@ -79,6 +81,7 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
   const [dataLoaded, setDataLoaded] = useState(false);
   const [navigationProcessed, setNavigationProcessed] = useState(false);
   const [parsingFile, setParsingFile] = useState(false);
+  const [autoAssemblyTriggered, setAutoAssemblyTriggered] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -636,6 +639,23 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
       setError('Failed to generate batch recommendations');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Auto-trigger assembly when batch rendering completes (80%+ shots done)
+  const handleCheckAutoAssembly = async () => {
+    if (autoAssemblyTriggered || !selectedEpisode || !currentSeries || !currentOrganization) return;
+    try {
+      const assemblyId = await autoTriggerAssemblyIfReady(
+        selectedEpisode.id,
+        currentSeries.id,
+        currentOrganization.id
+      );
+      if (assemblyId) {
+        setAutoAssemblyTriggered(true);
+      }
+    } catch {
+      // Non-blocking — assembly can be manually triggered
     }
   };
 
@@ -1316,12 +1336,43 @@ export default function ProductionWorkflow({ seriesId, navigationData }: Product
             organizationId={currentOrganization!.id}
           />
 
-          <div className="flex justify-end gap-3">
+          <div className="flex justify-between gap-3">
             <button
               onClick={() => setStep('review')}
               className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
             >
               Back to Shot List
+            </button>
+            {selectedEpisode && (
+              <button
+                onClick={() => {
+                  setStep('assembly');
+                  handleCheckAutoAssembly();
+                }}
+                className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <Film className="w-4 h-4" />
+                Assemble Rough Cut
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {step === 'assembly' && selectedEpisode && currentSeries && currentOrganization && (
+        <div className="space-y-6">
+          <VideoAssemblyPanel
+            episodeId={selectedEpisode.id}
+            seriesId={currentSeries.id}
+            organizationId={currentOrganization.id}
+            episodeTitle={selectedEpisode.title}
+          />
+          <div className="flex justify-start">
+            <button
+              onClick={() => setStep('batches')}
+              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+            >
+              Back to Batches
             </button>
           </div>
         </div>
