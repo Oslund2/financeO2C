@@ -85,7 +85,13 @@ async function callGemini(prompt: string): Promise<string> {
 
 function parseJSONSafely<T>(text: string, fallback: T): T {
   // Strip markdown code fences if present
-  const cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+  let cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+  // If the response has leading text before the JSON object, extract the JSON
+  const jsonStart = cleaned.indexOf('{');
+  const jsonEnd = cleaned.lastIndexOf('}');
+  if (jsonStart > 0 && jsonEnd > jsonStart) {
+    cleaned = cleaned.slice(jsonStart, jsonEnd + 1);
+  }
   try {
     return JSON.parse(cleaned) as T;
   } catch {
@@ -506,17 +512,49 @@ export async function analyzeGreenlightScore(params: {
 }): Promise<GreenlightScoreResult> {
   const channelList = params.targetChannels.join(', ') || 'unspecified';
 
+  const costPerMinute = params.runtimeMinutes > 0 ? params.estimatedBudgetPerEpisode / params.runtimeMinutes : 0;
+  const totalBudget = params.estimatedBudgetPerEpisode * params.episodeCount;
+  const channelCount = params.targetChannels.length;
+
   const prompt = `You are a media greenlight executive and production finance expert. Evaluate this concept BEFORE production begins and deliver a pre-production greenlight score based on 2024-2025 market conditions.
+
+IMPORTANT: Do NOT default to 50. Score the concept honestly using the rubric below.
 
 CONCEPT PARAMETERS:
   Genre:                   ${params.genre}
   Target audience:         ${params.targetAudience}
   Runtime per episode:     ${params.runtimeMinutes} minutes
   Character count:         ${params.characterCount} characters
-  Target channels:         ${channelList}
-  Budget per episode:      ${formatCurrency(params.estimatedBudgetPerEpisode)}
+  Target channels:         ${channelList} (${channelCount} channel${channelCount !== 1 ? 's' : ''})
+  Budget per episode:      ${formatCurrency(params.estimatedBudgetPerEpisode)} (${formatCurrency(costPerMinute)}/min)
   Planned episode count:   ${params.episodeCount}
-  Total series budget:     ${formatCurrency(params.estimatedBudgetPerEpisode * params.episodeCount)}
+  Total series budget:     ${formatCurrency(totalBudget)}
+
+SCORING RUBRIC — use ALL of these factors:
+
+Budget efficiency (0-25 points):
+  - AI-assisted animation at <$500/min is exceptional (25 pts)
+  - $500-$1,500/min is strong (18-22 pts)
+  - $1,500-$5,000/min is moderate (10-17 pts)
+  - >$5,000/min is weak for AI-assisted, needs justification (0-9 pts)
+
+Market fit (0-25 points):
+  - Preschool/educational + COPPA-safe = high CPM potential (20-25 pts)
+  - Kids adventure/comedy with broad appeal = solid (15-19 pts)
+  - Niche audience or saturated genre = harder path (5-14 pts)
+
+Distribution coverage (0-25 points):
+  - 3+ platforms including YouTube + FAST channel = excellent (22-25 pts)
+  - 2 platforms = good (14-21 pts)
+  - Single platform = risky concentration (5-13 pts)
+  - No channels specified = major gap (0-4 pts)
+
+Scale & format (0-25 points):
+  - 11-min format + 13+ episodes + <15 characters = ideal for rapid ROI (22-25 pts)
+  - 22-min format, moderate episode count, reasonable cast = solid (14-21 pts)
+  - Long format, few episodes, or 20+ characters = higher risk (5-13 pts)
+
+Total = sum of all four categories (0-100).
 
 MARKET CONTEXT (2024-2025):
 - Kids/family animation with <20 characters has faster production cycles and lower cost overrun risk
@@ -525,16 +563,16 @@ MARKET CONTEXT (2024-2025):
 - Multi-platform launch (YouTube + FAST) reduces break-even timeline by 25-40% vs single channel
 - Children's animation ROI range: 0.8x-4.5x depending on distribution mix (Parrot Analytics 2024)
 
-Return JSON only (no markdown fences):
+Return ONLY valid JSON (no markdown fences, no extra text before or after):
 {
-  "overallScore": <integer 0-100>,
-  "scoreLabel": "<Weak / Marginal / Moderate / Strong / Exceptional> Greenlight",
-  "breakEvenEstimate": "<e.g. '18-24 months with YouTube + one FAST channel'>",
-  "roiProbabilityRange": "<e.g. '1.2x-2.8x over 5 years — 70% probability of positive ROI'>",
-  "formatRecommendation": "<specific recommendation about runtime, character count, or format adjustments with projected impact>",
-  "distributionStrategy": "<recommended first-window and secondary distribution strategy with rationale>",
-  "riskFactors": ["risk 1", "risk 2", "risk 3"],
-  "goNoGo": "<1 clear sentence recommending Greenlight / Conditional Greenlight / Pass with specific reason>"
+  "overallScore": <integer 0-100 calculated from rubric>,
+  "scoreLabel": "<Weak (0-30) / Marginal (31-50) / Moderate (51-65) / Strong (66-80) / Exceptional (81-100)> Greenlight",
+  "breakEvenEstimate": "<e.g. '8-14 months with YouTube + Tubi' — be specific to this concept's channels and budget>",
+  "roiProbabilityRange": "<e.g. '2.1x-3.8x over 5 years — 80% probability of positive ROI' — derive from budget efficiency and channel mix>",
+  "formatRecommendation": "<specific recommendation about runtime, character count, or format adjustments with projected impact — e.g. 'Switching from 22-min to 11-min format would reduce per-episode cost by ~45% and accelerate break-even by 35%'>",
+  "distributionStrategy": "<recommended first-window and secondary distribution strategy with rationale based on the genre and audience>",
+  "riskFactors": ["specific risk 1", "specific risk 2", "specific risk 3"],
+  "goNoGo": "<1 clear sentence: GREENLIGHT / CONDITIONAL GREENLIGHT / PASS — with the specific reason>"
 }`;
 
   const text = await callGemini(prompt);
