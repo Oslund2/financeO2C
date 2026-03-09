@@ -100,7 +100,11 @@ export default function AccuracyCheckPanel({
         setChecks(checksData);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load accuracy data');
+      const msg =
+        err instanceof Error
+          ? err.message
+          : (err as any)?.message || JSON.stringify(err) || 'Failed to load accuracy data';
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -128,7 +132,11 @@ export default function AccuracyCheckPanel({
       );
       await loadData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to run accuracy check');
+      const msg =
+        err instanceof Error
+          ? err.message
+          : (err as any)?.message || JSON.stringify(err) || 'Failed to run accuracy check';
+      setError(msg);
     } finally {
       setRunning(false);
     }
