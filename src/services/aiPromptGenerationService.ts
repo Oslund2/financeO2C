@@ -105,7 +105,7 @@ Inherits Workspace Mission: ${seriesMission.inherits_workspace_mission ? 'Yes' :
 
 async function callGemini(prompt: string): Promise<string> {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
-  if (!apiKey) throw new Error('Gemini API key not configured');
+  if (!apiKey) throw new Error('Gemini API key not configured. Please set VITE_GEMINI_API_KEY.');
 
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
@@ -114,28 +114,75 @@ async function callGemini(prompt: string): Promise<string> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.7, maxOutputTokens: 16000, topP: 0.95 },
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 16000,
+        topP: 0.95,
+        responseMimeType: 'application/json',
+      },
     }),
   });
 
   if (!response.ok) {
-    throw new Error(`Gemini API error: ${response.status}`);
+    const errBody = await response.json().catch(() => ({}));
+    if (response.status === 429) throw new Error('Gemini API rate limit reached. Please wait a moment and try again.');
+    if (response.status === 401 || response.status === 403) throw new Error('Gemini API key is invalid or missing permissions.');
+    throw new Error(`Gemini API error (${response.status}): ${JSON.stringify(errBody)}`);
   }
 
   const data = await response.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error('Gemini returned an empty response. Please try again.');
+  return text;
+}
+
+function parseJsonArray(raw: string): GeneratedPromptDef[] {
+  // Stage 1: direct parse
+  try {
+    const result = JSON.parse(raw);
+    if (Array.isArray(result)) return result;
+    // Sometimes Gemini wraps the array in an object
+    const firstArray = Object.values(result).find(v => Array.isArray(v));
+    if (firstArray) return firstArray as GeneratedPromptDef[];
+  } catch { /* fall through */ }
+
+  // Stage 2: strip markdown code fences then parse
+  const stripped = raw
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```\s*$/, '')
+    .trim();
+  try {
+    const result = JSON.parse(stripped);
+    if (Array.isArray(result)) return result;
+  } catch { /* fall through */ }
+
+  // Stage 3: extract the outermost [ … ] array block
+  const match = stripped.match(/\[[\s\S]*\]/);
+  if (!match) {
+    console.error('No JSON array found in Gemini response:', raw.slice(0, 400));
+    throw new Error('Could not parse prompt definitions from Gemini response. Please try again.');
+  }
+  try {
+    const result = JSON.parse(match[0]);
+    if (!Array.isArray(result)) throw new Error('Extracted value is not an array');
+    return result;
+  } catch (e) {
+    console.error('Failed to parse extracted JSON array:', match[0].slice(0, 400));
+    throw new Error(`Could not parse prompt definitions from Gemini response: ${e instanceof Error ? e.message : e}`);
+  }
 }
 
 // ── Main generation function ──────────────────────────────────────────────────
 
 export async function generatePromptsForWorkspace(
   organizationId: string,
-  workspaceType: string,
+  workspaceType: string | null | undefined,
   mission: WorkspaceMission | null,
   seriesMission: SeriesMission | null = null,
   onProgress?: GenerationProgressCallback
 ): Promise<GenerationResult> {
-  const missionContext = buildMissionContext(workspaceType, mission, seriesMission);
+  const safeWorkspaceType = workspaceType || 'general';
+  const missionContext = buildMissionContext(safeWorkspaceType, mission, seriesMission);
 
   const slotDescriptions = PROMPT_SLOTS.map(
     (s, i) => `${i + 1}. key="${s.key}" | name="${s.name}" | category="${s.category}"\n   Purpose: ${s.purpose}`
@@ -177,14 +224,7 @@ Return a JSON array of objects with exactly this shape:
 
   onProgress?.('thinking', 'Parsing generated prompts…', 60);
 
-  let defs: GeneratedPromptDef[];
-  try {
-    const cleaned = raw.replace(/^```(?:json)?\s*/m, '').replace(/```\s*$/m, '').trim();
-    defs = JSON.parse(cleaned);
-    if (!Array.isArray(defs)) throw new Error('Expected JSON array');
-  } catch (e) {
-    throw new Error(`Failed to parse Gemini response as JSON: ${e instanceof Error ? e.message : e}`);
-  }
+  const defs = parseJsonArray(raw);
 
   onProgress?.('saving', `Saving ${defs.length} prompts to your library…`, 65);
 

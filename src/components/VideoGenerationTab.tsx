@@ -630,14 +630,6 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
   const propAssets = assets.filter(a => a.asset_type === 'prop');
   const characterAssets = assets.filter(a => a.asset_type === 'character_ref');
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       {!configured && (
@@ -941,7 +933,13 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
               );
             })}
           </div>
-          {characters.length === 0 && (
+          {loading && (
+            <div className="flex items-center gap-2 py-4 text-gray-400 text-sm">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Loading characters…
+            </div>
+          )}
+          {!loading && characters.length === 0 && (
             <p className="text-sm text-gray-500 text-center py-4">
               No characters available. Create characters first in the Characters page.
             </p>

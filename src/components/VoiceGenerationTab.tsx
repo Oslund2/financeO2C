@@ -44,11 +44,14 @@ export function VoiceGenerationTab({ seriesId, onNavigate }: VoiceGenerationTabP
 
   const loadData = async () => {
     setLoading(true);
-    await Promise.all([
-      loadCharacters(),
-      checkProviderHealth()
-    ]);
-    setLoading(false);
+    try {
+      // Only block render on characters — health check runs in background
+      await loadCharacters();
+    } finally {
+      setLoading(false);
+    }
+    // Run health check after render is unblocked (non-blocking)
+    checkProviderHealth();
   };
 
   const loadCharacters = async () => {
