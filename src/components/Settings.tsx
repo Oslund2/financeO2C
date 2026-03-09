@@ -1959,7 +1959,7 @@ export function Settings() {
                     <DollarSign className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
                     <div className="text-sm text-amber-900">
                       <p className="font-semibold mb-1">Pricing</p>
-                      <p>Shotstack charges ~<strong>$0.05–$0.20 per minute</strong> of rendered output on the production tier. Sandbox renders are free but watermarked. See <a href="https://shotstack.io/pricing/" target=\"_blank" rel="noopener noreferrer\" className="underline">shotstack.io/pricing</a> for current rates.</p>
+                      <p>Shotstack charges ~<strong>$0.05–$0.20 per minute</strong> of rendered output on the production tier. Sandbox renders are free but watermarked. See <a href="https://shotstack.io/pricing/" target="_blank" rel="noopener noreferrer" className="underline">shotstack.io/pricing</a> for current rates.</p>
                     </div>
                   </div>
                 </div>
