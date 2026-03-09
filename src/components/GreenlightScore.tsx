@@ -14,10 +14,14 @@ const AUDIENCES = [
 ];
 
 const RUNTIMES = [
-  { label: '7 min (YouTube short-form)', value: 7 },
-  { label: '11 min (TV half-hour, 1 break)', value: 11 },
-  { label: '22 min (TV half-hour, 2 breaks)', value: 22 },
-  { label: '44 min (TV hour, 4 breaks)', value: 44 },
+  { label: '1 min (YouTube Short)', value: 1 },
+  { label: '5 min (Social Short)', value: 5 },
+  { label: '10 min (YouTube Standard)', value: 10 },
+  { label: '11 min (TV 15-min Broadcast, 1 break)', value: 11 },
+  { label: '15 min (YouTube Long Form)', value: 15 },
+  { label: '22 min (TV Half-Hour, Standard Broadcast)', value: 22 },
+  { label: '22 min (Streaming, No Breaks)', value: 22 },
+  { label: '42 min (TV Hour Drama)', value: 42 },
 ];
 
 const CHANNEL_OPTIONS = [
