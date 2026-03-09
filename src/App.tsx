@@ -222,10 +222,25 @@ function App() {
 
   if (!currentOrganization) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-white flex items-center justify-center">
-        <div className="text-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-white flex items-center justify-center p-6">
+        <div className="text-center max-w-md">
           <div className="w-20 h-20 border-4 border-scripps-blue border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-xl text-gray-700 font-medium">Initializing workspace...</p>
+          <p className="text-xl text-gray-700 font-medium mb-2">Initializing workspace...</p>
+          <p className="text-sm text-gray-500 mb-6">If this takes more than a few seconds, try refreshing.</p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => window.location.reload()}
+              className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
+            >
+              Refresh
+            </button>
+            <button
+              onClick={() => { localStorage.clear(); window.location.reload(); }}
+              className="px-5 py-2.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium text-sm"
+            >
+              Clear Cache & Refresh
+            </button>
+          </div>
         </div>
       </div>
     );
