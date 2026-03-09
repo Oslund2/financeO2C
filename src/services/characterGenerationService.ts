@@ -144,9 +144,30 @@ Return ONLY valid JSON — no markdown, no explanation, no code fences:
 
   let parsed: { episodeMeta: GeneratedEpisodeMeta; characters: any[] };
   try {
+    // Try direct parse first (works when responseMimeType is honoured)
     parsed = JSON.parse(text);
   } catch {
-    throw new Error('Could not parse character data from Gemini response. Please try again.');
+    // Gemini sometimes wraps in markdown code fences — strip them
+    const stripped = text
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```\s*$/, '')
+      .trim();
+    try {
+      parsed = JSON.parse(stripped);
+    } catch {
+      // Last resort: extract the outermost { … } block
+      const match = stripped.match(/\{[\s\S]*\}/);
+      if (!match) {
+        console.error('Unparseable Gemini response:', text.slice(0, 500));
+        throw new Error('Could not parse character data from Gemini response. Please try again.');
+      }
+      try {
+        parsed = JSON.parse(match[0]);
+      } catch {
+        console.error('Unparseable Gemini JSON block:', match[0].slice(0, 500));
+        throw new Error('Could not parse character data from Gemini response. Please try again.');
+      }
+    }
   }
 
   const VALID_ROLES = ['Primary', 'Ensemble', 'Recurring', 'Cameo'] as const;
