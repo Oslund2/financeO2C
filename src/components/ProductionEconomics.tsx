@@ -21,7 +21,10 @@ import {
   RotateCcw,
   Copy,
   Sparkles,
-  AlertTriangle
+  AlertTriangle,
+  Target,
+  Radio,
+  Zap
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
@@ -45,6 +48,9 @@ import { SocialRevenueEducation } from './SocialRevenueEducation';
 import { YouTubeRevenueCalculator } from './YouTubeRevenueCalculator';
 import { SyncSettingsModal } from './SyncSettingsModal';
 import { analyzeEpisodeEconomics, analyzeSeriesPerformance, type PLInsight, type SeriesInsight } from '../services/economicsAIService';
+import { GreenlightScore } from './GreenlightScore';
+import { DistributionPackageGenerator } from './DistributionPackageGenerator';
+import { EpisodeFeedbackLoop } from './EpisodeFeedbackLoop';
 import jsPDF from 'jspdf';
 
 type Episode = Database['public']['Tables']['episodes']['Row'];
@@ -73,6 +79,9 @@ export function ProductionEconomics({ seriesId }: ProductionEconomicsProps) {
   const [showAI, setShowAI] = useState(false);
 
   const geminiAvailable = !!(import.meta.env.VITE_GEMINI_API_KEY);
+
+  type ProductionTool = 'greenlight' | 'distribution' | 'feedback' | null;
+  const [activeTool, setActiveTool] = useState<ProductionTool>(null);
 
   const [channels, setChannels] = useState<DistributionChannelSettings[]>([]);
   const [runsPerYear, setRunsPerYear] = useState(4);
@@ -565,6 +574,79 @@ export function ProductionEconomics({ seriesId }: ProductionEconomicsProps) {
             </button>
           </div>
         </div>
+
+        {/* Production Tools Bar */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Zap className="w-4 h-4 text-gray-400" />
+            <span className="text-sm font-semibold text-gray-700">Production Tools</span>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => setActiveTool(activeTool === 'greenlight' ? null : 'greenlight')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-all ${
+                activeTool === 'greenlight'
+                  ? 'bg-violet-600 text-white border-violet-600'
+                  : 'bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100'
+              }`}
+            >
+              <Target className="w-4 h-4" />
+              Greenlight Score
+            </button>
+            <button
+              onClick={() => setActiveTool(activeTool === 'distribution' ? null : 'distribution')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-all ${
+                activeTool === 'distribution'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+              }`}
+            >
+              <Radio className="w-4 h-4" />
+              Distribution Package
+            </button>
+            <button
+              onClick={() => setActiveTool(activeTool === 'feedback' ? null : 'feedback')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-all ${
+                activeTool === 'feedback'
+                  ? 'bg-emerald-600 text-white border-emerald-600'
+                  : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+              }`}
+            >
+              <RefreshCw className="w-4 h-4" />
+              Performance Feedback Loop
+            </button>
+            <span className="ml-auto text-xs text-gray-400 self-center">Click a tool to expand · Click again to close</span>
+          </div>
+        </div>
+
+        {/* Active Tool Panel */}
+        {activeTool === 'greenlight' && (
+          <GreenlightScore seriesId={seriesId} />
+        )}
+        {activeTool === 'distribution' && (
+          <DistributionPackageGenerator
+            seriesId={seriesId}
+            episodeTitle={selectedEconomics?.episodeTitle}
+            productionCost={selectedEconomics?.costs.totalInitialInvestment}
+            roiMultiple={selectedEconomics?.lifetime.roiMultiple}
+            breakEvenMonths={selectedEconomics?.breakEven.breakEvenMonths}
+            distributionChannels={selectedEconomics?.channels.filter(c => c.enabled).map(c => c.channelName)}
+          />
+        )}
+        {activeTool === 'feedback' && (
+          <EpisodeFeedbackLoop
+            seriesId={seriesId}
+            episodeTitle={selectedEconomics?.episodeTitle}
+            projectedMonthlyViews={
+              selectedEconomics
+                ? Math.round(selectedEconomics.totalMonthlyNetRevenue / 0.004) // rough views estimate from $4 RPM
+                : undefined
+            }
+            projectedMonthlyRevenue={selectedEconomics?.totalMonthlyNetRevenue}
+            productionCost={selectedEconomics?.costs.totalInitialInvestment}
+            currentDecayRate={decayRatePercent}
+          />
+        )}
 
         {viewMode === 'series' ? (
           <div className="space-y-6">

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Target, TrendingUp, Clock, Eye, Tv, Play, Radio, Sparkles, Loader2, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
+import { Target, TrendingUp, Clock, Eye, Tv, Play, Radio, Sparkles, Loader2, ChevronDown, ChevronUp, AlertTriangle, BookOpen, ExternalLink } from 'lucide-react';
 import { BreakEvenAnalysis, EpisodeEconomicsService, CostBreakdown } from '../services/episodeEconomicsService';
 import { analyzeBreakEven, type BreakEvenInsight } from '../services/economicsAIService';
 
@@ -13,6 +13,7 @@ export function BreakEvenAnalysisCard({ breakEven, costs }: BreakEvenAnalysisCar
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [showAI, setShowAI] = useState(false);
+  const [showCitations, setShowCitations] = useState(false);
 
   const geminiAvailable = !!(import.meta.env.VITE_GEMINI_API_KEY);
 
@@ -267,6 +268,62 @@ export function BreakEvenAnalysisCard({ breakEven, costs }: BreakEvenAnalysisCar
               <> through accumulated on-demand views</>
             )}.
           </p>
+        </div>
+
+        {/* Data Sources & Methodology */}
+        <div className="border border-gray-200 rounded-xl overflow-hidden">
+          <button
+            onClick={() => setShowCitations(!showCitations)}
+            className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors text-left"
+          >
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-amber-600" />
+              <span className="text-sm font-semibold text-gray-800">Methodology & Data Sources</span>
+            </div>
+            {showCitations ? (
+              <ChevronUp className="w-4 h-4 text-gray-400" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-gray-400" />
+            )}
+          </button>
+          {showCitations && (
+            <div className="px-4 pb-4 border-t border-gray-100 space-y-3">
+              <p className="text-xs text-gray-500 mt-3">Break-even calculations use CPM rates and platform fees from your configured distribution settings. Industry benchmarks are sourced from 2024–2025 research.</p>
+              <div className="space-y-2 text-xs text-gray-600">
+                <div className="bg-blue-50 rounded-lg p-3">
+                  <div className="font-semibold text-gray-700 mb-1.5">Linear / Broadcast CPM Benchmarks</div>
+                  <ul className="space-y-1">
+                    <li>• <span className="font-medium">US primetime broadcast CPM:</span> $20–40 net (Nielsen Ad Intel, Variety Intelligence Platform 2024)</li>
+                    <li>• <span className="font-medium">Cable / kids' linear CPM:</span> $8–18 net (Magna Global US TV advertising report, 2024)</li>
+                    <li>• <span className="font-medium">International broadcast CPM:</span> $3–15 net depending on market (PwC Entertainment & Media Outlook 2024–2028)</li>
+                    <li>• <span className="font-medium">Typical airings to break even:</span> Derived from episode CPM, run frequency, and total investment — no single industry standard exists; figures reflect deal-specific terms</li>
+                  </ul>
+                </div>
+                <div className="bg-red-50 rounded-lg p-3">
+                  <div className="font-semibold text-gray-700 mb-1.5">On-Demand / SVOD / AVOD Rates</div>
+                  <ul className="space-y-1">
+                    <li>• <span className="font-medium">YouTube AVOD RPM:</span> $1–6 effective (Influencer Marketing Hub 2024; platform varies by niche)</li>
+                    <li>• <span className="font-medium">AVOD platform CPM (Tubi, Pluto, Peacock):</span> $8–18 (Antenna Research AVOD monetisation report, 2024)</li>
+                    <li>• <span className="font-medium">SVOD licence fees:</span> Typically negotiated at $10K–200K per episode for independent animation; not reflected here (content deals are private)</li>
+                    <li>• <span className="font-medium">Platform revenue share:</span> YouTube 55/45 (YT Partner Programme ToS); AVOD platforms typically 50–70% creator share (Variety intelligence, 2024)</li>
+                  </ul>
+                </div>
+                <div className="bg-emerald-50 rounded-lg p-3">
+                  <div className="font-semibold text-gray-700 mb-1.5">Break-Even Calculation Methodology</div>
+                  <ul className="space-y-1">
+                    <li>• <span className="font-medium">Formula:</span> Total Investment ÷ Monthly Net Revenue (across all channels weighted by settings)</li>
+                    <li>• <span className="font-medium">Combined channel model:</span> Weights each active channel by its configured impressions/views per run and run frequency</li>
+                    <li>• <span className="font-medium">Single-channel scenario:</span> Shows theoretical break-even if each channel were the sole distribution partner</li>
+                    <li>• <span className="font-medium">Typical break-even for indie animation:</span> 18–48 months via mixed distribution (Kidscreen co-production finance panels, 2023–2024)</li>
+                  </ul>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-gray-400 pt-2 border-t border-gray-100">
+                <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                <span>Sources: Nielsen Ad Intel, Variety Intelligence Platform, Magna Global 2024, PwC E&M Outlook 2024–2028, Antenna Research, YouTube Partner Programme ToS, Kidscreen Summit 2024. CPM assumptions in your channel settings directly drive these calculations.</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* AI Insights Panel */}

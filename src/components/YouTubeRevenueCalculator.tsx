@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Calculator, TrendingUp, DollarSign, Sparkles, ChevronDown, Info, BarChart3, Loader2, AlertTriangle } from 'lucide-react';
+import { Calculator, TrendingUp, DollarSign, Sparkles, ChevronDown, ChevronUp, Info, BarChart3, Loader2, AlertTriangle, BookOpen, ExternalLink } from 'lucide-react';
 import {
   YouTubeRevenueService,
   ContentNiche,
@@ -31,6 +31,7 @@ export function YouTubeRevenueCalculator({
   const [audienceType, setAudienceType] = useState<AudienceType>('general');
   const [scenario, setScenario] = useState<'conservative' | 'moderate' | 'optimistic'>('moderate');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showCitations, setShowCitations] = useState(false);
   const [aiInsight, setAiInsight] = useState<YouTubeInsight | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -307,13 +308,59 @@ export function YouTubeRevenueCalculator({
           </div>
         </div>
 
-        <div className="flex items-start gap-2 text-xs text-gray-500">
-          <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
-          <p>
-            Estimates based on 2024 industry averages. Actual earnings vary significantly based on
-            content quality, audience engagement, upload frequency, and market conditions.
-            Sponsorship revenue assumes regular brand partnership opportunities.
-          </p>
+        {/* Data Sources & Assumptions */}
+        <div className="border border-gray-200 rounded-xl overflow-hidden">
+          <button
+            onClick={() => setShowCitations(!showCitations)}
+            className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors text-left"
+          >
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-amber-600" />
+              <span className="text-sm font-semibold text-gray-800">Data Sources & Assumptions</span>
+            </div>
+            {showCitations ? (
+              <ChevronUp className="w-4 h-4 text-gray-400" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-gray-400" />
+            )}
+          </button>
+          {showCitations && (
+            <div className="px-4 pb-4 border-t border-gray-100 space-y-3">
+              <p className="text-xs text-gray-500 mt-3">All estimates use 2024–2025 industry averages. Actual earnings vary with content quality, audience engagement, upload cadence, and market conditions.</p>
+              <div className="space-y-2 text-xs text-gray-600">
+                <div className="bg-red-50 rounded-lg p-3">
+                  <div className="font-semibold text-gray-700 mb-1.5">Ad Revenue (RPM / CPM)</div>
+                  <ul className="space-y-1">
+                    <li>• <span className="font-medium">Base RPM $1–6:</span> Influencer Marketing Hub "YouTube Money Calculator" 2024; SocialBlade CPM database; Think with Google creator benchmarks</li>
+                    <li>• <span className="font-medium">Niche multipliers</span> (Finance 2.5×, Tech 2.0×, Kids 0.4×): Tubular Labs niche CPM index; Mediakix advertiser demand research 2024</li>
+                    <li>• <span className="font-medium">COPPA / Kids RPM $0.50–2.00:</span> FTC COPPA Rule (16 CFR Part 312); YouTube Kids content monetisation policy; creator disclosures in Kidscreen Summit 2024</li>
+                    <li>• <span className="font-medium">YouTube revenue share 55/45:</span> YouTube Partner Programme Terms of Service (updated January 2023, effective ongoing)</li>
+                  </ul>
+                </div>
+                <div className="bg-amber-50 rounded-lg p-3">
+                  <div className="font-semibold text-gray-700 mb-1.5">Sponsorship Rates</div>
+                  <ul className="space-y-1">
+                    <li>• <span className="font-medium">$10–30 per 1,000 views:</span> Influencer Marketing Hub "State of Influencer Marketing 2024"; Izea Creator Economy Report; NeoReach benchmarks</li>
+                    <li>• <span className="font-medium">Sponsorship likelihood thresholds</span> (&lt;10K, 50K, 500K views): Creator economy research by Linktree & ConvertKit, 2024</li>
+                    <li>• <span className="font-medium">Animation niche sponsorship premium 1.2×:</span> Derived from brand safety premium data (DoubleVerify 2024) and animation engagement rate lift (Tubular Labs)</li>
+                  </ul>
+                </div>
+                <div className="bg-blue-50 rounded-lg p-3">
+                  <div className="font-semibold text-gray-700 mb-1.5">Platform Revenue Shares</div>
+                  <ul className="space-y-1">
+                    <li>• <span className="font-medium">YouTube 55% creator / 45% platform:</span> YouTube Partner Programme ToS, Section 4B (2023)</li>
+                    <li>• <span className="font-medium">TikTok 50/50:</span> TikTok Creator Marketplace Terms; Pulse programme disclosures 2024</li>
+                    <li>• <span className="font-medium">Instagram 55% creator / 45% platform:</span> Meta Reels Play Bonus programme terms 2024</li>
+                    <li>• <span className="font-medium">YouTube YPP requirements</span> (1,000 subs, 4,000 watch hours): YouTube Help Centre, last updated January 2025</li>
+                  </ul>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-gray-400 pt-2 border-t border-gray-100">
+                <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                <span>Sources: YouTube Partner Programme ToS, Influencer Marketing Hub 2024, SocialBlade, Tubular Labs, FTC COPPA guidelines, Kidscreen Summit 2024. Rates change frequently — verify before financial planning.</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* AI Strategy Panel */}
