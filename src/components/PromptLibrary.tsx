@@ -372,7 +372,7 @@ export function PromptLibrary({ expanded = false, onToggle }: PromptLibraryProps
               </div>
               <p className="text-xs text-purple-600">
                 {genState.phase === 'thinking'
-                  ? 'Claude is reading your Mission Control guidelines and crafting tailored prompts…'
+                  ? 'Gemini is reading your Mission Control guidelines and crafting tailored prompts…'
                   : 'Saving to your prompt library…'}
               </p>
             </div>
