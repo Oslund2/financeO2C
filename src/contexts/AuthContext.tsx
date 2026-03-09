@@ -20,48 +20,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const initAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
 
-      if (session) {
-        setSession(session);
-        setUser(session.user);
-        setLoading(false);
-      } else {
-        try {
-          const devEmail = 'demo@animationstudio.dev';
-          const devPassword = 'demo-password-123456';
+        if (session) {
+          setSession(session);
+          setUser(session.user);
+          return;
+        }
 
-          let { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        const devEmail = 'demo@animationstudio.dev';
+        const devPassword = 'demo-password-123456';
+
+        let { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: devEmail,
+          password: devPassword,
+        });
+
+        if (signInError) {
+          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
             email: devEmail,
             password: devPassword,
           });
 
-          if (signInError) {
-            const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-              email: devEmail,
-              password: devPassword,
-            });
-
-            if (signUpError) {
-              console.error('Error creating dev user:', signUpError);
-              setLoading(false);
-              return;
-            }
-
-            signInData = signUpData;
+          if (signUpError) {
+            console.error('Error creating dev user:', signUpError);
+            return;
           }
 
-          if (signInData?.session) {
-            setSession(signInData.session);
-            setUser(signInData.session.user);
-          } else if (signInData?.user) {
-            setUser(signInData.user);
-          }
-        } catch (error) {
-          console.error('Auth initialization error:', error);
-        } finally {
-          setLoading(false);
+          signInData = signUpData;
         }
+
+        if (signInData?.session) {
+          setSession(signInData.session);
+          setUser(signInData.session.user);
+        } else if (signInData?.user) {
+          setUser(signInData.user);
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
