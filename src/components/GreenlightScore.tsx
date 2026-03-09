@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { Sparkles, Loader2, AlertTriangle, CheckCircle, TrendingUp, Target, Radio, Users, Film, ChevronDown, ChevronUp } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Sparkles, Loader2, AlertTriangle, CheckCircle, TrendingUp, Target, Radio, Users, Film, ChevronDown, ChevronUp, Tv } from 'lucide-react';
 import { analyzeGreenlightScore, type GreenlightScoreResult } from '../services/economicsAIService';
+import { supabase } from '../lib/supabase';
 
 const GENRES = [
   'Preschool Educational', 'Kids Adventure', 'Kids Comedy', 'Kids Action',
@@ -53,8 +54,26 @@ interface GreenlightScoreProps {
   seriesId: string | null;
 }
 
-export function GreenlightScore({ seriesId: _seriesId }: GreenlightScoreProps) {
+export function GreenlightScore({ seriesId }: GreenlightScoreProps) {
+  const [seriesName, setSeriesName] = useState<string | null>(null);
   const [genre, setGenre] = useState('Preschool Educational');
+
+  useEffect(() => {
+    if (!seriesId) {
+      setSeriesName(null);
+      return;
+    }
+    supabase
+      .from('series')
+      .select('name')
+      .eq('id', seriesId)
+      .single()
+      .then(({ data }) => {
+        const name = data?.name ?? null;
+        setSeriesName(name);
+        if (name) setGenre(name);
+      });
+  }, [seriesId]);
   const [targetAudience, setTargetAudience] = useState('Preschool (2-5)');
   const [runtimeMinutes, setRuntimeMinutes] = useState(11);
   const [characterCount, setCharacterCount] = useState(8);
@@ -115,19 +134,29 @@ export function GreenlightScore({ seriesId: _seriesId }: GreenlightScoreProps) {
       <div className="p-6">
         {/* Input grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-6">
-          {/* Genre */}
+          {/* Series name (when active) or Genre dropdown (fallback) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              <Film className="w-4 h-4 inline mr-1.5 text-gray-400" />
-              Genre
+              {seriesName ? (
+                <><Tv className="w-4 h-4 inline mr-1.5 text-green-500" />Series</>
+              ) : (
+                <><Film className="w-4 h-4 inline mr-1.5 text-gray-400" />Genre</>
+              )}
             </label>
-            <select
-              value={genre}
-              onChange={e => setGenre(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
-            >
-              {GENRES.map(g => <option key={g}>{g}</option>)}
-            </select>
+            {seriesName ? (
+              <div className="w-full px-3 py-2 border border-green-300 bg-green-50 rounded-lg text-sm font-semibold text-green-800 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
+                {seriesName}
+              </div>
+            ) : (
+              <select
+                value={genre}
+                onChange={e => setGenre(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              >
+                {GENRES.map(g => <option key={g}>{g}</option>)}
+              </select>
+            )}
           </div>
 
           {/* Target Audience */}
