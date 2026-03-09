@@ -186,14 +186,19 @@ export function GreenlightScore({ seriesId }: GreenlightScoreProps) {
           <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
             <Target className="w-5 h-5" />
           </div>
-          <div>
-            <h2 className="text-lg font-bold">Pre-Production Greenlight Score</h2>
-            <p className="text-sm text-green-100">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-lg font-bold">Series Greenlight Score</h2>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-white/20 rounded-full text-xs font-semibold uppercase tracking-wide">
+                <Tv className="w-3 h-3" /> Series-Level
+              </span>
+            </div>
+            <p className="text-sm text-green-100 mt-0.5">
               {prefillLoading
                 ? 'Loading series data…'
                 : seriesName
-                  ? `Auto-filled from "${seriesName}" workspace data`
-                  : 'AI concept evaluation before a single frame is produced'}
+                  ? `Evaluating "${seriesName}" as a series concept — not individual episodes`
+                  : 'AI evaluation of the series concept before a single frame is produced'}
             </p>
           </div>
         </div>
