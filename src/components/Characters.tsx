@@ -727,7 +727,9 @@ function CharacterForm({ character, seriesId, onClose, onSave }: CharacterFormPr
     required_visual_features: character?.required_visual_features?.join(', ') || '',
   });
   const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(
-    character?.chatterbox_voice_id || character?.eleven_labs_voice_id || null
+    character?.voice_provider === 'chatterbox'
+      ? character?.chatterbox_voice_id || null
+      : character?.eleven_labs_voice_id || null
   );
   const [selectedProvider, setSelectedProvider] = useState<VoiceProvider | null>(
     character?.voice_provider as VoiceProvider || 'elevenlabs'
