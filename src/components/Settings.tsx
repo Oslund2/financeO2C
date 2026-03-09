@@ -139,7 +139,7 @@ export function Settings() {
   };
 
   const countConfiguredAPIs = (): { configured: number; total: number } => {
-    if (!apiHealth) return { configured: 0, total: 9 };
+    if (!apiHealth) return { configured: 0, total: 10 };
     const apis = [
       apiHealth.gemini,
       apiHealth.vertexAI,
@@ -149,7 +149,8 @@ export function Settings() {
       apiHealth.veedIo,
       apiHealth.nanoBanana,
       apiHealth.supabase,
-      apiHealth.shotstack
+      apiHealth.shotstack,
+      apiHealth.heygen
     ];
     return {
       configured: apis.filter(a => a.configured && a.healthy).length,
@@ -260,6 +261,7 @@ export function Settings() {
               { key: 'chatterbox', label: 'Chatterbox', health: apiHealth?.chatterbox },
               { key: 'nanoBanana', label: 'Image Gen', health: apiHealth?.nanoBanana },
               { key: 'shotstack', label: 'Shotstack', health: apiHealth?.shotstack },
+              { key: 'heygen', label: 'HeyGen', health: apiHealth?.heygen },
             ].map(({ key, label, health }) => (
               <div
                 key={key}

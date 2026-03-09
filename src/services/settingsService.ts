@@ -18,6 +18,7 @@ export interface AllAPIStatus {
   nanoBanana: APIHealthStatus;
   supabase: APIHealthStatus;
   shotstack: APIHealthStatus;
+  heygen: APIHealthStatus;
 }
 
 export interface UserSettings {
@@ -479,6 +480,44 @@ export async function checkNanoBananaHealth(): Promise<APIHealthStatus> {
   };
 }
 
+export async function checkHeyGenHealth(): Promise<APIHealthStatus> {
+  try {
+    const { data } = await supabase
+      .from('heygen_provider_configs')
+      .select('api_key')
+      .limit(1)
+      .maybeSingle();
+
+    if (!data?.api_key) {
+      return { configured: false, healthy: false, checking: false };
+    }
+
+    const response = await fetch('https://api.heygen.com/v1/video_translate.list', {
+      method: 'GET',
+      headers: {
+        'X-Api-Key': data.api_key,
+        'Accept': 'application/json'
+      }
+    });
+
+    return {
+      configured: true,
+      healthy: response.ok,
+      checking: false,
+      lastChecked: Date.now(),
+      error: response.ok ? undefined : `HTTP ${response.status}`
+    };
+  } catch (error) {
+    return {
+      configured: false,
+      healthy: false,
+      checking: false,
+      lastChecked: Date.now(),
+      error: error instanceof Error ? error.message : 'Check failed'
+    };
+  }
+}
+
 export async function checkSupabaseHealth(): Promise<APIHealthStatus> {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -508,7 +547,7 @@ export async function checkSupabaseHealth(): Promise<APIHealthStatus> {
 }
 
 export async function checkAllAPIHealth(): Promise<AllAPIStatus> {
-  const [gemini, vertexAI, elevenLabs, chatterbox, syncLabs, veedIo, nanoBanana, supabaseStatus, shotstack] = await Promise.all([
+  const [gemini, vertexAI, elevenLabs, chatterbox, syncLabs, veedIo, nanoBanana, supabaseStatus, shotstack, heygen] = await Promise.all([
     checkGeminiHealth(),
     checkVertexAIHealth(),
     checkElevenLabsHealth(),
@@ -517,7 +556,8 @@ export async function checkAllAPIHealth(): Promise<AllAPIStatus> {
     checkVeedIoHealth(),
     checkNanoBananaHealth(),
     checkSupabaseHealth(),
-    checkShotstackHealth()
+    checkShotstackHealth(),
+    checkHeyGenHealth()
   ]);
 
   return {
@@ -529,7 +569,8 @@ export async function checkAllAPIHealth(): Promise<AllAPIStatus> {
     veedIo,
     nanoBanana,
     supabase: supabaseStatus,
-    shotstack
+    shotstack,
+    heygen
   };
 }
 
