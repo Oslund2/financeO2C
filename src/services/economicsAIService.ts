@@ -499,6 +499,7 @@ export interface GreenlightScoreResult {
   distributionStrategy: string;
   riskFactors: string[];
   goNoGo: string; // Clear recommendation sentence
+  scoreImprovements: string[]; // Actionable steps to raise the greenlight score
 }
 
 export async function analyzeGreenlightScore(params: {
@@ -572,7 +573,8 @@ Return ONLY valid JSON (no markdown fences, no extra text before or after):
   "formatRecommendation": "<specific recommendation about runtime, character count, or format adjustments with projected impact — e.g. 'Switching from 22-min to 11-min format would reduce per-episode cost by ~45% and accelerate break-even by 35%'>",
   "distributionStrategy": "<recommended first-window and secondary distribution strategy with rationale based on the genre and audience>",
   "riskFactors": ["specific risk 1", "specific risk 2", "specific risk 3"],
-  "goNoGo": "<1 clear sentence: GREENLIGHT / CONDITIONAL GREENLIGHT / PASS — with the specific reason>"
+  "goNoGo": "<1 clear sentence: GREENLIGHT / CONDITIONAL GREENLIGHT / PASS — with the specific reason>",
+  "scoreImprovements": ["<specific, actionable change that would increase the score, with estimated point impact — e.g. 'Add a third distribution channel (e.g. Tubi) to raise Distribution Coverage score by 8-10 pts'>", "<improvement 2>", "<improvement 3>", "<improvement 4>"]
 }`;
 
   const text = await callGemini(prompt);
@@ -584,7 +586,8 @@ Return ONLY valid JSON (no markdown fences, no extra text before or after):
     formatRecommendation: text.slice(0, 200),
     distributionStrategy: '',
     riskFactors: [],
-    goNoGo: ''
+    goNoGo: '',
+    scoreImprovements: []
   });
 }
 
