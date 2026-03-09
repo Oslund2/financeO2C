@@ -23,6 +23,7 @@ interface OrganizationContextType {
   currentOrganization: Organization | null;
   organizations: OrganizationMembership[];
   loading: boolean;
+  timedOut: boolean;
   error: string | null;
   switchOrganization: (organizationId: string) => void;
   refreshOrganizations: () => Promise<void>;
@@ -40,6 +41,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [timedOut, setTimedOut] = useState(false);
 
   const fetchOrganizations = async () => {
     if (!user) {
@@ -54,7 +56,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       setError(null);
 
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 12000);
+      const timeout = setTimeout(() => controller.abort(), 8000);
 
       let data: any, error: any;
       try {
@@ -79,7 +81,8 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       }
 
       if (controller.signal.aborted) {
-        throw new Error('Connection to Supabase timed out. Check your network or try again.');
+        setTimedOut(true);
+        throw new Error('Connection to Supabase timed out after 8 seconds. The database may be unreachable.');
       }
 
       if (error) {
@@ -230,18 +233,6 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     }
   }, [user, authLoading]);
 
-  useEffect(() => {
-    if (error && retryCount < 3 && !loading) {
-      const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 10000);
-      const timer = setTimeout(() => {
-        console.log(`Auto-retry attempt ${retryCount + 1} after ${retryDelay}ms`);
-        retryInitialization();
-      }, retryDelay);
-
-      return () => clearTimeout(timer);
-    }
-  }, [error, retryCount, loading]);
-
   const switchOrganization = (organizationId: string) => {
     const membership = organizations.find(m => m.organization.id === organizationId);
     if (membership) {
@@ -259,6 +250,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     setRetryCount(prev => prev + 1);
     setLoading(true);
     setError(null);
+    setTimedOut(false);
     await fetchOrganizations();
   };
 
@@ -268,6 +260,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         currentOrganization,
         organizations,
         loading,
+        timedOut,
         error,
         switchOrganization,
         refreshOrganizations,
