@@ -298,23 +298,51 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
   const handleDeleteConfirm = async () => {
     if (!deleteModal.episode || !user) return;
 
+    const episodeId = deleteModal.episode.id;
+
     try {
+      // Try the RPC first
       const { data, error } = await supabase.rpc('delete_episode_cascade', {
-        episode_uuid: deleteModal.episode.id,
+        episode_uuid: episodeId,
         user_uuid: user.id,
       });
 
-      if (error) {
-        console.error('Error deleting episode:', error);
-        throw new Error(error.message);
+      if (!error && data?.success) {
+        showSuccess('Episode Deleted', `"${deleteModal.episode.title}" and all related content have been permanently deleted.`);
+        setEpisodes((prev) => prev.filter((e) => e.id !== episodeId));
+        setDeleteModal({ isOpen: false, episode: null, relatedItems: [] });
+        return;
       }
 
-      if (!data?.success) {
-        throw new Error(data?.error || 'Failed to delete episode');
+      // RPC failed — fall back to direct deletion (FK cascades handle related records)
+      console.warn('RPC delete_episode_cascade failed, falling back to direct delete:', error?.message || data?.error);
+
+      const tables = [
+        'episode_progress_milestones',
+        'episode_profit_settings',
+        'episode_revenue_config',
+        'episode_performance_metrics',
+        'product_placement_sponsors',
+        'shot_exports',
+        'lip_sync_jobs',
+        'dialogue_audio_clips',
+        'production_shot_plans',
+        'production_batches',
+      ] as const;
+
+      for (const table of tables) {
+        await supabase.from(table).delete().eq('episode_id', episodeId);
       }
+
+      const { error: deleteError } = await supabase
+        .from('episodes')
+        .delete()
+        .eq('id', episodeId);
+
+      if (deleteError) throw new Error(deleteError.message);
 
       showSuccess('Episode Deleted', `"${deleteModal.episode.title}" and all related content have been permanently deleted.`);
-      setEpisodes((prev) => prev.filter((e) => e.id !== deleteModal.episode!.id));
+      setEpisodes((prev) => prev.filter((e) => e.id !== episodeId));
       setDeleteModal({ isOpen: false, episode: null, relatedItems: [] });
     } catch (error) {
       console.error('Error in delete:', error);
