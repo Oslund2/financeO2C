@@ -481,3 +481,253 @@ Return JSON only (no markdown fences):
     longTailOpportunities: ''
   });
 }
+
+// ── Greenlight Score ──────────────────────────────────────────────────────────
+
+export interface GreenlightScoreResult {
+  overallScore: number; // 0-100
+  scoreLabel: string;   // e.g. "Strong Greenlight"
+  breakEvenEstimate: string;
+  roiProbabilityRange: string;
+  formatRecommendation: string;
+  distributionStrategy: string;
+  riskFactors: string[];
+  goNoGo: string; // Clear recommendation sentence
+}
+
+export async function analyzeGreenlightScore(params: {
+  genre: string;
+  targetAudience: string;
+  runtimeMinutes: number;
+  characterCount: number;
+  targetChannels: string[];
+  estimatedBudgetPerEpisode: number;
+  episodeCount: number;
+}): Promise<GreenlightScoreResult> {
+  const channelList = params.targetChannels.join(', ') || 'unspecified';
+
+  const prompt = `You are a media greenlight executive and production finance expert. Evaluate this concept BEFORE production begins and deliver a pre-production greenlight score based on 2024-2025 market conditions.
+
+CONCEPT PARAMETERS:
+  Genre:                   ${params.genre}
+  Target audience:         ${params.targetAudience}
+  Runtime per episode:     ${params.runtimeMinutes} minutes
+  Character count:         ${params.characterCount} characters
+  Target channels:         ${channelList}
+  Budget per episode:      ${formatCurrency(params.estimatedBudgetPerEpisode)}
+  Planned episode count:   ${params.episodeCount}
+  Total series budget:     ${formatCurrency(params.estimatedBudgetPerEpisode * params.episodeCount)}
+
+MARKET CONTEXT (2024-2025):
+- Kids/family animation with <20 characters has faster production cycles and lower cost overrun risk
+- 11-minute format breaks even 30-40% faster than 22-minute for AVOD/YouTube distribution
+- Educational/preschool content commands 20-35% CPM premium on connected TV platforms
+- Multi-platform launch (YouTube + FAST) reduces break-even timeline by 25-40% vs single channel
+- Children's animation ROI range: 0.8x-4.5x depending on distribution mix (Parrot Analytics 2024)
+
+Return JSON only (no markdown fences):
+{
+  "overallScore": <integer 0-100>,
+  "scoreLabel": "<Weak / Marginal / Moderate / Strong / Exceptional> Greenlight",
+  "breakEvenEstimate": "<e.g. '18-24 months with YouTube + one FAST channel'>",
+  "roiProbabilityRange": "<e.g. '1.2x-2.8x over 5 years — 70% probability of positive ROI'>",
+  "formatRecommendation": "<specific recommendation about runtime, character count, or format adjustments with projected impact>",
+  "distributionStrategy": "<recommended first-window and secondary distribution strategy with rationale>",
+  "riskFactors": ["risk 1", "risk 2", "risk 3"],
+  "goNoGo": "<1 clear sentence recommending Greenlight / Conditional Greenlight / Pass with specific reason>"
+}`;
+
+  const text = await callGemini(prompt);
+  return parseJSONSafely<GreenlightScoreResult>(text, {
+    overallScore: 50,
+    scoreLabel: 'Moderate Greenlight',
+    breakEvenEstimate: 'Unable to estimate — try again',
+    roiProbabilityRange: '',
+    formatRecommendation: text.slice(0, 200),
+    distributionStrategy: '',
+    riskFactors: [],
+    goNoGo: ''
+  });
+}
+
+// ── Distribution Package Generator ───────────────────────────────────────────
+
+export interface DistributionPackage {
+  youtube: {
+    title: string;
+    description: string;
+    tags: string[];
+    chapterTimestamps: string;
+    thumbnailConcepts: string[];
+  };
+  fastAvod: {
+    epgTitle: string;
+    epgDescription: string;
+    xmlSnippet: string;
+    recommendedPlatforms: string[];
+  };
+  broadcastPitch: {
+    logline: string;
+    formatSpec: string;
+    costRoiSnapshot: string;
+    compTitles: string[];
+    pitchSummary: string;
+  };
+}
+
+export async function generateDistributionPackage(params: {
+  episodeTitle: string;
+  seriesTitle?: string;
+  genre: string;
+  targetAudience: string;
+  runtimeMinutes: number;
+  synopsis: string;
+  productionCost: number;
+  roiMultiple: number;
+  breakEvenMonths: number;
+  distributionChannels: string[];
+}): Promise<DistributionPackage> {
+  const costFmt = formatCurrency(params.productionCost);
+
+  const prompt = `You are a distribution and marketing expert for animation and children's media. Generate a complete distribution package for the following content.
+
+EPISODE: "${params.episodeTitle}"${params.seriesTitle ? ` (Series: "${params.seriesTitle}")` : ''}
+GENRE: ${params.genre}
+TARGET AUDIENCE: ${params.targetAudience}
+RUNTIME: ${params.runtimeMinutes} minutes
+SYNOPSIS: ${params.synopsis}
+PRODUCTION COST: ${costFmt}
+ROI MULTIPLE: ${params.roiMultiple.toFixed(2)}x
+BREAK-EVEN: ${params.breakEvenMonths.toFixed(0)} months
+CURRENT CHANNELS: ${params.distributionChannels.join(', ') || 'not specified'}
+
+Return JSON only (no markdown fences):
+{
+  "youtube": {
+    "title": "<SEO-optimised YouTube title, max 70 chars, include key search terms>",
+    "description": "<YouTube description, 3-4 paragraphs: hook, episode summary, series context, CTA + hashtags>",
+    "tags": ["tag1", "tag2", "tag3", "tag4", "tag5", "tag6", "tag7", "tag8"],
+    "chapterTimestamps": "<Chapter timestamps formatted as: 0:00 Intro\\n1:30 [Chapter Name]\\n... >",
+    "thumbnailConcepts": ["concept 1: describe character, action, text overlay, color palette", "concept 2", "concept 3"]
+  },
+  "fastAvod": {
+    "epgTitle": "<Clean EPG programme title, max 40 chars>",
+    "epgDescription": "<EPG short description, max 150 chars for Tubi/Pluto/Peacock>",
+    "xmlSnippet": "<Complete XMLTV-format programme element snippet ready to paste>",
+    "recommendedPlatforms": ["Tubi", "Pluto TV", "Peacock Free", "Samsung TV Plus", "Amazon Freevee"]
+  },
+  "broadcastPitch": {
+    "logline": "<One-sentence logline in present tense>",
+    "formatSpec": "<Format specification: runtime, content minutes, break structure, episodes in series>",
+    "costRoiSnapshot": "<Cost and ROI summary for pitch deck: 2-3 sentences with numbers>",
+    "compTitles": ["comp title 1 (network/platform)", "comp title 2", "comp title 3"],
+    "pitchSummary": "<Full broadcast pitch paragraph: concept, audience, competitive landscape, revenue potential>"
+  }
+}`;
+
+  const text = await callGemini(prompt);
+  return parseJSONSafely<DistributionPackage>(text, {
+    youtube: {
+      title: params.episodeTitle,
+      description: params.synopsis,
+      tags: [],
+      chapterTimestamps: '0:00 Intro',
+      thumbnailConcepts: []
+    },
+    fastAvod: {
+      epgTitle: params.episodeTitle.slice(0, 40),
+      epgDescription: params.synopsis.slice(0, 150),
+      xmlSnippet: '',
+      recommendedPlatforms: ['Tubi', 'Pluto TV']
+    },
+    broadcastPitch: {
+      logline: '',
+      formatSpec: `${params.runtimeMinutes}-minute episode`,
+      costRoiSnapshot: `Production cost: ${costFmt}. ROI: ${params.roiMultiple.toFixed(2)}x.`,
+      compTitles: [],
+      pitchSummary: text.slice(0, 300)
+    }
+  });
+}
+
+// ── Episode Performance Feedback Loop ────────────────────────────────────────
+
+export interface FeedbackLoopInsight {
+  performanceSummary: string;
+  varianceAnalysis: string;
+  revisedDecayRate: number;
+  revisedDecayRationale: string;
+  topRoiDecisions: string[];
+  nextEpisodeRecommendation: string;
+  projectionAccuracyScore: number; // 0-100, how close projections were to actuals
+}
+
+export async function analyzePerformanceFeedback(params: {
+  episodeTitle: string;
+  projectedMonthlyViews: number;
+  actualMonthlyViews: number;
+  projectedMonthlyRevenue: number;
+  actualMonthlyRevenue: number;
+  daysLive: number;
+  productionCost: number;
+  topPerformingProductionDecisions: string[];
+  genre: string;
+  targetAudience: string;
+  currentDecayRate: number;
+}): Promise<FeedbackLoopInsight> {
+  const viewsVariance = params.actualMonthlyViews > 0
+    ? ((params.actualMonthlyViews - params.projectedMonthlyViews) / Math.max(params.projectedMonthlyViews, 1)) * 100
+    : 0;
+  const revenueVariance = params.actualMonthlyRevenue > 0
+    ? ((params.actualMonthlyRevenue - params.projectedMonthlyRevenue) / Math.max(params.projectedMonthlyRevenue, 1)) * 100
+    : 0;
+
+  const decisionsText = params.topPerformingProductionDecisions.length > 0
+    ? params.topPerformingProductionDecisions.map((d, i) => `  ${i + 1}. ${d}`).join('\n')
+    : '  None specified';
+
+  const prompt = `You are a content performance analyst specialising in animation and children's media. Analyse the first ${params.daysLive} days of performance against projections and recalibrate the content decay model.
+
+EPISODE: "${params.episodeTitle}"
+GENRE: ${params.genre} | AUDIENCE: ${params.targetAudience}
+PRODUCTION COST: ${formatCurrency(params.productionCost)}
+DAYS LIVE: ${params.daysLive}
+
+PERFORMANCE VS PROJECTIONS:
+  Projected monthly views:   ${(params.projectedMonthlyViews / 1000).toFixed(0)}K
+  Actual monthly views:      ${(params.actualMonthlyViews / 1000).toFixed(0)}K  (${viewsVariance >= 0 ? '+' : ''}${viewsVariance.toFixed(0)}%)
+  Projected monthly revenue: ${formatCurrency(params.projectedMonthlyRevenue)}
+  Actual monthly revenue:    ${formatCurrency(params.actualMonthlyRevenue)}  (${revenueVariance >= 0 ? '+' : ''}${revenueVariance.toFixed(0)}%)
+  Current decay rate model:  ${params.currentDecayRate}% per year
+
+PRODUCTION DECISIONS THAT PERFORMED WELL:
+${decisionsText}
+
+BENCHMARKS (2024-2025):
+- Children's animation: 15-25% annual decay is typical; evergreen educational content: 8-15%
+- Content underperforming by >30% at 90 days rarely recovers without promotion/algorithmic boost
+- Content overperforming by >20% at 90 days typically sustains 60-70% of that lift long-term
+- YouTube Kids algorithm heavily favours watch-time completion rate; short-form (<12 min) sees 15-20% higher completion
+
+Return JSON only (no markdown fences):
+{
+  "performanceSummary": "2-sentence honest assessment of how the episode performed vs projections",
+  "varianceAnalysis": "Why did performance diverge from projections? Cite likely causes (algorithm, content quality, timing, audience match)",
+  "revisedDecayRate": <number, new recommended annual decay rate %>,
+  "revisedDecayRationale": "Why this decay rate is more accurate given observed performance",
+  "topRoiDecisions": ["production decision with best ROI impact 1", "decision 2", "decision 3"],
+  "nextEpisodeRecommendation": "One specific, concrete recommendation for the next episode based on this data",
+  "projectionAccuracyScore": <integer 0-100, 100 = projections were perfect>
+}`;
+
+  const text = await callGemini(prompt);
+  return parseJSONSafely<FeedbackLoopInsight>(text, {
+    performanceSummary: text.slice(0, 200),
+    varianceAnalysis: '',
+    revisedDecayRate: params.currentDecayRate,
+    revisedDecayRationale: '',
+    topRoiDecisions: [],
+    nextEpisodeRecommendation: '',
+    projectionAccuracyScore: 50
+  });
+}
