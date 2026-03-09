@@ -47,11 +47,19 @@ function App() {
     }
 
     try {
-      const { data: allSeries, error: fetchError } = await supabase
-        .from('series')
-        .select('*')
-        .eq('organization_id', currentOrganization.id)
-        .eq('archived', false);
+      const seriesController = new AbortController();
+      const seriesTimeout = setTimeout(() => seriesController.abort(), 12000);
+      let allSeries: any, fetchError: any;
+      try {
+        ({ data: allSeries, error: fetchError } = await supabase
+          .from('series')
+          .select('*')
+          .eq('organization_id', currentOrganization.id)
+          .eq('archived', false)
+          .abortSignal(seriesController.signal));
+      } finally {
+        clearTimeout(seriesTimeout);
+      }
 
       if (fetchError) throw fetchError;
 
