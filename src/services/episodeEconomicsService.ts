@@ -176,7 +176,8 @@ function estimateHumanHours(
 function calculateHumanCosts(
   runtimeMinutes: number,
   profile: HumanCostProfile,
-  customRates: Record<string, number> | null
+  customRates: Record<string, number> | null,
+  episodeNumber: number = 1
 ): { cost: number; hours: number } {
   const profileSettings = HUMAN_COST_PROFILES[profile];
 
@@ -187,13 +188,23 @@ function calculateHumanCosts(
   const voiceDirectionRate = customRates?.voiceDirectionCostPerSession ?? profileSettings.voiceDirectionCostPerSession;
   const revisionRate = customRates?.revisionRatePercentage ?? profileSettings.revisionRatePercentage;
 
-  const baseCost =
-    (editingRate * runtimeMinutes) +
-    (sceneSetupRate * runtimeMinutes) +
-    (characterQCRate * runtimeMinutes) +
-    (renderSupervisionRate * runtimeMinutes) +
-    voiceDirectionRate;
+  // Exponential decay for repeated-episode efficiency gains (same model as costCalculationService)
+  const decayRate = profileSettings.decayRate;
+  const decayFloor = profileSettings.decayFloor;
+  const decayMultiplier = episodeNumber <= 1
+    ? 1.0
+    : Math.max(Math.pow(decayRate, episodeNumber - 1), decayFloor);
 
+  // Decaying costs: crew learns/speeds up episode-over-episode
+  const editingCost = editingRate * runtimeMinutes * decayMultiplier;
+  const sceneSetupCost = sceneSetupRate * runtimeMinutes * decayMultiplier;
+  const characterQCCost = characterQCRate * runtimeMinutes * decayMultiplier;
+
+  // Flat costs: always full rate regardless of episode number
+  const renderSupervisionCost = renderSupervisionRate * runtimeMinutes;
+  const voiceDirectionCost = voiceDirectionRate;
+
+  const baseCost = editingCost + sceneSetupCost + characterQCCost + renderSupervisionCost + voiceDirectionCost;
   const withRevisions = baseCost * (1 + revisionRate / 100);
   const hours = estimateHumanHours(runtimeMinutes, profile);
 
@@ -380,7 +391,8 @@ function calculateLifetimeProjection(
 export class EpisodeEconomicsService {
   static async calculateEpisodeEconomics(
     episodeId: string,
-    tokenCost: number = 0
+    tokenCost: number = 0,
+    episodeNumber: number = 1
   ): Promise<EpisodeEconomics | null> {
     const settings = await EpisodeProfitSettingsService.getSettings(episodeId);
     const defaults = await EpisodeProfitSettingsService.getEpisodeDefaults(episodeId);
@@ -401,7 +413,7 @@ export class EpisodeEconomicsService {
     const enableHumanCosts = settings?.enableHumanCosts ?? true;
 
     const humanCostCalc = enableHumanCosts
-      ? calculateHumanCosts(runtimeMinutes, humanProfile, settings?.customCostRates ?? null)
+      ? calculateHumanCosts(runtimeMinutes, humanProfile, settings?.customCostRates ?? null, episodeNumber)
       : { cost: 0, hours: 0 };
 
     const episodeTokenCost = tokenCost || (defaults.estimatedCost ?? 0);
@@ -481,10 +493,12 @@ export class EpisodeEconomicsService {
   }> {
     const episodes: EpisodeEconomics[] = [];
 
-    for (const episodeId of episodeIds) {
+    for (let index = 0; index < episodeIds.length; index++) {
+      const episodeId = episodeIds[index];
       const economics = await this.calculateEpisodeEconomics(
         episodeId,
-        tokenCosts[episodeId] ?? 0
+        tokenCosts[episodeId] ?? 0,
+        index + 1  // episode number for accurate decay calculation
       );
       if (economics) {
         episodes.push(economics);

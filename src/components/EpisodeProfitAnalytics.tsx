@@ -17,7 +17,9 @@ import {
   ChevronDown,
   ChevronUp,
   Sparkles,
-  UserCog
+  UserCog,
+  Loader2,
+  AlertTriangle
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
@@ -27,6 +29,7 @@ import { CreatorCostCalculator } from './CreatorCostCalculator';
 import type { CostComparison as CostComparisonType } from '../services/costCalculationService';
 import { calculateProductionCosts, type ScriptData } from '../services/costCalculationService';
 import { LTVCalculationService } from '../services/ltvCalculationService';
+import { analyzeRevenueProjection, type PLInsight } from '../services/economicsAIService';
 import jsPDF from 'jspdf';
 
 type Episode = Database['public']['Tables']['episodes']['Row'];
@@ -81,6 +84,12 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
   const [revenueCalculations, setRevenueCalculations] = useState<RevenueCalculations | null>(null);
   const [defaultEpisodeCount, setDefaultEpisodeCount] = useState(6);
   const [recalculatingEpisodes, setRecalculatingEpisodes] = useState<Set<string>>(new Set());
+  const [aiInsight, setAiInsight] = useState<PLInsight | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [showAI, setShowAI] = useState(false);
+
+  const geminiAvailable = !!(import.meta.env.VITE_GEMINI_API_KEY);
 
   useEffect(() => {
     loadEpisodes();
@@ -701,6 +710,40 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
 
   const handleRevenueCalculationsChange = (calculations: RevenueCalculations) => {
     setRevenueCalculations(calculations);
+    // Clear stale AI insight when data changes
+    setAiInsight(null);
+    setShowAI(false);
+  };
+
+  const handleAnalyzeWithAI = async () => {
+    if (!selectedEpisode || !revenueCalculations) return;
+    setAiInsight(null);
+    setAiLoading(true);
+    setAiError(null);
+    setShowAI(true);
+    try {
+      const productionCostVal = selectedEpisode.actual_cost || selectedEpisode.estimated_cost || 0;
+      const insight = await analyzeRevenueProjection({
+        episodeTitle: selectedEpisode.title || 'Episode',
+        productionCost: productionCostVal,
+        episodeCount: defaultEpisodeCount,
+        annualRunsPerEpisode: 4,
+        totalRevenue: revenueCalculations.totalRevenue,
+        grossProfit: revenueCalculations.grossProfit,
+        margin: revenueCalculations.margin,
+        lifetimeRevenue: revenueCalculations.lifetimeRevenue,
+        lifetimeProfit: revenueCalculations.lifetimeProfit,
+        lifetimeMargin: revenueCalculations.lifetimeMargin,
+        paybackPeriodYears: revenueCalculations.paybackPeriodYears,
+        averageAnnualProfit: revenueCalculations.averageAnnualProfit,
+        yearsInService: revenueCalculations.yearsInService
+      });
+      setAiInsight(insight);
+    } catch (e: any) {
+      setAiError(e.message ?? 'AI analysis failed');
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   const getEpisodeMetrics = (episode: Episode) => {
@@ -776,6 +819,16 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
               <p className="text-gray-600">Comprehensive business analysis and profitability metrics</p>
             </div>
             <div className="flex items-center gap-3">
+            {geminiAvailable && (
+              <button
+                onClick={handleAnalyzeWithAI}
+                disabled={!selectedEpisode || !revenueCalculations || aiLoading}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {aiLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
+                Analyze P&L with AI
+              </button>
+            )}
             <button
               onClick={exportToCSV}
               disabled={!selectedEpisode || exporting === 'csv'}
@@ -1256,6 +1309,94 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
 
                 <CreatorCostCalculator seriesId={seriesId} />
               </div>
+
+              {/* AI P&L Analysis Panel */}
+              {showAI && (
+                <div className="mt-6 border border-purple-200 rounded-xl overflow-hidden">
+                  <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Sparkles className="w-5 h-5 text-white" />
+                      <div>
+                        <h3 className="text-lg font-semibold text-white">AI P&L Analysis</h3>
+                        <p className="text-sm text-white/80">Powered by Gemini — based on your revenue projections</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowAI(false)}
+                      className="text-white/70 hover:text-white text-sm"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div className="p-6 bg-purple-50 space-y-5">
+                    {aiLoading && (
+                      <div className="flex items-center gap-2 text-purple-700">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>Analyzing P&L data with AI...</span>
+                      </div>
+                    )}
+                    {aiError && (
+                      <div className="flex items-start gap-2 text-red-700">
+                        <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                        <span>{aiError}</span>
+                      </div>
+                    )}
+                    {aiInsight && !aiLoading && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <h4 className="text-sm font-semibold text-purple-900 mb-2">Executive Summary</h4>
+                          <p className="text-sm text-gray-700 leading-relaxed">{aiInsight.summary}</p>
+
+                          {aiInsight.channelStrategy && (
+                            <div className="mt-4 bg-white border border-purple-200 rounded-lg p-4">
+                              <p className="text-xs font-semibold text-purple-700 mb-1">Channel Strategy</p>
+                              <p className="text-sm text-gray-700">{aiInsight.channelStrategy}</p>
+                            </div>
+                          )}
+                        </div>
+                        <div className="space-y-4">
+                          {aiInsight.strengths.length > 0 && (
+                            <div>
+                              <h4 className="text-sm font-semibold text-emerald-700 mb-2">Strengths</h4>
+                              <ul className="space-y-1">
+                                {aiInsight.strengths.map((s, i) => (
+                                  <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                                    <span className="text-emerald-500 font-bold mt-0.5">✓</span>{s}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {aiInsight.risks.length > 0 && (
+                            <div>
+                              <h4 className="text-sm font-semibold text-amber-700 mb-2">Risks</h4>
+                              <ul className="space-y-1">
+                                {aiInsight.risks.map((r, i) => (
+                                  <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                                    <span className="text-amber-500 mt-0.5">⚠</span>{r}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {aiInsight.recommendations.length > 0 && (
+                            <div>
+                              <h4 className="text-sm font-semibold text-indigo-700 mb-2">Recommendations</h4>
+                              <ul className="space-y-1">
+                                {aiInsight.recommendations.map((rec, i) => (
+                                  <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                                    <span className="text-indigo-500 font-bold mt-0.5">→</span>{rec}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

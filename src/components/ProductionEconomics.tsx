@@ -19,7 +19,9 @@ import {
   Globe,
   Calculator,
   RotateCcw,
-  Copy
+  Copy,
+  Sparkles,
+  AlertTriangle
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
@@ -42,6 +44,7 @@ import { EpisodeEconomicsCard, EpisodeEconomicsGrid } from './EpisodeEconomicsCa
 import { SocialRevenueEducation } from './SocialRevenueEducation';
 import { YouTubeRevenueCalculator } from './YouTubeRevenueCalculator';
 import { SyncSettingsModal } from './SyncSettingsModal';
+import { analyzeEpisodeEconomics, analyzeSeriesPerformance, type PLInsight, type SeriesInsight } from '../services/economicsAIService';
 import jsPDF from 'jspdf';
 
 type Episode = Database['public']['Tables']['episodes']['Row'];
@@ -64,6 +67,12 @@ export function ProductionEconomics({ seriesId }: ProductionEconomicsProps) {
   const [showChannelConfig, setShowChannelConfig] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
+  const [aiInsight, setAiInsight] = useState<PLInsight | SeriesInsight | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [showAI, setShowAI] = useState(false);
+
+  const geminiAvailable = !!(import.meta.env.VITE_GEMINI_API_KEY);
 
   const [channels, setChannels] = useState<DistributionChannelSettings[]>([]);
   const [runsPerYear, setRunsPerYear] = useState(4);
@@ -448,6 +457,26 @@ export function ProductionEconomics({ seriesId }: ProductionEconomicsProps) {
     }
   };
 
+  const handleAnalyzeWithAI = async () => {
+    setAiInsight(null);
+    setAiLoading(true);
+    setAiError(null);
+    setShowAI(true);
+    try {
+      if (viewMode === 'episode' && selectedEconomics) {
+        const insight = await analyzeEpisodeEconomics(selectedEconomics);
+        setAiInsight(insight);
+      } else {
+        const insight = await analyzeSeriesPerformance(seriesTotals);
+        setAiInsight(insight);
+      }
+    } catch (e: any) {
+      setAiError(e.message ?? 'AI analysis failed');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen p-8">
@@ -508,6 +537,16 @@ export function ProductionEconomics({ seriesId }: ProductionEconomicsProps) {
               </button>
             </div>
 
+            {geminiAvailable && (
+              <button
+                onClick={handleAnalyzeWithAI}
+                disabled={aiLoading || (viewMode === 'episode' ? !selectedEconomics : seriesTotals.episodeCount === 0)}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium disabled:opacity-50"
+              >
+                {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                AI Analysis
+              </button>
+            )}
             <button
               onClick={exportToCSV}
               disabled={!selectedEconomics || exporting === 'csv'}
@@ -677,6 +716,7 @@ export function ProductionEconomics({ seriesId }: ProductionEconomicsProps) {
                   />
                   <BreakEvenAnalysisCard
                     breakEven={selectedEconomics.breakEven}
+                    costs={selectedEconomics.costs}
                   />
                 </div>
 
@@ -1056,6 +1096,126 @@ export function ProductionEconomics({ seriesId }: ProductionEconomicsProps) {
           </div>
         )}
       </div>
+
+      {/* AI Analysis Panel */}
+      {showAI && (
+        <div className="max-w-7xl mx-auto mt-6">
+          <div className="border border-purple-200 rounded-xl overflow-hidden">
+            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Sparkles className="w-5 h-5 text-white" />
+                <div>
+                  <h3 className="text-lg font-semibold text-white">
+                    AI {viewMode === 'episode' ? 'Episode' : 'Series'} Economics Analysis
+                  </h3>
+                  <p className="text-sm text-white/80">Powered by Gemini</p>
+                </div>
+              </div>
+              <button onClick={() => setShowAI(false)} className="text-white/70 hover:text-white text-sm">✕</button>
+            </div>
+            <div className="p-6 bg-purple-50 space-y-5">
+              {aiLoading && (
+                <div className="flex items-center gap-2 text-purple-700">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Analyzing economics data...</span>
+                </div>
+              )}
+              {aiError && (
+                <div className="flex items-start gap-2 text-red-700">
+                  <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                  <span>{aiError}</span>
+                </div>
+              )}
+              {aiInsight && !aiLoading && viewMode === 'episode' && (aiInsight as PLInsight).summary && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="text-sm font-semibold text-purple-900 mb-2">Executive Summary</h4>
+                    <p className="text-sm text-gray-700 leading-relaxed">{(aiInsight as PLInsight).summary}</p>
+                    {(aiInsight as PLInsight).channelStrategy && (
+                      <div className="mt-4 bg-white border border-purple-200 rounded-lg p-4">
+                        <p className="text-xs font-semibold text-purple-700 mb-1">Channel Strategy</p>
+                        <p className="text-sm text-gray-700">{(aiInsight as PLInsight).channelStrategy}</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-4">
+                    {(aiInsight as PLInsight).strengths?.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-semibold text-emerald-700 mb-1">Strengths</h4>
+                        <ul className="space-y-1">
+                          {(aiInsight as PLInsight).strengths.map((s, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                              <span className="text-emerald-500 font-bold mt-0.5">✓</span>{s}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {(aiInsight as PLInsight).risks?.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-semibold text-amber-700 mb-1">Risks</h4>
+                        <ul className="space-y-1">
+                          {(aiInsight as PLInsight).risks.map((r, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                              <span className="text-amber-500 mt-0.5">⚠</span>{r}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {(aiInsight as PLInsight).recommendations?.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-semibold text-indigo-700 mb-1">Recommendations</h4>
+                        <ul className="space-y-1">
+                          {(aiInsight as PLInsight).recommendations.map((rec, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                              <span className="text-indigo-500 font-bold mt-0.5">→</span>{rec}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              {aiInsight && !aiLoading && viewMode === 'series' && (aiInsight as SeriesInsight).portfolioSummary && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="text-sm font-semibold text-purple-900 mb-2">Portfolio Summary</h4>
+                    <p className="text-sm text-gray-700 leading-relaxed">{(aiInsight as SeriesInsight).portfolioSummary}</p>
+                    {(aiInsight as SeriesInsight).bestPerformers && (
+                      <div className="mt-4 bg-white border border-purple-200 rounded-lg p-4">
+                        <p className="text-xs font-semibold text-purple-700 mb-1">Best Performers</p>
+                        <p className="text-sm text-gray-700">{(aiInsight as SeriesInsight).bestPerformers}</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-4">
+                    {(aiInsight as SeriesInsight).improvements?.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-semibold text-indigo-700 mb-1">Improvement Areas</h4>
+                        <ul className="space-y-1">
+                          {(aiInsight as SeriesInsight).improvements.map((imp, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                              <span className="text-indigo-500 font-bold mt-0.5">→</span>{imp}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {(aiInsight as SeriesInsight).scaleStrategy && (
+                      <div className="bg-white border border-purple-200 rounded-lg p-4">
+                        <p className="text-xs font-semibold text-purple-700 mb-1">Scale Strategy</p>
+                        <p className="text-sm text-gray-700">{(aiInsight as SeriesInsight).scaleStrategy}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showSyncModal && selectedEpisodeId && selectedEconomics && seriesId && (
         <SyncSettingsModal

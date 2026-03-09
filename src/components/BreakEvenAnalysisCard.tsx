@@ -1,11 +1,46 @@
-import { Target, TrendingUp, Clock, Eye, Tv, Play, Radio } from 'lucide-react';
-import { BreakEvenAnalysis, EpisodeEconomicsService } from '../services/episodeEconomicsService';
+import { useState } from 'react';
+import { Target, TrendingUp, Clock, Eye, Tv, Play, Radio, Sparkles, Loader2, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
+import { BreakEvenAnalysis, EpisodeEconomicsService, CostBreakdown } from '../services/episodeEconomicsService';
+import { analyzeBreakEven, type BreakEvenInsight } from '../services/economicsAIService';
 
 interface BreakEvenAnalysisCardProps {
   breakEven: BreakEvenAnalysis;
+  costs?: CostBreakdown;
 }
 
-export function BreakEvenAnalysisCard({ breakEven }: BreakEvenAnalysisCardProps) {
+export function BreakEvenAnalysisCard({ breakEven, costs }: BreakEvenAnalysisCardProps) {
+  const [aiInsight, setAiInsight] = useState<BreakEvenInsight | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [showAI, setShowAI] = useState(false);
+
+  const geminiAvailable = !!(import.meta.env.VITE_GEMINI_API_KEY);
+
+  async function handleAnalyze() {
+    if (aiInsight) { setShowAI(v => !v); return; }
+    setAiLoading(true);
+    setAiError(null);
+    setShowAI(true);
+    try {
+      const fallbackCosts: CostBreakdown = costs ?? {
+        tokenCosts: breakEven.totalInvestment,
+        humanLaborCosts: 0,
+        humanHoursEstimate: 0,
+        licensingCosts: 0,
+        dubbingCosts: 0,
+        totalInitialInvestment: breakEven.totalInvestment,
+        amortizedCostPerYear: breakEven.totalInvestment / 5,
+        costPerRun: breakEven.totalInvestment / 5,
+        costPerFinishedMinute: 0
+      };
+      const insight = await analyzeBreakEven(breakEven, fallbackCosts);
+      setAiInsight(insight);
+    } catch (e: any) {
+      setAiError(e.message ?? 'AI analysis failed');
+    } finally {
+      setAiLoading(false);
+    }
+  }
   const formatCurrency = EpisodeEconomicsService.formatCurrency;
   const formatNumber = EpisodeEconomicsService.formatNumber;
 
@@ -69,11 +104,24 @@ export function BreakEvenAnalysisCard({ breakEven }: BreakEvenAnalysisCardProps)
               <p className="text-white/80 text-sm">When will this episode pay for itself?</p>
             </div>
           </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold text-white">
-              {breakEven.breakEvenMonths > 0 ? getShortTimelineLabel() : '--'}
+          <div className="flex items-center gap-3">
+            {geminiAvailable && (
+              <button
+                onClick={handleAnalyze}
+                disabled={aiLoading}
+                title="AI Break-Even Insights"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+              >
+                {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                {aiInsight ? (showAI ? 'Hide' : 'AI Insights') : 'AI Insights'}
+              </button>
+            )}
+            <div className="text-right">
+              <div className="text-2xl font-bold text-white">
+                {breakEven.breakEvenMonths > 0 ? getShortTimelineLabel() : '--'}
+              </div>
+              <div className="text-white/80 text-sm">to break even</div>
             </div>
-            <div className="text-white/80 text-sm">to break even</div>
           </div>
         </div>
       </div>
@@ -220,6 +268,68 @@ export function BreakEvenAnalysisCard({ breakEven }: BreakEvenAnalysisCardProps)
             )}.
           </p>
         </div>
+
+        {/* AI Insights Panel */}
+        {showAI && (
+          <div className="border border-purple-200 rounded-xl overflow-hidden">
+            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-3 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-white" />
+              <span className="text-sm font-semibold text-white">AI Break-Even Analysis</span>
+            </div>
+            <div className="p-4 bg-purple-50 space-y-4">
+              {aiLoading && (
+                <div className="flex items-center gap-2 text-purple-700">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm">Analyzing break-even data...</span>
+                </div>
+              )}
+              {aiError && (
+                <div className="flex items-start gap-2 text-red-700">
+                  <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  <span className="text-sm">{aiError}</span>
+                </div>
+              )}
+              {aiInsight && !aiLoading && (
+                <>
+                  <div>
+                    <p className="text-sm font-medium text-purple-900 mb-1">Assessment</p>
+                    <p className="text-sm text-gray-700">{aiInsight.assessment}</p>
+                  </div>
+                  {aiInsight.keyDrivers.length > 0 && (
+                    <div>
+                      <p className="text-sm font-medium text-purple-900 mb-1">Key Drivers</p>
+                      <ul className="space-y-1">
+                        {aiInsight.keyDrivers.map((d, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                            <span className="text-purple-500 mt-0.5">•</span>{d}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {aiInsight.recommendations.length > 0 && (
+                    <div>
+                      <p className="text-sm font-medium text-purple-900 mb-1">Recommendations</p>
+                      <ul className="space-y-1">
+                        {aiInsight.recommendations.map((r, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                            <span className="text-indigo-500 font-bold mt-0.5">→</span>{r}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {aiInsight.scenarioNote && (
+                    <div className="bg-white border border-purple-200 rounded-lg p-3">
+                      <p className="text-xs font-semibold text-purple-700 mb-1">What-If Scenario</p>
+                      <p className="text-sm text-gray-700">{aiInsight.scenarioNote}</p>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

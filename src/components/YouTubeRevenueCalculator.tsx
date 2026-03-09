@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react';
-import { Calculator, TrendingUp, DollarSign, Sparkles, ChevronDown, Info, BarChart3 } from 'lucide-react';
+import { Calculator, TrendingUp, DollarSign, Sparkles, ChevronDown, Info, BarChart3, Loader2, AlertTriangle } from 'lucide-react';
 import {
   YouTubeRevenueService,
   ContentNiche,
   AudienceType,
   NICHE_MODIFIERS
 } from '../services/youtubeRevenueService';
+import { analyzeYouTubeRevenue, type YouTubeInsight } from '../services/economicsAIService';
 
 interface YouTubeRevenueCalculatorProps {
   defaultMonthlyViews?: number;
@@ -30,6 +31,35 @@ export function YouTubeRevenueCalculator({
   const [audienceType, setAudienceType] = useState<AudienceType>('general');
   const [scenario, setScenario] = useState<'conservative' | 'moderate' | 'optimistic'>('moderate');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [aiInsight, setAiInsight] = useState<YouTubeInsight | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [showAI, setShowAI] = useState(false);
+
+  const geminiAvailable = !!(import.meta.env.VITE_GEMINI_API_KEY);
+
+  async function handleAnalyze() {
+    setAiInsight(null);
+    setAiLoading(true);
+    setAiError(null);
+    setShowAI(true);
+    try {
+      const insight = await analyzeYouTubeRevenue(
+        monthlyViews,
+        niche,
+        audienceType,
+        scenario,
+        projection.adRevenue.creatorNet,
+        projection.sponsorship.estimatedMid,
+        projection.totalMid
+      );
+      setAiInsight(insight);
+    } catch (e: any) {
+      setAiError(e.message ?? 'AI analysis failed');
+    } finally {
+      setAiLoading(false);
+    }
+  }
 
   const projection = useMemo(() => {
     const result = YouTubeRevenueService.calculateTotalProjection(
@@ -63,14 +93,26 @@ export function YouTubeRevenueCalculator({
   return (
     <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
       <div className="bg-gradient-to-r from-red-500 to-orange-500 px-6 py-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-            <Calculator className="w-5 h-5 text-white" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+              <Calculator className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">YouTube Revenue Calculator</h3>
+              <p className="text-sm text-white/80">Estimate your monthly earnings potential</p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-lg font-semibold text-white">YouTube Revenue Calculator</h3>
-            <p className="text-sm text-white/80">Estimate your monthly earnings potential</p>
-          </div>
+          {geminiAvailable && (
+            <button
+              onClick={handleAnalyze}
+              disabled={aiLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+            >
+              {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              AI Strategy
+            </button>
+          )}
         </div>
       </div>
 
@@ -273,6 +315,65 @@ export function YouTubeRevenueCalculator({
             Sponsorship revenue assumes regular brand partnership opportunities.
           </p>
         </div>
+
+        {/* AI Strategy Panel */}
+        {showAI && (
+          <div className="border border-purple-200 rounded-xl overflow-hidden">
+            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-3 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-white" />
+              <span className="text-sm font-semibold text-white">AI YouTube Revenue Strategy</span>
+            </div>
+            <div className="p-4 bg-purple-50 space-y-4">
+              {aiLoading && (
+                <div className="flex items-center gap-2 text-purple-700">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm">Generating revenue strategy...</span>
+                </div>
+              )}
+              {aiError && (
+                <div className="flex items-start gap-2 text-red-700">
+                  <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  <span className="text-sm">{aiError}</span>
+                </div>
+              )}
+              {aiInsight && !aiLoading && (
+                <>
+                  <p className="text-sm text-gray-700">{aiInsight.summary}</p>
+                  {aiInsight.growthStrategy.length > 0 && (
+                    <div>
+                      <p className="text-sm font-medium text-purple-900 mb-1">Growth Strategy</p>
+                      <ul className="space-y-1">
+                        {aiInsight.growthStrategy.map((g, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                            <span className="text-purple-500 mt-0.5">•</span>{g}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {aiInsight.monetizationTips.length > 0 && (
+                    <div>
+                      <p className="text-sm font-medium text-purple-900 mb-1">Monetisation Tips</p>
+                      <ul className="space-y-1">
+                        {aiInsight.monetizationTips.map((t, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                            <span className="text-indigo-500 font-bold mt-0.5">→</span>{t}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {aiInsight.nicheAdvice && (
+                    <div className="bg-white border border-purple-200 rounded-lg p-3">
+                      <p className="text-xs font-semibold text-purple-700 mb-1">Niche-Specific Advice</p>
+                      <p className="text-sm text-gray-700">{aiInsight.nicheAdvice}</p>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
