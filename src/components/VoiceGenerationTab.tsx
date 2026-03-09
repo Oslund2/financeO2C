@@ -79,8 +79,9 @@ export function VoiceGenerationTab({ seriesId, onNavigate }: VoiceGenerationTabP
       const { error } = await supabase
         .from('characters')
         .update({
-          voice_id: voiceId,
-          voice_provider: provider
+          voice_provider: provider,
+          eleven_labs_voice_id: provider === 'elevenlabs' ? voiceId : null,
+          chatterbox_voice_id: provider === 'chatterbox' ? voiceId : null,
         })
         .eq('id', characterId);
 
