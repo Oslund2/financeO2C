@@ -12,6 +12,9 @@ import { useOrganization } from '../contexts/OrganizationContext';
 import { EpisodeProgressBreakdown } from './EpisodeProgressBreakdown';
 import { useNotification } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
+import { CharacterGenerationModal } from './CharacterGenerationModal';
+
+type Character = Database['public']['Tables']['characters']['Row'];
 
 type Episode = Database['public']['Tables']['episodes']['Row'];
 type Script = Database['public']['Tables']['scripts']['Row'];
@@ -45,9 +48,18 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
     episode: null,
     relatedItems: [],
   });
+  const [showCharGenModal, setShowCharGenModal] = useState(false);
+  const [seriesCharacters, setSeriesCharacters] = useState<Character[]>([]);
 
   useEffect(() => {
     loadEpisodes();
+  }, [seriesId]);
+
+  useEffect(() => {
+    if (!seriesId) { setSeriesCharacters([]); return; }
+    supabase.from('characters').select('*').eq('series_id', seriesId).then(({ data }) => {
+      setSeriesCharacters(data || []);
+    });
   }, [seriesId]);
 
   const loadEpisodes = async () => {
@@ -369,13 +381,23 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">Episodes</h1>
             <p className="text-sm sm:text-base text-gray-600">Track and manage episode production</p>
           </div>
-          <button
-            onClick={() => onNavigate('ai-studio')}
-            className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium text-sm sm:text-base w-full sm:w-auto"
-          >
-            <Plus className="w-5 h-5" />
-            New Episode
-          </button>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => setShowCharGenModal(true)}
+              disabled={!seriesId}
+              className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 border border-indigo-300 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition-all font-medium text-sm sm:text-base w-full sm:w-auto disabled:opacity-40"
+            >
+              <Sparkles className="w-4 h-4" />
+              Generate from Story
+            </button>
+            <button
+              onClick={() => onNavigate('ai-studio')}
+              className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium text-sm sm:text-base w-full sm:w-auto"
+            >
+              <Plus className="w-5 h-5" />
+              New Episode
+            </button>
+          </div>
         </div>
 
         {orphanedEpisodes.size > 0 && (
@@ -792,6 +814,22 @@ export function Episodes({ seriesId, onNavigate, navigationData }: EpisodesProps
           onClose={() => setCostViewEpisode(null)}
         />
       )}
+
+      <CharacterGenerationModal
+        isOpen={showCharGenModal}
+        onClose={() => setShowCharGenModal(false)}
+        seriesId={seriesId}
+        existingCharacters={seriesCharacters}
+        showEpisodeMeta={true}
+        onCharactersSaved={() => {
+          if (seriesId) {
+            supabase.from('characters').select('*').eq('series_id', seriesId).then(({ data }) => {
+              setSeriesCharacters(data || []);
+            });
+          }
+        }}
+        onEpisodeCreated={() => loadEpisodes()}
+      />
 
       <DeleteConfirmationModal
         isOpen={deleteModal.isOpen}
