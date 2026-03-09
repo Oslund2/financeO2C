@@ -8,6 +8,9 @@ interface Character {
   name: string;
   personality_traits: string[];
   role: string;
+  aliases?: string[];
+  tags?: string[];
+  description?: string;
   voice_id?: string;
   image_url?: string;
 }
@@ -215,7 +218,7 @@ function cleanupIncompleteScript(data: any): any {
         if (!scene.duration_seconds || scene.duration_seconds < 30) {
           scene.duration_seconds = Math.max(30, scene.dialogue.length * 4);
         }
-        if (!scene.location) scene.location = 'CLASSROOM';
+        if (!scene.location) scene.location = 'LOCATION';
         if (!scene.time_of_day) scene.time_of_day = 'MORNING';
         if (!scene.title) scene.title = 'Scene';
       });
@@ -330,13 +333,41 @@ function buildScriptGenerationPrompt(
     }
   }
 
+  // Build rich character profiles from everything we know about each character
   const characterDescriptions = characters
-    .map(c => `- ${c.name} (${c.role}): ${c.personality_traits.join(', ')}`)
+    .map(c => {
+      const parts = [`- ${c.name} (${c.role})`];
+      if (c.personality_traits && c.personality_traits.length > 0) parts.push(`Personality: ${c.personality_traits.join(', ')}`);
+      if (c.description) parts.push(`Description: ${c.description}`);
+      if (c.aliases && c.aliases.length > 0) parts.push(`Also known as: ${c.aliases.join(', ')}`);
+      if (c.tags && c.tags.length > 0) parts.push(`Tags: ${c.tags.join(', ')}`);
+      return parts.join(' | ');
+    })
     .join('\n');
+
+  // Derive naming rules from each character's aliases (e.g. "Mrs. Higginbottom" → "Mrs. H")
+  const characterNamingRules = characters
+    .filter(c => c.aliases && c.aliases.length > 0)
+    .map(c => `- "${c.name}" may also be referred to as: ${c.aliases!.join(', ')} — use these names consistently and exactly as shown`)
+    .join('\n');
+
+  // Derive antagonist / role guidance from tags
+  const antagonistChars = characters.filter(c =>
+    c.tags?.some(t => ['antagonist', 'villain', 'rival', 'bully', 'opposition'].includes(t.toLowerCase())) ||
+    c.role?.toLowerCase() === 'cameo'
+  );
+  const antagonistNote = antagonistChars.length > 0
+    ? `- Characters tagged as antagonists or rivals (${antagonistChars.map(c => c.name).join(', ')}) may be portrayed as obstructors or foils to the main characters.`
+    : '';
 
   const vocabularySection = episode.vocabulary_words && episode.vocabulary_words.length > 0
     ? `\nVocabulary words to naturally integrate:\n${episode.vocabulary_words.map(v => `- ${v.word}: ${v.definition}`).join('\n')}`
     : '';
+
+  // Use actual character names for the example JSON snippet
+  const exChars = characters.slice(0, 4).map(c => c.name);
+  const exChar0 = exChars[0] || 'Character A';
+  const exChar1 = exChars[1] || 'Character B';
 
   return `You are a professional children's animation scriptwriter specializing in claymation educational series.
 
@@ -347,20 +378,18 @@ Episode Information:
 - Target Age: ${episode.target_age_group || '6-10 years'}
 ${vocabularySection}
 
-Characters:
+================================================================================
+AUTHORISED CAST — STRICT SERIES FIREWALL
+================================================================================
+
+ONLY the following ${characters.length} character${characters.length !== 1 ? 's' : ''} exist in this series. You MUST NOT introduce, reference, or name any character not in this list — not even as a background extra or unnamed role. Every speaking character and every name mentioned in dialogue MUST appear below:
+
 ${characterDescriptions}
 
-CRITICAL CHARACTER NAMING REQUIREMENTS:
-- The teacher character's name is "Mrs. Higginbottom" (NO 'S' at the end - NOT "Mrs. Higginbottoms")
-- She is lovingly referred to as "Mrs. H" by the students
-- ALWAYS use "Mrs. Higginbottom" or "Mrs. H" - never add an 'S' to her last name
-
-SHOW PREMISE & CHARACTER PORTRAYAL:
-- The entire premise is that kids are SMART, COOL, and FUNNY
-- Portray all student characters (except antagonists) as intelligent, witty, and genuinely likeable
-- EXCEPTION: Chad and certain cameo characters may be antagonists and obstructors in the storylines
-- Chad can be portrayed as smug, condescending, or a rival
-- Other students should be clever, quick-witted, and demonstrate genuine intelligence and humor
+${characterNamingRules ? `CHARACTER NAMING RULES (derived from official aliases):\n${characterNamingRules}\n` : ''}${antagonistNote ? `CHARACTER ROLE NOTES:\n${antagonistNote}\n` : ''}CHARACTER PORTRAYAL GUIDELINES:
+- Portray each character according to their personality description above
+- Keep personalities consistent with the tags and descriptions provided
+- Do not invent personality traits not established in the character profiles above
 
 ================================================================================
 EPISODE TIMING STRUCTURE (CRITICAL - MUST FOLLOW EXACTLY)
@@ -395,9 +424,9 @@ SCENE REQUIREMENTS FOR AI VIDEO GENERATION (Veo 3 Optimization)
 
 - Group multiple scenes in the SAME LOCATION when narratively appropriate
 - Mark scenes with "reusable_setup": true if they share establishing shots
-- Include specific "location" field matching one of: CLASSROOM, HALLWAY, PLAYGROUND, CAFETERIA, LIBRARY, GYM, OFFICE, or custom locations
-- Include "time_of_day" field: MORNING, AFTERNOON, EVENING
-- List all "characters_present" in each scene for reference image tracking
+- Include a specific "location" field describing the setting (e.g. a real place name, room, or environment appropriate to this episode's story — not limited to any predefined list)
+- Include "time_of_day" field: MORNING, AFTERNOON, or EVENING
+- List all "characters_present" in each scene — only names from the Authorised Cast above
 - Each scene needs 8-15 dialogue exchanges minimum for proper timing
 - Include detailed stage directions between dialogue for animator reference
 
@@ -452,40 +481,40 @@ ${segmentTimings.map((seg, idx) => `    {
       "scenes": [${idx === 0 ? `
         {
           "scene_number": 1,
-          "title": "INT. CLASSROOM - MORNING",
-          "location": "CLASSROOM",
+          "title": "INT. [LOCATION] - MORNING",
+          "location": "[LOCATION APPROPRIATE TO THIS EPISODE]",
           "time_of_day": "MORNING",
           "description": "Scene description and setting for table read",
           "start_timecode": "${seg.startTimecode}",
           "end_timecode": "...",
           "duration_seconds": 90,
-          "characters_present": ["Mrs. Higginbottom", "Emma", "Marcus", "Lily"],
+          "characters_present": ${JSON.stringify(exChars)},
           "reusable_setup": true,
           "dialogue": [
             {
-              "character": "Mrs. Higginbottom",
-              "line": "Good morning, class! Today we have something exciting planned.",
-              "stage_direction": "enters classroom, sets down colorful folder on desk"
+              "character": "${exChar0}",
+              "line": "[Opening line appropriate to this character and episode]",
+              "stage_direction": "[Stage direction for ${exChar0}]"
             },
             {
-              "character": "Emma",
-              "line": "Is it about the science fair? I've been working on my hypothesis all week!",
-              "stage_direction": "sits up eagerly, notebook ready"
+              "character": "${exChar1}",
+              "line": "[Response line appropriate to this character]",
+              "stage_direction": "[Stage direction for ${exChar1}]"
             }
           ],
-          "claymation_notes": "Wide establishing shot of classroom, then medium shots for dialogue. Show clay texture on desk surfaces."
+          "claymation_notes": "Wide establishing shot, then medium shots for dialogue. Show clay texture on surfaces."
         }
       ` : ' /* Add scenes here */ '}]
     }${idx < segmentCount - 1 ? ',' : ''}`).join('\n')}
   ],
   "location_summary": [
     {
-      "location": "CLASSROOM",
+      "location": "[ACTUAL LOCATION USED IN YOUR SCRIPT]",
       "scene_count": 4,
       "total_duration_seconds": 320
     },
     {
-      "location": "HALLWAY",
+      "location": "[SECOND LOCATION IF USED]",
       "scene_count": 2,
       "total_duration_seconds": 150
     }
@@ -499,9 +528,9 @@ CRITICAL REMINDERS
 1. TIMING IS NON-NEGOTIABLE: Total scripted content must be ${contentSeconds} seconds (${formatTimecodeUtil(contentSeconds)})
 2. Each segment must have multiple scenes with 8+ dialogue exchanges each
 3. Include ALL ${segmentCount} segment${segmentCount > 1 ? 's' : ''} with scenes filled in (not empty arrays)
-4. Use "Mrs. Higginbottom" (no S) or "Mrs. H" - this is critical
-5. Make the kids genuinely smart, cool, and funny through their dialogue
-6. Chad and antagonist characters are the exception - they can be portrayed differently
+4. SERIES FIREWALL — ABSOLUTE RULE: Only use characters from the Authorised Cast list. Zero exceptions. If the episode calls for a role not covered by the cast, give that function to an existing cast member.
+5. Use each character's exact name (and aliases if listed) as shown in the Authorised Cast — never shorten, misspell, or pluralise a character's name in an unintended way
+6. Portray characters consistent with their personality descriptions — do not invent traits
 7. Each scene must have accurate timecodes that add up correctly
 8. Location_summary must reflect actual locations used in the script
 9. ${segmentCount > 1 ? 'End each segment (except the last) with a hook or mini-cliffhanger' : 'Maintain smooth pacing throughout the continuous segment'}

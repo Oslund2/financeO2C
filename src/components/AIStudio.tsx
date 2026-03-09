@@ -364,6 +364,9 @@ function ScriptGeneration({ seriesId, onNavigate }: ScriptGenerationProps) {
           name: c.name,
           personality_traits: c.personality_traits || [],
           role: c.role || 'supporting',
+          aliases: c.aliases || [],
+          tags: c.tags || [],
+          description: c.description || '',
           voice_id: c.voice_id,
           image_url: c.image_url
         })),
