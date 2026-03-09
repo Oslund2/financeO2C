@@ -24,7 +24,7 @@ import { useOrganization } from './contexts/OrganizationContext';
 
 function App() {
   const { user, loading: authLoading } = useAuth();
-  const { currentOrganization, loading: orgLoading, error: orgError, retryInitialization } = useOrganization();
+  const { currentOrganization, loading: orgLoading, timedOut: orgTimedOut, error: orgError, retryInitialization } = useOrganization();
   const commandPalette = useCommandPalette();
   const onboarding = useOnboarding();
   const [currentView, setCurrentView] = useState('dashboard');
@@ -115,12 +115,41 @@ function App() {
   if (authLoading || orgLoading || loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-white flex items-center justify-center">
-        <div className="text-center">
+        <div className="text-center max-w-md px-6">
           <div className="w-20 h-20 border-4 border-scripps-blue border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-xl text-gray-700 font-medium">
             {authLoading ? 'Authenticating...' : orgLoading ? 'Setting up workspace...' : 'Loading Scripps AI Studio...'}
           </p>
           <p className="text-sm text-gray-500 mt-2">This usually takes just a few seconds</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (orgTimedOut || (orgError && !currentOrganization)) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-white flex items-center justify-center">
+        <div className="text-center max-w-lg px-6">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">Unable to connect</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            {orgTimedOut
+              ? 'The database connection timed out. Check that your Supabase environment variables are correct in Netlify.'
+              : orgError}
+          </p>
+          <p className="text-xs text-gray-400 mb-6 font-mono break-all">
+            DB: {import.meta.env.VITE_SUPABASE_URL ?? 'not set'}
+          </p>
+          <button
+            onClick={() => retryInitialization()}
+            className="px-6 py-2 bg-scripps-blue text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Retry connection
+          </button>
         </div>
       </div>
     );
