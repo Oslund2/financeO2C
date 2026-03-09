@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Plus, Search, Edit2, Copy, Trash2, Sparkles, X, Volume2, Film, Loader2, Copyright } from 'lucide-react';
+import { CharacterGenerationModal } from './CharacterGenerationModal';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
@@ -42,6 +43,7 @@ export function Characters({ seriesId, onNavigate }: CharactersProps) {
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
   const [loadingVoiceId, setLoadingVoiceId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [showCharGenModal, setShowCharGenModal] = useState(false);
 
   useEffect(() => {
     loadCharacters();
@@ -331,16 +333,26 @@ export function Characters({ seriesId, onNavigate }: CharactersProps) {
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">Characters</h1>
                 <p className="text-sm sm:text-base text-gray-600">Manage your animated character cast</p>
               </div>
-              <button
-                onClick={() => {
-                  setEditingCharacter(null);
-                  setShowForm(true);
-                }}
-                className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium min-h-[44px] w-full sm:w-auto"
-              >
-                <Plus className="w-5 h-5" />
-                New Character
-              </button>
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <button
+                  onClick={() => setShowCharGenModal(true)}
+                  disabled={!seriesId}
+                  className="flex items-center justify-center gap-2 px-5 py-3 border border-indigo-300 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition-all font-medium min-h-[44px] w-full sm:w-auto disabled:opacity-40"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Generate from Story
+                </button>
+                <button
+                  onClick={() => {
+                    setEditingCharacter(null);
+                    setShowForm(true);
+                  }}
+                  className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white rounded-lg hover:shadow-lg transition-all font-medium min-h-[44px] w-full sm:w-auto"
+                >
+                  <Plus className="w-5 h-5" />
+                  New Character
+                </button>
+              </div>
             </div>
 
         <div className="bg-white rounded-xl shadow-md p-3 sm:p-4 mb-4 sm:mb-6 border border-gray-200">
@@ -700,6 +712,15 @@ export function Characters({ seriesId, onNavigate }: CharactersProps) {
             ? 'This character is being used in scripts or has associated assets. Deleting it may affect your production.'
             : 'This character will be permanently deleted from your series.'
         }
+      />
+
+      <CharacterGenerationModal
+        isOpen={showCharGenModal}
+        onClose={() => setShowCharGenModal(false)}
+        seriesId={seriesId}
+        existingCharacters={characters}
+        showEpisodeMeta={false}
+        onCharactersSaved={() => loadCharacters()}
       />
       </div>
     </div>

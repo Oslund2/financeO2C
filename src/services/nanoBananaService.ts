@@ -674,3 +674,58 @@ export function parseUploadFileNames(files: FileList): BulkUploadFile[] {
 
   return parsedFiles;
 }
+
+export async function generateCharacterReferenceImage(
+  characterName: string,
+  description: string,
+  visualStyle: string
+): Promise<{ imageUrl: string; thumbnailUrl: string }> {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) throw new Error('Gemini API key not configured.');
+
+  const styleNote = visualStyle === 'claymation'
+    ? 'claymation style, clay texture, rounded forms, stop-motion animation aesthetic, colorful and expressive'
+    : 'photorealistic, cinematic lighting, detailed and naturalistic';
+
+  const prompt = `Character reference portrait: ${characterName}. ${description}. Three-quarter view, neutral gradient background, character reference sheet composition, ${styleNote}. Clear, well-lit, suitable as a production reference image for a video production team.`;
+
+  const response = await fetch(`${NANO_BANANA_ENDPOINT}?key=${apiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseModalities: ['TEXT', 'IMAGE'],
+        imageConfig: { aspectRatio: '1:1' },
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(`Character image generation failed (${response.status}): ${JSON.stringify(err)}`);
+  }
+
+  const data = await response.json();
+  const parts = data.candidates?.[0]?.content?.parts || [];
+  const imagePart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'));
+
+  if (!imagePart) throw new Error('No image returned from Gemini for character reference.');
+
+  const imageBase64 = imagePart.inlineData.data;
+  const imageBuffer = Uint8Array.from(atob(imageBase64), c => c.charCodeAt(0));
+  const safeName = characterName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+  const fileName = `generated/${Date.now()}-${safeName}.png`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('character-images')
+    .upload(fileName, imageBuffer, { contentType: 'image/png', upsert: false });
+
+  if (uploadError) throw new Error(`Failed to upload character image: ${uploadError.message}`);
+
+  const { data: { publicUrl } } = supabase.storage
+    .from('character-images')
+    .getPublicUrl(fileName);
+
+  return { imageUrl: publicUrl, thumbnailUrl: publicUrl };
+}
