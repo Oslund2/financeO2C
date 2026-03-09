@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import {
   Film,
   Users,
@@ -23,6 +23,7 @@ import { OrganizationSwitcher } from './OrganizationSwitcher';
 import { SeriesSwitcher } from './SeriesSwitcher';
 import { InfoTooltip } from './InfoTooltip';
 import { useOrganization } from '../contexts/OrganizationContext';
+import { supabase } from '../lib/supabase';
 
 interface LayoutProps {
   children: ReactNode;
@@ -34,7 +35,18 @@ interface LayoutProps {
 
 export function Layout({ children, currentView, onNavigate, currentSeriesId, onSeriesChange }: LayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [activeSeriesName, setActiveSeriesName] = useState<string | null>(null);
   const { currentOrganization } = useOrganization();
+
+  useEffect(() => {
+    if (!currentSeriesId) { setActiveSeriesName(null); return; }
+    supabase
+      .from('series')
+      .select('name')
+      .eq('id', currentSeriesId)
+      .single()
+      .then(({ data }) => setActiveSeriesName(data?.name ?? null));
+  }, [currentSeriesId]);
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Clapperboard },
@@ -61,7 +73,7 @@ export function Layout({ children, currentView, onNavigate, currentSeriesId, onS
           <div className="flex flex-col gap-3">
             <Logo size="xlarge" className="mx-auto" logoUrl={currentOrganization?.logo_url} />
             <div className="text-center">
-              <p className="text-xs font-medium text-scripps-navy">Genre</p>
+              <p className="text-xs font-medium text-scripps-navy">{activeSeriesName ?? 'Genre'}</p>
             </div>
           </div>
         </div>
@@ -161,7 +173,7 @@ export function Layout({ children, currentView, onNavigate, currentSeriesId, onS
               <div className="p-6 border-b border-blue-200 flex items-center justify-between">
                 <div className="flex flex-col gap-2">
                   <Logo size="xlarge" logoUrl={currentOrganization?.logo_url} />
-                  <p className="text-xs font-medium text-scripps-navy">Genre</p>
+                  <p className="text-xs font-medium text-scripps-navy">{activeSeriesName ?? 'Genre'}</p>
                 </div>
                 <button
                   onClick={() => setMobileMenuOpen(false)}
