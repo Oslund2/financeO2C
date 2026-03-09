@@ -122,24 +122,33 @@ export class VoiceService {
       chatterbox: { available: false, error: undefined as string | undefined },
     };
 
-    try {
-      await this.elevenLabsService.getVoices();
-      results.elevenlabs.available = true;
-    } catch (error) {
-      results.elevenlabs.error =
-        error instanceof Error ? error.message : 'ElevenLabs service unavailable';
-    }
+    const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Request timed out')), ms)
+      );
+      return Promise.race([promise, timeout]);
+    };
 
-    try {
-      const health = await this.chatterboxService.healthCheck();
-      results.chatterbox.available = health.api_key_configured;
-      if (!health.api_key_configured) {
-        results.chatterbox.error = 'Chatterbox API key not configured';
-      }
-    } catch (error) {
-      results.chatterbox.error =
-        error instanceof Error ? error.message : 'Chatterbox service unavailable';
-    }
+    await Promise.all([
+      withTimeout(this.elevenLabsService.getVoices(), 6000)
+        .then(() => { results.elevenlabs.available = true; })
+        .catch((error: unknown) => {
+          results.elevenlabs.error =
+            error instanceof Error ? error.message : 'ElevenLabs service unavailable';
+        }),
+
+      withTimeout(this.chatterboxService.healthCheck(), 6000)
+        .then((health) => {
+          results.chatterbox.available = health.api_key_configured;
+          if (!health.api_key_configured) {
+            results.chatterbox.error = 'Chatterbox API key not configured';
+          }
+        })
+        .catch((error: unknown) => {
+          results.chatterbox.error =
+            error instanceof Error ? error.message : 'Chatterbox service unavailable';
+        }),
+    ]);
 
     return results;
   }
