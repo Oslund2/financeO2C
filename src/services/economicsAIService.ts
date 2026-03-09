@@ -42,6 +42,21 @@ export interface SeriesInsight {
   scaleStrategy: string;
 }
 
+export interface CostBenchmarkInsight {
+  benchmarkAssessment: string;
+  marketComparison: string[];
+  optimisationOpportunities: string[];
+  competitivePosition: string;
+}
+
+export interface DecayProjectionInsight {
+  decayAssessment: string;
+  genreComparison: string;
+  retentionDrivers: string[];
+  projectionAdjustments: string[];
+  longTailOpportunities: string;
+}
+
 // ── Gemini call ───────────────────────────────────────────────────────────────
 
 async function callGemini(prompt: string): Promise<string> {
@@ -92,7 +107,7 @@ export async function analyzeEpisodeEconomics(economics: EpisodeEconomics): Prom
     `  - ${c.channelName} (${c.channelType}): ${formatCurrency(c.annualNetRevenue)}/yr net, CPM $${c.cpmRate}, platform fee ${c.platformFeePercent.toFixed(0)}%`
   ).join('\n');
 
-  const prompt = `You are a media finance expert specialising in animation and video production P&L analysis.
+  const prompt = `You are a media finance expert specialising in animation and video production P&L analysis. Where relevant, reference 2024-2025 industry benchmarks and research (e.g. Animation Guild wage surveys, Parrot Analytics content valuation studies, PwC Global Entertainment & Media Outlook, Ampere Analysis streaming data).
 
 EPISODE: "${economics.episodeTitle}"
 FORMAT: ${economics.format.formatLabel} (${economics.format.runtimeMinutes} min runtime, ${economics.format.contentMinutes.toFixed(1)} min content)
@@ -153,7 +168,7 @@ export async function analyzeBreakEven(
     `  - ${c.channelName}: ${(c.viewsNeeded / 1000).toFixed(0)}K views, ~${c.monthsNeeded.toFixed(0)} months if sole channel`
   ).join('\n');
 
-  const prompt = `You are a media finance expert. Analyse this episode break-even data and provide strategic recommendations.
+  const prompt = `You are a media finance expert. Analyse this episode break-even data and provide strategic recommendations. Reference 2024-2025 industry benchmarks where relevant (e.g. typical broadcast CPM ranges, streaming platform payout rates from Variety/Deadline reporting, Ampere Analysis content break-even research).
 
 INVESTMENT: ${formatCurrency(breakEven.totalInvestment)}
   AI/token costs:  ${formatCurrency(costs.tokenCosts)}
@@ -241,7 +256,7 @@ export async function analyzeYouTubeRevenue(
 ): Promise<YouTubeInsight> {
   const rpm = adRevenueNet / (monthlyViews / 1000);
 
-  const prompt = `You are a YouTube monetisation expert specialising in animation and kids/family content.
+  const prompt = `You are a YouTube monetisation expert specialising in animation and kids/family content. Base your advice on the latest 2024-2025 data: Influencer Marketing Hub YouTube Money Calculator benchmarks, SocialBlade CPM reports, Think with Google Kids content monetisation research, and creator economy reports from Conviva and Tubular Labs.
 
 CHANNEL PROFILE:
   Content niche: ${niche.replace(/_/g, ' ')}
@@ -288,7 +303,7 @@ export async function analyzeRevenueProjection(params: {
   averageAnnualProfit: number;
   yearsInService: number;
 }): Promise<PLInsight> {
-  const prompt = `You are a media finance expert. Analyse this episode revenue and profit projection.
+  const prompt = `You are a media finance expert. Analyse this episode revenue and profit projection. Reference 2024-2025 industry data where relevant (PwC Entertainment & Media Outlook, Parrot Analytics content valuation, SVOD payout benchmarks from Variety Intelligence Platform).
 
 EPISODE: "${params.episodeTitle}"
 PRODUCTION COST: ${formatCurrency(params.productionCost)}
@@ -337,7 +352,7 @@ export async function analyzeSeriesPerformance(totals: {
   seriesBreakEvenMonths: number;
   episodeCount: number;
 }): Promise<SeriesInsight> {
-  const prompt = `You are a media production finance expert. Analyse this series-level P&L portfolio.
+  const prompt = `You are a media production finance expert. Analyse this series-level P&L portfolio. Reference 2024-2025 industry research (Ampere Analysis series economics, Animation Guild cost surveys, kids/animation co-production financing benchmarks from MIPCOM/Kidscreen reports).
 
 SERIES PORTFOLIO (${totals.episodeCount} episodes):
   Total production investment:  ${formatCurrency(totals.totalInvestment)}
@@ -363,5 +378,106 @@ Return JSON only (no markdown fences):
     bestPerformers: '',
     improvements: [],
     scaleStrategy: ''
+  });
+}
+
+// ── AI Cost Benchmark Analysis ────────────────────────────────────────────────
+
+export async function analyzeCostBenchmark(params: {
+  aiProductionCost: number;
+  traditionalCost: number;
+  freelanceCost: number | null;
+  creatorCost: number | null;
+  runtimeMinutes: number;
+  animationStyle?: string;
+}): Promise<CostBenchmarkInsight> {
+  const aiCpm = params.runtimeMinutes > 0 ? params.aiProductionCost / params.runtimeMinutes : 0;
+  const tradCpm = params.runtimeMinutes > 0 ? params.traditionalCost / params.runtimeMinutes : 0;
+
+  const prompt = `You are an animation production finance analyst with deep knowledge of 2024-2025 AI-assisted and traditional production costs. Compare the following production costs against current industry benchmarks.
+
+PRODUCTION COSTS (per episode, ${params.runtimeMinutes} min runtime):
+  AI-Assisted production:   ${formatCurrency(params.aiProductionCost)} (${formatCurrency(aiCpm)}/min)
+  Traditional studio:       ${formatCurrency(params.traditionalCost)} (${formatCurrency(tradCpm)}/min)
+  ${params.freelanceCost !== null ? `Freelance (Fiverr/Upwork): ${formatCurrency(params.freelanceCost)}` : ''}
+  ${params.creatorCost !== null ? `In-house creator team:     ${formatCurrency(params.creatorCost)}` : ''}
+  ${params.animationStyle ? `Animation style: ${params.animationStyle}` : ''}
+
+Use 2024-2025 industry benchmarks:
+- Traditional 2D TV animation: $100K-$500K per half-hour (Animation Guild / Variety)
+- Stop-motion/claymation premium: 2-4x 2D costs (Laika, Mackinnon & Saunders pricing)
+- AI-assisted animation pipelines: $1K-$15K per finished minute (2024 AI production surveys)
+- Freelance animation (Fiverr/Upwork): $500-$5K per minute depending on quality tier
+- ElevenLabs voice synthesis: ~$0.30/1K characters; Runway/Sora video gen: ~$0.05-0.10/second
+
+Return JSON only (no markdown fences):
+{
+  "benchmarkAssessment": "2-sentence assessment of how these costs compare to 2024-2025 industry benchmarks",
+  "marketComparison": ["comparison data point 1 with source", "comparison data point 2 with source", "comparison data point 3 with source"],
+  "optimisationOpportunities": ["cost reduction opportunity 1", "cost reduction opportunity 2", "cost reduction opportunity 3"],
+  "competitivePosition": "1-2 sentences on the competitive cost advantage or disadvantage of the AI-assisted approach vs market alternatives"
+}`;
+
+  const text = await callGemini(prompt);
+  return parseJSONSafely<CostBenchmarkInsight>(text, {
+    benchmarkAssessment: text.slice(0, 250),
+    marketComparison: [],
+    optimisationOpportunities: [],
+    competitivePosition: ''
+  });
+}
+
+// ── Decay Projection Analysis ─────────────────────────────────────────────────
+
+export async function analyzeDecayProjection(params: {
+  yearlyBreakdown: Array<{ year: number; revenue: number; retentionPercent: number; profit: number; cumulativeProfit: number }>;
+  decayRatePercent: number;
+  minimumRetentionPercent: number;
+  productionCost: number;
+  yearsInService: number;
+  genre?: string;
+}): Promise<DecayProjectionInsight> {
+  const yr1Revenue = params.yearlyBreakdown[0]?.revenue ?? 0;
+  const yr3Revenue = params.yearlyBreakdown[2]?.revenue ?? 0;
+  const finalRevenue = params.yearlyBreakdown[params.yearlyBreakdown.length - 1]?.revenue ?? 0;
+  const finalRetention = params.yearlyBreakdown[params.yearlyBreakdown.length - 1]?.retentionPercent ?? params.minimumRetentionPercent;
+
+  const prompt = `You are a content valuation expert specialising in long-tail revenue modelling for animation and children's media. Analyse the content decay model and suggest refinements based on 2024-2025 research.
+
+DECAY MODEL CONFIGURATION:
+  Annual decay rate:       ${params.decayRatePercent}% per year
+  Minimum floor:           ${params.minimumRetentionPercent}% of Year 1 revenue
+  Years in service:        ${params.yearsInService} years
+  ${params.genre ? `Genre: ${params.genre}` : ''}
+
+PROJECTED REVENUE TRAJECTORY:
+  Production cost:   ${formatCurrency(params.productionCost)}
+  Year 1 revenue:    ${formatCurrency(yr1Revenue)}
+  Year 3 revenue:    ${formatCurrency(yr3Revenue)}
+  Final year revenue: ${formatCurrency(finalRevenue)} (${finalRetention.toFixed(0)}% retention floor)
+
+RESEARCH CONTEXT — reference these 2024-2025 benchmarks:
+- Children's animation has 25-40% lower decay than adult content due to repeat viewing (Parrot Analytics 2024)
+- SVOD library content typically decays 15-25%/year in viewing; AVOD slower at 10-18%/year (Ampere Analysis)
+- Evergreen content (preschool, educational) retains 30-50% of peak revenue in years 5-10 (Kidscreen research)
+- Physical merchandise extensions can reverse decay curves for strong IP (NPD Group licensing data)
+- Multi-language dubbing increases long-tail retention by 15-20% in non-English markets (MIPJunior 2024)
+
+Return JSON only (no markdown fences):
+{
+  "decayAssessment": "2-sentence honest assessment of whether this decay model is realistic for the content type",
+  "genreComparison": "How does this content's projected decay compare to genre benchmarks from 2024-2025 research?",
+  "retentionDrivers": ["factor that slows decay 1", "factor that slows decay 2", "factor that accelerates decay"],
+  "projectionAdjustments": ["specific adjustment recommendation 1", "specific adjustment recommendation 2"],
+  "longTailOpportunities": "What licensing, merchandising, or distribution strategies could extend the revenue curve beyond the current projection?"
+}`;
+
+  const text = await callGemini(prompt);
+  return parseJSONSafely<DecayProjectionInsight>(text, {
+    decayAssessment: text.slice(0, 200),
+    genreComparison: '',
+    retentionDrivers: [],
+    projectionAdjustments: [],
+    longTailOpportunities: ''
   });
 }
