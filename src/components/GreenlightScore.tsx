@@ -56,30 +56,92 @@ interface GreenlightScoreProps {
 
 export function GreenlightScore({ seriesId }: GreenlightScoreProps) {
   const [seriesName, setSeriesName] = useState<string | null>(null);
+  const [prefillLoading, setPrefillLoading] = useState(false);
   const [genre, setGenre] = useState('Preschool Educational');
-
-  useEffect(() => {
-    if (!seriesId) {
-      setSeriesName(null);
-      return;
-    }
-    supabase
-      .from('series')
-      .select('name')
-      .eq('id', seriesId)
-      .single()
-      .then(({ data }) => {
-        const name = data?.name ?? null;
-        setSeriesName(name);
-        if (name) setGenre(name);
-      });
-  }, [seriesId]);
   const [targetAudience, setTargetAudience] = useState('Preschool (2-5)');
   const [runtimeMinutes, setRuntimeMinutes] = useState(11);
   const [characterCount, setCharacterCount] = useState(8);
   const [selectedChannels, setSelectedChannels] = useState<string[]>(['YouTube Kids', 'Tubi']);
   const [budgetPerEpisode, setBudgetPerEpisode] = useState(5000);
   const [episodeCount, setEpisodeCount] = useState(13);
+
+  // Nearest RUNTIME value we support
+  const snapRuntime = (mins: number) => {
+    const supported = [1, 5, 10, 11, 15, 22, 42];
+    return supported.reduce((prev, cur) =>
+      Math.abs(cur - mins) < Math.abs(prev - mins) ? cur : prev
+    );
+  };
+
+  useEffect(() => {
+    if (!seriesId) {
+      setSeriesName(null);
+      return;
+    }
+    setPrefillLoading(true);
+
+    Promise.all([
+      // Series: name + default episode count
+      supabase
+        .from('series')
+        .select('name, default_episode_count')
+        .eq('id', seriesId)
+        .single(),
+      // Character count for this series
+      supabase
+        .from('characters')
+        .select('id', { count: 'exact', head: true })
+        .eq('series_id', seriesId),
+      // Script runtimes (most reliable source for intended runtime)
+      supabase
+        .from('scripts')
+        .select('runtime_minutes')
+        .eq('series_id', seriesId)
+        .not('runtime_minutes', 'is', null),
+      // Episodes: count, cost, runtime
+      supabase
+        .from('episodes')
+        .select('estimated_cost, target_runtime_seconds')
+        .eq('series_id', seriesId),
+    ]).then(([seriesRes, charRes, scriptsRes, episodesRes]) => {
+      const name = seriesRes.data?.name ?? null;
+      setSeriesName(name);
+      if (name) setGenre(name);
+
+      // Episode count: prefer series default, fall back to actual count
+      const defaultCount = seriesRes.data?.default_episode_count;
+      const actualCount = episodesRes.data?.length ?? 0;
+      if (defaultCount && defaultCount > 0) setEpisodeCount(defaultCount);
+      else if (actualCount > 0) setEpisodeCount(actualCount);
+
+      // Character count
+      if ((charRes.count ?? 0) > 0) setCharacterCount(charRes.count!);
+
+      // Runtime: prefer scripts, fall back to episode target_runtime_seconds
+      const scriptRuntimes = (scriptsRes.data ?? [])
+        .map(s => s.runtime_minutes)
+        .filter((r): r is number => typeof r === 'number' && r > 0);
+      const episodeRuntimesMins = (episodesRes.data ?? [])
+        .map(e => e.target_runtime_seconds)
+        .filter((r): r is number => typeof r === 'number' && r > 0)
+        .map(s => Math.round(s / 60));
+
+      const runtimes = scriptRuntimes.length > 0 ? scriptRuntimes : episodeRuntimesMins;
+      if (runtimes.length > 0) {
+        const avg = Math.round(runtimes.reduce((a, b) => a + b, 0) / runtimes.length);
+        setRuntimeMinutes(snapRuntime(avg));
+      }
+
+      // Budget per episode: average of estimated_cost across episodes
+      const costs = (episodesRes.data ?? [])
+        .map(e => e.estimated_cost)
+        .filter((c): c is number => typeof c === 'number' && c > 0);
+      if (costs.length > 0) {
+        const avgCost = Math.round(costs.reduce((a, b) => a + b, 0) / costs.length);
+        setBudgetPerEpisode(avgCost);
+      }
+    }).finally(() => setPrefillLoading(false));
+  }, [seriesId]);
 
   const [result, setResult] = useState<GreenlightScoreResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -126,7 +188,13 @@ export function GreenlightScore({ seriesId }: GreenlightScoreProps) {
           </div>
           <div>
             <h2 className="text-lg font-bold">Pre-Production Greenlight Score</h2>
-            <p className="text-sm text-green-100">AI concept evaluation before a single frame is produced</p>
+            <p className="text-sm text-green-100">
+              {prefillLoading
+                ? 'Loading series data…'
+                : seriesName
+                  ? `Auto-filled from "${seriesName}" workspace data`
+                  : 'AI concept evaluation before a single frame is produced'}
+            </p>
           </div>
         </div>
       </div>
