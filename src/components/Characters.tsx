@@ -127,8 +127,10 @@ export function Characters({ seriesId, onNavigate }: CharactersProps) {
   const handleVoicePreview = async (character: Character, e: React.MouseEvent) => {
     e.stopPropagation();
 
-    const voiceId = character.chatterbox_voice_id || character.eleven_labs_voice_id;
     const provider = (character.voice_provider as VoiceProvider) || 'elevenlabs';
+    const voiceId = provider === 'chatterbox'
+      ? character.chatterbox_voice_id
+      : character.eleven_labs_voice_id;
 
     if (!voiceId) {
       showError('No Voice', 'This character does not have a voice assigned.');
