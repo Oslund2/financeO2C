@@ -53,21 +53,34 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     try {
       setError(null);
 
-      const { data, error } = await supabase
-        .from('organization_members')
-        .select(`
-          role,
-          organization:organizations(
-            id,
-            name,
-            slug,
-            logo_url,
-            billing_tier,
-            subdomain,
-            workspace_type
-          )
-        `)
-        .eq('user_id', user.id);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 12000);
+
+      let data: any, error: any;
+      try {
+        ({ data, error } = await supabase
+          .from('organization_members')
+          .select(`
+            role,
+            organization:organizations(
+              id,
+              name,
+              slug,
+              logo_url,
+              billing_tier,
+              subdomain,
+              workspace_type
+            )
+          `)
+          .eq('user_id', user.id)
+          .abortSignal(controller.signal));
+      } finally {
+        clearTimeout(timeout);
+      }
+
+      if (controller.signal.aborted) {
+        throw new Error('Connection to Supabase timed out. Check your network or try again.');
+      }
 
       if (error) {
         throw new Error(`Failed to fetch organizations: ${error.message}`);
