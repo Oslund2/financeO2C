@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabase';
 import { getCharacterProfilesForShot, getLocationProfileForShot } from './consistencyManagementService';
 import { extractDialogueFromScene, formatDialogueForPrompt, type ExtractedDialogue } from './dialogueExtractionService';
 
-type WorkspaceType = 'claymation' | 'photoreal' | null;
+type WorkspaceType = 'claymation' | 'photoreal' | 'documentary' | 'general' | null;
 
 export interface PromptComponents {
   subject: string;
@@ -24,44 +24,27 @@ export interface GeneratedPrompt {
   reference_image_uri?: string;
 }
 
-const CLAYMATION_STYLE_BASE = 'Claymation animation style, stop-motion aesthetic, clay texture visible on all surfaces, handmade appearance, physical clay models, tangible materials';
-
-const PHOTOREAL_STYLE_BASE = 'Cinematic documentary style, photorealistic quality, professional cinematography, natural lighting, period-accurate visuals, film grain appropriate to era, broadcast quality';
-
-const NEGATIVE_PROMPTS = {
-  claymation: [
-    'CGI',
-    'digital rendering',
-    '3D computer graphics',
-    'smooth surfaces',
-    'photorealistic',
-    'live action',
-    'blurry',
-    'low quality',
-    'distorted',
-    'watermark',
-    'background music',
-    'musical score',
-    'soundtrack'
-  ].join(', '),
-  photoreal: [
-    'animation',
-    'cartoon',
-    'claymation',
-    'clay texture',
-    'stop-motion',
-    'anime',
-    'illustration',
-    'drawing',
-    'painting',
-    'blurry',
-    'low quality',
-    'distorted',
-    'watermark',
-    'background music',
-    'musical score',
-    'soundtrack'
-  ].join(', ')
+const STYLE_BASES: Record<string, { base: string; negative: string; defaultSubject: string }> = {
+  claymation: {
+    base: 'Claymation animation style, stop-motion aesthetic, clay texture visible on all surfaces, handmade appearance, physical clay models, tangible materials',
+    negative: 'CGI, digital rendering, 3D computer graphics, smooth surfaces, photorealistic, live action, blurry, low quality, distorted, watermark, background music, musical score, soundtrack',
+    defaultSubject: 'claymation characters'
+  },
+  photoreal: {
+    base: 'Photorealistic quality, cinematic cinematography, natural lighting, period-accurate visuals, film grain appropriate to era, broadcast quality',
+    negative: 'animation, cartoon, claymation, clay texture, stop-motion, anime, illustration, drawing, painting, blurry, low quality, distorted, watermark, background music, musical score, soundtrack',
+    defaultSubject: 'subjects'
+  },
+  documentary: {
+    base: 'Documentary-style photography, cinematic realism, natural and available lighting, authentic environments, observational composition',
+    negative: 'animation, cartoon, claymation, clay texture, stop-motion, anime, fantasy elements, heavy stylization, blurry, low quality, distorted, watermark, background music, musical score, soundtrack',
+    defaultSubject: 'documentary subjects'
+  },
+  general: {
+    base: 'High-quality cinematic composition, professional lighting, clear visual storytelling',
+    negative: 'low quality, blurry, distorted, artifacts, noise, watermark, background music, musical score, soundtrack',
+    defaultSubject: 'subjects'
+  }
 };
 
 const AUDIO_DIRECTIVES = 'NO MUSIC. Dialogue and natural sound effects only. Music will be added in post-production.';
@@ -148,8 +131,8 @@ export async function generatePromptForShot(
 
   const effectiveWorkspaceType = workspaceType
     || shot.series?.organization?.workspace_type
-    || 'claymation';
-  const isPhotoreal = effectiveWorkspaceType === 'photoreal';
+    || 'general';
+  const isPhotoreal = effectiveWorkspaceType === 'photoreal' || effectiveWorkspaceType === 'documentary';
 
   const characterProfiles = await getCharacterProfilesForShot(shotPlanId);
   const locationProfile = await getLocationProfileForShot(shotPlanId);
@@ -193,8 +176,9 @@ export async function generatePromptForShot(
     dialoguePromptText = formatDialogueForPrompt(dialogueExtracted);
   }
 
-  const styleBase = isPhotoreal ? PHOTOREAL_STYLE_BASE : CLAYMATION_STYLE_BASE;
-  const defaultSubject = isPhotoreal ? 'documentary subjects' : 'claymation characters';
+  const styleConfig = STYLE_BASES[effectiveWorkspaceType] ?? STYLE_BASES.general;
+  const styleBase = styleConfig.base;
+  const defaultSubject = styleConfig.defaultSubject;
 
   const components: PromptComponents = {
     subject: characterDescriptions || defaultSubject,
@@ -227,7 +211,7 @@ export async function generatePromptForShot(
     ? characterProfiles[0].reference_image_cloud_storage_uris[0]
     : undefined;
 
-  const negativePrompt = isPhotoreal ? NEGATIVE_PROMPTS.photoreal : NEGATIVE_PROMPTS.claymation;
+  const negativePrompt = styleConfig.negative;
 
   return {
     veo3_prompt_text: promptText,
