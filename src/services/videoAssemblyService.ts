@@ -22,6 +22,8 @@ export interface AssemblySettings {
   watermarkUrl?: string;
   watermarkOpacity: number;
   shotstackApiKey?: string;
+  /** Use Shotstack stage/sandbox endpoint (free, watermarked). Off = production. */
+  shotstackSandbox: boolean;
 }
 
 export interface VideoAssembly {
@@ -167,7 +169,11 @@ interface ShotstackPollResponse {
 // Constants
 // ---------------------------------------------------------------------------
 
-const SHOTSTACK_API_BASE = 'https://api.shotstack.io/v1';
+const SHOTSTACK_API_BASE = 'https://api.shotstack.io';
+// Use sandbox/stage endpoint for sandbox keys, production for live keys
+function getShotstackBase(sandbox = false) {
+  return sandbox ? `${SHOTSTACK_API_BASE}/stage` : `${SHOTSTACK_API_BASE}/v1`;
+}
 // Shotstack charges ~$0.05/min of rendered output
 const SHOTSTACK_COST_PER_SECOND = 0.05 / 60;
 
@@ -176,7 +182,8 @@ const SHOTSTACK_COST_PER_SECOND = 0.05 / 60;
 // ---------------------------------------------------------------------------
 
 async function getShotsForAssembly(episodeId: string): Promise<ShotForAssembly[]> {
-  // Get all production shot plans for this episode, ordered by rendering_order
+  // Get all production shot plans for this episode, ordered by rendering_order.
+  // Include storyboard_shot_id for the image fallback join.
   const { data: plans, error } = await supabase
     .from('production_shot_plans')
     .select(`
@@ -187,7 +194,8 @@ async function getShotsForAssembly(episodeId: string): Promise<ShotForAssembly[]
       scene_number,
       has_dialogue,
       lip_sync_status,
-      lip_sync_video_url
+      lip_sync_video_url,
+      storyboard_shot_id
     `)
     .eq('episode_id', episodeId)
     .order('rendering_order', { ascending: true });
@@ -197,31 +205,36 @@ async function getShotsForAssembly(episodeId: string): Promise<ShotForAssembly[]
 
   const shotPlanIds = plans.map(p => p.id);
 
-  // Get best approved rendering result per shot (highest quality_score or first approved)
+  // Fetch approved rendering results. Use signed_url (HTTPS) for Shotstack —
+  // cloud_storage_uri is a gs:// URI that Shotstack cannot access.
+  const now = new Date().toISOString();
   const { data: results } = await supabase
     .from('shot_rendering_results')
-    .select('shot_plan_id, cloud_storage_uri, quality_score, approval_status, variation_number')
+    .select('shot_plan_id, cloud_storage_uri, signed_url, signed_url_expires_at, quality_score, approval_status')
     .in('shot_plan_id', shotPlanIds)
     .eq('approval_status', 'approved')
     .order('quality_score', { ascending: false });
 
-  // Index results by shot_plan_id (first = highest quality)
+  // Index by shot_plan_id — prefer a non-expired signed_url, fall back to cloud_storage_uri
+  // as a last resort (may not be accessible depending on GCS bucket policy).
   const bestVideoMap: Record<string, string> = {};
   for (const r of results || []) {
-    if (!bestVideoMap[r.shot_plan_id] && r.cloud_storage_uri) {
-      bestVideoMap[r.shot_plan_id] = r.cloud_storage_uri;
-    }
+    if (bestVideoMap[r.shot_plan_id]) continue;
+    const signedValid = r.signed_url && (!r.signed_url_expires_at || r.signed_url_expires_at > now);
+    bestVideoMap[r.shot_plan_id] = signedValid ? r.signed_url : r.cloud_storage_uri;
   }
 
-  // Get storyboard shot images as fallback
-  const { data: storyboardShots } = await supabase
-    .from('storyboard_shots')
-    .select('id, image_url')
-    .in('id', shotPlanIds); // Note: shot_plan may reference storyboard_shot via same id pattern
-
-  const imageMap: Record<string, string> = {};
-  for (const s of storyboardShots || []) {
-    if (s.image_url) imageMap[s.id] = s.image_url;
+  // Storyboard images as fallback — join via storyboard_shot_id (not shot_plan_id directly)
+  const storyboardShotIds = plans.map(p => p.storyboard_shot_id).filter(Boolean) as string[];
+  const imageMap: Record<string, string> = {}; // keyed by storyboard_shot_id
+  if (storyboardShotIds.length > 0) {
+    const { data: storyboardShots } = await supabase
+      .from('storyboard_shots')
+      .select('id, image_url')
+      .in('id', storyboardShotIds);
+    for (const s of storyboardShots || []) {
+      if (s.image_url) imageMap[s.id] = s.image_url;
+    }
   }
 
   // Get dialogue audio clips
@@ -240,7 +253,7 @@ async function getShotsForAssembly(episodeId: string): Promise<ShotForAssembly[]
   return plans.map(plan => {
     const hasLipsync = plan.lip_sync_status === 'completed' && plan.lip_sync_video_url;
     const hasVeo3 = !!bestVideoMap[plan.id];
-    const hasImage = !!imageMap[plan.id];
+    const hasImage = !!(plan.storyboard_shot_id && imageMap[plan.storyboard_shot_id]);
 
     let sourceType: ShotForAssembly['sourceType'] = 'missing';
     if (hasLipsync) sourceType = 'lipsync';
@@ -254,7 +267,7 @@ async function getShotsForAssembly(episodeId: string): Promise<ShotForAssembly[]
       shotNumber: plan.shot_number,
       durationSeconds: plan.duration_seconds || 4,
       videoUrl: hasLipsync ? plan.lip_sync_video_url : bestVideoMap[plan.id],
-      imageUrl: imageMap[plan.id],
+      imageUrl: plan.storyboard_shot_id ? imageMap[plan.storyboard_shot_id] : undefined,
       sourceType,
       dialogueAudioUrl: audio?.url,
       dialogueDurationSeconds: audio?.duration,
@@ -429,9 +442,10 @@ function buildShotstackTimeline(
 
 async function submitShotstackRender(
   timeline: ShotstackEdit,
-  apiKey: string
+  apiKey: string,
+  sandbox = false
 ): Promise<string> {
-  const response = await fetch(`${SHOTSTACK_API_BASE}/render`, {
+  const response = await fetch(`${getShotstackBase(sandbox)}/render`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -455,9 +469,10 @@ async function submitShotstackRender(
 
 async function pollShotstackRender(
   renderId: string,
-  apiKey: string
+  apiKey: string,
+  sandbox = false
 ): Promise<ShotstackPollResponse['response']> {
-  const response = await fetch(`${SHOTSTACK_API_BASE}/render/${renderId}`, {
+  const response = await fetch(`${getShotstackBase(sandbox)}/render/${renderId}`, {
     headers: { 'x-api-key': apiKey },
   });
 
@@ -473,7 +488,7 @@ async function pollShotstackRender(
 // Main public API
 // ---------------------------------------------------------------------------
 
-export async function getAssemblySettings(organizationId: string): Promise<AssemblySettings | null> {
+export async function getAssemblySettings(organizationId: string): Promise<AssemblySettings> {
   const { data, error } = await supabase
     .from('assembly_settings')
     .select('*')
@@ -481,7 +496,30 @@ export async function getAssemblySettings(organizationId: string): Promise<Assem
     .maybeSingle();
 
   if (error) throw error;
-  if (!data) return null;
+
+  // Return env-var-based defaults when no DB row exists yet (new org / easy setup)
+  if (!data) {
+    return {
+      id: '',
+      organizationId,
+      defaultTransition: 'cut',
+      transitionDurationSeconds: 0.5,
+      addSlate: false,
+      slateDurationSeconds: 3,
+      addEndCard: false,
+      endCardDurationSeconds: 3,
+      musicVolume: 0.15,
+      dialogueVolume: 1.0,
+      outputResolution: '1920x1080',
+      outputFps: 24,
+      outputFormat: 'mp4',
+      watermarkOpacity: 0.8,
+      shotstackApiKey: import.meta.env.VITE_SHOTSTACK_API_KEY || undefined,
+      shotstackSandbox: import.meta.env.VITE_SHOTSTACK_SANDBOX === 'true',
+      createdAt: '',
+      updatedAt: '',
+    } as unknown as AssemblySettings;
+  }
 
   return {
     id: data.id,
@@ -500,7 +538,9 @@ export async function getAssemblySettings(organizationId: string): Promise<Assem
     outputFormat: data.output_format,
     watermarkUrl: data.watermark_url,
     watermarkOpacity: data.watermark_opacity,
-    shotstackApiKey: data.shotstack_api_key,
+    // Env var is the easy on-ramp; DB setting (per-org) takes precedence when set
+    shotstackApiKey: data.shotstack_api_key || import.meta.env.VITE_SHOTSTACK_API_KEY || undefined,
+    shotstackSandbox: data.shotstack_sandbox ?? (import.meta.env.VITE_SHOTSTACK_SANDBOX === 'true'),
   };
 }
 
@@ -525,6 +565,7 @@ export async function saveAssemblySettings(
     ...(settings.watermarkUrl !== undefined && { watermark_url: settings.watermarkUrl }),
     ...(settings.watermarkOpacity !== undefined && { watermark_opacity: settings.watermarkOpacity }),
     ...(settings.shotstackApiKey !== undefined && { shotstack_api_key: settings.shotstackApiKey }),
+    ...(settings.shotstackSandbox !== undefined && { shotstack_sandbox: settings.shotstackSandbox }),
   };
 
   const { error } = await supabase
@@ -667,7 +708,7 @@ export async function triggerAssembly(
       .eq('id', assemblyId);
 
     // Submit to Shotstack
-    const renderId = await submitShotstackRender(timeline, apiKey);
+    const renderId = await submitShotstackRender(timeline, apiKey, settings.shotstackSandbox);
 
     await supabase
       .from('video_assemblies')
@@ -704,7 +745,11 @@ export async function syncAssemblyStatus(assemblyId: string): Promise<VideoAssem
   const settings = await getAssemblySettings(assembly.organization_id);
   if (!settings?.shotstackApiKey) throw new Error('Shotstack API key not configured');
 
-  const renderStatus = await pollShotstackRender(assembly.shotstack_render_id, settings.shotstackApiKey);
+  const renderStatus = await pollShotstackRender(
+    assembly.shotstack_render_id,
+    settings.shotstackApiKey,
+    settings.shotstackSandbox
+  );
 
   if (renderStatus.status === 'done') {
     const duration = renderStatus.data?.output?.duration;
