@@ -106,10 +106,27 @@ interface AIAccuracyResponse {
     suggested_source_type: string;
     search_suggestion: string;
   }>;
+  /** Auto-create-ready citation records discovered during web research */
+  citations_to_create?: Array<{
+    source_name: string;
+    source_type: string;
+    citation_text: string;
+    url?: string;
+    reference_context: string;
+    is_primary_source?: boolean;
+  }>;
   regeneration_recommendations: string[];
 }
 
-async function callGeminiAPI(prompt: string): Promise<string> {
+interface GroundingSource {
+  uri: string;
+  title: string;
+}
+
+async function callGeminiAPI(prompt: string): Promise<{
+  text: string;
+  groundingSources: GroundingSource[];
+}> {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error('Gemini API key not configured');
@@ -126,6 +143,8 @@ async function callGeminiAPI(prompt: string): Promise<string> {
           temperature: 0.3,
           maxOutputTokens: 16000,
         },
+        // Enable Google Search grounding so Gemini looks up facts on the web
+        tools: [{ googleSearch: {} }],
       }),
     }
   );
@@ -136,7 +155,16 @@ async function callGeminiAPI(prompt: string): Promise<string> {
   }
 
   const data = await response.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+  // Extract grounding sources (real web pages Gemini searched to verify claims)
+  const groundingChunks: Array<{ web?: { uri?: string; title?: string } }> =
+    data.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
+  const groundingSources: GroundingSource[] = groundingChunks
+    .filter((c) => c.web?.uri)
+    .map((c) => ({ uri: c.web!.uri!, title: c.web!.title || c.web!.uri! }));
+
+  return { text, groundingSources };
 }
 
 function extractScriptContent(script: Record<string, unknown>): string {
@@ -295,7 +323,7 @@ export const accuracyCheckService = {
         .replace('{{script_content}}', scriptText)
         .replace('{{existing_citations}}', citationsText);
 
-      const aiResponse = await callGeminiAPI(finalPromptContent);
+      const { text: aiResponse, groundingSources } = await callGeminiAPI(finalPromptContent);
 
       let jsonMatch = aiResponse.match(/```json\n?([\s\S]*?)\n?```/);
       let jsonString = jsonMatch ? jsonMatch[1] : aiResponse;
@@ -307,6 +335,51 @@ export const accuracyCheckService = {
       }
 
       const parsed: AIAccuracyResponse = JSON.parse(jsonString);
+
+      // --- Auto-create citations from two sources: ---
+      // 1. AI-suggested citations (citations_to_create from the prompt JSON)
+      // 2. Grounding sources (real web pages Gemini searched to verify claims)
+      const citationsForBulk: Parameters<typeof citationService.createBulkCitations>[2] = [];
+
+      const aiSuggestedCitations = parsed.citations_to_create ?? [];
+      for (const c of aiSuggestedCitations) {
+        citationsForBulk.push({
+          source_name: c.source_name,
+          source_type: c.source_type || 'website',
+          citation_text: c.citation_text,
+          url: c.url,
+          reference_context: c.reference_context,
+          is_primary_source: c.is_primary_source ?? false,
+          ai_generated: true,
+        });
+      }
+
+      // Deduplicate grounding sources (by URI) and add any not already covered
+      const existingUrls = new Set(citationsForBulk.map((c) => c.url).filter(Boolean));
+      for (const src of groundingSources) {
+        if (!existingUrls.has(src.uri)) {
+          existingUrls.add(src.uri);
+          citationsForBulk.push({
+            source_name: src.title,
+            source_type: 'website',
+            citation_text: `${src.title}. Retrieved via web search during accuracy verification.`,
+            url: src.uri,
+            reference_context: 'Web source used in historical accuracy verification.',
+            is_primary_source: false,
+            ai_generated: true,
+          });
+        }
+      }
+
+      if (citationsForBulk.length > 0) {
+        try {
+          await citationService.createBulkCitations(scriptId, organizationId || '', citationsForBulk);
+        } catch (citErr) {
+          // Don't fail the whole check if citation creation fails
+          console.warn('[AccuracyCheck] Auto-citation creation failed:', citErr);
+        }
+      }
+
       const checksToInsert = parsed.claims.map((claim) => ({
         report_id: report.id,
         script_id: scriptId,
