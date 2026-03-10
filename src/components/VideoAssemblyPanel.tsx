@@ -232,11 +232,34 @@ function SettingsPanel({
           <input
             type="password"
             value={local.shotstackApiKey || ''}
-            onChange={e => setLocal(p => ({ ...p, shotstackApiKey: e.target.value }))}
-            placeholder="sk-..."
+            onChange={e => setLocal(p => ({ ...p, shotstackApiKey: e.target.value || undefined }))}
+            placeholder={import.meta.env.VITE_SHOTSTACK_API_KEY ? '(using VITE_SHOTSTACK_API_KEY from .env)' : 'Enter your Shotstack API key…'}
             className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
           />
-          <p className="text-xs text-gray-400 mt-0.5">Get your key at shotstack.io</p>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Get a free key at{' '}
+            <a href="https://shotstack.io" target="_blank" rel="noreferrer" className="underline">shotstack.io</a>
+            {' '}· Or set <code className="bg-gray-100 px-1 rounded">VITE_SHOTSTACK_API_KEY</code> in your .env
+          </p>
+        </div>
+
+        {/* Sandbox mode */}
+        <div className="col-span-2 flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+          <input
+            type="checkbox"
+            id="shotstackSandbox"
+            checked={local.shotstackSandbox ?? false}
+            onChange={e => setLocal(p => ({ ...p, shotstackSandbox: e.target.checked }))}
+            className="mt-0.5 rounded"
+          />
+          <div>
+            <label htmlFor="shotstackSandbox" className="text-xs font-medium text-amber-800 cursor-pointer">
+              Sandbox mode (stage endpoint)
+            </label>
+            <p className="text-xs text-amber-700 mt-0.5">
+              Use the Shotstack stage API — free but adds a watermark. Use sandbox keys here; production keys go to the live endpoint.
+            </p>
+          </div>
         </div>
 
         {/* Transition */}
