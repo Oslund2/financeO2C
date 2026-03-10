@@ -115,7 +115,8 @@ Return ONLY valid JSON — no markdown, no explanation, no code fences:
   ]
 }`;
 
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+  // gemini-2.0-flash: stable JSON mode support, no thinking-model conflicts
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
   const response = await fetch(endpoint, {
     method: 'POST',
@@ -124,7 +125,7 @@ Return ONLY valid JSON — no markdown, no explanation, no code fences:
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.4,
-        maxOutputTokens: 4096,
+        maxOutputTokens: 8192,   // 4096 was too small for multi-character JSON
         topP: 0.95,
         topK: 40,
         responseMimeType: 'application/json',
@@ -139,18 +140,28 @@ Return ONLY valid JSON — no markdown, no explanation, no code fences:
   }
 
   const data = await response.json();
-  const parts: Array<{ text?: string; thought?: boolean }> = data.candidates?.[0]?.content?.parts ?? [];
-  // Gemini 2.5+ thinking models emit a {thought: true} part before the actual response.
-  // Always use the last non-thought part so we get the JSON output, not the reasoning trace.
+
+  // Log full response structure to console for diagnostics
+  const candidate = data.candidates?.[0];
+  const finishReason = candidate?.finishReason;
+  if (finishReason && finishReason !== 'STOP') {
+    console.warn(`[CharacterGen] Gemini finishReason: ${finishReason}`, candidate?.safetyRatings ?? '');
+  }
+
+  const parts: Array<{ text?: string; thought?: boolean }> = candidate?.content?.parts ?? [];
+  // Skip thought parts (thinking models emit these before the actual response)
   const text = parts.find(p => !p.thought && p.text)?.text ?? parts.at(-1)?.text;
-  if (!text) throw new Error('No response received from Gemini. Please try again.');
+
+  if (!text) {
+    console.error('[CharacterGen] Empty response. Full API data:', JSON.stringify(data).slice(0, 800));
+    throw new Error('No response received from Gemini. Please try again.');
+  }
 
   let parsed: { episodeMeta: GeneratedEpisodeMeta; characters: any[] };
   try {
-    // Try direct parse first (works when responseMimeType is honoured)
     parsed = JSON.parse(text);
   } catch {
-    // Gemini sometimes wraps in markdown code fences — strip them
+    // Strip markdown code fences if present
     const stripped = text
       .replace(/^```(?:json)?\s*/i, '')
       .replace(/\s*```\s*$/, '')
@@ -161,13 +172,14 @@ Return ONLY valid JSON — no markdown, no explanation, no code fences:
       // Last resort: extract the outermost { … } block
       const match = stripped.match(/\{[\s\S]*\}/);
       if (!match) {
-        console.error('Unparseable Gemini response:', text.slice(0, 500));
+        console.error('[CharacterGen] No JSON block found. Raw text (first 800 chars):', text.slice(0, 800));
+        console.error('[CharacterGen] finishReason:', finishReason, '| parts count:', parts.length);
         throw new Error('Could not parse character data from Gemini response. Please try again.');
       }
       try {
         parsed = JSON.parse(match[0]);
       } catch {
-        console.error('Unparseable Gemini JSON block:', match[0].slice(0, 500));
+        console.error('[CharacterGen] JSON block found but unparseable (first 800 chars):', match[0].slice(0, 800));
         throw new Error('Could not parse character data from Gemini response. Please try again.');
       }
     }
