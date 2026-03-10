@@ -13,6 +13,7 @@ const AIStudio = lazy(() => import('./components/AIStudio').then(m => ({ default
 const Settings = lazy(() => import('./components/Settings').then(m => ({ default: m.Settings })));
 const StoryboardGenerator = lazy(() => import('./components/StoryboardGenerator').then(m => ({ default: m.StoryboardGenerator })));
 const StoryboardViewer = lazy(() => import('./components/StoryboardViewer').then(m => ({ default: m.StoryboardViewer })));
+const VideoGeneration = lazy(() => import('./components/VideoGenerationTab').then(m => ({ default: m.VideoGenerationTab })));
 const ProductionEconomics = lazy(() => import('./components/ProductionEconomics').then(m => ({ default: m.ProductionEconomics })));
 const ProductionWorkflow = lazy(() => import('./components/ProductionWorkflow'));
 const IPProtection = lazy(() => import('./components/IPProtection').then(m => ({ default: m.IPProtection })));
@@ -310,6 +311,7 @@ function App() {
         {currentView === 'production' && <ProductionWorkflow seriesId={seriesId} navigationData={navigationData} />}
         {currentView === 'ai-studio' && <AIStudio seriesId={seriesId} onNavigate={handleNavigate} />}
         {currentView === 'storyboard-generator' && <StoryboardGenerator onNavigate={handleNavigate} />}
+        {currentView === 'video-generation' && <VideoGeneration seriesId={seriesId} onNavigate={handleNavigate} />}
         {currentView === 'storyboard-viewer' && (
           navigationData?.storyboardId ? (
             <StoryboardViewer storyboardId={navigationData.storyboardId} onNavigate={handleNavigate} />

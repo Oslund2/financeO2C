@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight, Film, Camera, Clock, MessageSquare, Lightbulb, Download, Grid3x3, List, Upload, Wand2, RefreshCw, ZoomIn, Layers, Sparkles, Trash2, Edit3, FileEdit, Filter, CheckCircle, History, Shield, FileDown, Settings, Users } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Film, Camera, Clock, MessageSquare, Lightbulb, Download, Grid3x3, List, Upload, Wand2, RefreshCw, ZoomIn, Layers, Sparkles, Trash2, Edit3, FileEdit, Filter, CheckCircle, History, Shield, FileDown, Settings, Users, Video } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { uploadManualImage } from '../services/nanoBananaService';
@@ -429,6 +429,13 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
                 Generate Images
               </button>
               <button
+                onClick={() => onNavigate('video-generation')}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:shadow-md transition-all font-medium"
+              >
+                <Video className="w-4 h-4" />
+                Generate Video
+              </button>
+              <button
                 onClick={handleExport}
                 className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
               >
@@ -666,6 +673,13 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
             >
               <Sparkles className="w-4 h-4" />
               {generating ? 'Generating...' : 'Generate Images'}
+            </button>
+            <button
+              onClick={() => onNavigate('video-generation')}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:shadow-md transition-all font-medium"
+            >
+              <Video className="w-4 h-4" />
+              Generate Video
             </button>
             <button
               onClick={handleExport}
