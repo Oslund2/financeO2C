@@ -116,7 +116,7 @@ async function callGeminiAPI(prompt: string): Promise<string> {
   }
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -268,7 +268,7 @@ export const accuracyCheckService = {
         script_id: scriptId,
         organization_id: organizationId,
         status: 'running',
-        ai_model_used: 'gemini-1.5-pro',
+        ai_model_used: 'gemini-2.0-flash',
         started_at: new Date().toISOString(),
       })
       .select()
