@@ -123,7 +123,7 @@ const CAMERA_ANGLES = {
   pov: 'Point of view - from character\'s perspective'
 };
 
-type WorkspaceType = 'claymation' | 'photoreal' | null;
+type WorkspaceType = 'claymation' | 'photoreal' | 'documentary' | 'general' | null;
 
 async function getWorkspaceTypeFromSeries(seriesId: string): Promise<WorkspaceType> {
   const { data } = await supabase
@@ -133,19 +133,29 @@ async function getWorkspaceTypeFromSeries(seriesId: string): Promise<WorkspaceTy
     .maybeSingle();
 
   const org = data?.organization as { workspace_type?: string } | null;
-  return (org?.workspace_type as WorkspaceType) || 'claymation';
+  return (org?.workspace_type as WorkspaceType) || null;
 }
 
-const STYLE_PRESETS = {
+const STYLE_PRESETS: Record<string, { base: string; negative: string; character_suffix: string }> = {
   claymation: {
     base: 'High-quality claymation animation, handcrafted clay characters with visible fingerprint textures, stop-motion aesthetic, tangible 3D miniature sets, soft studio lighting, colorful and whimsical design.',
     negative: 'photorealistic, live-action, CGI, digital, smooth surfaces, realistic skin, natural photography',
     character_suffix: 'Clay texture visible, stop-motion aesthetic.'
   },
   photoreal: {
-    base: 'Cinematic documentary style, photorealistic quality, professional cinematography, natural lighting, film grain appropriate to era, high production value, broadcast quality.',
+    base: 'Photorealistic image quality, cinematic cinematography, natural lighting, film grain appropriate to era, high production value, broadcast quality.',
     negative: 'animation, cartoon, claymation, clay texture, stop-motion, anime, illustration, drawing, painting',
     character_suffix: 'Realistic appearance, period-accurate clothing and styling.'
+  },
+  documentary: {
+    base: 'Documentary-style photography, cinematic realism, natural and available lighting, authentic environments, observational composition, journalistic visual approach.',
+    negative: 'animation, cartoon, claymation, clay texture, stop-motion, anime, fantasy elements, heavy stylization',
+    character_suffix: 'Realistic, authentic appearance, natural lighting on subject.'
+  },
+  general: {
+    base: 'High-quality cinematic composition, professional lighting, clear visual storytelling.',
+    negative: 'low quality, blurry, distorted, artifacts, noise',
+    character_suffix: 'Clear character presentation, well-lit.'
   }
 };
 
@@ -549,10 +559,8 @@ export function buildComprehensiveImagePrompt(
 ): string {
   const promptSections: string[] = [];
 
-  const effectiveWorkspaceType = workspaceType || (useClaymation ? 'claymation' : null);
-  const stylePreset = effectiveWorkspaceType && STYLE_PRESETS[effectiveWorkspaceType]
-    ? STYLE_PRESETS[effectiveWorkspaceType]
-    : STYLE_PRESETS.claymation;
+  const effectiveWorkspaceType = workspaceType || (useClaymation ? 'claymation' : 'general');
+  const stylePreset = STYLE_PRESETS[effectiveWorkspaceType] ?? STYLE_PRESETS.general;
 
   promptSections.push(`STYLE: ${stylePreset.base}`);
 
@@ -622,7 +630,8 @@ export function buildComprehensiveImagePrompt(
           }
         }
 
-        if (effectiveWorkspaceType === 'photoreal') {
+        const isPhotorealOrDocumentary = effectiveWorkspaceType === 'photoreal' || effectiveWorkspaceType === 'documentary';
+        if (isPhotorealOrDocumentary) {
           if (matchedChar.description) {
             charParts.push(`VISUAL STYLE: ${stylePreset.character_suffix}`);
           }
@@ -684,15 +693,20 @@ export function buildComprehensiveImagePrompt(
     promptSections.push(`TECHNICAL: ${technicalParts.join('. ')}`);
   }
 
-  if (effectiveWorkspaceType === 'photoreal') {
+  if (effectiveWorkspaceType === 'photoreal' || effectiveWorkspaceType === 'documentary') {
     promptSections.push(
-      'FORMAT: Cinematic documentary frame, 16:9 aspect ratio, photorealistic quality, period-accurate visuals, professional cinematography.'
+      'FORMAT: Cinematic frame, 16:9 aspect ratio, photorealistic quality, period-accurate visuals, professional cinematography.'
     );
     promptSections.push(`NEGATIVE: ${stylePreset.negative}`);
-  } else {
+  } else if (effectiveWorkspaceType === 'claymation') {
     promptSections.push(
       'FORMAT: Professional storyboard panel, 16:9 aspect ratio, clear character silhouettes, readable composition.'
     );
+  } else {
+    promptSections.push(
+      'FORMAT: Professional storyboard panel, 16:9 aspect ratio, clear composition.'
+    );
+    promptSections.push(`NEGATIVE: ${stylePreset.negative}`);
   }
 
   return promptSections.join('\n\n');
@@ -1141,7 +1155,7 @@ export async function generateImagesForStoryboard(
 
   const seriesId = (storyboard.scripts as any)?.series_id;
   let characters: Character[] = [];
-  let workspaceType: WorkspaceType = 'claymation';
+  let workspaceType: WorkspaceType = null;
 
   if (seriesId) {
     const { data: seriesCharacters } = await supabase
@@ -1628,8 +1642,8 @@ export async function regenerateShotPrompt(
       .select('*')
       .eq('series_id', seriesId);
 
-    const workspaceType = seriesId ? await getWorkspaceTypeFromSeries(seriesId) : 'claymation';
-    const isPhotoreal = workspaceType === 'photoreal';
+    const workspaceType = seriesId ? await getWorkspaceTypeFromSeries(seriesId) : null;
+    const isPhotoreal = workspaceType === 'photoreal' || workspaceType === 'documentary';
 
     const sceneContext: SceneContext = {
       setting: scene?.setting || scene?.location || '',

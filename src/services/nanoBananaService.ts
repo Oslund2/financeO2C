@@ -702,9 +702,13 @@ export async function generateCharacterReferenceImage(
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   if (!apiKey) throw new Error('Gemini API key not configured.');
 
-  const styleNote = visualStyle === 'claymation'
-    ? 'claymation style, clay texture, rounded forms, stop-motion animation aesthetic, colorful and expressive'
-    : 'photorealistic, cinematic lighting, detailed and naturalistic';
+  const styleNoteMap: Record<string, string> = {
+    claymation: 'claymation style, clay texture, rounded forms, stop-motion animation aesthetic, colorful and expressive',
+    photoreal: 'photorealistic, cinematic lighting, detailed and naturalistic, film-quality rendering',
+    documentary: 'documentary realism, natural lighting, authentic appearance, journalistic photography style',
+    general: 'high-quality cinematic composition, professional lighting, clear character presentation'
+  };
+  const styleNote = styleNoteMap[visualStyle] ?? styleNoteMap.general;
 
   const prompt = `Character reference portrait: ${characterName}. ${description}. Three-quarter view, neutral gradient background, character reference sheet composition, ${styleNote}. Clear, well-lit, suitable as a production reference image for a video production team.`;
 

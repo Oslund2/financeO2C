@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabase';
 import type { DialogueLine } from './dialogueExtractionService';
 
-type WorkspaceType = 'claymation' | 'photoreal' | null;
+type WorkspaceType = 'claymation' | 'photoreal' | 'documentary' | 'general' | null;
 
 export interface Veo3PromptConfig {
   shot_type: string;
@@ -27,7 +27,7 @@ export interface GeneratedPrompt {
   location_reference: string;
 }
 
-const STYLE_CONFIGS = {
+const STYLE_CONFIGS: Record<string, { base: string; directives: string; negative: string[] }> = {
   claymation: {
     base: 'Claymation style animation with tactile clay textures, hand-crafted aesthetic, stop-motion feel, warm lighting, detailed clay surfaces',
     directives: 'Maintain consistent claymation aesthetic, preserve character proportions, ensure proper lighting continuity, avoid anachronistic elements',
@@ -43,8 +43,8 @@ const STYLE_CONFIGS = {
     ]
   },
   photoreal: {
-    base: 'Cinematic documentary style, photorealistic quality, professional cinematography, natural lighting, film grain appropriate to era, broadcast quality, period-accurate visuals',
-    directives: 'Maintain documentary aesthetic, ensure period accuracy, use cinematic camera movements, natural color grading, professional lighting continuity',
+    base: 'Photorealistic imagery, cinematic quality, professional cinematography, natural lighting, film grain appropriate to era, broadcast quality, period-accurate visuals',
+    directives: 'Maintain photorealistic aesthetic, ensure period accuracy, use cinematic camera movements, natural color grading, professional lighting continuity',
     negative: [
       'animation',
       'cartoon',
@@ -57,12 +57,36 @@ const STYLE_CONFIGS = {
       'digital artifacts',
       'oversaturated'
     ]
+  },
+  documentary: {
+    base: 'Documentary-style photography, cinematic realism, natural and available lighting, handheld or steadicam movement, authentic environments, journalistic composition',
+    directives: 'Maintain documentary realism, prioritize authenticity over stylization, use observational camera work, factual and neutral presentation',
+    negative: [
+      'animation',
+      'cartoon',
+      'claymation',
+      'clay texture',
+      'stop-motion',
+      'anime',
+      'fantasy elements',
+      'oversaturated',
+      'heavy post-processing'
+    ]
+  },
+  general: {
+    base: 'High-quality cinematic composition, professional lighting, clear visual storytelling, versatile production aesthetic',
+    directives: 'Maintain visual consistency, professional production quality, clear subject framing',
+    negative: [
+      'low quality',
+      'blurry',
+      'distorted',
+      'artifacts',
+      'noise',
+      'overexposed',
+      'underexposed'
+    ]
   }
 };
-
-const CLAYMATION_STYLE = STYLE_CONFIGS.claymation.base;
-
-const NEGATIVE_PROMPTS = STYLE_CONFIGS.claymation.negative;
 
 function buildCameraDirective(shotType: string, angle: string, movement: string): string {
   const directives: string[] = [];
@@ -195,9 +219,9 @@ function extractAudioCues(
 }
 
 export function generateVeo3Prompt(config: Veo3PromptConfig): GeneratedPrompt {
-  const workspaceType = config.workspaceType || 'claymation';
-  const styleConfig = STYLE_CONFIGS[workspaceType] || STYLE_CONFIGS.claymation;
-  const isPhotoreal = workspaceType === 'photoreal';
+  const workspaceType = config.workspaceType || 'general';
+  const styleConfig = STYLE_CONFIGS[workspaceType] ?? STYLE_CONFIGS.general;
+  const isPhotoreal = workspaceType === 'photoreal' || workspaceType === 'documentary';
 
   const cameraDirective = buildCameraDirective(
     config.shot_type,
@@ -264,15 +288,27 @@ function buildSubjectDescription(subjects: string[]): string {
   return `featuring ${subjects.slice(0, -1).join(', ')}, and ${subjects[subjects.length - 1]}`;
 }
 
+async function getWorkspaceTypeForOrg(organizationId: string): Promise<WorkspaceType> {
+  const { data } = await supabase
+    .from('organizations')
+    .select('workspace_type')
+    .eq('id', organizationId)
+    .maybeSingle();
+  return (data?.workspace_type as WorkspaceType) || 'general';
+}
+
 export async function generatePromptsForShots(
   shotIds: string[],
   organizationId: string
 ): Promise<number> {
-  const { data: shots, error: shotsError } = await supabase
-    .from('production_shot_plans')
-    .select('*')
-    .in('id', shotIds)
-    .eq('organization_id', organizationId);
+  const [{ data: shots, error: shotsError }, workspaceType] = await Promise.all([
+    supabase
+      .from('production_shot_plans')
+      .select('*')
+      .in('id', shotIds)
+      .eq('organization_id', organizationId),
+    getWorkspaceTypeForOrg(organizationId)
+  ]);
 
   if (shotsError || !shots) {
     throw new Error('Failed to fetch shots');
@@ -289,7 +325,8 @@ export async function generatePromptsForShots(
       characters: shot.characters,
       location: shot.location,
       props: shot.props,
-      dialogue_content: shot.dialogue_content
+      dialogue_content: shot.dialogue_content,
+      workspaceType
     });
 
     return {
@@ -317,12 +354,15 @@ export async function regeneratePromptForShot(
   shotPlanId: string,
   organizationId: string
 ): Promise<void> {
-  const { data: shot, error: shotError } = await supabase
-    .from('production_shot_plans')
-    .select('*')
-    .eq('id', shotPlanId)
-    .eq('organization_id', organizationId)
-    .maybeSingle();
+  const [{ data: shot, error: shotError }, workspaceType] = await Promise.all([
+    supabase
+      .from('production_shot_plans')
+      .select('*')
+      .eq('id', shotPlanId)
+      .eq('organization_id', organizationId)
+      .maybeSingle(),
+    getWorkspaceTypeForOrg(organizationId)
+  ]);
 
   if (shotError || !shot) {
     throw new Error('Shot plan not found');
@@ -338,7 +378,8 @@ export async function regeneratePromptForShot(
     characters: shot.characters,
     location: shot.location,
     props: shot.props,
-    dialogue_content: shot.dialogue_content
+    dialogue_content: shot.dialogue_content,
+    workspaceType
   });
 
   const { data: existingPrompt } = await supabase
