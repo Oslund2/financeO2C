@@ -1317,7 +1317,8 @@ export async function generateText(
       throw new Error('No response generated from Gemini. The API may have blocked the content.');
     }
 
-    const textContent = data.candidates[0].content.parts[0].text;
+    const responseParts: Array<{ text?: string; thought?: boolean }> = data.candidates[0].content.parts ?? [];
+    const textContent = responseParts.find(p => !p.thought && p.text)?.text ?? responseParts.at(-1)?.text;
     return textContent;
 
   } catch (error) {

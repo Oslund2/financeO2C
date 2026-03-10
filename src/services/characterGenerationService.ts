@@ -139,7 +139,10 @@ Return ONLY valid JSON — no markdown, no explanation, no code fences:
   }
 
   const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  const parts: Array<{ text?: string; thought?: boolean }> = data.candidates?.[0]?.content?.parts ?? [];
+  // Gemini 2.5+ thinking models emit a {thought: true} part before the actual response.
+  // Always use the last non-thought part so we get the JSON output, not the reasoning trace.
+  const text = parts.find(p => !p.thought && p.text)?.text ?? parts.at(-1)?.text;
   if (!text) throw new Error('No response received from Gemini. Please try again.');
 
   let parsed: { episodeMeta: GeneratedEpisodeMeta; characters: any[] };
