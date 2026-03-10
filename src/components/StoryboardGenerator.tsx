@@ -26,6 +26,7 @@ export function StoryboardGenerator({ onNavigate }: StoryboardGeneratorProps) {
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [progressStatus, setProgressStatus] = useState('');
+  const [generationPhase, setGenerationPhase] = useState<'descriptions' | 'images' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [configStatus, setConfigStatus] = useState<{ configured: boolean; missing: string[] } | null>(null);
   const [imageApiAvailable, setImageApiAvailable] = useState(false);
@@ -179,6 +180,7 @@ export function StoryboardGenerator({ onNavigate }: StoryboardGeneratorProps) {
     setGenerating(true);
     setError(null);
     setProgress(0);
+    setGenerationPhase('descriptions');
     setProgressStatus('Starting generation...');
 
     try {
@@ -188,14 +190,22 @@ export function StoryboardGenerator({ onNavigate }: StoryboardGeneratorProps) {
         (progress, status) => {
           setProgress(progress);
           setProgressStatus(status);
+          // Detect phase from progress: 0-50 = descriptions, 50-100 = images (auto mode)
+          if (options.imageGenerationMode === 'auto' && progress >= 50) {
+            setGenerationPhase('images');
+          } else {
+            setGenerationPhase('descriptions');
+          }
         }
       );
 
+      setGenerationPhase(null);
       onNavigate('storyboard-viewer', { storyboardId });
     } catch (err) {
       console.error('Generation error:', err);
       setError(err instanceof Error ? err.message : 'Failed to generate storyboard');
       setGenerating(false);
+      setGenerationPhase(null);
     }
   };
 
@@ -219,40 +229,92 @@ export function StoryboardGenerator({ onNavigate }: StoryboardGeneratorProps) {
   }
 
   if (generating) {
+    const isImagePhase = generationPhase === 'images';
+    const totalEstimatedShots = calculateTotalEstimatedShots();
+    const estimatedImageCost = isImagePhase && totalEstimatedShots > 0
+      ? calculateEstimatedCost(totalEstimatedShots)
+      : null;
+
     return (
       <div className="p-8">
         <div className="max-w-3xl mx-auto">
           <div className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
             <div className="text-center mb-8">
-              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
-                <Film className="w-10 h-10 text-white" />
+              <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse ${
+                isImagePhase
+                  ? 'bg-gradient-to-br from-purple-500 to-pink-600'
+                  : 'bg-gradient-to-br from-blue-500 to-cyan-600'
+              }`}>
+                {isImagePhase ? <Image className="w-10 h-10 text-white" /> : <Film className="w-10 h-10 text-white" />}
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Generating Storyboard</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-1">
+                {isImagePhase ? 'Generating Images' : 'Generating Storyboard'}
+              </h2>
+              {options.imageGenerationMode === 'auto' && (
+                <div className="flex items-center justify-center gap-4 mb-2">
+                  <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                    !isImagePhase ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-500 line-through'
+                  }`}>Phase 1: Descriptions</span>
+                  <span className="text-gray-400 text-xs">→</span>
+                  <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                    isImagePhase ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-400'
+                  }`}>Phase 2: Images</span>
+                </div>
+              )}
               <p className="text-gray-600">{selectedScript?.title}</p>
             </div>
 
             <div className="mb-6">
               <div className="flex justify-between text-sm text-gray-600 mb-2">
-                <span>{progressStatus}</span>
-                <span>{Math.round(progress)}%</span>
+                <span className="truncate mr-2">{progressStatus}</span>
+                <span className="flex-shrink-0">{Math.round(progress)}%</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-blue-500 to-cyan-600 transition-all duration-500 ease-out"
+                  className={`h-full transition-all duration-500 ease-out ${
+                    isImagePhase
+                      ? 'bg-gradient-to-r from-purple-500 to-pink-600'
+                      : 'bg-gradient-to-r from-blue-500 to-cyan-600'
+                  }`}
                   style={{ width: `${progress}%` }}
                 />
               </div>
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <Wand2 className="w-5 h-5 text-blue-600 mt-0.5" />
-                <div className="text-sm text-blue-800">
-                  <p className="font-semibold mb-1">AI Processing</p>
-                  <p>Analyzing scenes, breaking down shots, and generating detailed visual descriptions using Vertex AI Gemini.</p>
+            {isImagePhase ? (
+              <div className="space-y-3">
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <Image className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-purple-800">
+                      <p className="font-semibold mb-1">Generating Images with Character Consistency</p>
+                      <p>Each character's appearance is locked to their reference image. Characters without a verified reference use a rolling seed from the first shot they appear in — keeping them identical across all scenes.</p>
+                    </div>
+                  </div>
+                </div>
+                {estimatedImageCost !== null && (
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center justify-between text-sm">
+                    <span className="text-gray-600">Estimated cost</span>
+                    <span className="font-semibold text-gray-900">~${estimatedImageCost.toFixed(2)}</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <Wand2 className="w-5 h-5 text-blue-600 mt-0.5" />
+                  <div className="text-sm text-blue-800">
+                    <p className="font-semibold mb-1">
+                      {options.imageGenerationMode === 'auto' ? 'Phase 1: AI Shot Descriptions' : 'AI Processing'}
+                    </p>
+                    <p>Analyzing scenes, breaking down shots, and generating detailed visual descriptions using Vertex AI Gemini.</p>
+                    {options.imageGenerationMode === 'auto' && (
+                      <p className="mt-1 text-blue-700">Images will be generated automatically in Phase 2.</p>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

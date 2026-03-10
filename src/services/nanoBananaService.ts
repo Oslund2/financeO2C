@@ -12,6 +12,8 @@ export interface CharacterReference {
   imageUrl: string;
   description?: string;
   requiredFeatures?: string[];
+  /** 'verified' = library/custom reference image; 'seed' = first generated shot used as consistency anchor */
+  referenceType?: 'verified' | 'seed';
 }
 
 export interface ImageGenerationOptions {
@@ -99,6 +101,10 @@ async function fetchImageAsBase64(imageUrl: string): Promise<{ base64: string; m
 
 export function clearImageCache(): void {
   imageCache.clear();
+}
+
+export async function prewarmImageCache(imageUrls: string[]): Promise<void> {
+  await Promise.allSettled(imageUrls.map(url => fetchImageAsBase64(url)));
 }
 
 async function uploadImageToStorage(
@@ -229,32 +235,45 @@ export async function generateStoryboardImage(
     }
 
     const loadedNames = loadedReferences.filter(r => r.loaded).map(r => r.name);
+    const seedNames = characterRefs
+      .filter(r => (r as any).referenceType === 'seed')
+      .map(r => r.name);
+
     if (loadedNames.length > 0) {
       const characterInstructions: string[] = [
-        '=== CRITICAL CHARACTER REFERENCE IMAGES ===',
+        '╔══════════════════════════════════════════════╗',
+        '║   PRODUCTION CHARACTER CONSISTENCY — LOCKED  ║',
+        '╚══════════════════════════════════════════════╝',
         '',
-        `Reference images provided for: ${loadedNames.join(', ')}`,
+        'The reference image(s) above define these characters PERMANENTLY.',
+        'This is a multi-episode animation series. Character appearance MUST be',
+        'frame-to-frame identical across all shots. Deviation = unusable footage.',
         '',
-        'MANDATORY REQUIREMENTS:',
-        '1. Each character MUST be rendered EXACTLY as shown in their reference image',
-        '2. ALL unique physical features MUST be preserved - do NOT simplify or modify',
-        '3. Character proportions, colors, and distinctive traits MUST match exactly',
-        '4. These images are for animation production - consistency is ESSENTIAL',
+        `Characters with verified production references: ${loadedNames.filter(n => !seedNames.includes(n)).join(', ') || 'none'}`,
+        seedNames.length > 0
+          ? `Characters using consistency-seed from prior shot: ${seedNames.join(', ')} — treat as equally binding`
+          : '',
         ''
-      ];
+      ].filter(line => line !== undefined);
 
+      characterInstructions.push('PER-CHARACTER LOCKED TRAITS:');
       for (const charData of loadedCharacterData) {
-        characterInstructions.push(`CHARACTER: ${charData.name}`);
+        const isSeed = seedNames.includes(charData.name);
+        characterInstructions.push(`\n▸ ${charData.name}${isSeed ? ' [consistency seed]' : ' [verified reference]'}:`);
         if (charData.features && charData.features.length > 0) {
-          characterInstructions.push(`  REQUIRED FEATURES (MUST BE VISIBLE): ${charData.features.join(', ')}`);
+          characterInstructions.push(`  Locked features: ${charData.features.join(' | ')}`);
         }
         if (charData.description) {
-          characterInstructions.push(`  Physical Description: ${charData.description}`);
+          characterInstructions.push(`  Full description: ${charData.description}`);
         }
-        characterInstructions.push('');
+        characterInstructions.push(`  Rule: Generate this character to EXACTLY match the reference image above.`);
+        characterInstructions.push(`        Same body proportions, head shape, color palette, and distinguishing features.`);
+        characterInstructions.push(`        Do NOT generalize, simplify, or reinterpret — copy faithfully.`);
       }
 
-      characterInstructions.push('WARNING: Do NOT render generic characters. Each character has unique physical traits that MUST appear.');
+      characterInstructions.push('');
+      characterInstructions.push('ABSOLUTE RULE: If a character appears in the prompt, they MUST match their reference.');
+      characterInstructions.push('Generating a generic or approximated character is a production failure.');
       characterInstructions.push('');
 
       parts.push({

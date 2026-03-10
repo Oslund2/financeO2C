@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
-import { generateStoryboardImage, isNanoBananaAvailable, calculateEstimatedCost, clearImageCache } from './nanoBananaService';
+import { generateStoryboardImage, isNanoBananaAvailable, calculateEstimatedCost, clearImageCache, prewarmImageCache } from './nanoBananaService';
 import type { CharacterReference } from './nanoBananaService';
 import { findCharacterInList, extractKeyFeaturesFromDescription } from './characterMatchingService';
 import { getReferencesForGeneration } from './storyboardReferenceService';
@@ -9,6 +9,73 @@ type Scene = Database['public']['Tables']['script_scenes']['Row'];
 type Act = Database['public']['Tables']['script_acts']['Row'];
 type Script = Database['public']['Tables']['scripts']['Row'];
 type Character = Database['public']['Tables']['characters']['Row'];
+
+// ---------------------------------------------------------------------------
+// Character Consistency
+// ---------------------------------------------------------------------------
+
+export interface CharacterConsistencyProfile {
+  /** Canonical name from the character library */
+  name: string;
+  /** URL of the verified reference image (library or custom upload) */
+  referenceImageUrl: string | null;
+  /** URL of the first generated shot used as a rolling seed */
+  seedImageUrl: string | null;
+  /** Whether a verified reference image is available */
+  hasVerifiedReference: boolean;
+  /** Locked traits that MUST appear in every shot */
+  lockedFeatures: string[];
+  /** Full description for the prompt */
+  description: string;
+}
+
+/**
+ * Build a consistency profile for every character detected in the storyboard.
+ * Priority: custom_reference_url / library reference_image_url > seed (built during generation).
+ */
+function buildCharacterConsistencyProfiles(
+  characters: Character[],
+  savedReferencesMap: Map<string, { name: string; imageUrl: string; description?: string }>
+): Map<string, CharacterConsistencyProfile> {
+  const profiles = new Map<string, CharacterConsistencyProfile>();
+
+  for (const char of characters) {
+    const saved = savedReferencesMap.get(char.name.toLowerCase());
+    const referenceImageUrl = saved?.imageUrl ?? char.reference_image_url ?? null;
+
+    const rawFeatures: string[] = char.required_visual_features?.length
+      ? char.required_visual_features
+      : extractKeyFeaturesFromDescription(char.description || '');
+
+    // Guarantee at least one feature line so the lock block is always populated
+    const lockedFeatures = rawFeatures.length > 0
+      ? rawFeatures
+      : char.description
+        ? [`distinctive appearance as described: ${char.description.slice(0, 120)}`]
+        : [];
+
+    const profile: CharacterConsistencyProfile = {
+      name: char.name,
+      referenceImageUrl,
+      seedImageUrl: null,
+      hasVerifiedReference: !!referenceImageUrl,
+      lockedFeatures,
+      description: char.description || ''
+    };
+
+    profiles.set(char.name.toLowerCase(), profile);
+
+    // Also index by aliases so look-ups work for any name variant
+    const aliases = (char.aliases as string[]) || [];
+    for (const alias of aliases) {
+      if (!profiles.has(alias.toLowerCase())) {
+        profiles.set(alias.toLowerCase(), profile);
+      }
+    }
+  }
+
+  return profiles;
+}
 
 interface ShotBreakdown {
   shotNumber: number;
@@ -586,6 +653,15 @@ export function buildComprehensiveImagePrompt(
         promptSections.push(
           `CRITICAL CHARACTER FEATURES (MUST BE VISIBLE IN IMAGE):\n${criticalFeatures.map(f => `- ${f}`).join('\n')}`
         );
+
+        // CONSISTENCY LOCK — strongest possible language for production continuity
+        const lockLines = criticalFeatures.map(f => `- ${f} — LOCKED, must match reference exactly`);
+        promptSections.push(
+          `CONSISTENCY LOCK — DO NOT VARY THESE TRAITS ACROSS ANY SHOT:\n` +
+          `This is a multi-episode production. Character appearance must be IDENTICAL in every frame.\n` +
+          lockLines.join('\n') + '\n' +
+          `Any deviation from reference images or the traits above breaks production continuity and is unacceptable.`
+        );
       }
     }
 
@@ -739,14 +815,24 @@ export async function generateStoryboardForScript(
       .update({ total_shots: allShots.length })
       .eq('id', storyboard.id);
 
-    onProgress?.(20, `Generating descriptions for ${allShots.length} shots...`);
+    // When auto image generation is enabled, descriptions use 0-50% and images use 50-100%.
+    // Otherwise descriptions use the full 0-100% range.
+    const autoImages = options.imageGenerationMode === 'auto' && isNanoBananaAvailable();
+    const descProgressScale = autoImages ? 0.5 : 1.0;
+    const descProgressOffset = 0;
+
+    onProgress?.(
+      Math.round(20 * descProgressScale),
+      `Phase 1 of ${autoImages ? '2' : '1'}: Generating descriptions for ${allShots.length} shots...`
+    );
 
     const shotsToInsert = [];
     for (let i = 0; i < allShots.length; i++) {
       const shot = allShots[i];
-      const progress = 20 + (i / allShots.length) * 60;
+      const rawProgress = 20 + (i / allShots.length) * 60;
+      const progress = Math.round(rawProgress * descProgressScale + descProgressOffset);
 
-      onProgress?.(progress, `Generating shot ${i + 1} of ${allShots.length}...`);
+      onProgress?.(progress, `[Shot descriptions] ${i + 1} of ${allShots.length}...`);
 
       try {
         const scene = acts
@@ -856,7 +942,7 @@ export async function generateStoryboardForScript(
       }
     }
 
-    onProgress?.(85, 'Saving storyboard shots...');
+    onProgress?.(Math.round(85 * descProgressScale), 'Saving storyboard shots...');
 
     if (shotsToInsert.length > 0) {
       const { error: shotsError } = await supabase
@@ -866,14 +952,14 @@ export async function generateStoryboardForScript(
       if (shotsError) throw shotsError;
     }
 
-    onProgress?.(95, 'Finalizing storyboard...');
+    onProgress?.(Math.round(95 * descProgressScale), 'Finalizing shot descriptions...');
 
     await supabase
       .from('storyboards')
       .update({
-        status: 'completed',
+        status: autoImages ? 'generating_images' : 'completed',
         completed_shots: shotsToInsert.length,
-        completed_at: new Date().toISOString()
+        completed_at: autoImages ? null : new Date().toISOString()
       })
       .eq('id', storyboard.id);
 
@@ -892,7 +978,39 @@ export async function generateStoryboardForScript(
 
     if (jobError) console.error('Error logging production job:', jobError);
 
-    onProgress?.(100, 'Storyboard generation complete!');
+    // -----------------------------------------------------------------------
+    // Phase 2: Auto image generation
+    // -----------------------------------------------------------------------
+    if (autoImages) {
+      const totalImageShots = shotsToInsert.length;
+      onProgress?.(50, `Phase 2 of 2: Generating images for ${totalImageShots} shots...`);
+
+      let imageSuccessCount = 0;
+      await generateImagesForStoryboard(
+        storyboard.id,
+        undefined,
+        (imgProgress, imgStatus, shotNumber) => {
+          // Map image progress (0-100) to overall progress (50-100)
+          const overallProgress = 50 + imgProgress * 0.5;
+          onProgress?.(Math.round(overallProgress), `[Image generation] ${imgStatus}`, shotNumber);
+        },
+        { delayBetweenShots: 3000 }
+      ).then(result => {
+        imageSuccessCount = result.successCount;
+      }).catch(err => {
+        console.error('Image generation phase failed:', err);
+        // Don't throw — the descriptions are already saved, images can be generated manually
+      });
+
+      await supabase
+        .from('storyboards')
+        .update({ status: 'completed', completed_at: new Date().toISOString() })
+        .eq('id', storyboard.id);
+
+      onProgress?.(100, `Storyboard complete — ${totalImageShots} shots with images!`);
+    } else {
+      onProgress?.(100, 'Storyboard generation complete!');
+    }
 
     return storyboard.id;
 
@@ -1056,6 +1174,28 @@ export async function generateImagesForStoryboard(
 
   clearImageCache();
 
+  // Build consistency profiles for every character in this series.
+  // Profiles track verified reference images AND rolling seeds (first generated shot).
+  const consistencyProfiles = buildCharacterConsistencyProfiles(characters, savedReferencesMap);
+
+  // Pre-warm the image cache with all verified reference images so the first shot
+  // doesn't pay a cold-fetch penalty and all references are loaded once.
+  const referenceUrlsToPrewarm = Array.from(consistencyProfiles.values())
+    .filter((p, idx, arr) => arr.findIndex(x => x.referenceImageUrl === p.referenceImageUrl) === idx)
+    .map(p => p.referenceImageUrl)
+    .filter((url): url is string => !!url);
+
+  if (referenceUrlsToPrewarm.length > 0) {
+    onProgress?.(0, `Pre-loading ${referenceUrlsToPrewarm.length} character reference image(s)...`);
+    await prewarmImageCache(referenceUrlsToPrewarm);
+    console.log(`Pre-warmed image cache for ${referenceUrlsToPrewarm.length} character references.`);
+  }
+
+  // Rolling seeds: character name (lower) → first generated shot URL.
+  // When a character has no verified reference, the first shot that renders them
+  // is stored here and used as the consistency anchor for all subsequent shots.
+  const rollingSeeds = new Map<string, string>();
+
   let query = supabase
     .from('storyboard_shots')
     .select('*, script_scenes!inner(*, script_acts!inner(act_number))')
@@ -1120,70 +1260,83 @@ export async function generateImagesForStoryboard(
       const positions = shot.character_positions as any[] || [];
       const addedCharacterNames = new Set<string>();
 
-      for (const pos of positions) {
-        const charName = pos?.character || pos?.name;
-        if (!charName) continue;
-
-        const savedRef = savedReferencesMap.get(charName.toLowerCase());
-        if (savedRef && savedRef.imageUrl && !addedCharacterNames.has(savedRef.name.toLowerCase())) {
-          console.log(`Using saved reference for "${charName}" -> "${savedRef.name}": ${savedRef.imageUrl}`);
-          characterReferences.push({
-            name: savedRef.name,
-            imageUrl: savedRef.imageUrl,
-            description: savedRef.description,
-            requiredFeatures: []
-          });
-          addedCharacterNames.add(savedRef.name.toLowerCase());
-          continue;
-        }
-
-        const matchResult = findCharacterInList(charName, characters);
-        const matchedChar = matchResult.found ? matchResult.match?.character : null;
-
-        if (matchedChar && !addedCharacterNames.has(matchedChar.name.toLowerCase())) {
-          matchedCharactersForShot.push(matchedChar);
-          if (matchedChar.reference_image_url) {
-            console.log(`Using character library reference for "${charName}" -> "${matchedChar.name}": ${matchedChar.reference_image_url}`);
-            characterReferences.push({
-              name: matchedChar.name,
-              imageUrl: matchedChar.reference_image_url,
-              description: matchedChar.description || undefined,
-              requiredFeatures: matchedChar.required_visual_features || []
-            });
-            addedCharacterNames.add(matchedChar.name.toLowerCase());
-          } else {
-            console.warn(`Character "${charName}" matched to "${matchedChar.name}" but has no reference image`);
-          }
-        } else {
-          console.warn(`Character "${charName}" not found in saved references or character library`);
-        }
-      }
-
+      // Collect every character name mentioned in this shot (positions + text)
       const shotText = `${shot.shot_description || ''} ${shot.stage_directions || ''} ${shot.dialogue_text || ''}`.toLowerCase();
+      const shotCharacterNames: string[] = positions
+        .map((pos: any) => pos?.character || pos?.name)
+        .filter(Boolean);
+
+      // Also detect characters mentioned in shot text but not explicitly positioned
       for (const char of characters) {
-        if (addedCharacterNames.has(char.name.toLowerCase())) continue;
-
         const charNameLower = char.name.toLowerCase();
+        if (shotCharacterNames.some(n => n.toLowerCase() === charNameLower)) continue;
         const aliases = (char.aliases as string[]) || [];
-        const allNames = [charNameLower, ...aliases.map(a => a.toLowerCase())];
-
+        const allNames = [charNameLower, ...aliases.map((a: string) => a.toLowerCase())];
         const isInShot = allNames.some(name => {
           const regex = new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
           return regex.test(shotText);
         });
-
-        if (isInShot && char.reference_image_url) {
-          console.log(`Found character "${char.name}" mentioned in shot text, adding reference`);
-          characterReferences.push({
-            name: char.name,
-            imageUrl: char.reference_image_url,
-            description: char.description || undefined,
-            requiredFeatures: char.required_visual_features || []
-          });
-          addedCharacterNames.add(char.name.toLowerCase());
-          matchedCharactersForShot.push(char);
-        }
+        if (isInShot) shotCharacterNames.push(char.name);
       }
+
+      for (const charName of shotCharacterNames) {
+        const charNameLower = charName.toLowerCase();
+        if (addedCharacterNames.has(charNameLower)) continue;
+
+        // Resolve via consistency profile (covers saved refs + library refs)
+        const profile = consistencyProfiles.get(charNameLower);
+        const matchResult = findCharacterInList(charName, characters);
+        const matchedChar = matchResult.found ? matchResult.match?.character : null;
+        if (matchedChar) matchedCharactersForShot.push(matchedChar);
+
+        // Priority 1: verified reference image (custom upload or library)
+        const verifiedUrl = profile?.referenceImageUrl ?? matchedChar?.reference_image_url ?? null;
+        if (verifiedUrl) {
+          const displayName = profile?.name ?? matchedChar?.name ?? charName;
+          console.log(`[Consistency] Shot #${shot.shot_number}: "${charName}" → verified reference: ${verifiedUrl}`);
+          characterReferences.push({
+            name: displayName,
+            imageUrl: verifiedUrl,
+            description: profile?.description ?? matchedChar?.description ?? undefined,
+            requiredFeatures: profile?.lockedFeatures ?? matchedChar?.required_visual_features ?? [],
+            referenceType: 'verified'
+          });
+          addedCharacterNames.add(charNameLower);
+          continue;
+        }
+
+        // Priority 2: rolling seed from a previously generated shot this session
+        const seedUrl = profile ? rollingSeeds.get(profile.name.toLowerCase()) : rollingSeeds.get(charNameLower);
+        if (seedUrl) {
+          const displayName = profile?.name ?? matchedChar?.name ?? charName;
+          console.log(`[Consistency] Shot #${shot.shot_number}: "${charName}" → rolling seed: ${seedUrl}`);
+          characterReferences.push({
+            name: displayName,
+            imageUrl: seedUrl,
+            description: profile?.description ?? matchedChar?.description ?? undefined,
+            requiredFeatures: profile?.lockedFeatures ?? matchedChar?.required_visual_features ?? [],
+            referenceType: 'seed'
+          });
+          addedCharacterNames.add(charNameLower);
+          continue;
+        }
+
+        // Priority 3: text description only — warn, but still populate features for prompt
+        const displayName = profile?.name ?? matchedChar?.name ?? charName;
+        console.warn(`[Consistency] Shot #${shot.shot_number}: "${charName}" has no reference or seed — text-only consistency`);
+        // No imageUrl to add, but mark as needing seed after this shot
+        addedCharacterNames.add(charNameLower);
+      }
+
+      // Characters that still need a seed after this shot is generated
+      const needsSeedAfterShot = shotCharacterNames
+        .map(n => n.toLowerCase())
+        .filter(n => {
+          const profile = consistencyProfiles.get(n);
+          const hasVerified = profile?.referenceImageUrl ?? false;
+          const hasSeed = rollingSeeds.has(profile ? profile.name.toLowerCase() : n);
+          return !hasVerified && !hasSeed;
+        });
 
       const sceneContext: SceneContext = {
         setting: sceneData.setting,
@@ -1236,6 +1389,17 @@ export async function generateImagesForStoryboard(
 
       generationTimes.push(Date.now() - genStartTime);
 
+      // Store rolling seeds for characters that had no verified reference.
+      // Subsequent shots featuring the same character will use this as their consistency anchor.
+      for (const charNameLower of needsSeedAfterShot) {
+        const profile = consistencyProfiles.get(charNameLower);
+        const seedKey = profile ? profile.name.toLowerCase() : charNameLower;
+        if (!rollingSeeds.has(seedKey)) {
+          rollingSeeds.set(seedKey, result.imageUrl);
+          console.log(`[Consistency] Stored rolling seed for "${seedKey}" from shot #${shot.shot_number}`);
+        }
+      }
+
       await supabase
         .from('storyboard_shots')
         .update({
@@ -1249,8 +1413,13 @@ export async function generateImagesForStoryboard(
             characterReferencesUsed: characterReferences.map(r => ({
               name: r.name,
               imageUrl: r.imageUrl,
-              source: savedReferencesMap.has(r.name.toLowerCase()) ? 'saved_reference' : 'character_library'
+              source: r.referenceType === 'seed'
+                ? 'rolling_seed'
+                : savedReferencesMap.has(r.name.toLowerCase())
+                  ? 'saved_reference'
+                  : 'character_library'
             })),
+            rollingSeedsUsed: Array.from(rollingSeeds.keys()),
             promptUsed: comprehensivePrompt,
             characterPositions: positions.map(p => p?.character || p?.name).filter(Boolean)
           }
