@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 
-export type WorkspaceType = 'claymation' | 'photoreal' | 'documentary' | 'general';
+export type WorkspaceType = 'claymation' | 'photoreal' | 'documentary' | 'general' | 'commercial';
 
 interface Organization {
   id: string;

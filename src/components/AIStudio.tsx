@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Sparkles, Wand2, FileText, Users, Image as ImageIcon, Video, Mic, AlertCircle, CheckCircle, Settings as SettingsIcon, ArrowRight, Eye, X, BookOpen, History } from 'lucide-react';
+import { Sparkles, Wand2, FileText, Users, Image as ImageIcon, Video, Mic, AlertCircle, CheckCircle, Settings as SettingsIcon, ArrowRight, Eye, X, BookOpen, History, Lightbulb } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { generateScriptWithGemini, checkVertexAIConfiguration } from '../services/geminiService';
@@ -12,6 +12,7 @@ import { FORMAT_PRESETS, type ProgramFormatConfig } from '../types/formatConfig'
 import { ImageGenerationTab } from './ImageGenerationTab';
 import { VideoGenerationTab } from './VideoGenerationTab';
 import { useWorkspaceCapabilities } from '../hooks/useWorkspaceCapabilities';
+import { ConceptGenerator } from './ConceptGenerator';
 
 type Character = Database['public']['Tables']['characters']['Row'];
 
@@ -21,10 +22,20 @@ interface AIStudioProps {
 }
 
 export function AIStudio({ seriesId, onNavigate }: AIStudioProps) {
-  const [activeTab, setActiveTab] = useState<'script' | 'storyboard' | 'image' | 'video' | 'voice'>('script');
+  const { isCommercial } = useWorkspaceCapabilities();
+  const [activeTab, setActiveTab] = useState<'concepts' | 'script' | 'storyboard' | 'image' | 'video' | 'voice'>('script');
+
+  // Default to concepts tab in commercial workspace
+  const defaultTab = isCommercial ? 'concepts' : 'script';
+  const [initializedTab, setInitializedTab] = useState(false);
+  if (!initializedTab && isCommercial && activeTab === 'script') {
+    setActiveTab('concepts');
+    setInitializedTab(true);
+  }
 
   const tabs = [
-    { id: 'script', label: 'Script Generation', icon: FileText },
+    ...(isCommercial ? [{ id: 'concepts', label: 'Concept Generator', icon: Lightbulb }] : []),
+    { id: 'script', label: isCommercial ? 'Spot Script' : 'Script Generation', icon: FileText },
     { id: 'storyboard', label: 'Storyboard Generation', icon: Wand2 },
     { id: 'image', label: 'Image Generation', icon: ImageIcon },
     { id: 'video', label: 'Video Generation', icon: Video },
@@ -71,6 +82,7 @@ export function AIStudio({ seriesId, onNavigate }: AIStudioProps) {
           </div>
 
           <div className="p-4 sm:p-6">
+            {activeTab === 'concepts' && <ConceptGenerator seriesId={seriesId} onNavigate={onNavigate} />}
             {activeTab === 'script' && <ScriptGeneration seriesId={seriesId} onNavigate={onNavigate} />}
             {activeTab === 'storyboard' && <StoryboardGeneration onNavigate={onNavigate} />}
             {activeTab === 'image' && <ImageGeneration seriesId={seriesId} />}

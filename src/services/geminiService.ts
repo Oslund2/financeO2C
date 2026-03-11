@@ -1351,3 +1351,303 @@ export function checkGeminiConfiguration(): { configured: boolean; missing: stri
 }
 
 export const checkVertexAIConfiguration = checkGeminiConfiguration;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// COMMERCIAL & PROMO — Concept generation and spot script generation
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface CampaignBrief {
+  clientName: string;
+  agencyName?: string;
+  productService: string;
+  campaignName: string;
+  objective: 'awareness' | 'consideration' | 'conversion' | 'retention' | 'event';
+  targetAudience: string;
+  keyMessage: string;
+  callToAction: string;
+  brandTone: string;
+  mandatoryElements: string;
+  competitiveRestrictions?: string;
+  spotLengthSeconds: 10 | 15 | 30;
+  visualStyle: string;
+  legalDisclaimer?: string;
+}
+
+export interface SpotConcept {
+  conceptNumber: 1 | 2 | 3;
+  conceptName: string;
+  logline: string;
+  creativeDirection: string;
+  emotionalHook: string;
+  openingHook: string;
+  keyVisualMoment: string;
+  ctaExecution: string;
+  musicMood: string;
+  visualStyle: string;
+}
+
+export interface GeneratedSpotScript {
+  title: string;
+  spotLengthSeconds: number;
+  synopsis: string;
+  scenes: SpotScene[];
+  voiceoverText?: string;
+  superText: string[];
+  musicDirection: string;
+  totalScriptedSeconds: number;
+}
+
+export interface SpotScene {
+  sceneNumber: number;
+  description: string;
+  action: string;
+  dialogue?: Array<{ character: string; line: string; type: 'vo' | 'onscreen' }>;
+  super?: string;
+  durationSeconds: number;
+  visualNotes: string;
+  cameraDirection: string;
+}
+
+function buildCommercialConceptPrompt(brief: CampaignBrief): string {
+  const objectiveMap: Record<string, string> = {
+    awareness: 'build brand awareness and recognition',
+    consideration: 'drive consideration and interest in the product/service',
+    conversion: 'drive immediate purchase or sign-up',
+    retention: 'reinforce loyalty and retention among existing customers',
+    event: 'promote an upcoming event or limited-time offer',
+  };
+
+  return `You are a senior creative director and marketing expert at ${brief.agencyName || 'a top advertising agency'}.
+
+Your task is to generate THREE distinct creative concepts for a :${brief.spotLengthSeconds} commercial spot.
+
+CAMPAIGN BRIEF:
+- Client: ${brief.clientName}
+- Product/Service: ${brief.productService}
+- Campaign: ${brief.campaignName}
+- Objective: ${objectiveMap[brief.objective] || brief.objective}
+- Target Audience: ${brief.targetAudience}
+- Key Message (single): ${brief.keyMessage}
+- Call to Action: ${brief.callToAction}
+- Brand Tone: ${brief.brandTone}
+- Mandatory Elements: ${brief.mandatoryElements || 'None specified'}
+${brief.competitiveRestrictions ? `- Do NOT reference: ${brief.competitiveRestrictions}` : ''}
+${brief.legalDisclaimer ? `- Legal Disclaimer (must appear): "${brief.legalDisclaimer}"` : ''}
+
+SPOT CONSTRAINTS:
+- Total runtime: EXACTLY ${brief.spotLengthSeconds} seconds
+- Visual style preference: ${brief.visualStyle}
+
+Generate exactly 3 distinct creative concepts. Each must be genuinely different in its creative approach, emotional angle, and narrative structure — not just variations of the same idea.
+
+Return ONLY valid JSON in this exact structure:
+{
+  "concepts": [
+    {
+      "conceptNumber": 1,
+      "conceptName": "Short memorable name for this concept",
+      "logline": "One sentence describing the concept",
+      "creativeDirection": "2-3 sentences describing the overall creative approach and why it will resonate",
+      "emotionalHook": "The core emotion this concept triggers in the viewer",
+      "openingHook": "Exact description of the first 3 seconds — what grabs attention immediately",
+      "keyVisualMoment": "The most memorable visual moment in the spot",
+      "ctaExecution": "How the call to action is delivered at the end",
+      "musicMood": "Music direction: genre, tempo, feeling",
+      "visualStyle": "Specific visual treatment for this concept"
+    },
+    { "conceptNumber": 2, ... },
+    { "conceptNumber": 3, ... }
+  ]
+}`;
+}
+
+export async function generateCommercialConcepts(brief: CampaignBrief): Promise<SpotConcept[]> {
+  const apiKey = getGeminiAPIKey();
+  const prompt = buildCommercialConceptPrompt(brief);
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.9, maxOutputTokens: 4096 },
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(`Gemini API error (${response.status}): ${JSON.stringify(err)}`);
+  }
+
+  const data = await response.json();
+  const textContent = data.candidates?.[0]?.content?.parts?.find((p: any) => p.text)?.text;
+  if (!textContent) throw new Error('No response from concept generator.');
+
+  const jsonMatch = textContent.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('Could not parse concept response as JSON.');
+
+  const parsed = JSON.parse(jsonMatch[0]);
+  return parsed.concepts as SpotConcept[];
+}
+
+function buildCommercialScriptPrompt(brief: CampaignBrief, concept: SpotConcept): string {
+  const sceneCount = brief.spotLengthSeconds === 10 ? 3 : brief.spotLengthSeconds === 15 ? 4 : 7;
+
+  return `You are a senior advertising copywriter and director at ${brief.agencyName || 'a top advertising agency'}.
+
+Write a complete, production-ready :${brief.spotLengthSeconds} commercial script based on the approved creative concept below.
+
+CAMPAIGN BRIEF:
+- Client: ${brief.clientName}
+- Product/Service: ${brief.productService}
+- Objective: ${brief.objective}
+- Target Audience: ${brief.targetAudience}
+- Key Message: ${brief.keyMessage}
+- Call to Action: ${brief.callToAction}
+- Brand Tone: ${brief.brandTone}
+- Mandatory Elements: ${brief.mandatoryElements || 'None'}
+${brief.legalDisclaimer ? `- Legal Disclaimer: "${brief.legalDisclaimer}"` : ''}
+
+APPROVED CREATIVE CONCEPT: "${concept.conceptName}"
+- Logline: ${concept.logline}
+- Creative Direction: ${concept.creativeDirection}
+- Opening Hook: ${concept.openingHook}
+- Key Visual Moment: ${concept.keyVisualMoment}
+- CTA Execution: ${concept.ctaExecution}
+- Music Mood: ${concept.musicMood}
+- Visual Style: ${concept.visualStyle}
+
+CRITICAL CONSTRAINTS:
+1. TOTAL RUNTIME: EXACTLY ${brief.spotLengthSeconds} seconds — every second must be accounted for
+2. Number of scenes: approximately ${sceneCount} (scene durations should add to exactly ${brief.spotLengthSeconds}s)
+3. Every scene must have a precise duration_seconds value
+4. Include super text (on-screen text) for the CTA and any mandatory elements
+5. Voiceover (VO) and on-screen dialogue must be timed to fit the scene duration — a :30 can fit roughly 75 spoken words total
+6. The legal disclaimer (if any) must appear as a super in the final scene
+
+Return ONLY valid JSON:
+{
+  "title": "Spot title",
+  "spotLengthSeconds": ${brief.spotLengthSeconds},
+  "synopsis": "One sentence describing the spot",
+  "voiceoverText": "Complete VO script if used (or null)",
+  "musicDirection": "Detailed music direction",
+  "superText": ["list", "of", "all", "supers"],
+  "totalScriptedSeconds": ${brief.spotLengthSeconds},
+  "scenes": [
+    {
+      "sceneNumber": 1,
+      "description": "Location and setting",
+      "action": "What happens visually",
+      "dialogue": [
+        { "character": "VO", "line": "Voiceover text", "type": "vo" }
+      ],
+      "super": "On-screen text for this scene (or null)",
+      "durationSeconds": 4,
+      "visualNotes": "Specific visual/art direction notes",
+      "cameraDirection": "Shot type and camera movement"
+    }
+  ]
+}`;
+}
+
+export async function generateCommercialSpotScript(
+  brief: CampaignBrief,
+  concept: SpotConcept
+): Promise<GeneratedSpotScript> {
+  const apiKey = getGeminiAPIKey();
+  const prompt = buildCommercialScriptPrompt(brief, concept);
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.7, maxOutputTokens: 4096 },
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(`Gemini API error (${response.status}): ${JSON.stringify(err)}`);
+  }
+
+  const data = await response.json();
+  const textContent = data.candidates?.[0]?.content?.parts?.find((p: any) => p.text)?.text;
+  if (!textContent) throw new Error('No response from script generator.');
+
+  const jsonMatch = textContent.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('Could not parse spot script response as JSON.');
+
+  return JSON.parse(jsonMatch[0]) as GeneratedSpotScript;
+}
+
+export function buildVariantBrief(
+  originalBrief: CampaignBrief,
+  targetLength: 10 | 15
+): CampaignBrief {
+  return { ...originalBrief, spotLengthSeconds: targetLength };
+}
+
+export async function generateVariantConcept(
+  originalConcept: SpotConcept,
+  targetLength: 10 | 15
+): Promise<SpotConcept> {
+  const apiKey = getGeminiAPIKey();
+
+  const prompt = `You are a senior advertising copywriter. You have a :30 commercial concept that needs to be adapted into a :${targetLength} cutdown.
+
+ORIGINAL :30 CONCEPT: "${originalConcept.conceptName}"
+- Logline: ${originalConcept.logline}
+- Opening Hook: ${originalConcept.openingHook}
+- Key Visual Moment: ${originalConcept.keyVisualMoment}
+- CTA Execution: ${originalConcept.ctaExecution}
+- Music Mood: ${originalConcept.musicMood}
+
+Create a :${targetLength} variant that:
+${targetLength === 15
+    ? '- Keeps the core message and CTA\n- Trims the setup/problem framing\n- Leads faster into the key visual moment'
+    : '- Reduces to just the hook + CTA\n- One strong visual moment + product + CTA\n- Maximum impact, zero setup'}
+
+Return ONLY valid JSON matching the SpotConcept structure:
+{
+  "conceptNumber": 1,
+  "conceptName": "${originalConcept.conceptName} :${targetLength}",
+  "logline": "Updated logline for the :${targetLength} version",
+  "creativeDirection": "How this cutdown works and what was trimmed",
+  "emotionalHook": "${originalConcept.emotionalHook}",
+  "openingHook": "New opening for :${targetLength}",
+  "keyVisualMoment": "Key moment preserved from the :30",
+  "ctaExecution": "${originalConcept.ctaExecution}",
+  "musicMood": "${originalConcept.musicMood}",
+  "visualStyle": "${originalConcept.visualStyle}"
+}`;
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
+      }),
+    }
+  );
+
+  if (!response.ok) throw new Error('Variant concept generation failed.');
+  const data = await response.json();
+  const textContent = data.candidates?.[0]?.content?.parts?.find((p: any) => p.text)?.text;
+  if (!textContent) throw new Error('No response for variant concept.');
+
+  const jsonMatch = textContent.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('Could not parse variant concept as JSON.');
+
+  return JSON.parse(jsonMatch[0]) as SpotConcept;
+}
