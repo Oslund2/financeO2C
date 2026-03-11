@@ -140,7 +140,7 @@ export function Settings() {
   };
 
   const countConfiguredAPIs = (): { configured: number; total: number } => {
-    if (!apiHealth) return { configured: 0, total: 9 };
+    if (!apiHealth) return { configured: 0, total: 10 };
     const apis = [
       apiHealth.gemini,
       apiHealth.vertexAI,
@@ -150,7 +150,8 @@ export function Settings() {
       apiHealth.veedIo,
       apiHealth.nanoBanana,
       apiHealth.supabase,
-      apiHealth.shotstack
+      apiHealth.shotstack,
+      apiHealth.heygen
     ];
     return {
       configured: apis.filter(a => a.configured && a.healthy).length,
@@ -261,6 +262,7 @@ export function Settings() {
               { key: 'chatterbox', label: 'Chatterbox', health: apiHealth?.chatterbox },
               { key: 'nanoBanana', label: 'Image Gen', health: apiHealth?.nanoBanana },
               { key: 'shotstack', label: 'Shotstack', health: apiHealth?.shotstack },
+              { key: 'heygen', label: 'HeyGen', health: apiHealth?.heygen },
             ].map(({ key, label, health }) => (
               <div
                 key={key}
@@ -513,32 +515,18 @@ export function Settings() {
 
                   <div className="border border-gray-200 rounded-lg p-5 hover:border-blue-300 transition-colors">
                     <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <div className="w-12 h-12 bg-gradient-to-br from-gray-500 to-gray-600 rounded-lg flex items-center justify-center flex-shrink-0">
                         <Film className="w-6 h-6 text-white" />
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           <h3 className="font-bold text-gray-900">Video Assembly (Shotstack)</h3>
-                          <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">Required for Assembly</span>
-                          <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">Final Step</span>
                         </div>
                         <p className="text-sm text-gray-600 mb-3">
-                          Assembles rendered shots into a complete episode rough cut with transitions, audio mixing, and optional slate/end-card. Configured per-organisation in the Assembly panel.
+                          Assembles rendered shots into a rough cut with transitions and audio mixing. Configure your API key in the Assembly settings drawer.
                         </p>
-                        <div className="bg-gray-50 rounded-lg p-3 mb-3">
-                          <div className="text-xs font-medium text-gray-700 mb-2">API key is stored in the Assembly settings drawer — open any production, go to the <strong>Assembly</strong> step, and click the settings icon.</div>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <div className="text-xs text-gray-500 mb-1">Env var (optional override)</div>
-                              <code className="text-xs bg-gray-200 px-2 py-1 rounded block">VITE_SHOTSTACK_API_KEY</code>
-                            </div>
-                            <div>
-                              <div className="text-xs text-gray-500 mb-1">Pricing</div>
-                              <span className="text-xs text-gray-700">~$0.05–$0.20 per render minute</span>
-                            </div>
-                          </div>
-                        </div>
                         <div className="flex items-center gap-4 text-sm">
+                          <code className="text-xs bg-gray-100 px-2 py-1 rounded">VITE_SHOTSTACK_API_KEY</code>
                           <a
                             href="https://shotstack.io"
                             target="_blank"
@@ -546,14 +534,6 @@ export function Settings() {
                             className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
                           >
                             shotstack.io <ExternalLink className="w-3 h-3" />
-                          </a>
-                          <a
-                            href="https://shotstack.io/docs/guide/getting-started/core-concepts/"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                          >
-                            Docs <ExternalLink className="w-3 h-3" />
                           </a>
                         </div>
                       </div>
@@ -1852,12 +1832,12 @@ export function Settings() {
               aria-expanded={assemblyExpanded}
             >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 bg-gradient-to-br from-gray-500 to-gray-600 rounded-lg flex items-center justify-center">
                   <Film className="w-5 h-5 text-white" />
                 </div>
                 <div className="text-left">
                   <h2 className="text-xl font-bold text-gray-900">Assembly / Editing</h2>
-                  <p className="text-sm text-gray-600">Configure Shotstack for automated rough cut assembly</p>
+                  <p className="text-sm text-gray-600">Shotstack cloud video assembly</p>
                 </div>
               </div>
               {assemblyExpanded ? (
@@ -1868,114 +1848,19 @@ export function Settings() {
             </button>
 
             {assemblyExpanded && (
-              <div className="border-t border-gray-200 p-6 space-y-6">
-
-                {/* What it does */}
-                <div className="bg-violet-50 border border-violet-200 rounded-lg p-4">
-                  <div className="flex items-start gap-3">
-                    <Film className="w-5 h-5 text-violet-600 mt-0.5 flex-shrink-0" />
-                    <div className="text-sm text-violet-900">
-                      <p className="font-semibold mb-1">Automated Rough Cut Assembly</p>
-                      <p>Once ≥80% of your shots have finished rendering, the platform can automatically assemble them into a complete episode rough cut — with transitions, audio mixing, and an optional slate/end-card — using the <strong>Shotstack</strong> cloud video editing API.</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Setup steps */}
-                <div>
-                  <h3 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <Key className="w-4 h-4 text-violet-600" />
-                    Setup Instructions
-                  </h3>
-                  <ol className="space-y-4">
-                    <li className="flex gap-4">
-                      <span className="flex-shrink-0 w-7 h-7 bg-violet-100 text-violet-700 rounded-full flex items-center justify-center text-sm font-bold">1</span>
-                      <div>
-                        <p className="font-medium text-gray-900">Create a Shotstack account</p>
-                        <p className="text-sm text-gray-600 mt-1">Sign up at <a href="https://shotstack.io" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">shotstack.io</a>. A free sandbox tier is available for testing (watermarked output).</p>
-                      </div>
-                    </li>
-                    <li className="flex gap-4">
-                      <span className="flex-shrink-0 w-7 h-7 bg-violet-100 text-violet-700 rounded-full flex items-center justify-center text-sm font-bold">2</span>
-                      <div>
-                        <p className="font-medium text-gray-900">Get your API key</p>
-                        <p className="text-sm text-gray-600 mt-1">In the Shotstack dashboard go to <strong>API Keys</strong> and copy either your <em>Stage</em> (sandbox/testing) or <em>Production</em> key.</p>
-                      </div>
-                    </li>
-                    <li className="flex gap-4">
-                      <span className="flex-shrink-0 w-7 h-7 bg-violet-100 text-violet-700 rounded-full flex items-center justify-center text-sm font-bold">3</span>
-                      <div>
-                        <p className="font-medium text-gray-900">Add the key — two options</p>
-                        <div className="mt-2 space-y-3">
-                          <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                            <p className="text-sm font-semibold text-gray-800 mb-1">Option A — per-organisation (recommended)</p>
-                            <p className="text-sm text-gray-600">Open any production → navigate to the <strong>Assembly</strong> step → click the <Sliders className="w-3 h-3 inline" /> settings icon → paste your API key and save. This key is stored per-org in the database and shared across all productions in your workspace.</p>
-                          </div>
-                          <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                            <p className="text-sm font-semibold text-gray-800 mb-1">Option B — environment variable</p>
-                            <p className="text-sm text-gray-600 mb-2">Add to your Bolt / .env secrets:</p>
-                            <code className="text-xs bg-gray-200 px-2 py-1 rounded block">VITE_SHOTSTACK_API_KEY=your_key_here</code>
-                          </div>
-                        </div>
-                      </div>
-                    </li>
-                    <li className="flex gap-4">
-                      <span className="flex-shrink-0 w-7 h-7 bg-violet-100 text-violet-700 rounded-full flex items-center justify-center text-sm font-bold">4</span>
-                      <div>
-                        <p className="font-medium text-gray-900">Trigger an assembly</p>
-                        <p className="text-sm text-gray-600 mt-1">The platform will auto-trigger when ≥80% of shots are complete, or you can click <strong>"Assemble Rough Cut"</strong> manually from the Batches step or the Assembly panel. Renders typically take 1–5 minutes depending on episode length.</p>
-                      </div>
-                    </li>
-                  </ol>
-                </div>
-
-                {/* Assembly panel features */}
-                <div>
-                  <h3 className="text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                    <Sliders className="w-4 h-4 text-violet-600" />
-                    Assembly Settings (in the panel)
-                  </h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { label: 'Transition type', desc: 'Cut, fade, or dissolve between shots' },
-                      { label: 'Resolution', desc: '720p, 1080p, or 4K output' },
-                      { label: 'Frame rate', desc: '24, 30, or 60 fps' },
-                      { label: 'Dialogue volume', desc: 'Mix level for character audio' },
-                      { label: 'Music track', desc: 'Optional background music URL' },
-                      { label: 'Slate / end-card', desc: 'Auto-prepend / append title card' },
-                    ].map(({ label, desc }) => (
-                      <div key={label} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                        <p className="text-sm font-semibold text-gray-800">{label}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Pricing */}
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                  <div className="flex items-start gap-3">
-                    <DollarSign className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
-                    <div className="text-sm text-amber-900">
-                      <p className="font-semibold mb-1">Pricing</p>
-                      <p>Shotstack charges ~<strong>$0.05–$0.20 per minute</strong> of rendered output on the production tier. Sandbox renders are free but watermarked. See <a href="https://shotstack.io/pricing/" target="_blank" rel="noopener noreferrer" className="underline">shotstack.io/pricing</a> for current rates.</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Links */}
+              <div className="border-t border-gray-200 p-6 space-y-4">
+                <p className="text-sm text-gray-600">
+                  Shotstack assembles rendered shots into a rough cut with transitions and audio mixing. Add your API key via the Assembly settings drawer in any production, or set the <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">VITE_SHOTSTACK_API_KEY</code> environment variable.
+                </p>
                 <div className="flex items-center gap-4 text-sm">
-                  <a href="https://shotstack.io" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 flex items-center gap-1 font-medium">
+                  <a href="https://shotstack.io" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 flex items-center gap-1">
                     shotstack.io <ExternalLink className="w-3 h-3" />
                   </a>
                   <a href="https://shotstack.io/docs/guide/getting-started/core-concepts/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 flex items-center gap-1">
-                    Core Concepts Docs <ExternalLink className="w-3 h-3" />
+                    Docs <ExternalLink className="w-3 h-3" />
                   </a>
-                  <a href="https://dashboard.shotstack.io" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 flex items-center gap-1">
-                    Dashboard <ExternalLink className="w-3 h-3" />
-                  </a>
+                  <span className="text-xs text-gray-500">~$0.05-$0.20/min rendered</span>
                 </div>
-
               </div>
             )}
           </div>
