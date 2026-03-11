@@ -1,273 +1,267 @@
-# AI Animation Studio
+# BeeStudio — AI Video Production Platform
 
-An AI-powered animation production platform for creating episodes of "The Clayville Craniums" - a Scripps National Spelling Bee animated series.
+A full-stack, multi-workspace AI production platform for creating animated and live-action video content. BeeStudio covers every stage of production: concept, scripting, storyboarding, voice synthesis, video generation, lip-sync, assembly, and distribution — plus advanced tools for audience testing, fact-checking, citation management, and IP protection.
+
+---
+
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Workspace Types](#workspace-types)
+3. [Feature Modules](#feature-modules)
+4. [Integrated Services](#integrated-services)
+5. [Tech Stack](#tech-stack)
+6. [Architecture](#architecture)
+7. [Environment Variables](#environment-variables)
+8. [Running the Application](#running-the-application)
+
+---
 
 ## Overview
 
-This platform provides a complete production pipeline for creating animated claymation episodes using multiple AI services:
+BeeStudio is a multi-tenant SaaS platform built on React + TypeScript with a Supabase backend. Each organisation can operate one or more **workspaces**, each tailored to a specific production style (claymation, photoreal, documentary, general). All AI integrations — script generation, image/video generation, voice synthesis, lip-sync, translation, and synthetic audience testing — are fully operational.
 
-- **Gemini 3** (Vertex AI) - Script generation and image generation
-- **Veo 3** (Vertex AI) - Video generation from static images
-- **Eleven Labs** - Character voice synthesis
-- **Supabase** - Database and asset storage
+---
 
-## Features
+## Workspace Types
 
-### Current Implementation
+| Type | Description | Signature Features |
+|---|---|---|
+| **Claymation** | Stop-motion / claymation animation | Clay texture settings, miniature set designer, character rig library, spelling-word curriculum integration |
+| **Photoreal** | Live-action and photorealistic video | Realistic environment generation, period-accuracy checker, historical fact verification |
+| **Documentary** | Documentary and narrative non-fiction | Citation manager, archival integration, interview-format scripting, narration tools |
+| **General** | Flexible baseline workspace | Full feature set without specialisation defaults |
 
-✅ **Multi-Workspace Management**
-- Unlimited workspace creation per user
-- Four billing tiers: Free, Starter, Professional, Enterprise
-- Automatic slug generation for workspace URLs
-- Workspace switcher for seamless navigation
-- Role-based access control (owner, admin, member)
-- Organization settings and customization
+Workspace capabilities are controlled by per-organisation feature flags stored in `workspace_type_configs`, so the UI adapts automatically to each workspace type.
 
-✅ **Prompt Library System**
-- 10 system default prompt templates
-- Version control for all prompts
-- AI-powered prompt enhancement
-- Organization-specific customization
-- Categories: script, video, voice, storyboard, style
-- Variable schema support for dynamic content
+---
 
-✅ **Complete Database Schema**
-- 60+ tables covering all production aspects
-- Series, characters, scripts, episodes, assets, and production tracking
-- Full relational structure with proper foreign keys
-- Row Level Security (RLS) policies for data protection
-- Multi-tenant architecture with organization isolation
+## Feature Modules
 
-✅ **Character Management**
-- Create, edit, and duplicate characters
-- Store physical descriptions, personality traits, and clay features
-- Tag-based organization and search
-- Voice characteristic profiles for voice synthesis
-- Character role classification (protagonist, supporting, antagonist)
+### Content Creation
+- **AI Script Generation** — Gemini-powered script writer with act/scene structure, character dialogue, vocabulary integration, and style guides
+- **Script Management** — Versioning, locking, status workflow (draft → approved → in production → completed), duplication
+- **Multi-language Translation** — Full script translation with analytics, export, stuck-translation recovery, and cost tracking
+- **Storyboard Generation** — AI-generated panel-by-panel storyboards with editing, approval workflow, image versioning, and PDF export
+- **Shot List Generation** — AI-driven shot breakdown with camera angles, scene descriptions, and asset linking
+- **Character Management** — Character profiles with physical descriptions, personality traits, voice profiles, clay/render features, role classification, and reference images
 
-✅ **Script Management**
-- AI-powered script generation with Gemini
-- Browse and organize episode scripts
-- Track episode metadata (season, episode number, runtime)
-- Vocabulary word tracking and integration
-- Script status workflow (draft, approved, in production, completed)
-- Multi-language translation support
-- Script locking and version control
+### Video Production
+- **Veo Video Generation** — Google Vertex AI Veo 2 and Veo 3 (including 3.1) video generation from storyboard shots; speed and narrative render tiers; reference-image consistency support
+- **Batch Rendering** — Parallel batch jobs with real-time progress tracking; two modes: Speed (8 variations) and Narrative (20 variations)
+- **Video Assembly (Shotstack)** — Rough-cut and final-cut assembly with transitions (cut, fade, dissolve, wipe), audio mixing, slates, end cards, watermark support, and multiple output formats/resolutions (720p, 1080p, 4K)
+- **Lip-Sync (SyncLabs)** — Audio-to-video lip-sync generation via SyncLabs; job tracking and status polling
+- **Video Translation (HeyGen)** — AI-avatar video translation into 60+ languages; per-organisation API key and usage quota management
+- **Production Timeline** — Episode progress tracking from pre-production through delivery
 
-✅ **Asset Library**
-- Centralized asset browser for all media
-- Support for multiple asset types:
-  - Character references
-  - Backgrounds
-  - Props
-  - Word manifestations
-  - Scene images
-  - Video clips
-  - Audio files
-- Tag-based filtering and search
-- Usage tracking and smart recommendations
-- Asset decay tracking for realism
+### Voice & Audio
+- **ElevenLabs TTS** — Voice synthesis and voice cloning; 100+ voices across 60+ languages
+- **Chatterbox TTS** — Self-hosted alternative TTS with voice cloning via job queue (runs on `localhost:8001` in dev or `/api/chatterbox` in production)
+- **Dialogue Extraction** — Automatic extraction of per-character lines from scripts for batch voice generation
+- **TRT Calculator** — Total Running Time calculation based on voice recordings
+- **Voice Characteristics** — Per-character voice profiles (stability, similarity boost, style settings)
 
-✅ **Episode Production Workflow**
-- Complete production pipeline from script to final video
-- Shot list generation with AI
-- Batch rendering with Vertex AI Veo 3
-- Two render modes: Speed (8 variations) and Narrative (20 variations)
-- Real-time progress tracking
-- Episode progress breakdown by stage
-- Production draft sessions
+### Synthetic Audience Testing
+Simulate a live focus group using AI-generated viewer personas. Four phases run automatically:
 
-✅ **Storyboard Generation**
-- AI-generated storyboard panels
-- Shot-by-shot visual planning
-- Editing and approval workflow
-- Image versioning and history
-- Storyboard export to PDF
+1. **Script Analysis** — Core premise, tone, target demographic, and polarising themes
+2. **Audience Generation** — Five diverse synthetic personas (name, age, location, viewing habits, biases); fully editable before proceeding
+3. **Focus Group Discussion** — Hook-moment reactions, dialogue authenticity critique, and twist predictability scoring
+4. **Retention Heatmap** — Per-persona pacing (1–10), character relatability (1–10), and episode-2 watch intent
 
-✅ **Voice & Audio**
-- ElevenLabs integration for voice synthesis
-- Chatterbox TTS alternative
-- Voice cloning support
-- Dialogue extraction from scripts
-- TRT (Total Running Time) calculation
-- Lip sync tracking and management
+**Audience Panels** — Save and reuse persona sets across multiple scripts.
+**Head-to-Head Comparison** — Run two script versions through the same panel; outputs average scores, retention rates, key differentiators, and a recommended winner.
 
-✅ **Cost & Analytics**
-- Production cost tracking per shot/episode
-- Creator cost calculator
-- LTV (Lifetime Value) analytics
-- Traditional animation cost comparison
-- ROI and profit projections
-- Gemini API usage tracking
-- Year-by-year revenue breakdown
+### Accuracy & Citation
+- **Historical Accuracy Checker** — AI-driven fact verification with confidence scoring, disputed-claim flagging, citation linking, and AI reasoning documentation (active for Photoreal and Documentary workspaces)
+- **Citation Manager** — Full citation lifecycle (create, edit, verify, delete); supports books, journals, websites, interviews, and archival sources; primary source designation; AI-generated citation flagging
 
-✅ **Translation System**
-- Multi-language script translation
-- Translation analytics and export
-- Stuck translation recovery
-- Translation cost tracking
+### Patent Intelligence
+A complete USPTO patent-application workflow built into the platform:
 
-✅ **Complete Episode Data - "Spell-Mageddon!"**
-- 7 fully detailed characters with claymation features
-- Complete Episode 1 script with 4-segment broadcast structure
-- 10 vocabulary spelling words integrated
-- Storyboard scenes with AI generation prompts
-- Full production workflow ready
+- **Patent Application Wizard** — Step-by-step guided application flow
+- **CPC Classification** — AI-assisted CPC code suggestions
+- **Claims Drafting** — Independent and dependent claim management
+- **Specification Generation** — Full spec body generation with sections
+- **Patent Drawings** — AI-generated drawings with annotation support
+- **Novelty & Differentiation Analysis** — Prior-art and differentiation scoring
+- **Prior Art Search** — Research prompts and structured search results
+- **USPTO Form Generation** — ADS form generation, fee calculation (base + IDS + drawing fees)
+- **Copyright & Trademark** — Copyright registration, trademark application, and bulk copyright filing workflows
 
-### Database Tables (60+ Total)
+### Mission Control
+Define a workspace mission to drive AI behaviour across all modules:
+- Target audience, content goals, and guardrails
+- Visual rendering style definition
+- AI feature recommendations based on mission
+- Mission health scoring
+- Series-level sub-missions
+- Feature toggles driven by mission settings
 
-**Core Multi-Tenancy:**
-1. **organizations** - Workspace/organization management
-2. **organization_members** - User roles and permissions
-3. **organization_invitations** - Workspace invites
+### Analytics & Economics
+- **Production Cost Tracking** — Cost per shot and per episode with Gemini API usage monitoring
+- **Creator Cost Calculator** — Labour cost breakdown and traditional animation cost comparison
+- **LTV Analytics** — Lifetime value tracking, YouTube/show revenue calculators, year-by-year revenue projections, ROI and profit analysis
+- **Gemini Usage Dashboard** — Token usage and cost monitoring per request
 
-**Content Management:**
-4. **series** - Series metadata and style guides
-5. **characters** - Character profiles with clay features
-6. **scripts** - Episode scripts with metadata
-7. **episodes** - Episode tracking and metadata
-8. **assets** - All media assets with metadata
+### Asset Management
+- **Asset Library** — Centralised browser for all media (character references, backgrounds, props, word manifestations, scene images, video clips, audio files)
+- **Tag-based Filtering** — Search and filter by type, tag, or usage
+- **Usage Tracking** — Asset reuse recommendations and decay tracking
+- **Image Versioning** — Full version history for generated images
 
-**Production Pipeline:**
-9. **shot_plans** - Shot breakdown for video generation
-10. **rendering_batches** - Batch job management
-11. **rendering_jobs** - Individual rendering tasks
-12. **storyboards** - Storyboard metadata
-13. **storyboard_shots** - Individual storyboard panels
-14. **production_draft_sessions** - Draft tracking
+### Platform & Collaboration
+- **Multi-tenant Organisations** — Unlimited workspace creation; four billing tiers (Free, Starter, Professional, Enterprise)
+- **Role-based Access Control** — Owner, admin, and member roles with per-resource permissions
+- **Prompt Library** — 10 system default templates + organisation-specific prompts; AI-powered prompt enhancement; version control; variable schema support
+- **Settings & Backup** — Full configuration backup and restore; per-org API key management for Shotstack, SyncLabs, HeyGen, and others
+- **Command Palette** — Keyboard-driven navigation across all modules
+- **Notification System** — Toast notifications for async operations
 
-**Prompt Management:**
-15. **prompt_templates** - Prompt library templates
-16. **prompt_template_versions** - Version control
-17. **prompt_enhancement_history** - AI enhancement tracking
+---
 
-**Voice & Audio:**
-18. **dialogue_audio** - Voice recordings
-19. **lip_sync_jobs** - Lip sync tracking
-20. **voice_cloning_models** - Custom voice models
+## Integrated Services
 
-**Analytics & Tracking:**
-21. **episode_ltv_metrics** - Lifetime value tracking
-22. **creator_cost_settings** - Cost configuration
-23. **gemini_api_usage** - API usage monitoring
-24. **episode_progress** - Progress tracking
+| Service | Purpose | Status |
+|---|---|---|
+| **Supabase** | Database, auth, file storage, edge functions | ✅ Active |
+| **Google Gemini API** | Script generation, prompt enhancement, accuracy checking, audience analysis | ✅ Active |
+| **Google Vertex AI (Veo)** | Video generation (Veo 2.0, 3.0, 3.1) | ✅ Active |
+| **ElevenLabs** | Voice synthesis and voice cloning | ✅ Active |
+| **HeyGen** | AI-avatar video translation (60+ languages) | ✅ Active |
+| **SyncLabs** | AI lip-sync generation | ✅ Active |
+| **Shotstack** | Video editing and final assembly | ✅ Active |
+| **Chatterbox TTS** | Self-hosted alternative voice synthesis | ✅ Active |
+| **VEED.IO** | Alternative video translation/editing | ✅ Available |
 
-**Translation:**
-25. **translated_scripts** - Multi-language scripts
-26. **translation_exports** - Export history
+---
 
-And 35+ more tables for comprehensive production management...
+## Tech Stack
 
-## Next Steps: AI Integration
+| Layer | Technology |
+|---|---|
+| **UI Framework** | React 18 + TypeScript |
+| **Build Tool** | Vite 5 |
+| **Styling** | Tailwind CSS 3 |
+| **Icons** | Lucide React |
+| **Backend / Database** | Supabase (PostgreSQL + RLS + Edge Functions) |
+| **PDF Generation** | jsPDF |
+| **PDF Viewing** | pdfjs-dist |
+| **DOCX Parsing** | Mammoth |
+| **Linting** | ESLint + TypeScript ESLint |
+| **Node** | ≥ 18.0.0 |
 
-### 1. Vertex AI Integration (Gemini 3)
+---
 
-**Script Generation:**
-```typescript
-// src/services/vertexai/scriptGeneration.ts
-import { VertexAI } from '@google-cloud/vertexai';
+## Architecture
 
-export async function generateScript(params: {
-  characters: Character[];
-  theme: string;
-  vocabularyWords: string[];
-  plotSummary: string;
-}) {
-  const vertex = new VertexAI({
-    project: process.env.GCP_PROJECT_ID,
-    location: process.env.GCP_LOCATION,
-  });
-
-  const model = vertex.preview.getGenerativeModel({
-    model: 'gemini-3-pro',
-  });
-
-  const prompt = buildScriptPrompt(params);
-  const result = await model.generateContent(prompt);
-
-  return parseScriptResponse(result.response.text());
-}
+```
+src/
+├── components/          # 114 React components
+│   ├── Layout.tsx                    # App shell and navigation
+│   ├── Dashboard.tsx                 # Production overview
+│   ├── Characters.tsx                # Character management
+│   ├── Scripts.tsx                   # Script browser and editor
+│   ├── ScriptViewerModal.tsx         # Script viewer with tabbed tools
+│   ├── Episodes.tsx                  # Episode tracking
+│   ├── Production.tsx                # Video production workflow
+│   ├── Assets.tsx                    # Asset library
+│   ├── StoryboardViewer.tsx          # Storyboard review
+│   ├── SyntheticAudiencePanel.tsx    # AI focus group testing
+│   ├── CitationManager.tsx           # Citation management
+│   ├── AccuracyCheckPanel.tsx        # Fact-checking panel
+│   ├── PatentApplication.tsx         # Patent application wizard
+│   ├── PatentFilingTab.tsx           # USPTO filing workflow
+│   ├── MissionControlPanel.tsx       # Workspace mission editor
+│   ├── HeyGenConfigPanel.tsx         # HeyGen configuration
+│   ├── VideoAssemblyPanel.tsx        # Shotstack assembly panel
+│   ├── PromptLibrary.tsx             # Prompt management
+│   ├── LipSyncManager.tsx            # Lip-sync tracking
+│   ├── EpisodeProfitAnalytics.tsx    # LTV analytics
+│   ├── Settings.tsx                  # Platform configuration
+│   ├── WorkspaceSpecificSettings.tsx # Per-workspace settings
+│   └── [90+ more components]
+│
+├── services/            # 87 service modules
+│   ├── geminiService.ts                    # Gemini text generation
+│   ├── geminiUsageTrackingService.ts       # API usage monitoring
+│   ├── vertexAIService.ts                  # Veo video generation
+│   ├── elevenLabsService.ts                # Voice synthesis
+│   ├── chatterboxService.ts                # Self-hosted TTS
+│   ├── heygenVideoTranslationService.ts    # HeyGen translation
+│   ├── heygenConfigService.ts              # HeyGen config & quota
+│   ├── videoAssemblyService.ts             # Shotstack assembly
+│   ├── lipSyncService.ts                   # Lip-sync orchestration
+│   ├── syntheticAudienceService.ts         # AI focus groups
+│   ├── citationService.ts                  # Citation management
+│   ├── accuracyCheckService.ts             # Fact checking
+│   ├── missionService.ts                   # Mission control
+│   ├── patentApplicationService.ts         # Patent workflow
+│   ├── patentClaimsService.ts              # Claims drafting
+│   ├── patentSpecificationGenerationService.ts
+│   ├── patentDrawingsService.ts
+│   ├── patentNoveltyAnalysisService.ts
+│   ├── usptoFormGeneratorService.ts
+│   ├── filingFeeService.ts
+│   ├── copyrightApplicationService.ts
+│   ├── trademarkApplicationService.ts
+│   ├── promptLibraryService.ts
+│   ├── scriptTranslationService.ts
+│   ├── costCalculationService.ts
+│   ├── ltvCalculationService.ts
+│   ├── storyboardService.ts
+│   ├── shotListGeneratorService.ts
+│   ├── batchManagementService.ts
+│   └── [60+ more services]
+│
+├── contexts/
+│   ├── AuthContext.tsx           # Authentication state
+│   ├── OrganizationContext.tsx   # Organisation and workspace state
+│   └── NotificationContext.tsx  # Toast notifications
+│
+├── hooks/
+│   ├── useWorkspaceCapabilities.ts  # Feature flag resolution
+│   └── [other custom hooks]
+│
+├── lib/
+│   ├── supabase.ts          # Supabase client
+│   └── database.types.ts   # Auto-generated DB types
+│
+└── types/                   # Shared TypeScript types
 ```
 
-**Image Generation:**
-```typescript
-// Character reference images
-// Scene backgrounds
-// Word manifestations (visual representations of words)
+---
+
+## Environment Variables
+
+```env
+# Required
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+
+# AI / Generation
+VITE_GEMINI_API_KEY=your-gemini-api-key
+VITE_VERTEX_AI_PROJECT_ID=your-gcp-project-id
+VITE_VERTEX_AI_LOCATION=us-central1
+VITE_VERTEX_AI_CLOUD_STORAGE_BUCKET=your-gcs-bucket
+
+# Voice Synthesis
+VITE_ELEVENLABS_API_KEY=your-elevenlabs-key
+VITE_CHATTERBOX_SERVER_URL=http://localhost:8001   # Optional, self-hosted TTS
+
+# Video Services (can also be configured per-organisation in Settings)
+VITE_SHOTSTACK_API_KEY=your-shotstack-key
+VITE_SHOTSTACK_SANDBOX=false
+
+# Optional
+VITE_VEED_API_KEY=your-veed-key
+VITE_SYNC_LABS_API_KEY=your-synclabs-key
+VITE_VERTEX_AI_DEFAULT_MODEL=veo-3.0-generate-001
 ```
 
-### 2. Veo 3 Integration
+> **Note:** HeyGen and SyncLabs API keys can also be configured per-organisation directly in Settings → Organisation, without needing environment variables.
 
-**Video Generation:**
-```typescript
-// src/services/vertexai/videoGeneration.ts
-// Generate claymation-style animated clips from static images
-// Apply squash-and-stretch effects
-// Character movement and expression animation
-```
-
-### 3. Eleven Labs Integration
-
-**Voice Synthesis:**
-```typescript
-// src/services/elevenlabs/voiceGeneration.ts
-import { ElevenLabsClient } from 'elevenlabs';
-
-export async function generateVoice(params: {
-  text: string;
-  voiceId: string;
-  emotion: string;
-}) {
-  const client = new ElevenLabsClient({
-    apiKey: process.env.ELEVENLABS_API_KEY,
-  });
-
-  const audio = await client.generate({
-    voice: params.voiceId,
-    text: params.text,
-    model_id: 'eleven_multilingual_v2',
-  });
-
-  return audio;
-}
-```
-
-### 4. Production Workflow Automation
-
-**Complete Pipeline:**
-1. Generate script with Gemini 3
-2. Break down into scenes and shots
-3. Generate character images for each shot
-4. Generate background images
-5. Generate voice recordings for all dialogue
-6. Generate video clips with Veo 3
-7. Assemble final episode
-
-**Implementation Location:**
-```typescript
-// src/services/production/pipeline.ts
-export async function produceEpisode(scriptId: string) {
-  // Step-by-step automated production
-}
-```
-
-### 5. Supabase Edge Functions
-
-Create Edge Functions for secure API integrations:
-
-```bash
-# Create function for script generation
-supabase functions new generate-script
-
-# Create function for image generation
-supabase functions new generate-image
-
-# Create function for video generation
-supabase functions new generate-video
-
-# Create function for voice generation
-supabase functions new generate-voice
-```
+---
 
 ## Running the Application
 
@@ -278,133 +272,49 @@ npm install
 # Start development server
 npm run dev
 
+# Type-check
+npx tsc --noEmit
+
 # Build for production
 npm run build
+
+# Preview production build
+npm run preview
 ```
 
-## Environment Variables
+### Self-hosted Chatterbox TTS (optional)
 
-The following environment variables are already configured:
-
-```env
-VITE_SUPABASE_URL=your-supabase-url
-VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+```bash
+cd python-tts-server
+pip install -r requirements.txt
+python server.py
+# Runs on http://localhost:8001
 ```
-
-Add these for full AI integration:
-
-```env
-GCP_PROJECT_ID=your-gcp-project
-GCP_LOCATION=us-central1
-ELEVENLABS_API_KEY=your-elevenlabs-key
-```
-
-## Architecture
-
-```
-src/
-├── components/          # 50+ React components
-│   ├── Layout.tsx       # Main app layout with navigation
-│   ├── Dashboard.tsx    # Dashboard with IP sections
-│   ├── Characters.tsx   # Character management
-│   ├── Scripts.tsx      # Script browser and editor
-│   ├── Episodes.tsx     # Episode creation and tracking
-│   ├── Production.tsx   # Video production workflow
-│   ├── Assets.tsx       # Asset library
-│   ├── StoryboardViewer.tsx  # Storyboard review
-│   ├── OrganizationSwitcher.tsx  # Workspace selector
-│   ├── CreateWorkspaceModal.tsx  # Workspace creation
-│   ├── PromptLibrary.tsx         # Prompt management
-│   ├── VoiceGenerationTab.tsx    # Voice synthesis
-│   ├── ScriptTranslationManager.tsx  # Translation
-│   ├── LipSyncManager.tsx       # Lip sync tracking
-│   ├── EpisodeProfitAnalytics.tsx  # LTV analytics
-│   ├── Settings.tsx     # Configuration
-│   └── [35+ more components]
-│
-├── services/            # 25+ Business logic services
-│   ├── vertexAIService.ts       # Veo 3 integration
-│   ├── geminiService.ts         # Script generation
-│   ├── elevenLabsService.ts     # Voice synthesis
-│   ├── chatterboxService.ts     # Alternative TTS
-│   ├── shotListGeneratorService.ts  # Shot generation
-│   ├── batchManagementService.ts    # Batch processing
-│   ├── promptLibraryService.ts      # Prompt management
-│   ├── scriptTranslationService.ts  # Translation
-│   ├── costCalculationService.ts    # Cost tracking
-│   ├── ltvCalculationService.ts     # LTV analytics
-│   ├── lipSyncService.ts        # Lip sync management
-│   ├── storyboardService.ts     # Storyboard generation
-│   └── [15+ more services]
-│
-├── contexts/
-│   ├── AuthContext.tsx          # Authentication state
-│   ├── OrganizationContext.tsx  # Organization state
-│   └── NotificationContext.tsx  # Toast notifications
-│
-├── lib/
-│   ├── supabase.ts      # Supabase client
-│   └── database.types.ts # Generated TypeScript types
-│
-└── utils/
-    └── sampleData.ts    # Sample data generators
-```
-
-## Design Philosophy
-
-- **Clay-Themed UI**: Warm amber/orange color palette matching claymation aesthetic
-- **Production-Ready**: Complete workflow from concept to final video
-- **Reusable Assets**: All generated content stored for reuse
-- **Cost Tracking**: Monitor AI service costs throughout production
-- **Scalable**: Support for multiple series and seasons
-
-## Sample Script Format
-
-The platform is designed to work with the script format provided:
-- 22-minute runtime (3 acts)
-- Commercial break structure
-- Character-driven dialogue
-- Spelling bee vocabulary integration
-- Claymation-specific stage directions
-
-## Technologies Used
-
-- **React 18** with TypeScript
-- **Vite** for build tooling
-- **Tailwind CSS** for styling
-- **Supabase** for backend
-- **Lucide React** for icons
-- **Google Cloud Vertex AI** (ready for integration)
-- **Eleven Labs** (ready for integration)
-
-## Contributing
-
-The foundation is complete. Next steps for contributors:
-
-1. Implement Vertex AI Gemini 3 script generation
-2. Add image generation with style consistency
-3. Integrate Veo 3 for video generation
-4. Connect Eleven Labs for voice synthesis
-5. Build automated production pipeline
-6. Add video editing and assembly tools
-
-## License
-
-This is a production platform for creating content using the Scripps National Spelling Bee IP.
 
 ---
 
-**Status**: Production-Ready Platform with Full AI Integration
+## Database
 
-The application is a complete, production-ready animation platform with:
-- Comprehensive multi-workspace architecture
-- Full AI integration (Gemini, Vertex AI Veo 3, ElevenLabs)
-- Advanced prompt management system
-- Complete production pipeline from script to final video
-- Cost tracking and analytics
-- Multi-language support
-- 60+ database tables
-- 50+ React components
-- 25+ service modules
+BeeStudio uses Supabase (PostgreSQL) with Row Level Security enforced on every table. Key table groups:
 
-Ready for deployment and commercial use in animation production workflows.
+| Group | Tables |
+|---|---|
+| Multi-tenancy | `organizations`, `organization_members`, `organization_invitations` |
+| Content | `series`, `characters`, `scripts`, `episodes`, `assets` |
+| Production | `shot_plans`, `rendering_batches`, `rendering_jobs`, `storyboards`, `storyboard_shots` |
+| Audience Testing | `synthetic_focus_groups`, `audience_panels` |
+| Accuracy & Citations | `accuracy_checks`, `citations` |
+| Patent / IP | `patent_applications`, `patent_claims`, `patent_drawings`, `copyright_applications`, `trademark_applications` |
+| Prompt Management | `prompt_templates`, `prompt_template_versions`, `prompt_enhancement_history` |
+| Voice & Audio | `dialogue_audio`, `lip_sync_jobs`, `voice_cloning_models` |
+| Analytics | `episode_ltv_metrics`, `creator_cost_settings`, `gemini_api_usage`, `episode_progress` |
+| Translation | `translated_scripts`, `translation_exports` |
+| Configuration | `workspace_type_configs`, `workspace_missions` |
+
+Full schema with 40+ tables, foreign keys, indexes, and RLS policies is managed via Supabase migrations.
+
+---
+
+## License
+
+Proprietary — all rights reserved.
