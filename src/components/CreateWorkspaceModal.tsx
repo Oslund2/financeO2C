@@ -22,7 +22,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { X, Building2, Loader2, Check, AlertCircle, Palette, Film, Video, Layers } from 'lucide-react';
+import { X, Building2, Loader2, Check, AlertCircle, Palette, Film, Video, Layers, Megaphone } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -31,7 +31,7 @@ interface CreateWorkspaceModalProps {
   onCreate: (organizationId: string) => void;
 }
 
-type WorkspaceType = 'claymation' | 'photoreal' | 'documentary' | 'general';
+type WorkspaceType = 'claymation' | 'photoreal' | 'documentary' | 'general' | 'commercial';
 
 interface WorkspaceTypeConfig {
   value: WorkspaceType;
@@ -41,22 +41,24 @@ interface WorkspaceTypeConfig {
   icon: typeof Palette;
   color: string;
   bgGradient: string;
+  badge?: string;
 }
 
 const WORKSPACE_TYPES: WorkspaceTypeConfig[] = [
   {
-    value: 'claymation',
-    label: 'Claymation Animation',
-    description: 'Stop-motion style animation with clay characters',
-    features: ['Vocabulary Randomizer', 'Clay Texture Settings', 'Spelling Word Integration'],
-    icon: Palette,
+    value: 'commercial',
+    label: 'Commercial & Promo',
+    description: 'Ad spots, branded content, and promos — brief to deliverables in hours',
+    features: ['AI Concept Generator', ':10/:15/:30 Spot Formats', 'Auto Variant Cutdowns', 'Project Fee Economics'],
+    icon: Megaphone,
     color: 'amber',
-    bgGradient: 'from-amber-500 to-orange-600',
+    bgGradient: 'from-amber-500 to-orange-500',
+    badge: 'New',
   },
   {
     value: 'photoreal',
     label: 'Photorealistic',
-    description: 'Cinematic photorealistic historical content',
+    description: 'Cinematic live-action and photorealistic video production',
     features: ['Historical Fact Checker', 'Citation Manager', 'Period Accuracy'],
     icon: Film,
     color: 'blue',
@@ -65,19 +67,28 @@ const WORKSPACE_TYPES: WorkspaceTypeConfig[] = [
   {
     value: 'documentary',
     label: 'Documentary',
-    description: 'Documentary-style with interview formats',
+    description: 'Documentary-style storytelling with interview formats',
     features: ['Fact Checker', 'Archival Integration', 'Interview Format'],
     icon: Video,
     color: 'emerald',
     bgGradient: 'from-emerald-500 to-green-600',
   },
   {
+    value: 'claymation',
+    label: 'Claymation Animation',
+    description: 'Stop-motion style animation with clay characters',
+    features: ['Vocabulary Randomizer', 'Clay Texture Settings', 'Spelling Word Integration'],
+    icon: Palette,
+    color: 'orange',
+    bgGradient: 'from-orange-400 to-red-500',
+  },
+  {
     value: 'general',
     label: 'General Purpose',
-    description: 'Flexible workspace for various content types',
+    description: 'Flexible workspace with no style constraints',
     features: ['All Features Available', 'No Style Constraints'],
     icon: Layers,
-    color: 'indigo',
+    color: 'slate',
     bgGradient: 'from-slate-500 to-slate-600',
   },
 ];
@@ -274,10 +285,34 @@ export function CreateWorkspaceModal({ onClose, onCreate }: CreateWorkspaceModal
                         disabled={loading}
                         className={`relative text-left p-5 border-2 rounded-xl transition-all ${
                           isSelected
-                            ? `border-${type.color}-500 bg-${type.color}-50 shadow-lg ring-2 ring-${type.color}-200`
+                            ? 'border-amber-500 bg-amber-50 shadow-lg ring-2 ring-amber-200'
                             : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 hover:shadow-md'
                         } disabled:opacity-50 disabled:cursor-not-allowed`}
+                        style={isSelected ? {
+                          borderColor: type.value === 'commercial' ? '#f59e0b'
+                            : type.value === 'photoreal' ? '#3b82f6'
+                            : type.value === 'documentary' ? '#10b981'
+                            : type.value === 'claymation' ? '#f97316'
+                            : '#64748b',
+                          backgroundColor: type.value === 'commercial' ? '#fffbeb'
+                            : type.value === 'photoreal' ? '#eff6ff'
+                            : type.value === 'documentary' ? '#f0fdf4'
+                            : type.value === 'claymation' ? '#fff7ed'
+                            : '#f8fafc',
+                          boxShadow: '0 0 0 3px ' + (
+                            type.value === 'commercial' ? '#fde68a'
+                            : type.value === 'photoreal' ? '#bfdbfe'
+                            : type.value === 'documentary' ? '#bbf7d0'
+                            : type.value === 'claymation' ? '#fed7aa'
+                            : '#e2e8f0'
+                          ),
+                        } : {}}
                       >
+                        {type.badge && (
+                          <span className="absolute top-3 right-3 px-2 py-0.5 bg-amber-500 text-white text-xs font-bold rounded-full">
+                            {type.badge}
+                          </span>
+                        )}
                         <div className="flex items-start gap-4">
                           <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${type.bgGradient} flex items-center justify-center flex-shrink-0 shadow-md`}>
                             <Icon className="w-6 h-6 text-white" />
@@ -286,7 +321,7 @@ export function CreateWorkspaceModal({ onClose, onCreate }: CreateWorkspaceModal
                             <div className="flex items-center gap-2 mb-1">
                               <h3 className="font-bold text-gray-900">{type.label}</h3>
                               {isSelected && (
-                                <div className={`w-5 h-5 rounded-full bg-${type.color}-500 flex items-center justify-center`}>
+                                <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
                                   <Check className="w-3 h-3 text-white" />
                                 </div>
                               )}
@@ -297,12 +332,10 @@ export function CreateWorkspaceModal({ onClose, onCreate }: CreateWorkspaceModal
                                 <span
                                   key={idx}
                                   className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-                                    isSelected
-                                      ? `bg-${type.color}-100 text-${type.color}-700`
-                                      : 'bg-gray-100 text-gray-600'
+                                    isSelected ? 'bg-white text-gray-700 border border-gray-200' : 'bg-gray-100 text-gray-600'
                                   }`}
                                 >
-                                  <Check className="w-3 h-3" />
+                                  <Check className="w-3 h-3 text-green-500" />
                                   {feature}
                                 </span>
                               ))}
@@ -330,7 +363,13 @@ export function CreateWorkspaceModal({ onClose, onCreate }: CreateWorkspaceModal
                   onChange={(e) => setWorkspaceName(e.target.value)}
                   disabled={loading}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed text-base"
-                  placeholder={workspaceType === 'claymation' ? 'My Animation Studio' : workspaceType === 'photoreal' ? 'History Documentary' : 'My Workspace'}
+                  placeholder={
+                    workspaceType === 'commercial' ? 'Acme Brand — Q1 Campaign'
+                    : workspaceType === 'claymation' ? 'My Animation Studio'
+                    : workspaceType === 'photoreal' ? 'History Documentary'
+                    : workspaceType === 'documentary' ? 'My Documentary Series'
+                    : 'My Workspace'
+                  }
                   maxLength={100}
                   autoFocus
                 />
