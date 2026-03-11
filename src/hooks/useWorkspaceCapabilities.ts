@@ -26,6 +26,7 @@ export interface WorkspaceFeatures {
   period_accuracy: boolean | WorkspaceFeatureConfig;
   children_format: boolean | WorkspaceFeatureConfig;
   clay_video_style: boolean | WorkspaceFeatureConfig;
+  synthetic_audience_testing: boolean | WorkspaceFeatureConfig;
 }
 
 export interface WorkspaceSettings {
@@ -72,6 +73,7 @@ const DEFAULT_FEATURES: WorkspaceFeatures = {
   period_accuracy: false,
   children_format: false,
   clay_video_style: false,
+  synthetic_audience_testing: false,
 };
 
 function isFeatureEnabledValue(feature: boolean | WorkspaceFeatureConfig | undefined): boolean {

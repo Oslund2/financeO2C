@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
-import { X, FileText, Clock, Sparkles, Calendar, Tag, Globe, Printer, ChevronDown, ChevronUp, Info, BookOpen, CheckCircle } from 'lucide-react';
+import { X, FileText, Clock, Sparkles, Calendar, Tag, Globe, Printer, ChevronDown, ChevronUp, Info, BookOpen, CheckCircle, Users } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { ScriptTranslationManager } from './ScriptTranslationManager';
 import CitationManager from './CitationManager';
 import AccuracyCheckPanel from './AccuracyCheckPanel';
+import SyntheticAudiencePanel from './SyntheticAudiencePanel';
+import ScriptCompareModal from './ScriptCompareModal';
 import { useWorkspaceCapabilities } from '../hooks/useWorkspaceCapabilities';
 import { citationService } from '../services/citationService';
 import { accuracyCheckService } from '../services/accuracyCheckService';
+import type { FocusGroup } from '../services/syntheticAudienceService';
 
 type Script = Database['public']['Tables']['scripts']['Row'];
 
@@ -41,7 +44,8 @@ export function ScriptViewerModal({ script, onClose, onEdit }: ScriptViewerModal
   const [acts, setActs] = useState<Act[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeAct, setActiveAct] = useState<number>(0);
-  const [viewMode, setViewMode] = useState<'script' | 'translations' | 'citations' | 'accuracy'>('script');
+  const [viewMode, setViewMode] = useState<'script' | 'translations' | 'citations' | 'accuracy' | 'audience'>('script');
+  const [compareGroup, setCompareGroup] = useState<FocusGroup | null>(null);
   const [metadataExpanded, setMetadataExpanded] = useState(false);
   const [citationCount, setCitationCount] = useState(0);
   const [accuracyStatus, setAccuracyStatus] = useState<string>('not_checked');
@@ -49,6 +53,7 @@ export function ScriptViewerModal({ script, onClose, onEdit }: ScriptViewerModal
   const { isFeatureEnabled, isPhotoreal } = useWorkspaceCapabilities();
   const showCitations = isFeatureEnabled('citation_manager');
   const showAccuracyCheck = isFeatureEnabled('historical_fact_checker');
+  const showAudience = isFeatureEnabled('synthetic_audience_testing');
 
   useEffect(() => {
     loadScriptContent();
@@ -403,6 +408,19 @@ export function ScriptViewerModal({ script, onClose, onEdit }: ScriptViewerModal
                     )}
                   </button>
                 )}
+                {showAudience && (
+                  <button
+                    onClick={() => setViewMode('audience')}
+                    className={`flex items-center gap-2 px-4 py-2 font-medium transition-all rounded-t-lg ${
+                      viewMode === 'audience'
+                        ? 'text-scripps-blue bg-blue-50 border-t-2 border-x-2 border-scripps-blue'
+                        : 'text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Users className="w-4 h-4" />
+                    Audience
+                  </button>
+                )}
               </div>
 
               {viewMode === 'script' && (
@@ -521,6 +539,14 @@ export function ScriptViewerModal({ script, onClose, onEdit }: ScriptViewerModal
                     console.log('Script regeneration requested');
                   }}
                 />
+              ) : viewMode === 'audience' ? (
+                <SyntheticAudiencePanel
+                  scriptId={script.id}
+                  organizationId={script.organization_id || undefined}
+                  scriptContent={acts.length > 0 ? { title: script.title, acts } : undefined}
+                  seriesId={script.series_id || undefined}
+                  onCompareRequest={(fg) => setCompareGroup(fg)}
+                />
               ) : null}
             </div>
           </>
@@ -554,6 +580,16 @@ export function ScriptViewerModal({ script, onClose, onEdit }: ScriptViewerModal
         </div>
       </div>
       </div>
+
+      {compareGroup && (
+        <ScriptCompareModal
+          focusGroup={compareGroup}
+          organizationId={script.organization_id || ''}
+          primaryScriptTitle={script.title}
+          onClose={() => setCompareGroup(null)}
+          onComplete={() => setCompareGroup(null)}
+        />
+      )}
 
       {/* Hidden print-only area with Table Read format */}
       <div id="script-print-area" style={{ display: 'none' }} className="print:block">
