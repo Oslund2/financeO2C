@@ -15,7 +15,12 @@ import {
   Wand2,
   BookOpen,
   TrendingUp,
+  Megaphone,
+  Lightbulb,
+  DollarSign,
+  Zap,
 } from 'lucide-react';
+import { useWorkspaceCapabilities } from '../hooks/useWorkspaceCapabilities';
 
 interface OnboardingFlowProps {
   onComplete: () => void;
@@ -31,6 +36,110 @@ interface OnboardingStep {
   features: { icon: typeof Check; text: string }[];
   tip?: string;
 }
+
+const COMMERCIAL_STEPS: OnboardingStep[] = [
+  {
+    id: 'welcome',
+    title: 'Welcome to Commercial & Promo',
+    description:
+      'Your AI-powered production studio for commercial spots, promos, and branded content. Go from brief to deliverables in hours, not weeks.',
+    icon: Megaphone,
+    iconBg: 'from-amber-500 to-orange-500',
+    features: [
+      { icon: Check, text: 'Photo-real, animated, and mixed-media spot production' },
+      { icon: Check, text: ':10, :15, and :30 spots with auto-generated variant cutdowns' },
+      { icon: Check, text: 'AI concept generation — 3 creative directions from one brief' },
+      { icon: Check, text: '90%+ margins vs. traditional agency production' },
+    ],
+  },
+  {
+    id: 'brief',
+    title: 'Start with a Campaign Brief',
+    description:
+      'Enter your client, product, objective, audience, key message, and CTA. The AI uses this brief to generate three distinct creative concepts for you to choose from — or skip straight to production if you already have a direction.',
+    icon: FileText,
+    iconBg: 'from-blue-500 to-cyan-500',
+    features: [
+      { icon: Check, text: 'Client, product, objective, audience, and CTA in one form' },
+      { icon: Check, text: 'Choose spot length: :10 bumper, :15 pre-roll, or :30 spot' },
+      { icon: Check, text: 'Brand tone, visual style, and mandatory elements built in' },
+      { icon: Check, text: 'Skip concept gate and go direct to production any time' },
+    ],
+    tip: 'The more specific your brief, the sharper your concepts. One key message — not three.',
+  },
+  {
+    id: 'concepts',
+    title: 'Choose a Creative Direction',
+    description:
+      'AI generates three distinct creative concepts — each with a logline, opening hook, key visual moment, CTA execution, and music direction. Select the one that fits, or skip if you already know your direction.',
+    icon: Lightbulb,
+    iconBg: 'from-yellow-500 to-amber-500',
+    features: [
+      { icon: Check, text: 'Three genuinely different creative approaches — not variations' },
+      { icon: Check, text: 'Each concept includes opening hook, key visual, and CTA' },
+      { icon: Check, text: 'Select a concept → full spot script generated immediately' },
+      { icon: Check, text: 'Skippable — come with a direction already? Go straight to script' },
+    ],
+    tip: 'Share the three concept cards with your client before entering production — saves revision rounds.',
+  },
+  {
+    id: 'talent',
+    title: 'Characters & Talent',
+    description:
+      'Characters are named recurring figures (brand mascots, spokespeople with identity). Talent profiles are unnamed types — "confident professional woman, 30s" — that drive image and video generation without locking you into a named cast.',
+    icon: Users,
+    iconBg: 'from-green-500 to-emerald-500',
+    features: [
+      { icon: Check, text: 'Named characters for recurring brand figures and mascots' },
+      { icon: Check, text: 'Talent profiles for typed/unnamed on-screen talent' },
+      { icon: Check, text: 'Physical descriptions drive photo-real image and video generation' },
+      { icon: Check, text: 'Both types integrate into concept scripts and storyboards' },
+    ],
+  },
+  {
+    id: 'variants',
+    title: 'Auto-Generate Variant Cutdowns',
+    description:
+      'Approve a :30 spot and the system automatically generates :15 and :10 cutdowns — preserving your key message and CTA, trimming the setup. Traditional agencies charge 40–60% of original cost per variant. You pay a fraction.',
+    icon: Zap,
+    iconBg: 'from-purple-500 to-indigo-500',
+    features: [
+      { icon: Check, text: ':30 approval triggers automatic :15 and :10 generation' },
+      { icon: Check, text: 'AI intelligently trims narrative, preserves core + CTA' },
+      { icon: Check, text: 'All three variants ready for broadcast, digital, and social' },
+      { icon: Check, text: '~90% cheaper than traditional variant production' },
+    ],
+    tip: 'One :30 concept → three deliverables (:30, :15, :10) for roughly 1.2× the cost of one.',
+  },
+  {
+    id: 'economics',
+    title: 'Project Economics & AI Advantage',
+    description:
+      'Track production costs, client billing, and gross margin per project. The AI Advantage panel shows exactly how much cheaper and faster your production is vs. a traditional agency — a ready-made client pitch.',
+    icon: DollarSign,
+    iconBg: 'from-teal-500 to-cyan-600',
+    features: [
+      { icon: Check, text: 'Project fee model: revenue minus AI + labor costs = margin' },
+      { icon: Check, text: 'Target ≥80% gross margin — platform designed for 90%+' },
+      { icon: Check, text: 'AI Advantage calculator: side-by-side vs. traditional agency' },
+      { icon: Check, text: 'Client pitch talking point built into the economics screen' },
+    ],
+  },
+  {
+    id: 'shortcuts',
+    title: 'Pro Tips',
+    description: 'Use keyboard shortcuts to move faster between campaigns, spots, and production.',
+    icon: Keyboard,
+    iconBg: 'from-gray-600 to-gray-800',
+    features: [
+      { icon: Command, text: 'Press Cmd/Ctrl + K to open the Command Palette' },
+      { icon: Check, text: 'Quick navigation between campaigns and spots' },
+      { icon: Check, text: 'Search across all briefs, scripts, and storyboards' },
+      { icon: Check, text: 'Keyboard-first workflow for power producers' },
+    ],
+    tip: 'The Command Palette is your fastest way to jump between active campaigns.',
+  },
+];
 
 const steps: OnboardingStep[] = [
   {
@@ -152,12 +261,14 @@ const steps: OnboardingStep[] = [
 ];
 
 export function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowProps) {
+  const { isCommercial } = useWorkspaceCapabilities();
+  const activeSteps = isCommercial ? COMMERCIAL_STEPS : steps;
   const [currentStep, setCurrentStep] = useState(0);
   const [isVisible, setIsVisible] = useState(true);
   const [isAnimating, setIsAnimating] = useState(false);
 
-  const step = steps[currentStep];
-  const isLastStep = currentStep === steps.length - 1;
+  const step = activeSteps[currentStep];
+  const isLastStep = currentStep === activeSteps.length - 1;
   const isFirstStep = currentStep === 0;
 
   const handleNext = () => {
@@ -224,7 +335,7 @@ export function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowProps) {
         <div className={`h-2 bg-gray-100`}>
           <div
             className="h-full bg-gradient-to-r from-scripps-blue to-scripps-light-blue transition-all duration-300"
-            style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
+            style={{ width: `${((currentStep + 1) / activeSteps.length) * 100}%` }}
           />
         </div>
 
@@ -235,7 +346,7 @@ export function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowProps) {
             </div>
             <div>
               <div className="text-sm text-gray-500 font-medium mb-1">
-                Step {currentStep + 1} of {steps.length}
+                Step {currentStep + 1} of {activeSteps.length}
               </div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">{step.title}</h2>
               <p className="text-gray-600">{step.description}</p>
@@ -299,7 +410,7 @@ export function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowProps) {
           </div>
 
           <div className="flex justify-center gap-2 mt-6">
-            {steps.map((_, index) => (
+            {activeSteps.map((_, index) => (
               <button
                 key={index}
                 onClick={() => {

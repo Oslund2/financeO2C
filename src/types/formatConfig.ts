@@ -1,4 +1,4 @@
-export type FormatType = 'broadcast' | 'streaming' | 'short_form' | 'medium_form' | 'custom';
+export type FormatType = 'broadcast' | 'streaming' | 'short_form' | 'medium_form' | 'custom' | 'spot';
 
 export type BreakType = 'commercial' | 'chapter' | 'end';
 
@@ -154,6 +154,52 @@ export const FORMAT_PRESETS: Record<string, FormatPreset> = {
     },
     typical_use_cases: ['Prime Time Drama', 'Cable Series'],
   },
+  // Commercial & Promo spot presets
+  spot_10: {
+    id: 'spot_10',
+    name: ':10 Bumper',
+    description: '10-second spot — bumper ads, pre-rolls, social stories',
+    format_type: 'spot',
+    program_length_minutes: 10 / 60,
+    total_episode_minutes: 10 / 60,
+    break_structure: {
+      segment_count: 1,
+      break_positions: [],
+      break_durations: [],
+      break_types: [],
+    },
+    typical_use_cases: ['Bumper Ads', 'Social Stories', 'Pre-Roll'],
+  },
+  spot_15: {
+    id: 'spot_15',
+    name: ':15 Spot',
+    description: '15-second spot — standard digital pre-roll, TikTok, Instagram Reels',
+    format_type: 'spot',
+    program_length_minutes: 15 / 60,
+    total_episode_minutes: 15 / 60,
+    break_structure: {
+      segment_count: 1,
+      break_positions: [],
+      break_durations: [],
+      break_types: [],
+    },
+    typical_use_cases: ['Digital Pre-Roll', 'TikTok', 'Instagram Reels', 'YouTube Bumper'],
+  },
+  spot_30: {
+    id: 'spot_30',
+    name: ':30 Spot',
+    description: '30-second spot — standard broadcast commercial, YouTube skippable',
+    format_type: 'spot',
+    program_length_minutes: 30 / 60,
+    total_episode_minutes: 30 / 60,
+    break_structure: {
+      segment_count: 1,
+      break_positions: [],
+      break_durations: [],
+      break_types: [],
+    },
+    typical_use_cases: ['Broadcast TV', 'Cable', 'YouTube Skippable', 'OTT/Streaming'],
+  },
 };
 
 export function getDefaultBreakStructure(segmentCount: number, totalBreakSeconds: number): BreakStructure {
@@ -245,6 +291,8 @@ export function getFormatBadgeColor(formatType: FormatType): string {
       return 'bg-green-100 text-green-700';
     case 'medium_form':
       return 'bg-orange-100 text-orange-700';
+    case 'spot':
+      return 'bg-amber-100 text-amber-700';
     case 'custom':
       return 'bg-gray-100 text-gray-700';
     default:
@@ -262,6 +310,8 @@ export function getFormatDisplayName(formatType: FormatType): string {
       return 'Short Form';
     case 'medium_form':
       return 'Medium Form';
+    case 'spot':
+      return 'Spot';
     case 'custom':
       return 'Custom';
     default:

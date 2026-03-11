@@ -3,6 +3,7 @@ import { useWorkspaceCapabilities } from '../hooks/useWorkspaceCapabilities';
 import { ClaymationSettings } from './ClaymationSettings';
 import { PhotorealSettings } from './PhotorealSettings';
 import { DocumentarySettings } from './DocumentarySettings';
+import { CommercialSettings } from './CommercialSettings';
 
 interface WorkspaceSpecificSettingsProps {
   expanded: boolean;
@@ -12,7 +13,7 @@ interface WorkspaceSpecificSettingsProps {
 export function WorkspaceSpecificSettings({ expanded, onToggle }: WorkspaceSpecificSettingsProps) {
   const { workspaceType, displayName, description, primaryColor } = useWorkspaceCapabilities();
 
-  if (workspaceType === 'general') {
+  if (workspaceType === 'general' || !workspaceType) {
     return null;
   }
 
@@ -24,6 +25,8 @@ export function WorkspaceSpecificSettings({ expanded, onToggle }: WorkspaceSpeci
         return 'from-blue-500 to-cyan-600';
       case 'documentary':
         return 'from-emerald-500 to-teal-600';
+      case 'commercial':
+        return 'from-amber-500 to-orange-600';
       default:
         return 'from-gray-500 to-gray-600';
     }
@@ -56,6 +59,7 @@ export function WorkspaceSpecificSettings({ expanded, onToggle }: WorkspaceSpeci
           {workspaceType === 'claymation' && <ClaymationSettings />}
           {workspaceType === 'photoreal' && <PhotorealSettings />}
           {workspaceType === 'documentary' && <DocumentarySettings />}
+          {workspaceType === 'commercial' && <CommercialSettings />}
         </div>
       )}
     </div>

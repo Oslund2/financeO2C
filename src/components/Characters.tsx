@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Search, Edit2, Copy, Trash2, Sparkles, X, Volume2, Film, Loader2, Copyright } from 'lucide-react';
+import { Plus, Search, Edit2, Copy, Trash2, Sparkles, X, Volume2, Film, Loader2, Copyright, User } from 'lucide-react';
 import { CharacterGenerationModal } from './CharacterGenerationModal';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
@@ -11,6 +11,7 @@ import { getVoiceService } from '../services/voiceService';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { useWorkspaceCapabilities } from '../hooks/useWorkspaceCapabilities';
+import { TalentProfiles } from './TalentProfiles';
 
 type Character = Database['public']['Tables']['characters']['Row'];
 
@@ -22,7 +23,8 @@ interface CharactersProps {
 export function Characters({ seriesId, onNavigate }: CharactersProps) {
   const { currentOrganization } = useOrganization();
   const { showError, showSuccess } = useNotification();
-  const { workspaceType, isClaymation, isPhotoreal } = useWorkspaceCapabilities();
+  const { workspaceType, isClaymation, isPhotoreal, isCommercial } = useWorkspaceCapabilities();
+  const [activeCharTab, setActiveCharTab] = useState<'characters' | 'talent'>('characters');
   const [characters, setCharacters] = useState<Character[]>([]);
   const [filteredCharacters, setFilteredCharacters] = useState<Character[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -328,6 +330,39 @@ export function Characters({ seriesId, onNavigate }: CharactersProps) {
           </div>
         ) : (
           <>
+            {/* Tab strip — only shown in commercial workspace */}
+            {isCommercial && (
+              <div className="flex gap-1 bg-gray-100 p-1 rounded-xl mb-6 w-fit">
+                <button
+                  onClick={() => setActiveCharTab('characters')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    activeCharTab === 'characters'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Characters
+                </button>
+                <button
+                  onClick={() => setActiveCharTab('talent')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    activeCharTab === 'talent'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <User className="w-4 h-4" />
+                  Talent Profiles
+                </button>
+              </div>
+            )}
+
+            {/* Talent Profiles tab content */}
+            {isCommercial && activeCharTab === 'talent' ? (
+              <TalentProfiles seriesId={seriesId} />
+            ) : (
+            <>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">Characters</h1>
@@ -722,6 +757,8 @@ export function Characters({ seriesId, onNavigate }: CharactersProps) {
         showEpisodeMeta={false}
         onCharactersSaved={() => loadCharacters()}
       />
+      </>
+      )}
       </div>
     </div>
   );

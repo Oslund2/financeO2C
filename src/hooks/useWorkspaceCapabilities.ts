@@ -27,6 +27,14 @@ export interface WorkspaceFeatures {
   children_format: boolean | WorkspaceFeatureConfig;
   clay_video_style: boolean | WorkspaceFeatureConfig;
   synthetic_audience_testing: boolean | WorkspaceFeatureConfig;
+  // Commercial & Promo features
+  concept_generator: boolean | WorkspaceFeatureConfig;
+  campaign_brief_intake: boolean | WorkspaceFeatureConfig;
+  variant_manager: boolean | WorkspaceFeatureConfig;
+  legal_compliance_checklist: boolean | WorkspaceFeatureConfig;
+  talent_profiles: boolean | WorkspaceFeatureConfig;
+  music_generation: boolean | WorkspaceFeatureConfig;
+  ai_advantage_calculator: boolean | WorkspaceFeatureConfig;
 }
 
 export interface WorkspaceSettings {
@@ -52,6 +60,7 @@ export interface WorkspaceCapabilities {
   getFeatureConfig: (featureName: keyof WorkspaceFeatures) => WorkspaceFeatureConfig | null;
   isPhotoreal: boolean;
   isClaymation: boolean;
+  isCommercial: boolean;
 }
 
 const DEFAULT_FEATURES: WorkspaceFeatures = {
@@ -74,6 +83,13 @@ const DEFAULT_FEATURES: WorkspaceFeatures = {
   children_format: false,
   clay_video_style: false,
   synthetic_audience_testing: false,
+  concept_generator: false,
+  campaign_brief_intake: false,
+  variant_manager: false,
+  legal_compliance_checklist: false,
+  talent_profiles: false,
+  music_generation: false,
+  ai_advantage_calculator: false,
 };
 
 function isFeatureEnabledValue(feature: boolean | WorkspaceFeatureConfig | undefined): boolean {
@@ -199,5 +215,6 @@ export function useWorkspaceCapabilities(): WorkspaceCapabilities {
     getFeatureConfig,
     isPhotoreal: workspaceType === 'photoreal',
     isClaymation: workspaceType === 'claymation',
+    isCommercial: workspaceType === 'commercial',
   };
 }
