@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Key, Database, Sparkles, ExternalLink, CheckCircle, XCircle, Info, BookOpen, ChevronDown, ChevronUp, Copy, Code, Layers, FileCode, Palette, Rocket, DollarSign, FolderTree, Building2, Film, Shield, Clock, AlertTriangle, History, Download, RefreshCw, Archive, Activity, Video, Mic2, Image, Zap, Hammer, Briefcase, Sliders, Globe, Brain, Volume2, Monitor, Languages, FileSearch, FileText, Printer, Loader2 } from 'lucide-react';
+import { Key, Database, Sparkles, ExternalLink, CheckCircle, XCircle, Info, BookOpen, ChevronDown, ChevronUp, Copy, Code, Layers, FileCode, Palette, Rocket, DollarSign, FolderTree, Building2, Film, Shield, Clock, AlertTriangle, History, Download, RefreshCw, Archive, Activity, Video, Mic2, Image, Zap, Hammer, Briefcase, Sliders, Globe, Brain, Volume2, Monitor, Languages, FileSearch, FileText, Printer, Loader2, Users } from 'lucide-react';
 import { getAPIKeyStatus, getConfigurationInstructions, getUserSettings, updateUserSettings, checkAllAPIHealth, type UserSettings, type AllAPIStatus, type APIHealthStatus } from '../services/settingsService';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { useNotification } from '../contexts/NotificationContext';
@@ -40,6 +40,7 @@ export function Settings() {
   const [heygenExpanded, setHeygenExpanded] = useState(false);
   const [patentSettingsExpanded, setPatentSettingsExpanded] = useState(false);
   const [releasesExpanded, setReleasesExpanded] = useState(false);
+  const [syntheticAudienceExpanded, setSyntheticAudienceExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState('how-to');
   const [copiedText, setCopiedText] = useState('');
 
@@ -1983,6 +1984,160 @@ export function Settings() {
             </button>
 
             {backupExpanded && <SettingsBackupPanel />}
+          </div>
+
+          {/* ── Synthetic Audience Testing README ── */}
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+            <button
+              onClick={() => setSyntheticAudienceExpanded(!syntheticAudienceExpanded)}
+              className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-600 rounded-lg flex items-center justify-center">
+                  <Users className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <h2 className="text-xl font-bold text-gray-900">Synthetic Audience Testing</h2>
+                  <p className="text-sm text-gray-600">How to run AI-powered focus groups on your scripts</p>
+                </div>
+              </div>
+              {syntheticAudienceExpanded ? (
+                <ChevronUp className="w-6 h-6 text-gray-400" />
+              ) : (
+                <ChevronDown className="w-6 h-6 text-gray-400" />
+              )}
+            </button>
+
+            {syntheticAudienceExpanded && (
+              <div className="border-t border-gray-200 p-6 space-y-6">
+
+                {/* What it does */}
+                <div className="bg-violet-50 border border-violet-200 rounded-lg p-5">
+                  <h3 className="font-semibold text-violet-900 mb-3 flex items-center gap-2">
+                    <Info className="w-4 h-4" />
+                    What is Synthetic Audience Testing?
+                  </h3>
+                  <p className="text-sm text-violet-800 leading-relaxed">
+                    Synthetic Audience Testing simulates a live focus group by generating AI personas who read and react to your script. Powered by Gemini AI, the process runs in four phases — analysing your script, building a custom audience, running an in-depth discussion, and producing a retention heatmap — so you can identify strengths and blind spots before a single frame is animated.
+                  </p>
+                </div>
+
+                {/* 4-phase breakdown */}
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-violet-600" />
+                    The Four-Phase Process
+                  </h3>
+                  <div className="space-y-3">
+                    {[
+                      {
+                        phase: 'Phase 1',
+                        title: 'Script Analysis',
+                        desc: 'The AI reads your script and extracts the core premise, tone, target demographic, and potentially polarising themes.',
+                        color: 'blue',
+                      },
+                      {
+                        phase: 'Phase 2',
+                        title: 'Audience Generation',
+                        desc: 'A panel of 5 diverse viewer personas is created — each with a name, age, location, viewing habits, and personal bias. You can review and edit any persona before continuing.',
+                        color: 'green',
+                      },
+                      {
+                        phase: 'Phase 3',
+                        title: 'Focus Group Discussion',
+                        desc: 'Personas react to hook moments, critique dialogue authenticity, and predict plot twists, giving you qualitative feedback on pacing and character voice.',
+                        color: 'amber',
+                      },
+                      {
+                        phase: 'Phase 4',
+                        title: 'Retention Heatmap',
+                        desc: 'Each persona scores pacing (1–10), character relatability (1–10), and answers whether they would watch episode 2, with a plain-language reason.',
+                        color: 'violet',
+                      },
+                    ].map(({ phase, title, desc, color }) => (
+                      <div key={phase} className={`bg-${color}-50 border border-${color}-200 rounded-lg p-4`}>
+                        <p className={`text-xs font-bold text-${color}-600 uppercase tracking-wide mb-1`}>{phase}</p>
+                        <p className={`font-semibold text-${color}-900 mb-1`}>{title}</p>
+                        <p className={`text-sm text-${color}-800`}>{desc}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* How to use */}
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Rocket className="w-4 h-4 text-violet-600" />
+                    How to Run a Focus Group
+                  </h3>
+                  <ol className="space-y-2 text-sm text-gray-700">
+                    {[
+                      'Open a script and switch to the Audience tab (the people icon in the script viewer toolbar).',
+                      'Click "New Focus Group" to start the wizard.',
+                      'Choose an existing Audience Panel or generate a fresh one for this script.',
+                      'Wait for Phase 1 (Script Analysis) to complete — this usually takes 15–30 seconds.',
+                      'Review the generated personas in Phase 2. Edit any name, bias, or viewing habit to better match your intended audience, then click "Confirm Audience".',
+                      'The discussion (Phase 3) and heatmap (Phase 4) run automatically. Progress is shown in real time.',
+                      'Once complete, review hook moments, dialogue critiques, twist predictions, and the retention heatmap.',
+                      'Optionally click "Compare" to run a head-to-head test between two script versions.',
+                    ].map((step, i) => (
+                      <li key={i} className="flex items-start gap-3">
+                        <span className="flex-shrink-0 w-6 h-6 bg-violet-100 text-violet-700 rounded-full flex items-center justify-center text-xs font-bold">
+                          {i + 1}
+                        </span>
+                        <span>{step}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+
+                {/* Audience Panels */}
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Briefcase className="w-4 h-4 text-violet-600" />
+                    Audience Panels (Reusable Panels)
+                  </h3>
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-700 space-y-2">
+                    <p>An <strong>Audience Panel</strong> is a saved set of personas you can reuse across multiple scripts. This is useful when you want consistent feedback from the same "audience" over time (e.g. your typical streaming demographic).</p>
+                    <ul className="space-y-1 ml-4">
+                      <li className="flex items-start gap-2"><span className="text-violet-500 mt-0.5">•</span><span>After confirming personas in Phase 2, check <em>"Save this audience as a panel"</em> and give it a name.</span></li>
+                      <li className="flex items-start gap-2"><span className="text-violet-500 mt-0.5">•</span><span>Saved panels appear in the dropdown when you start a new focus group.</span></li>
+                      <li className="flex items-start gap-2"><span className="text-violet-500 mt-0.5">•</span><span>Panels are shared across your whole organisation.</span></li>
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Head-to-head comparison */}
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-violet-600" />
+                    Head-to-Head Script Comparison
+                  </h3>
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-700 space-y-2">
+                    <p>Once a focus group is complete you can compare it against a second script version from the same series. The AI produces a side-by-side summary including:</p>
+                    <ul className="space-y-1 ml-4">
+                      <li className="flex items-start gap-2"><span className="text-violet-500 mt-0.5">•</span><span>Average pacing and relatability scores for each version</span></li>
+                      <li className="flex items-start gap-2"><span className="text-violet-500 mt-0.5">•</span><span>Episode-2 retention rates</span></li>
+                      <li className="flex items-start gap-2"><span className="text-violet-500 mt-0.5">•</span><span>Key differentiators and a recommended winner</span></li>
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Requirements */}
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <h3 className="font-semibold text-amber-900 mb-2 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4" />
+                    Requirements
+                  </h3>
+                  <ul className="text-sm text-amber-800 space-y-1">
+                    <li className="flex items-start gap-2"><span className="mt-0.5">•</span><span>A valid <strong>Gemini API key</strong> must be configured (see Gemini AI Settings above).</span></li>
+                    <li className="flex items-start gap-2"><span className="mt-0.5">•</span><span>The <em>Synthetic Audience Testing</em> feature must be enabled for your workspace type.</span></li>
+                    <li className="flex items-start gap-2"><span className="mt-0.5">•</span><span>Your script must have at least one act with content for the analysis to run.</span></li>
+                  </ul>
+                </div>
+
+              </div>
+            )}
           </div>
 
           <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
