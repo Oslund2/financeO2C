@@ -30,9 +30,10 @@ BeeStudio is a multi-tenant SaaS platform built on React + TypeScript with a Sup
 | **Claymation** | Stop-motion / claymation animation | Clay texture settings, miniature set designer, character rig library, spelling-word curriculum integration |
 | **Photoreal** | Live-action and photorealistic video | Realistic environment generation, period-accuracy checker, historical fact verification |
 | **Documentary** | Documentary and narrative non-fiction | Citation manager, archival integration, interview-format scripting, narration tools |
+| **Commercial & Promo** | Advertising spots and branded content | AI concept generator, :10/:15/:30 spot formats, auto-variant cutdowns, talent profiles, project fee economics, AI Advantage calculator |
 | **General** | Flexible baseline workspace | Full feature set without specialisation defaults |
 
-Workspace capabilities are controlled by per-organisation feature flags stored in `workspace_type_configs`, so the UI adapts automatically to each workspace type.
+Workspace capabilities are controlled by per-organisation feature flags stored in `workspace_type_configs`, so the UI adapts automatically to each workspace type. Terminology adapts per workspace too (e.g. Series→Campaign, Episode→Spot, Season→Flight for Commercial).
 
 ---
 
@@ -97,6 +98,15 @@ Define a workspace mission to drive AI behaviour across all modules:
 - Mission health scoring
 - Series-level sub-missions
 - Feature toggles driven by mission settings
+
+### Commercial & Promo Production
+Available when workspace type is set to **Commercial**:
+
+- **Concept Generator** — Multi-step brief intake form (client, product, objective, audience, CTA, brand tone, spot length) → AI generates 3 distinct creative concepts (logline, opening hook, key visual moment, CTA execution, music direction) → full scene-by-scene spot script → auto-generate :15 and :10 cutdowns from approved :30 (skippable at any stage)
+- **Talent Profiles** — Unnamed/typed spokesperson descriptions ("Confident professional woman, 30s, business casual") stored as reusable profiles that drive image and video generation without locking into a named cast. Fields: internal label, description, demographic, physical description, style notes, personality/performance notes, tags
+- **Commercial Economics** — Project fee P&L model: client billing inputs → per-spot cost breakdown (AI generation, human labor, music, legal/clearance, delivery, revision rounds, variant costs) → gross margin summary. Target ≥80% gross margin; platform designed for 90%+
+- **AI Advantage Calculator** — Side-by-side comparison of traditional agency costs vs. AI-assisted production for the selected spot length. Covers creative/concept, production, post, revisions, and variant costs. Ready-made client pitch data
+- **Commercial Settings** — Agency identity, default spot length, billing rate, markup %, revision round pricing, preferred music styles, visual style, brand safety level, default legal disclaimer
 
 ### Analytics & Economics
 - **Production Cost Tracking** — Cost per shot and per episode with Gemini API usage monitoring
@@ -179,7 +189,11 @@ src/
 │   ├── LipSyncManager.tsx            # Lip-sync tracking
 │   ├── EpisodeProfitAnalytics.tsx    # LTV analytics
 │   ├── Settings.tsx                  # Platform configuration
-│   ├── WorkspaceSpecificSettings.tsx # Per-workspace settings
+│   ├── WorkspaceSpecificSettings.tsx # Per-workspace settings dispatcher
+│   ├── CommercialSettings.tsx        # Commercial workspace settings (agency, billing, music, legal)
+│   ├── CommercialEconomics.tsx       # Project fee P&L + AI Advantage calculator
+│   ├── ConceptGenerator.tsx          # Brief → concepts → spot script → variant cutdowns
+│   ├── TalentProfiles.tsx            # Unnamed/typed talent CRUD
 │   └── [90+ more components]
 │
 ├── services/            # 87 service modules
@@ -220,7 +234,8 @@ src/
 │   └── NotificationContext.tsx  # Toast notifications
 │
 ├── hooks/
-│   ├── useWorkspaceCapabilities.ts  # Feature flag resolution
+│   ├── useWorkspaceCapabilities.ts  # Feature flag resolution + isCommercial
+│   ├── useWorkspaceLabels.ts        # Terminology layer (Series→Campaign, etc.)
 │   └── [other custom hooks]
 │
 ├── lib/
@@ -309,9 +324,115 @@ BeeStudio uses Supabase (PostgreSQL) with Row Level Security enforced on every t
 | Voice & Audio | `dialogue_audio`, `lip_sync_jobs`, `voice_cloning_models` |
 | Analytics | `episode_ltv_metrics`, `creator_cost_settings`, `gemini_api_usage`, `episode_progress` |
 | Translation | `translated_scripts`, `translation_exports` |
+| Commercial | `talent_profiles` |
 | Configuration | `workspace_type_configs`, `workspace_missions` |
 
 Full schema with 40+ tables, foreign keys, indexes, and RLS policies is managed via Supabase migrations.
+
+### Commercial Workspace — Required Migration
+
+To activate the Commercial & Promo workspace, run the following SQL in the Supabase SQL Editor:
+
+```sql
+-- 1. talent_profiles table
+CREATE TABLE IF NOT EXISTS public.talent_profiles (
+  id                   uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id      uuid NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
+  series_id            uuid REFERENCES public.series(id) ON DELETE SET NULL,
+  name                 text NOT NULL,
+  description          text NOT NULL DEFAULT '',
+  demographic          text NOT NULL DEFAULT '',
+  physical_description text NOT NULL DEFAULT '',
+  style_notes          text NOT NULL DEFAULT '',
+  personality_notes    text NOT NULL DEFAULT '',
+  image_url            text,
+  tags                 text[] NOT NULL DEFAULT '{}',
+  created_at           timestamptz NOT NULL DEFAULT now(),
+  updated_at           timestamptz NOT NULL DEFAULT now()
+);
+
+-- 2. Indexes
+CREATE INDEX IF NOT EXISTS talent_profiles_org_idx ON public.talent_profiles(organization_id);
+CREATE INDEX IF NOT EXISTS talent_profiles_series_idx ON public.talent_profiles(series_id);
+
+-- 3. Row Level Security
+ALTER TABLE public.talent_profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "org_members_select_talent_profiles" ON public.talent_profiles
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.organization_members om
+      WHERE om.organization_id = talent_profiles.organization_id
+        AND om.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "org_members_insert_talent_profiles" ON public.talent_profiles
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.organization_members om
+      WHERE om.organization_id = talent_profiles.organization_id
+        AND om.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "org_members_update_talent_profiles" ON public.talent_profiles
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM public.organization_members om
+      WHERE om.organization_id = talent_profiles.organization_id
+        AND om.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "org_members_delete_talent_profiles" ON public.talent_profiles
+  FOR DELETE USING (
+    EXISTS (
+      SELECT 1 FROM public.organization_members om
+      WHERE om.organization_id = talent_profiles.organization_id
+        AND om.user_id = auth.uid()
+    )
+  );
+
+-- 4. Auto-update trigger
+CREATE OR REPLACE FUNCTION public.update_talent_profiles_updated_at()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS set_talent_profiles_updated_at ON public.talent_profiles;
+CREATE TRIGGER set_talent_profiles_updated_at
+  BEFORE UPDATE ON public.talent_profiles
+  FOR EACH ROW EXECUTE FUNCTION public.update_talent_profiles_updated_at();
+
+-- 5. Insert commercial workspace config row
+INSERT INTO public.workspace_type_configs (
+  workspace_type, display_name, description, primary_color,
+  features, system_prompt_prefix
+)
+VALUES (
+  'commercial',
+  'Commercial & Promo',
+  'AI-powered production for advertising spots, promos, and branded content',
+  '#f59e0b',
+  '{
+    "concept_generator": true,
+    "campaign_brief_intake": true,
+    "variant_manager": true,
+    "legal_compliance_checklist": true,
+    "talent_profiles": true,
+    "music_generation": true,
+    "ai_advantage_calculator": true
+  }'::jsonb,
+  'You are a senior marketing and commercial production expert working for an agency that produces advertising spots and branded content for clients.'
+)
+ON CONFLICT (workspace_type) DO NOTHING;
+```
+
+> **Note on `workspace_type` column:** If your `workspace_type_configs` table uses a PostgreSQL enum for `workspace_type`, you will need to add `'commercial'` to the enum first: `ALTER TYPE workspace_type_enum ADD VALUE IF NOT EXISTS 'commercial';`
 
 ---
 
