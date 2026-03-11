@@ -8,6 +8,7 @@ import AccuracyCheckPanel from './AccuracyCheckPanel';
 import SyntheticAudiencePanel from './SyntheticAudiencePanel';
 import ScriptCompareModal from './ScriptCompareModal';
 import { useWorkspaceCapabilities } from '../hooks/useWorkspaceCapabilities';
+import { useOrganization } from '../contexts/OrganizationContext';
 import { citationService } from '../services/citationService';
 import { accuracyCheckService } from '../services/accuracyCheckService';
 import type { FocusGroup } from '../services/syntheticAudienceService';
@@ -51,6 +52,7 @@ export function ScriptViewerModal({ script, onClose, onEdit }: ScriptViewerModal
   const [accuracyStatus, setAccuracyStatus] = useState<string>('not_checked');
 
   const { isFeatureEnabled, isPhotoreal } = useWorkspaceCapabilities();
+  const { currentOrganization } = useOrganization();
   const showCitations = isFeatureEnabled('citation_manager');
   const showAccuracyCheck = isFeatureEnabled('historical_fact_checker');
   const showAudience = isFeatureEnabled('synthetic_audience_testing');
@@ -542,7 +544,7 @@ export function ScriptViewerModal({ script, onClose, onEdit }: ScriptViewerModal
               ) : viewMode === 'audience' ? (
                 <SyntheticAudiencePanel
                   scriptId={script.id}
-                  organizationId={script.organization_id || undefined}
+                  organizationId={script.organization_id || currentOrganization?.id || ''}
                   scriptContent={acts.length > 0 ? { title: script.title, acts } : undefined}
                   seriesId={script.series_id || undefined}
                   onCompareRequest={(fg) => setCompareGroup(fg)}
@@ -584,7 +586,7 @@ export function ScriptViewerModal({ script, onClose, onEdit }: ScriptViewerModal
       {compareGroup && (
         <ScriptCompareModal
           focusGroup={compareGroup}
-          organizationId={script.organization_id || ''}
+          organizationId={script.organization_id || currentOrganization?.id || ''}
           primaryScriptTitle={script.title}
           onClose={() => setCompareGroup(null)}
           onComplete={() => setCompareGroup(null)}
