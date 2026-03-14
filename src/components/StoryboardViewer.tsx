@@ -15,6 +15,7 @@ import { ImageVersionHistory } from './ImageVersionHistory';
 import { ApprovalWorkflow } from './ApprovalWorkflow';
 import { ManualReferenceUploadModal } from './ManualReferenceUploadModal';
 import { StoryboardReferenceSetup } from './StoryboardReferenceSetup';
+import { CharacterImage } from './CharacterImage';
 
 type Storyboard = Database['public']['Tables']['storyboards']['Row'];
 type StoryboardShot = Database['public']['Tables']['storyboard_shots']['Row'];
@@ -509,11 +510,12 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
                   className="cursor-pointer"
                 >
                   <div className="aspect-video bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center relative overflow-hidden">
-                    {shot.image_url ? (
-                      <img src={shot.image_url} alt={`Shot ${shot.shot_number}`} className="w-full h-full object-cover" />
-                    ) : (
-                      <Camera className="w-8 h-8 text-gray-400" />
-                    )}
+                    <CharacterImage
+                      url={shot.image_url}
+                      alt={`Shot ${shot.shot_number}`}
+                      className="w-full h-full object-cover"
+                      fallback={<Camera className="w-8 h-8 text-gray-400" />}
+                    />
                     <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
                       #{shot.shot_number}
                     </div>
@@ -728,7 +730,12 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
                 <div className="aspect-video bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex items-center justify-center mb-4 border-2 border-gray-300 relative overflow-hidden group">
                   {currentShot.image_url ? (
                     <>
-                      <img src={currentShot.image_url} alt={`Shot ${currentShot.shot_number}`} className="w-full h-full object-cover" />
+                      <CharacterImage
+                        url={currentShot.image_url}
+                        alt={`Shot ${currentShot.shot_number}`}
+                        className="w-full h-full object-cover"
+                        fallback={<Camera className="w-12 h-12 text-gray-400" />}
+                      />
                       <button
                         onClick={() => setZoomedImage(currentShot.image_url)}
                         className="absolute top-2 right-2 p-2 bg-black bg-opacity-50 hover:bg-opacity-75 text-white rounded-lg transition-all opacity-0 group-hover:opacity-100"
@@ -1021,10 +1028,11 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
             >
               {shot.image_url || shot.thumbnail_url ? (
                 <>
-                  <img
-                    src={shot.thumbnail_url || shot.image_url || ''}
+                  <CharacterImage
+                    url={shot.thumbnail_url || shot.image_url}
                     alt={`Shot ${shot.shot_number}`}
                     className="w-full h-full object-cover"
+                    fallback={<Camera className="w-6 h-6 text-gray-400" />}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                   <div className="absolute bottom-1 left-1 right-1 text-center">
@@ -1051,7 +1059,12 @@ export function StoryboardViewer({ storyboardId, onNavigate }: StoryboardViewerP
           onClick={() => setZoomedImage(null)}
         >
           <div className="relative max-w-7xl max-h-full">
-            <img src={zoomedImage} alt="Zoomed shot" className="max-w-full max-h-screen object-contain" />
+            <CharacterImage
+              url={zoomedImage}
+              alt="Zoomed shot"
+              className="max-w-full max-h-screen object-contain"
+              fallback={<div className="text-white text-lg">Image unavailable</div>}
+            />
             <button
               onClick={() => setZoomedImage(null)}
               className="absolute top-4 right-4 p-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white rounded-lg transition-all"

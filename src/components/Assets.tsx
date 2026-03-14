@@ -6,6 +6,7 @@ import { DeleteConfirmationModal } from './DeleteConfirmationModal';
 import { AssetUploadModal } from './AssetUploadModal';
 import AssetPreviewModal from './AssetPreviewModal';
 import { useOrganization } from '../contexts/OrganizationContext';
+import { CharacterImage } from './CharacterImage';
 
 type Asset = Database['public']['Tables']['assets']['Row'];
 
@@ -400,19 +401,21 @@ export function Assets({ seriesId }: AssetsProps) {
                       : 'bg-gradient-to-br from-gray-200 to-gray-300'
                   }`}>
                     {isImage && (asset.thumbnail_url || asset.file_url) && (
-                      <img
-                        src={asset.thumbnail_url || asset.file_url || ''}
+                      <CharacterImage
+                        url={asset.thumbnail_url || asset.file_url}
                         alt={asset.name}
                         className="w-full h-full object-cover"
+                        fallback={<Image className="w-12 h-12 text-gray-400" />}
                       />
                     )}
                     {isVideo && (
                       <>
                         {asset.file_url ? (
-                          <video
-                            src={asset.file_url}
+                          <CharacterImage
+                            url={asset.file_url}
+                            alt={asset.name}
                             className="w-full h-full object-cover"
-                            preload="metadata"
+                            fallback={<FileVideo className="w-12 h-12 text-gray-400" />}
                           />
                         ) : (
                           <FileVideo className="w-12 h-12 text-gray-400" />

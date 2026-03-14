@@ -994,11 +994,12 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
             {scene.props.map((prop) => (
               <div key={prop.id} className="relative">
                 <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
-                  {prop.file_url ? (
-                    <img src={prop.file_url} alt={prop.name} className="w-8 h-8 rounded object-cover" />
-                  ) : (
-                    <Package className="w-5 h-5 text-amber-600" />
-                  )}
+                  <CharacterImage
+                    url={prop.file_url}
+                    alt={prop.name}
+                    className="w-8 h-8 rounded object-cover"
+                    fallback={<Package className="w-5 h-5 text-amber-600" />}
+                  />
                   <span className="text-sm font-medium text-gray-900">{prop.name}</span>
                   <button
                     onClick={() => removeProp(prop.id)}

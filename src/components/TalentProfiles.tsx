@@ -3,6 +3,7 @@ import { Plus, Edit2, Trash2, User, Sparkles, X, Loader2, Image as ImageIcon } f
 import { supabase } from '../lib/supabase';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { useNotification } from '../contexts/NotificationContext';
+import { CharacterImage } from './CharacterImage';
 
 interface TalentProfile {
   id: string;
@@ -220,14 +221,17 @@ export function TalentProfiles({ seriesId }: TalentProfilesProps) {
             <div key={profile.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow">
               {/* Image placeholder */}
               <div className="h-32 bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center relative">
-                {profile.image_url ? (
-                  <img src={profile.image_url} alt={profile.name} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="flex flex-col items-center text-amber-400">
-                    <ImageIcon className="w-8 h-8 mb-1" />
-                    <span className="text-xs">No reference image</span>
-                  </div>
-                )}
+                <CharacterImage
+                  url={profile.image_url}
+                  alt={profile.name}
+                  className="w-full h-full object-cover"
+                  fallback={
+                    <div className="flex flex-col items-center text-amber-400">
+                      <ImageIcon className="w-8 h-8 mb-1" />
+                      <span className="text-xs">No reference image</span>
+                    </div>
+                  }
+                />
                 <div className="absolute top-2 right-2 flex gap-1">
                   <button
                     onClick={() => openEdit(profile)}
