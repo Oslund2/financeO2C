@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Users } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
+import { CharacterImage } from './CharacterImage';
 
 type Character = Database['public']['Tables']['characters']['Row'];
 
@@ -236,18 +237,17 @@ export function CastFilmStrip({ seriesId, onNavigate, seriesName }: CastFilmStri
                     <div className="w-20 h-24 bg-gray-800 rounded border-2 border-gray-600 overflow-hidden shadow-lg hover:shadow-2xl hover:border-gray-400 transition-all hover:scale-110 hover:z-10 relative">
                       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/50"></div>
 
-                      {character.reference_image_url ? (
-                        <img
-                          src={character.reference_image_url}
-                          alt={character.name}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-gray-700 flex items-center justify-center">
-                          <Users className="w-8 h-8 text-gray-500" />
-                        </div>
-                      )}
+                      <CharacterImage
+                        url={character.reference_image_url}
+                        alt={character.name}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                        fallback={
+                          <div className="w-full h-full bg-gray-700 flex items-center justify-center">
+                            <Users className="w-8 h-8 text-gray-500" />
+                          </div>
+                        }
+                      />
 
                       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-1.5">
                         <p className="text-white text-[10px] font-semibold leading-tight truncate text-center">

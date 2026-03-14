@@ -52,6 +52,7 @@ import { generateVeo3Prompt, type Veo3PromptConfig } from '../services/veo3Promp
 import { useOrganization } from '../contexts/OrganizationContext';
 import { useWorkspaceCapabilities } from '../hooks/useWorkspaceCapabilities';
 import { getVideoStylePromptForWorkspace } from '../services/workspacePromptService';
+import { CharacterImage } from './CharacterImage';
 
 type Asset = Database['public']['Tables']['assets']['Row'];
 type Character = Database['public']['Tables']['characters']['Row'];
@@ -844,17 +845,16 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
               {scene.characters.map((sc) => (
                 <div key={sc.id} className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                   <div className="flex items-start gap-3">
-                    {sc.character.reference_image_url ? (
-                      <img
-                        src={sc.character.reference_image_url}
-                        alt={sc.character.name}
-                        className="w-12 h-12 rounded-lg object-cover"
-                      />
-                    ) : (
-                      <div className="w-12 h-12 bg-blue-200 rounded-lg flex items-center justify-center">
-                        <Users className="w-6 h-6 text-blue-600" />
-                      </div>
-                    )}
+                    <CharacterImage
+                      url={sc.character.reference_image_url}
+                      alt={sc.character.name}
+                      className="w-12 h-12 rounded-lg object-cover"
+                      fallback={
+                        <div className="w-12 h-12 bg-blue-200 rounded-lg flex items-center justify-center">
+                          <Users className="w-6 h-6 text-blue-600" />
+                        </div>
+                      }
+                    />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
                         <h4 className="font-medium text-gray-900 truncate">{sc.character.name}</h4>
@@ -916,17 +916,16 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    {character.reference_image_url ? (
-                      <img
-                        src={character.reference_image_url}
-                        alt={character.name}
-                        className="w-8 h-8 rounded object-cover"
-                      />
-                    ) : (
-                      <div className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center">
-                        <Users className="w-4 h-4 text-gray-500" />
-                      </div>
-                    )}
+                    <CharacterImage
+                      url={character.reference_image_url}
+                      alt={character.name}
+                      className="w-8 h-8 rounded object-cover"
+                      fallback={
+                        <div className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center">
+                          <Users className="w-4 h-4 text-gray-500" />
+                        </div>
+                      }
+                    />
                     <span className="text-sm font-medium text-gray-900 truncate">{character.name}</span>
                   </div>
                 </button>
@@ -1631,17 +1630,16 @@ function AssetBrowser({ type, assets, characters, onSelect, onClose }: AssetBrow
                     onClick={() => onSelect(item)}
                     className="group relative rounded-lg overflow-hidden border-2 border-transparent hover:border-blue-500 transition-all"
                   >
-                    {imageUrl ? (
-                      <img
-                        src={imageUrl}
-                        alt={item.name}
-                        className="w-full h-32 object-cover group-hover:scale-105 transition-transform"
-                      />
-                    ) : (
-                      <div className="w-full h-32 bg-gray-100 flex items-center justify-center">
-                        <Icon className="w-10 h-10 text-gray-400" />
-                      </div>
-                    )}
+                    <CharacterImage
+                      url={imageUrl}
+                      alt={item.name}
+                      className="w-full h-32 object-cover group-hover:scale-105 transition-transform"
+                      fallback={
+                        <div className="w-full h-32 bg-gray-100 flex items-center justify-center">
+                          <Icon className="w-10 h-10 text-gray-400" />
+                        </div>
+                      }
+                    />
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
                       <div className="text-sm font-medium text-white truncate">{item.name}</div>
                     </div>

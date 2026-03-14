@@ -30,6 +30,7 @@ import type { CostComparison as CostComparisonType } from '../services/costCalcu
 import { calculateProductionCosts, type ScriptData } from '../services/costCalculationService';
 import { LTVCalculationService } from '../services/ltvCalculationService';
 import { analyzeRevenueProjection, type PLInsight } from '../services/economicsAIService';
+import { CharacterImage } from './CharacterImage';
 import jsPDF from 'jspdf';
 
 type Episode = Database['public']['Tables']['episodes']['Row'];
@@ -1201,19 +1202,18 @@ export function EpisodeProfitAnalytics({ seriesId }: EpisodeProfitAnalyticsProps
                     <User className="w-5 h-5 text-pink-700" />
                     <h3 className="text-lg font-bold text-gray-900">Featured Character</h3>
                   </div>
-                  {primaryCharacter.reference_image_url ? (
-                    <div className="mb-3">
-                      <img
-                        src={primaryCharacter.reference_image_url}
-                        alt={primaryCharacter.name}
-                        className="w-full h-40 object-cover rounded-lg border-2 border-pink-300"
-                      />
-                    </div>
-                  ) : (
-                    <div className="mb-3 w-full h-40 bg-pink-100 rounded-lg border-2 border-pink-300 flex items-center justify-center">
-                      <User className="w-16 h-16 text-pink-400" />
-                    </div>
-                  )}
+                  <div className="mb-3">
+                    <CharacterImage
+                      url={primaryCharacter.reference_image_url}
+                      alt={primaryCharacter.name}
+                      className="w-full h-40 object-cover rounded-lg border-2 border-pink-300"
+                      fallback={
+                        <div className="w-full h-40 bg-pink-100 rounded-lg border-2 border-pink-300 flex items-center justify-center">
+                          <User className="w-16 h-16 text-pink-400" />
+                        </div>
+                      }
+                    />
+                  </div>
                   <h4 className="font-bold text-gray-900 text-lg mb-1">{primaryCharacter.name}</h4>
                   {primaryCharacter.age && (
                     <p className="text-sm text-gray-600 mb-2">Age: {primaryCharacter.age}</p>

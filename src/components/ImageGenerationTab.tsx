@@ -29,6 +29,7 @@ import {
 import { useWorkspaceCapabilities } from '../hooks/useWorkspaceCapabilities';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { getStylePromptsForWorkspace } from '../services/workspacePromptService';
+import { CharacterImage } from './CharacterImage';
 
 type Asset = Database['public']['Tables']['assets']['Row'];
 type Character = Database['public']['Tables']['characters']['Row'];
@@ -594,10 +595,11 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
                     key={ref.id}
                     className="flex items-center gap-2 bg-white rounded-full pl-1 pr-2 py-1 border border-gray-200"
                   >
-                    <img
-                      src={ref.imageUrl}
+                    <CharacterImage
+                      url={ref.imageUrl}
                       alt={ref.name}
                       className="w-6 h-6 rounded-full object-cover"
+                      fallback={<div className="w-6 h-6 rounded-full bg-gray-200" />}
                     />
                     <span className="text-xs font-medium text-gray-700 max-w-[100px] truncate">
                       {ref.name}
@@ -629,10 +631,11 @@ export function ImageGenerationTab({ seriesId }: ImageGenerationTabProps) {
               const typeConfig = ASSET_TYPE_CONFIG[ref.type];
               return (
                 <div key={ref.id} className="relative group">
-                  <img
-                    src={ref.imageUrl}
+                  <CharacterImage
+                    url={ref.imageUrl}
                     alt={ref.name}
                     className={`w-full h-32 object-cover rounded-lg border-2 ${typeConfig.borderColor}`}
+                    fallback={<div className={`w-full h-32 bg-gray-100 rounded-lg border-2 ${typeConfig.borderColor} flex items-center justify-center`}><ImageIcon className="w-8 h-8 text-gray-400" /></div>}
                   />
                   <button
                     onClick={() => handleRemoveReference(ref.id)}
@@ -1016,17 +1019,16 @@ function ReferenceBrowser({ assets, characters, selectedRefs, onSelect, onClose 
                         itemSelected ? 'ring-2 ring-blue-500 ring-offset-2' : ''
                       }`}
                     >
-                      {imageUrl ? (
-                        <img
-                          src={imageUrl}
-                          alt={item.name}
-                          className="w-full h-36 object-cover group-hover:scale-105 transition-transform"
-                        />
-                      ) : (
-                        <div className="w-full h-36 bg-gray-100 flex items-center justify-center">
-                          <Users className="w-10 h-10 text-gray-400" />
-                        </div>
-                      )}
+                      <CharacterImage
+                        url={imageUrl}
+                        alt={item.name}
+                        className="w-full h-36 object-cover group-hover:scale-105 transition-transform"
+                        fallback={
+                          <div className="w-full h-36 bg-gray-100 flex items-center justify-center">
+                            <Users className="w-10 h-10 text-gray-400" />
+                          </div>
+                        }
+                      />
                       {itemSelected && (
                         <div className="absolute top-2 right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
                           <Check className="w-4 h-4 text-white" />

@@ -15,6 +15,7 @@ import {
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { ReferenceBrowser, type ReferenceImage, type AssetType } from './shared/ReferenceBrowser';
+import { CharacterImage } from './CharacterImage';
 import {
   getStoryboardReferenceSummary,
   linkCharacterToReference,
@@ -262,17 +263,16 @@ export function StoryboardReferenceSetup({
                     >
                       <div className="flex items-center gap-4">
                         <div className="relative">
-                          {ref.reference_image_url ? (
-                            <img
-                              src={ref.reference_image_url}
-                              alt={ref.character_name}
-                              className="w-16 h-16 rounded-lg object-cover"
-                            />
-                          ) : (
-                            <div className="w-16 h-16 rounded-lg bg-gray-200 flex items-center justify-center">
-                              <ImageIcon className="w-8 h-8 text-gray-400" />
-                            </div>
-                          )}
+                          <CharacterImage
+                            url={ref.reference_image_url}
+                            alt={ref.character_name}
+                            className="w-16 h-16 rounded-lg object-cover"
+                            fallback={
+                              <div className="w-16 h-16 rounded-lg bg-gray-200 flex items-center justify-center">
+                                <ImageIcon className="w-8 h-8 text-gray-400" />
+                              </div>
+                            }
+                          />
                           {ref.has_reference && (
                             <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
                               <CheckCircle className="w-3 h-3 text-white" />
