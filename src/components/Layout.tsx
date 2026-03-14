@@ -18,6 +18,7 @@ import {
   Command,
   Search,
   Video,
+  Scissors,
 } from 'lucide-react';
 import { Logo } from './Logo';
 import { OrganizationSwitcher } from './OrganizationSwitcher';
@@ -59,6 +60,7 @@ export function Layout({ children, currentView, onNavigate, currentSeriesId, onS
     { id: 'assets', label: 'Asset Library', icon: Image },
     { id: 'episodes', label: 'Episodes', icon: Film },
     { id: 'production', label: 'Production', icon: PlayCircle },
+    { id: 'ffmpeg-editor', label: 'FFmpeg Editor', icon: Scissors },
     { id: 'profit-per-episode', label: 'Production Economics', icon: TrendingUp },
     { id: 'ip-protection', label: 'IP Protection', icon: Shield },
   ];
