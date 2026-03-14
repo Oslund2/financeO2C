@@ -16,6 +16,8 @@
     "verify:setup": "bash scripts/verify-setup.sh"
   },
   "dependencies": {
+    "@ffmpeg/ffmpeg": "^0.12.15",
+    "@ffmpeg/util": "^0.12.2",
     "@supabase/supabase-js": "^2.57.4",
     "jspdf": "^3.0.4",
     "lucide-react": "^0.344.0",
