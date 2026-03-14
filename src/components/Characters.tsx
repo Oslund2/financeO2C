@@ -4,7 +4,6 @@ import { CharacterGenerationModal } from './CharacterGenerationModal';
 import { CharacterImage } from './CharacterImage';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
-import { resolveCharacterImageUrls } from '../utils/storageUrl';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
 import { VoiceSelector } from './VoiceSelector';
 import { VoiceCloningModal } from './VoiceCloningModal';
@@ -112,11 +111,8 @@ export function Characters({ seriesId, onNavigate }: CharactersProps) {
 
       if (error) throw error;
 
-      // Resolve signed URLs for all character images in parallel
-      const withSignedUrls = await resolveCharacterImageUrls(data || []);
-
       const roleOrder = { 'Primary': 1, 'Ensemble': 2, 'Recurring': 3, 'Cameo': 4 };
-      const sortedData = withSignedUrls.sort((a, b) => {
+      const sortedData = (data || []).sort((a, b) => {
         const roleA = roleOrder[a.role as keyof typeof roleOrder] || 999;
         const roleB = roleOrder[b.role as keyof typeof roleOrder] || 999;
         if (roleA !== roleB) {
