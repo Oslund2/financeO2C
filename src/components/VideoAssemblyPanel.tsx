@@ -16,6 +16,7 @@ import {
   ChevronUp,
   X,
   Save,
+  Scissors,
 } from 'lucide-react';
 import {
   VideoAssembly,
@@ -26,8 +27,6 @@ import {
   getAssemblySettings,
   saveAssemblySettings,
 } from '../services/videoAssemblyService';
-import FFmpegEditor from './FFmpegEditor';
-import type { EditorialShot } from '../types/editorialEngine';
 
 interface VideoAssemblyPanelProps {
   episodeId: string;
@@ -408,8 +407,6 @@ export default function VideoAssemblyPanel({
   const [showSettings, setShowSettings] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [assemblyType, setAssemblyType] = useState<'rough_cut' | 'final_cut'>('rough_cut');
-  const [showFFmpegEditor, setShowFFmpegEditor] = useState(false);
-  const [ffmpegAssemblyType, setFfmpegAssemblyType] = useState<'rough_cut' | 'final_cut'>('rough_cut');
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadData = useCallback(async () => {
@@ -593,16 +590,6 @@ export default function VideoAssemblyPanel({
               Rough cut ready — {formatDuration(latestCompleted.outputDurationSeconds)}
             </div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  setFfmpegAssemblyType(latestCompleted.assemblyType as 'rough_cut' | 'final_cut');
-                  setShowFFmpegEditor(true);
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-              >
-                <Film className="w-3 h-3" />
-                Smart Edit (FFmpeg)
-              </button>
               <a
                 href={latestCompleted.outputUrl}
                 download
@@ -678,16 +665,17 @@ export default function VideoAssemblyPanel({
         </div>
       )}
 
-      {/* FFmpeg Editorial Editor Modal */}
-      {showFFmpegEditor && (
-        <FFmpegEditor
-          episodeId={episodeId}
-          shots={[]}
-          formatType="streaming"
-          assemblyType={ffmpegAssemblyType}
-          hasBackgroundMusic={!!settings.backgroundMusicUrl}
-          onClose={() => setShowFFmpegEditor(false)}
-        />
+      {/* FFmpeg Editor cross-reference */}
+      {latestCompleted && (
+        <div className="flex items-center gap-3 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+          <Scissors className="w-5 h-5 text-indigo-600 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-indigo-900">Want smarter editing?</p>
+            <p className="text-xs text-indigo-700 mt-0.5">
+              Use the <strong>FFmpeg Editor</strong> in the sidebar for intelligent cuts, transitions, audio mixing, and format-aware pacing.
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -18,6 +18,7 @@ const ProductionEconomics = lazy(() => import('./components/ProductionEconomics'
 const ProductionWorkflow = lazy(() => import('./components/ProductionWorkflow'));
 const IPProtection = lazy(() => import('./components/IPProtection').then(m => ({ default: m.IPProtection })));
 const BackupRecovery = lazy(() => import('./components/BackupRecovery'));
+const FFmpegEditorPage = lazy(() => import('./components/FFmpegEditorPage'));
 import { supabase } from './lib/supabase';
 import { initializeSampleData, cleanupMisseededSampleData } from './utils/sampleData';
 import { useAuth } from './contexts/AuthContext';
@@ -309,6 +310,7 @@ function App() {
         {currentView === 'episodes' && <Episodes seriesId={seriesId} onNavigate={handleNavigate} navigationData={navigationData} />}
         {currentView === 'profit-per-episode' && <ProductionEconomics seriesId={seriesId} />}
         {currentView === 'production' && <ProductionWorkflow seriesId={seriesId} navigationData={navigationData} />}
+        {currentView === 'ffmpeg-editor' && <FFmpegEditorPage seriesId={seriesId} />}
         {currentView === 'ai-studio' && <AIStudio seriesId={seriesId} onNavigate={handleNavigate} />}
         {currentView === 'storyboard-generator' && <StoryboardGenerator onNavigate={handleNavigate} />}
         {currentView === 'video-generation' && <VideoGeneration seriesId={seriesId} onNavigate={handleNavigate} />}
