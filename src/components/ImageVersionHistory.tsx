@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Star, Check, Trash2, Eye, Clock, Upload, Wand2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
+import { CharacterImage } from './CharacterImage';
 
 type ImageVersion = Database['public']['Tables']['storyboard_image_versions']['Row'];
 type StoryboardShot = Database['public']['Tables']['storyboard_shots']['Row'];
@@ -174,10 +175,11 @@ export function ImageVersionHistory({ shot, onClose, onVersionSelected }: ImageV
                   onClick={() => setSelectedVersion(version.id)}
                 >
                   <div className="aspect-video bg-gray-100 relative group cursor-pointer">
-                    <img
-                      src={version.image_url}
+                    <CharacterImage
+                      url={version.image_url}
                       alt={`Version ${version.version_number}`}
                       className="w-full h-full object-cover"
+                      fallback={<div className="w-full h-full bg-gray-200 flex items-center justify-center"><Eye className="w-8 h-8 text-gray-400" /></div>}
                     />
                     <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
                       <Eye className="w-8 h-8 text-white" />

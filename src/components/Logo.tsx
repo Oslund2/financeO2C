@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { resolveStorageUrl } from '../utils/storageUrl';
 
 interface LogoProps {
   className?: string;
@@ -8,6 +9,13 @@ interface LogoProps {
 
 export function Logo({ className = '', size = 'medium', logoUrl }: LogoProps) {
   const [imageError, setImageError] = useState(false);
+  const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    setImageError(false);
+    if (!logoUrl) { setResolvedUrl(null); return; }
+    resolveStorageUrl(logoUrl).then(setResolvedUrl);
+  }, [logoUrl]);
 
   const sizeClasses = {
     small: 'h-8',
@@ -17,7 +25,7 @@ export function Logo({ className = '', size = 'medium', logoUrl }: LogoProps) {
   };
 
   const defaultLogo = '/images.png';
-  const displayLogo = (logoUrl && !imageError) ? logoUrl : defaultLogo;
+  const displayLogo = (resolvedUrl && !imageError) ? resolvedUrl : defaultLogo;
 
   return (
     <img

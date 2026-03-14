@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Download, Tag, FileType, Calendar, Sparkles, FileText } from 'lucide-react';
+import { resolveStorageUrl } from '../utils/storageUrl';
 
 interface Asset {
   id: string;
@@ -26,6 +27,13 @@ export default function AssetPreviewModal({ asset, onClose }: AssetPreviewModalP
   const audioRef = useRef<HTMLAudioElement>(null);
   const [textContent, setTextContent] = useState<string>('');
   const [loadingText, setLoadingText] = useState(false);
+  const [resolvedFileUrl, setResolvedFileUrl] = useState<string>(asset.file_url);
+
+  useEffect(() => {
+    resolveStorageUrl(asset.file_url).then((url) => {
+      if (url) setResolvedFileUrl(url);
+    });
+  }, [asset.file_url]);
 
   const mimeType = asset.metadata?.mimeType || '';
   const fileSize = asset.metadata?.size;
@@ -58,9 +66,9 @@ export default function AssetPreviewModal({ asset, onClose }: AssetPreviewModalP
   }, [onClose]);
 
   useEffect(() => {
-    if (isTextFile && asset.file_url) {
+    if (isTextFile && resolvedFileUrl) {
       setLoadingText(true);
-      fetch(asset.file_url)
+      fetch(resolvedFileUrl)
         .then(response => response.text())
         .then(text => {
           setTextContent(text);
@@ -72,7 +80,7 @@ export default function AssetPreviewModal({ asset, onClose }: AssetPreviewModalP
           setLoadingText(false);
         });
     }
-  }, [isTextFile, asset.file_url]);
+  }, [isTextFile, resolvedFileUrl]);
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === modalRef.current) {
@@ -140,7 +148,7 @@ export default function AssetPreviewModal({ asset, onClose }: AssetPreviewModalP
           <div className="mb-4 sm:mb-6 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center min-h-[200px] sm:min-h-[300px] md:min-h-[400px]">
             {isImage && (
               <img
-                src={asset.file_url}
+                src={resolvedFileUrl}
                 alt={asset.name}
                 className="max-w-full max-h-[300px] sm:max-h-[400px] md:max-h-[600px] object-contain"
               />
@@ -148,7 +156,7 @@ export default function AssetPreviewModal({ asset, onClose }: AssetPreviewModalP
             {isVideo && (
               <video
                 ref={videoRef}
-                src={asset.file_url}
+                src={resolvedFileUrl}
                 controls
                 className="max-w-full max-h-[300px] sm:max-h-[400px] md:max-h-[600px]"
                 preload="metadata"
@@ -160,7 +168,7 @@ export default function AssetPreviewModal({ asset, onClose }: AssetPreviewModalP
               <div className="w-full p-4 sm:p-8">
                 <audio
                   ref={audioRef}
-                  src={asset.file_url}
+                  src={resolvedFileUrl}
                   controls
                   className="w-full"
                   preload="metadata"
@@ -189,7 +197,7 @@ export default function AssetPreviewModal({ asset, onClose }: AssetPreviewModalP
                       Document files can be downloaded for viewing
                     </p>
                     <a
-                      href={asset.file_url}
+                      href={resolvedFileUrl}
                       download={asset.name}
                       className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors flex items-center gap-2 min-h-[44px]"
                     >
@@ -268,7 +276,7 @@ export default function AssetPreviewModal({ asset, onClose }: AssetPreviewModalP
         {/* Footer */}
         <div className="p-4 sm:p-6 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 bg-gray-50">
           <a
-            href={asset.file_url}
+            href={resolvedFileUrl}
             download={asset.name}
             className="px-4 py-3 bg-scripps-blue text-white rounded-lg hover:bg-scripps-navy transition-colors flex items-center justify-center gap-2 min-h-[44px]"
           >
