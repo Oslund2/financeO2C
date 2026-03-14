@@ -26,6 +26,8 @@ import {
   getAssemblySettings,
   saveAssemblySettings,
 } from '../services/videoAssemblyService';
+import FFmpegEditor from './FFmpegEditor';
+import type { EditorialShot } from '../types/editorialEngine';
 
 interface VideoAssemblyPanelProps {
   episodeId: string;
@@ -406,6 +408,8 @@ export default function VideoAssemblyPanel({
   const [showSettings, setShowSettings] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [assemblyType, setAssemblyType] = useState<'rough_cut' | 'final_cut'>('rough_cut');
+  const [showFFmpegEditor, setShowFFmpegEditor] = useState(false);
+  const [ffmpegAssemblyType, setFfmpegAssemblyType] = useState<'rough_cut' | 'final_cut'>('rough_cut');
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadData = useCallback(async () => {
@@ -588,14 +592,26 @@ export default function VideoAssemblyPanel({
               <CheckCircle className="w-4 h-4" />
               Rough cut ready — {formatDuration(latestCompleted.outputDurationSeconds)}
             </div>
-            <a
-              href={latestCompleted.outputUrl}
-              download
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-green-700 text-white rounded-lg hover:bg-green-800"
-            >
-              <Download className="w-3 h-3" />
-              Download
-            </a>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setFfmpegAssemblyType(latestCompleted.assemblyType as 'rough_cut' | 'final_cut');
+                  setShowFFmpegEditor(true);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+              >
+                <Film className="w-3 h-3" />
+                Smart Edit (FFmpeg)
+              </button>
+              <a
+                href={latestCompleted.outputUrl}
+                download
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-green-700 text-white rounded-lg hover:bg-green-800"
+              >
+                <Download className="w-3 h-3" />
+                Download
+              </a>
+            </div>
           </div>
           <video src={latestCompleted.outputUrl} controls className="w-full rounded bg-black" style={{ maxHeight: 300 }} />
         </div>
@@ -660,6 +676,18 @@ export default function VideoAssemblyPanel({
           <p className="text-sm">No assemblies yet.</p>
           <p className="text-xs mt-1">Click "Assemble Rough Cut" above to generate your first edit.</p>
         </div>
+      )}
+
+      {/* FFmpeg Editorial Editor Modal */}
+      {showFFmpegEditor && (
+        <FFmpegEditor
+          episodeId={episodeId}
+          shots={[]}
+          formatType="streaming"
+          assemblyType={ffmpegAssemblyType}
+          hasBackgroundMusic={!!settings.backgroundMusicUrl}
+          onClose={() => setShowFFmpegEditor(false)}
+        />
       )}
     </div>
   );
