@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Users, Layers, Package, Image as ImageIcon, Check } from 'lucide-react';
 import type { Database } from '../../lib/database.types';
+import { CharacterImage } from '../CharacterImage';
 
 type Asset = Database['public']['Tables']['assets']['Row'];
 type Character = Database['public']['Tables']['characters']['Row'];
@@ -152,17 +153,16 @@ export function ReferenceBrowser({
                         itemSelected ? 'ring-2 ring-blue-500 ring-offset-2' : ''
                       }`}
                     >
-                      {imageUrl ? (
-                        <img
-                          src={imageUrl}
-                          alt={item.name}
-                          className="w-full h-36 object-cover group-hover:scale-105 transition-transform"
-                        />
-                      ) : (
-                        <div className="w-full h-36 bg-gray-100 flex items-center justify-center">
-                          <Users className="w-10 h-10 text-gray-400" />
-                        </div>
-                      )}
+                      <CharacterImage
+                        url={imageUrl}
+                        alt={item.name}
+                        className="w-full h-36 object-cover group-hover:scale-105 transition-transform"
+                        fallback={
+                          <div className="w-full h-36 bg-gray-100 flex items-center justify-center">
+                            <Users className="w-10 h-10 text-gray-400" />
+                          </div>
+                        }
+                      />
                       {itemSelected && (
                         <div className="absolute top-2 right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
                           <Check className="w-4 h-4 text-white" />

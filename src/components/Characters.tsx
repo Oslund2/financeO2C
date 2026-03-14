@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { Plus, Search, Edit2, Copy, Trash2, Sparkles, X, Volume2, Film, Loader2, Copyright, User } from 'lucide-react';
 import { CharacterGenerationModal } from './CharacterGenerationModal';
+import { CharacterImage } from './CharacterImage';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
+import { resolveCharacterImageUrls } from '../utils/storageUrl';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
 import { VoiceSelector } from './VoiceSelector';
 import { VoiceCloningModal } from './VoiceCloningModal';
@@ -110,8 +112,11 @@ export function Characters({ seriesId, onNavigate }: CharactersProps) {
 
       if (error) throw error;
 
+      // Resolve signed URLs for all character images in parallel
+      const withSignedUrls = await resolveCharacterImageUrls(data || []);
+
       const roleOrder = { 'Primary': 1, 'Ensemble': 2, 'Recurring': 3, 'Cameo': 4 };
-      const sortedData = (data || []).sort((a, b) => {
+      const sortedData = withSignedUrls.sort((a, b) => {
         const roleA = roleOrder[a.role as keyof typeof roleOrder] || 999;
         const roleB = roleOrder[b.role as keyof typeof roleOrder] || 999;
         if (roleA !== roleB) {
@@ -481,15 +486,12 @@ export function Characters({ seriesId, onNavigate }: CharactersProps) {
                 onClick={() => setFullscreenCharacter(character)}
               >
                 <div className="h-48 bg-gradient-to-br from-scripps-blue via-scripps-light-blue to-sky-400 flex items-center justify-center relative">
-                  {character.reference_image_url ? (
-                    <img
-                      src={character.reference_image_url}
-                      alt={character.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="text-6xl">🎭</div>
-                  )}
+                  <CharacterImage
+                    url={character.reference_image_url}
+                    alt={character.name}
+                    className="w-full h-full object-cover"
+                    fallback={<div className="text-6xl">🎭</div>}
+                  />
                   <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 sm:opacity-100 transition-opacity">
                     <button
                       onClick={(e) => {
@@ -624,15 +626,12 @@ export function Characters({ seriesId, onNavigate }: CharactersProps) {
           >
             <div className="bg-gradient-to-br from-scripps-navy via-scripps-blue to-scripps-light-blue sm:rounded-3xl shadow-2xl overflow-hidden border-0 sm:border border-scripps-blue min-h-full sm:min-h-0">
               <div className="h-64 sm:h-96 bg-gradient-to-br from-scripps-blue via-scripps-light-blue to-sky-400 flex items-center justify-center relative">
-                {fullscreenCharacter.reference_image_url ? (
-                  <img
-                    src={fullscreenCharacter.reference_image_url}
-                    alt={fullscreenCharacter.name}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="text-9xl">🎭</div>
-                )}
+                <CharacterImage
+                  url={fullscreenCharacter.reference_image_url}
+                  alt={fullscreenCharacter.name}
+                  className="w-full h-full object-cover"
+                  fallback={<div className="text-9xl">🎭</div>}
+                />
               </div>
 
               <div className="p-6 sm:p-8 lg:p-12 space-y-6 sm:space-y-8" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>

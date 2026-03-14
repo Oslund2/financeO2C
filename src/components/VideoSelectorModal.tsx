@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { X, Search, Film, FileText, User, Check, Trash2, Play, ExternalLink } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useOrganization } from '../contexts/OrganizationContext';
+import { CharacterImage } from './CharacterImage';
 
 interface Asset {
   id: string;
@@ -384,17 +385,16 @@ export function VideoSelectorModal({
                                 : 'border-gray-200 hover:border-gray-300'
                             }`}
                           >
-                            {character.reference_image_url ? (
-                              <img
-                                src={character.reference_image_url}
-                                alt={character.name}
-                                className="w-12 h-12 rounded-full object-cover mb-2"
-                              />
-                            ) : (
-                              <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center mb-2">
-                                <User className="w-6 h-6 text-gray-400" />
-                              </div>
-                            )}
+                            <CharacterImage
+                              url={character.reference_image_url}
+                              alt={character.name}
+                              className="w-12 h-12 rounded-full object-cover mb-2"
+                              fallback={
+                                <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center mb-2">
+                                  <User className="w-6 h-6 text-gray-400" />
+                                </div>
+                              }
+                            />
                             <span className="text-xs font-medium text-gray-700 text-center truncate w-full">
                               {character.name}
                             </span>
