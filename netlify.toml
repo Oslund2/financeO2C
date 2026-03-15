@@ -5,12 +5,6 @@
 [build.environment]
   NODE_VERSION = "18"
 
-[[headers]]
-  for = "/*"
-  [headers.values]
-    Cross-Origin-Opener-Policy = "same-origin"
-    Cross-Origin-Embedder-Policy = "credentialless"
-
 [[redirects]]
   from = "/*"
   to = "/index.html"
