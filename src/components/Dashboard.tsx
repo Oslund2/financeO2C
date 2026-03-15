@@ -1,16 +1,16 @@
 import {
   TrendingUp,
-  TrendingDown,
   Clock,
   Users,
   DollarSign,
-  AlertTriangle,
-  Zap,
   ArrowRight,
   Sparkles,
   Target,
   ShieldCheck,
   BarChart3,
+  GitBranch,
+  Presentation,
+  Calculator,
 } from 'lucide-react';
 import { WorkflowStep, Assumptions, O2CPhase, PHASE_LABELS, PHASE_COLORS, AIInsight } from '../types';
 import { calculateSavings, calculatePhaseBreakdown, formatCurrency, formatNumber, formatPercent } from '../lib/calculations';
@@ -278,4 +278,5 @@ function QuickAction({ icon: Icon, title, description, onClick }: {
     </button>
   );
 }
+
 
