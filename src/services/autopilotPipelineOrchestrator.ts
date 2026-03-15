@@ -130,17 +130,33 @@ async function stageScripting(config: RunConfig): Promise<{ scriptId: string; ep
     .single();
   if (scriptErr || !script) throw new Error(`Failed to save script: ${scriptErr?.message}`);
 
-  // Save acts
+  // Save acts and scenes
   for (const segment of generated.segments) {
     const content = segment.scenes
       .map((s) => s.dialogue?.map((d) => `${d.character}: ${d.line}`).join('\n') || s.description || '')
       .join('\n\n');
-    await supabase.from('script_acts').insert({
+    const { data: act } = await supabase.from('script_acts').insert({
       script_id: script.id,
       act_number: segment.segment_number,
       content,
       duration_estimate: segment.duration_seconds,
-    });
+    }).select('id').single();
+
+    // Save scenes for this act so the shot list generator can find them
+    if (act) {
+      for (const scene of segment.scenes) {
+        await supabase.from('script_scenes').insert({
+          act_id: act.id,
+          scene_number: scene.scene_number,
+          setting: scene.location || null,
+          description: scene.description || null,
+          dialogue: scene.dialogue || [],
+          stage_directions: scene.dialogue?.filter(d => d.stage_direction).map(d => d.stage_direction).join('; ') || null,
+          characters: scene.characters_present || [],
+          duration_estimate: scene.duration_seconds || null,
+        });
+      }
+    }
   }
 
   // Link episode to script
