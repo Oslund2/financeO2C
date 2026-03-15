@@ -19,6 +19,7 @@ const ProductionWorkflow = lazy(() => import('./components/ProductionWorkflow'))
 const IPProtection = lazy(() => import('./components/IPProtection').then(m => ({ default: m.IPProtection })));
 const BackupRecovery = lazy(() => import('./components/BackupRecovery'));
 const FFmpegEditorPage = lazy(() => import('./components/FFmpegEditorPage'));
+const AutopilotDashboard = lazy(() => import('./components/AutopilotDashboard'));
 import { supabase } from './lib/supabase';
 import { initializeSampleData, cleanupMisseededSampleData } from './utils/sampleData';
 import { useAuth } from './contexts/AuthContext';
@@ -340,6 +341,7 @@ function App() {
           )
         )}
         {currentView === 'settings' && <Settings />}
+        {currentView === 'autopilot' && <AutopilotDashboard seriesId={seriesId} />}
         {currentView === 'ip-protection' && <IPProtection />}
         {currentView === 'backup-recovery' && <BackupRecovery />}
         </Suspense>

@@ -19,6 +19,7 @@ import {
   Search,
   Video,
   Scissors,
+  Wand2,
 } from 'lucide-react';
 import { Logo } from './Logo';
 import { OrganizationSwitcher } from './OrganizationSwitcher';
@@ -62,6 +63,7 @@ export function Layout({ children, currentView, onNavigate, currentSeriesId, onS
     { id: 'production', label: 'Production', icon: PlayCircle },
     { id: 'ffmpeg-editor', label: 'FFmpeg Editor', icon: Scissors },
     { id: 'profit-per-episode', label: 'Production Economics', icon: TrendingUp },
+    { id: 'autopilot', label: 'Autopilot', icon: Wand2 },
     { id: 'ip-protection', label: 'IP Protection', icon: Shield },
   ];
 
