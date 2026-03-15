@@ -65,6 +65,7 @@ Assumptions: ${JSON.stringify(workflow.assumptions)}`;
             enabledPhases={workflow.enabledPhases}
             onTogglePhase={workflow.togglePhase}
             assumptions={workflow.assumptions}
+            onNavigate={setCurrentView}
           />
         )}
         {currentView === 'savings' && (
@@ -74,6 +75,7 @@ Assumptions: ${JSON.stringify(workflow.assumptions)}`;
             assumptions={workflow.assumptions}
             enabledPhases={workflow.enabledPhases}
             onUpdateAssumptions={workflow.updateAssumptions}
+            onNavigate={setCurrentView}
           />
         )}
         {currentView === 'scenarios' && (
@@ -83,10 +85,11 @@ Assumptions: ${JSON.stringify(workflow.assumptions)}`;
             assumptions={workflow.assumptions}
             enabledPhases={workflow.enabledPhases}
             onTogglePhase={workflow.togglePhase}
+            onNavigate={setCurrentView}
           />
         )}
-        {currentView === 'data' && <DataExplorer />}
-        {currentView === 'ai-demo' && <AIDemo />}
+        {currentView === 'data' && <DataExplorer onNavigate={setCurrentView} />}
+        {currentView === 'ai-demo' && <AIDemo onNavigate={setCurrentView} />}
       </Layout>
       <AIChatbot context={chatContext} />
     </>

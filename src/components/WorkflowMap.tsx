@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Plus, Eye, EyeOff, LayoutGrid, List } from 'lucide-react';
+import { Plus, Eye, EyeOff, LayoutGrid, List, ArrowLeft } from 'lucide-react';
 import { WorkflowStep, Assumptions, O2CPhase, O2C_PHASES, PHASE_LABELS, PHASE_COLORS } from '../types';
 import { WorkflowStepCard } from './WorkflowStepCard';
 import { WorkflowStepEditor } from './WorkflowStepEditor';
+import { View } from './Layout';
 
 interface WorkflowMapProps {
   baselineSteps: WorkflowStep[];
@@ -13,6 +14,7 @@ interface WorkflowMapProps {
   enabledPhases: O2CPhase[];
   onTogglePhase: (phase: O2CPhase) => void;
   assumptions: Assumptions;
+  onNavigate: (view: View) => void;
 }
 
 type ViewMode = 'comparison' | 'manual' | 'automated';
@@ -26,6 +28,7 @@ export function WorkflowMap({
   enabledPhases,
   onTogglePhase,
   assumptions,
+  onNavigate,
 }: WorkflowMapProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('comparison');
   const [editingStep, setEditingStep] = useState<WorkflowStep | null>(null);
@@ -61,6 +64,12 @@ export function WorkflowMap({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
+          <button
+            onClick={() => onNavigate('dashboard')}
+            className="flex items-center gap-1 text-sm text-surface-500 hover:text-brand-600 transition-colors mb-2"
+          >
+            <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+          </button>
           <h1 className="text-2xl font-bold text-surface-900">Workflow Map</h1>
           <p className="text-surface-500 mt-1">
             {baselineSteps.length} steps across {O2C_PHASES.length} phases — click any step to edit

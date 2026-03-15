@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Database, Search, Table, BarChart3, Sparkles, AlertCircle, RefreshCw } from 'lucide-react';
+import { Database, Search, Table, BarChart3, Sparkles, AlertCircle, RefreshCw, ArrowLeft } from 'lucide-react';
+import { View } from './Layout';
 
 interface QueryResult {
   columns: string[];
@@ -85,7 +86,11 @@ const PRESET_QUERIES: { id: string; name: string; description: string; mockData:
   },
 ];
 
-export function DataExplorer() {
+interface DataExplorerProps {
+  onNavigate: (view: View) => void;
+}
+
+export function DataExplorer({ onNavigate }: DataExplorerProps) {
   const [activeQuery, setActiveQuery] = useState(PRESET_QUERIES[0]);
   const [nlQuery, setNlQuery] = useState('');
   const [showNlResult, setShowNlResult] = useState(false);
@@ -100,6 +105,12 @@ export function DataExplorer() {
     <div className="space-y-6">
       {/* Header */}
       <div>
+        <button
+          onClick={() => onNavigate('dashboard')}
+          className="flex items-center gap-1 text-sm text-surface-500 hover:text-brand-600 transition-colors mb-2"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+        </button>
         <h1 className="text-2xl font-bold text-surface-900">Data Explorer</h1>
         <p className="text-surface-500 mt-1">
           Query Wide Orbit data via Snowflake mirror — read-only access, real-time metrics

@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Layers, ToggleLeft, ToggleRight, BarChart3, Sparkles, ArrowRight } from 'lucide-react';
+import { Layers, ToggleLeft, ToggleRight, BarChart3, Sparkles, ArrowRight, ArrowLeft } from 'lucide-react';
 import { WorkflowStep, Assumptions, O2CPhase, O2C_PHASES, PHASE_LABELS, PHASE_COLORS } from '../types';
 import { calculateSavings, calculatePhaseBreakdown, formatCurrency, formatNumber, formatPercent } from '../lib/calculations';
+import { View } from './Layout';
 
 interface ScenarioModelerProps {
   baselineSteps: WorkflowStep[];
@@ -9,6 +10,7 @@ interface ScenarioModelerProps {
   assumptions: Assumptions;
   enabledPhases: O2CPhase[];
   onTogglePhase: (phase: O2CPhase) => void;
+  onNavigate: (view: View) => void;
 }
 
 interface PresetScenario {
@@ -51,7 +53,7 @@ const PRESETS: PresetScenario[] = [
 ];
 
 export function ScenarioModeler({
-  baselineSteps, automatedSteps, assumptions, enabledPhases, onTogglePhase,
+  baselineSteps, automatedSteps, assumptions, enabledPhases, onTogglePhase, onNavigate,
 }: ScenarioModelerProps) {
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
 
@@ -72,6 +74,12 @@ export function ScenarioModeler({
     <div className="space-y-8">
       {/* Header */}
       <div>
+        <button
+          onClick={() => onNavigate('dashboard')}
+          className="flex items-center gap-1 text-sm text-surface-500 hover:text-brand-600 transition-colors mb-2"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+        </button>
         <h1 className="text-2xl font-bold text-surface-900">Scenario Modeler</h1>
         <p className="text-surface-500 mt-1">
           Toggle phases on/off to model different rollout strategies — savings update instantly

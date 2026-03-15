@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   DollarSign, Clock, Users, TrendingUp, ShieldCheck,
-  ChevronDown, ChevronUp, Info, Sparkles,
+  ChevronDown, ChevronUp, Info, Sparkles, ArrowLeft,
 } from 'lucide-react';
 import { WorkflowStep, Assumptions, O2CPhase, O2C_PHASES, PHASE_LABELS, PHASE_COLORS } from '../types';
 import {
@@ -9,6 +9,7 @@ import {
   formatCurrency, formatNumber, formatPercent,
 } from '../lib/calculations';
 import { AISavingsNarrative } from './AISavingsNarrative';
+import { View } from './Layout';
 
 interface SavingsCalculatorProps {
   baselineSteps: WorkflowStep[];
@@ -16,10 +17,11 @@ interface SavingsCalculatorProps {
   assumptions: Assumptions;
   enabledPhases: O2CPhase[];
   onUpdateAssumptions: (updates: Partial<Assumptions>) => void;
+  onNavigate: (view: View) => void;
 }
 
 export function SavingsCalculator({
-  baselineSteps, automatedSteps, assumptions, enabledPhases, onUpdateAssumptions,
+  baselineSteps, automatedSteps, assumptions, enabledPhases, onUpdateAssumptions, onNavigate,
 }: SavingsCalculatorProps) {
   const [showFormulas, setShowFormulas] = useState(false);
   const savings = calculateSavings(baselineSteps, automatedSteps, assumptions, enabledPhases);
@@ -33,6 +35,12 @@ export function SavingsCalculator({
     <div className="space-y-8">
       {/* Header */}
       <div>
+        <button
+          onClick={() => onNavigate('dashboard')}
+          className="flex items-center gap-1 text-sm text-surface-500 hover:text-brand-600 transition-colors mb-2"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+        </button>
         <h1 className="text-2xl font-bold text-surface-900">Savings Calculator</h1>
         <p className="text-surface-500 mt-1">
           Adjust assumptions below — all savings recalculate in real-time
