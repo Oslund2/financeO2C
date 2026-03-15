@@ -9,6 +9,89 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      autopilot_runs: {
+        Row: {
+          id: string
+          episode_id: string | null
+          series_id: string
+          organization_id: string
+          storyline: string
+          format_type: string
+          target_runtime_minutes: number
+          quality_preset: string
+          current_state: string
+          progress_percent: number
+          current_stage_detail: string | null
+          stages_completed: string[]
+          decision_log: Json
+          script_id: string | null
+          started_at: string | null
+          estimated_completion_at: string | null
+          completed_at: string | null
+          output_video_url: string | null
+          error_message: string | null
+          retry_count: number
+          skipped_shots: number[]
+          estimated_cost_usd: number | null
+          actual_cost_usd: number | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          episode_id?: string | null
+          series_id: string
+          organization_id: string
+          storyline: string
+          format_type?: string
+          target_runtime_minutes?: number
+          quality_preset?: string
+          current_state?: string
+          progress_percent?: number
+          current_stage_detail?: string | null
+          stages_completed?: string[]
+          decision_log?: Json
+          script_id?: string | null
+          started_at?: string | null
+          estimated_completion_at?: string | null
+          completed_at?: string | null
+          output_video_url?: string | null
+          error_message?: string | null
+          retry_count?: number
+          skipped_shots?: number[]
+          estimated_cost_usd?: number | null
+          actual_cost_usd?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          episode_id?: string | null
+          series_id?: string
+          organization_id?: string
+          storyline?: string
+          format_type?: string
+          target_runtime_minutes?: number
+          quality_preset?: string
+          current_state?: string
+          progress_percent?: number
+          current_stage_detail?: string | null
+          stages_completed?: string[]
+          decision_log?: Json
+          script_id?: string | null
+          started_at?: string | null
+          estimated_completion_at?: string | null
+          completed_at?: string | null
+          output_video_url?: string | null
+          error_message?: string | null
+          retry_count?: number
+          skipped_shots?: number[]
+          estimated_cost_usd?: number | null
+          actual_cost_usd?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
       organizations: {
         Row: {
           id: string
