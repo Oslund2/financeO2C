@@ -8,6 +8,38 @@
     --safe-area-inset-right: env(safe-area-inset-right);
     --safe-area-inset-bottom: env(safe-area-inset-bottom);
     --safe-area-inset-left: env(safe-area-inset-left);
+
+    /* Theme surfaces */
+    --color-surface: #ffffff;
+    --color-surface-raised: #f8fafc;
+    --color-surface-overlay: #f1f5f9;
+
+    /* Theme text */
+    --color-content: #0f172a;
+    --color-content-secondary: #475569;
+    --color-content-muted: #94a3b8;
+
+    /* Theme borders */
+    --color-border: #e2e8f0;
+    --color-border-subtle: #f1f5f9;
+
+    /* Effects */
+    --glow-color: transparent;
+  }
+
+  .dark {
+    --color-surface: #0f1729;
+    --color-surface-raised: #1a2332;
+    --color-surface-overlay: #243044;
+
+    --color-content: #f1f5f9;
+    --color-content-secondary: #cbd5e1;
+    --color-content-muted: #94a3b8;
+
+    --color-border: #2a3a52;
+    --color-border-subtle: #1e2d42;
+
+    --glow-color: rgba(60, 142, 197, 0.15);
   }
 
   body {
@@ -24,6 +56,176 @@
     input, textarea, select {
       font-size: inherit;
     }
+  }
+}
+
+/* ============================================================
+   DARK MODE — Global class remappings
+   Automatically adapts ~90% of components without touching them
+   ============================================================ */
+
+@layer base {
+
+  /* --- Body --- */
+  .dark body {
+    background-color: var(--color-surface);
+    color: var(--color-content);
+  }
+
+  /* --- Backgrounds --- */
+  .dark .bg-white { background-color: var(--color-surface-raised) !important; }
+  .dark .bg-gray-50 { background-color: var(--color-surface) !important; }
+  .dark .bg-gray-100 { background-color: var(--color-surface-raised) !important; }
+  .dark .bg-gray-200 { background-color: var(--color-surface-overlay) !important; }
+  .dark .bg-gray-300 { background-color: #2a3a52 !important; }
+
+  /* Tinted backgrounds */
+  .dark .bg-blue-50 { background-color: rgba(0, 108, 183, 0.1) !important; }
+  .dark .bg-blue-100 { background-color: rgba(0, 108, 183, 0.15) !important; }
+  .dark .bg-blue-500 { background-color: #2563eb !important; }
+  .dark .bg-blue-600 { background-color: #1d4ed8 !important; }
+  .dark .bg-sky-50 { background-color: rgba(60, 142, 197, 0.08) !important; }
+
+  /* Status backgrounds */
+  .dark .bg-red-50 { background-color: rgba(239, 68, 68, 0.1) !important; }
+  .dark .bg-red-100 { background-color: rgba(239, 68, 68, 0.15) !important; }
+  .dark .bg-amber-50 { background-color: rgba(245, 158, 11, 0.1) !important; }
+  .dark .bg-amber-100 { background-color: rgba(245, 158, 11, 0.15) !important; }
+  .dark .bg-green-50 { background-color: rgba(34, 197, 94, 0.1) !important; }
+  .dark .bg-green-100 { background-color: rgba(34, 197, 94, 0.15) !important; }
+  .dark .bg-yellow-50 { background-color: rgba(234, 179, 8, 0.1) !important; }
+  .dark .bg-yellow-100 { background-color: rgba(234, 179, 8, 0.15) !important; }
+  .dark .bg-purple-50 { background-color: rgba(168, 85, 247, 0.1) !important; }
+  .dark .bg-purple-100 { background-color: rgba(168, 85, 247, 0.15) !important; }
+  .dark .bg-indigo-50 { background-color: rgba(99, 102, 241, 0.1) !important; }
+  .dark .bg-orange-50 { background-color: rgba(249, 115, 22, 0.1) !important; }
+  .dark .bg-teal-50 { background-color: rgba(20, 184, 166, 0.1) !important; }
+  .dark .bg-emerald-50 { background-color: rgba(16, 185, 129, 0.1) !important; }
+
+  /* --- Text colors --- */
+  .dark .text-gray-900 { color: #f1f5f9 !important; }
+  .dark .text-gray-800 { color: #e2e8f0 !important; }
+  .dark .text-gray-700 { color: #cbd5e1 !important; }
+  .dark .text-gray-600 { color: #94a3b8 !important; }
+  .dark .text-gray-500 { color: #64748b !important; }
+  .dark .text-gray-400 { color: #64748b !important; }
+
+  .dark .text-black { color: #f1f5f9 !important; }
+
+  /* Colored text — brighter for dark bg readability */
+  .dark .text-blue-600 { color: #60a5fa !important; }
+  .dark .text-blue-700 { color: #93bbfc !important; }
+  .dark .text-blue-800 { color: #93c5fd !important; }
+  .dark .text-blue-900 { color: #bfdbfe !important; }
+  .dark .text-red-500 { color: #f87171 !important; }
+  .dark .text-red-600 { color: #f87171 !important; }
+  .dark .text-red-700 { color: #fca5a5 !important; }
+  .dark .text-amber-600 { color: #fbbf24 !important; }
+  .dark .text-amber-700 { color: #fcd34d !important; }
+  .dark .text-amber-800 { color: #fcd34d !important; }
+  .dark .text-green-600 { color: #4ade80 !important; }
+  .dark .text-green-700 { color: #86efac !important; }
+  .dark .text-green-800 { color: #86efac !important; }
+  .dark .text-purple-600 { color: #c084fc !important; }
+  .dark .text-purple-700 { color: #d8b4fe !important; }
+  .dark .text-indigo-600 { color: #818cf8 !important; }
+  .dark .text-indigo-700 { color: #a5b4fc !important; }
+  .dark .text-orange-600 { color: #fb923c !important; }
+  .dark .text-teal-600 { color: #2dd4bf !important; }
+  .dark .text-emerald-600 { color: #34d399 !important; }
+  .dark .text-yellow-600 { color: #facc15 !important; }
+
+  /* Scripps brand text */
+  .dark .text-scripps-navy { color: #93c5fd !important; }
+
+  /* --- Borders --- */
+  .dark .border-gray-100 { border-color: var(--color-border-subtle) !important; }
+  .dark .border-gray-200 { border-color: var(--color-border) !important; }
+  .dark .border-gray-300 { border-color: var(--color-border) !important; }
+  .dark .border-gray-400 { border-color: #475569 !important; }
+  .dark .border-blue-200 { border-color: rgba(0, 108, 183, 0.25) !important; }
+  .dark .border-blue-300 { border-color: rgba(0, 108, 183, 0.35) !important; }
+  .dark .border-blue-500 { border-color: rgba(0, 108, 183, 0.5) !important; }
+  .dark .border-red-200 { border-color: rgba(239, 68, 68, 0.25) !important; }
+  .dark .border-red-300 { border-color: rgba(239, 68, 68, 0.35) !important; }
+  .dark .border-amber-200 { border-color: rgba(245, 158, 11, 0.25) !important; }
+  .dark .border-green-200 { border-color: rgba(34, 197, 94, 0.25) !important; }
+  .dark .border-green-300 { border-color: rgba(34, 197, 94, 0.35) !important; }
+  .dark .border-purple-200 { border-color: rgba(168, 85, 247, 0.25) !important; }
+  .dark .border-yellow-200 { border-color: rgba(234, 179, 8, 0.25) !important; }
+
+  /* --- Divide colors --- */
+  .dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) { border-color: var(--color-border) !important; }
+  .dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: var(--color-border-subtle) !important; }
+
+  /* --- Shadows → subtle glow --- */
+  .dark .shadow-sm { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4) !important; }
+  .dark .shadow-md { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 20px var(--glow-color) !important; }
+  .dark .shadow-lg { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 30px var(--glow-color) !important; }
+  .dark .shadow-xl { box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5), 0 0 40px var(--glow-color) !important; }
+  .dark .shadow-2xl { box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6), 0 0 50px var(--glow-color) !important; }
+
+  /* --- Ring colors --- */
+  .dark .ring-scripps-blue { --tw-ring-color: rgba(0, 108, 183, 0.5) !important; }
+  .dark .focus\:ring-scripps-blue:focus { --tw-ring-color: rgba(0, 108, 183, 0.5) !important; }
+  .dark .focus\:ring-2:focus { --tw-ring-color: rgba(60, 142, 197, 0.4); }
+  .dark .ring-2 { --tw-ring-color: rgba(60, 142, 197, 0.4); }
+  .dark .ring-blue-500 { --tw-ring-color: rgba(59, 130, 246, 0.4) !important; }
+
+  /* --- Inputs --- */
+  .dark input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+  .dark textarea,
+  .dark select {
+    background-color: var(--color-surface-overlay) !important;
+    color: var(--color-content) !important;
+    border-color: var(--color-border) !important;
+  }
+  .dark input::placeholder,
+  .dark textarea::placeholder {
+    color: var(--color-content-muted) !important;
+  }
+
+  /* --- Gradient overrides --- */
+  .dark .from-blue-50 { --tw-gradient-from: rgba(0, 108, 183, 0.05) !important; }
+  .dark .via-sky-50 { --tw-gradient-stops: var(--tw-gradient-from), rgba(60, 142, 197, 0.03), var(--tw-gradient-to) !important; }
+  .dark .to-white { --tw-gradient-to: var(--color-surface) !important; }
+
+  /* --- Images — never invert --- */
+  .dark img { filter: none; }
+
+  /* --- Scrollbar styling for dark mode --- */
+  .dark ::-webkit-scrollbar { width: 8px; height: 8px; }
+  .dark ::-webkit-scrollbar-track { background: var(--color-surface); }
+  .dark ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 4px; }
+  .dark ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+  /* --- Hover states --- */
+  .dark .hover\:bg-blue-50:hover { background-color: rgba(0, 108, 183, 0.12) !important; }
+  .dark .hover\:bg-gray-50:hover { background-color: var(--color-surface-overlay) !important; }
+  .dark .hover\:bg-gray-100:hover { background-color: var(--color-surface-overlay) !important; }
+  .dark .hover\:bg-gray-200:hover { background-color: #2a3a52 !important; }
+  .dark .active\:bg-blue-100:active { background-color: rgba(0, 108, 183, 0.2) !important; }
+
+  .dark .hover\:border-gray-300:hover { border-color: #475569 !important; }
+  .dark .hover\:border-gray-400:hover { border-color: #64748b !important; }
+
+  .dark .hover\:text-gray-700:hover { color: #e2e8f0 !important; }
+  .dark .hover\:text-gray-900:hover { color: #f1f5f9 !important; }
+  .dark .hover\:text-blue-600:hover { color: #60a5fa !important; }
+
+  /* --- Focus visible --- */
+  .dark .focus\:border-transparent:focus { border-color: transparent !important; }
+
+  /* --- Smooth transitions on toggle --- */
+  * {
+    transition-property: background-color, border-color, color, box-shadow;
+    transition-duration: 0ms;
+  }
+  html.theme-transitioning *,
+  html.theme-transitioning *::before,
+  html.theme-transitioning *::after {
+    transition-duration: 300ms !important;
+    transition-timing-function: ease !important;
   }
 }
 

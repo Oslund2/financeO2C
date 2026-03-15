@@ -288,25 +288,27 @@ export function CreateWorkspaceModal({ onClose, onCreate }: CreateWorkspaceModal
                             ? 'border-amber-500 bg-amber-50 shadow-lg ring-2 ring-amber-200'
                             : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 hover:shadow-md'
                         } disabled:opacity-50 disabled:cursor-not-allowed`}
-                        style={isSelected ? {
-                          borderColor: type.value === 'commercial' ? '#f59e0b'
-                            : type.value === 'photoreal' ? '#3b82f6'
-                            : type.value === 'documentary' ? '#10b981'
-                            : type.value === 'claymation' ? '#f97316'
-                            : '#64748b',
-                          backgroundColor: type.value === 'commercial' ? '#fffbeb'
-                            : type.value === 'photoreal' ? '#eff6ff'
-                            : type.value === 'documentary' ? '#f0fdf4'
-                            : type.value === 'claymation' ? '#fff7ed'
-                            : '#f8fafc',
-                          boxShadow: '0 0 0 3px ' + (
-                            type.value === 'commercial' ? '#fde68a'
-                            : type.value === 'photoreal' ? '#bfdbfe'
-                            : type.value === 'documentary' ? '#bbf7d0'
-                            : type.value === 'claymation' ? '#fed7aa'
-                            : '#e2e8f0'
-                          ),
-                        } : {}}
+                        style={isSelected ? (() => {
+                          const isDark = document.documentElement.classList.contains('dark');
+                          const colors: Record<string, { border: string; bg: string; ring: string }> = {
+                            commercial: isDark
+                              ? { border: '#f59e0b', bg: 'rgba(245,158,11,0.12)', ring: 'rgba(253,230,138,0.2)' }
+                              : { border: '#f59e0b', bg: '#fffbeb', ring: '#fde68a' },
+                            photoreal: isDark
+                              ? { border: '#3b82f6', bg: 'rgba(59,130,246,0.12)', ring: 'rgba(191,219,254,0.2)' }
+                              : { border: '#3b82f6', bg: '#eff6ff', ring: '#bfdbfe' },
+                            documentary: isDark
+                              ? { border: '#10b981', bg: 'rgba(16,185,129,0.12)', ring: 'rgba(187,247,208,0.2)' }
+                              : { border: '#10b981', bg: '#f0fdf4', ring: '#bbf7d0' },
+                            claymation: isDark
+                              ? { border: '#f97316', bg: 'rgba(249,115,22,0.12)', ring: 'rgba(254,215,170,0.2)' }
+                              : { border: '#f97316', bg: '#fff7ed', ring: '#fed7aa' },
+                          };
+                          const c = colors[type.value] || (isDark
+                            ? { border: '#64748b', bg: 'rgba(100,116,139,0.12)', ring: 'rgba(226,232,240,0.2)' }
+                            : { border: '#64748b', bg: '#f8fafc', ring: '#e2e8f0' });
+                          return { borderColor: c.border, backgroundColor: c.bg, boxShadow: `0 0 0 3px ${c.ring}` };
+                        })() : {}}
                       >
                         {type.badge && (
                           <span className="absolute top-3 right-3 px-2 py-0.5 bg-amber-500 text-white text-xs font-bold rounded-full">

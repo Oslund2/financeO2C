@@ -6,10 +6,12 @@ import { AuthProvider } from './contexts/AuthContext';
 import { OrganizationProvider } from './contexts/OrganizationContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
+      <ThemeProvider>
       <AuthProvider>
         <OrganizationProvider>
           <NotificationProvider position="top-right">
@@ -17,6 +19,7 @@ createRoot(document.getElementById('root')!).render(
           </NotificationProvider>
         </OrganizationProvider>
       </AuthProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   </StrictMode>
 );
