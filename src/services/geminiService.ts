@@ -1664,23 +1664,27 @@ export async function generateStorylineWithAI(
     .map((c) => `- ${c.name} (${c.role})${c.description ? `: ${c.description}` : ''}${c.tags?.length ? ` [${c.tags.join(', ')}]` : ''}`)
     .join('\n');
 
-  const prompt = `You are a creative writer for the animated series "${seriesName}".
+  const prompt = `You are a wildly creative TV writer pitching a brand-new, never-before-seen episode for the show "${seriesName}".
 
-Series description: ${seriesDescription || 'N/A'}
+Show premise: ${seriesDescription || 'An animated series'}
 
-Characters:
+Cast of characters:
 ${charBlock}
 
-Write a single compelling episode storyline in approximately 75 words. The storyline should:
-- Feature several of the main characters naturally
-- Fit the tone and themes of the series
-- Have a clear setup, conflict, and resolution
-- Be written as a brief synopsis paragraph
+Your job: Invent a FRESH, ORIGINAL, and FUN episode idea in exactly 60–80 words. This must be a new standalone story — NOT a retelling of the show premise.
 
-Return ONLY the storyline text with no extra commentary, labels, or formatting.`;
+Rules:
+- Start with an unexpected situation, twist, or event that disrupts the normal routine
+- Name at least 3 characters and give them specific things to do
+- Include humor, surprise, or heart
+- End with a fun payoff or resolution
+- Write it as one vivid paragraph — no titles, no labels, no bullet points
+- Do NOT repeat or paraphrase the show description — create something entirely new
+
+Return ONLY the storyline paragraph.`;
 
   const result = await generateText(prompt, undefined, {
-    temperature: 0.85,
+    temperature: 0.95,
     maxTokens: 300,
   });
 
