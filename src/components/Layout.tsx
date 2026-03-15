@@ -25,6 +25,7 @@ import { Logo } from './Logo';
 import { OrganizationSwitcher } from './OrganizationSwitcher';
 import { SeriesSwitcher } from './SeriesSwitcher';
 import { InfoTooltip } from './InfoTooltip';
+import { ThemeToggle } from './ThemeToggle';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { supabase } from '../lib/supabase';
 
@@ -131,6 +132,7 @@ export function Layout({ children, currentView, onNavigate, currentSeriesId, onS
             <Settings className="w-5 h-5" />
             <span className="font-medium">Settings</span>
           </button>
+          <ThemeToggle />
           <div className="px-4 py-2 bg-gray-50 rounded-lg border border-gray-200">
             <div className="flex items-center justify-between text-xs text-gray-500">
               <div className="flex items-center gap-1.5">
@@ -138,10 +140,10 @@ export function Layout({ children, currentView, onNavigate, currentSeriesId, onS
                 <span>Quick Search</span>
               </div>
               <div className="flex items-center gap-1">
-                <kbd className="px-1.5 py-0.5 bg-white rounded border border-gray-300 text-[10px] font-medium">
+                <kbd className="px-1.5 py-0.5 bg-white rounded border border-gray-300 text-[10px] font-medium dark:bg-slate-700 dark:border-slate-600 dark:text-slate-300">
                   {navigator.platform.includes('Mac') ? <Command className="w-3 h-3 inline" /> : 'Ctrl'}
                 </kbd>
-                <kbd className="px-1.5 py-0.5 bg-white rounded border border-gray-300 text-[10px] font-medium">K</kbd>
+                <kbd className="px-1.5 py-0.5 bg-white rounded border border-gray-300 text-[10px] font-medium dark:bg-slate-700 dark:border-slate-600 dark:text-slate-300">K</kbd>
               </div>
             </div>
           </div>
@@ -229,7 +231,7 @@ export function Layout({ children, currentView, onNavigate, currentSeriesId, onS
                 })}
               </nav>
 
-              <div className="p-4 border-t border-blue-200" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+              <div className="p-4 border-t border-blue-200 space-y-2" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
                 <button
                   onClick={() => handleNavigation('settings')}
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-blue-50 active:bg-blue-100 transition-all min-h-[44px]"
@@ -237,6 +239,7 @@ export function Layout({ children, currentView, onNavigate, currentSeriesId, onS
                   <Settings className="w-5 h-5 flex-shrink-0" />
                   <span className="font-medium">Settings</span>
                 </button>
+                <ThemeToggle />
               </div>
             </aside>
           </>
