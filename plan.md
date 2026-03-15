@@ -1,563 +1,194 @@
-# Plan: Step-Away Autonomous Video Production Pipeline
+# Plan: Dark/Light Mode for Bee Studio
 
-## The Vision
+## Overview
+Add a beautiful, modern dark/light theme toggle to the entire application. Dark mode uses a rich slate-navy palette with subtle blue-tinted glow effects, glass-morphism cards, and smooth transitions. All text, images, and UI elements remain fully visible and readable in both modes.
 
-User enters a storyline. Walks away. Comes back to a finished, watchable video.
+## Strategy: Global CSS Overrides + Tailwind `dark:` class
 
-No intermediate clicks. No "review shot list." No "configure generation options." No "trigger assembly." The system makes every decision a human producer would make, and the user only intervenes if they *want* to — not because the system can't proceed without them.
-
-## What Exists Today (and Why It's Not Step-Away)
-
-The current pipeline has **7 manual gates** that require user interaction:
-
-```
-Current Flow (each → is a MANUAL click/decision):
-
-1. User selects/creates episode → picks characters, writes theme
-2. User clicks "Generate Script" → waits, reviews output
-3. User clicks "Generate Shot List" → configures pacing, reviews
-4. User clicks "Generate Storyboards" → approves each image
-5. User clicks "Generate Video" per batch → selects model, triggers
-6. User clicks "Generate Dialogue Audio" → per character
-7. User clicks "Assemble Rough Cut" → waits for Shotstack
-   (8. User clicks "Smart Edit" → FFmpeg editor, optional)
-```
-
-Each step has its own UI, its own loading state, its own error handling. A user must babysit the entire process, often waiting 5-30 minutes between steps for AI generation to complete. This is a **supervised pipeline**, not an autonomous one.
-
-### Services That Already Exist (and Work)
-
-| Service | What It Does | Status |
-|---------|-------------|--------|
-| `geminiService.ts` | Generates scripts from episode theme + characters | Works, needs episode + characters input |
-| `shotListGeneratorService.ts` | Generates shot plans from script with pacing control | Works, needs script + pacing config |
-| `storyboardService.ts` | Generates storyboard images per shot | Works, needs shot plans |
-| `veo3PromptService.ts` | Generates video prompts from shot metadata | Works, needs shot plans + workspace style |
-| `vertexAIService.ts` | Submits Veo3 video generation jobs + polls for completion | Works, needs prompts |
-| `dialogueAudioService.ts` | Generates dialogue audio via ElevenLabs/Chatterbox | Works, needs dialogue text + voice IDs |
-| `lipSyncService.ts` | Applies lip sync via SyncLabs/VEED.IO | Works, needs video + audio |
-| `videoAssemblyService.ts` | Assembles final video via Shotstack | Works, needs shots + API key |
-| `editorial/*` (new) | Intelligent editing via FFmpeg | Works, needs shots + format profile |
-
-**Key insight: Every service works. They just aren't connected.** Each one is a standalone tool that a human manually invokes in sequence. The pipeline needs an orchestrator.
-
-### What's Missing
-
-1. **No orchestrator** — Nothing connects script → shots → storyboard → video → audio → assembly into an automated chain
-2. **No progress tracking** — No unified view of "where is my video in the pipeline?"
-3. **No decision engine** — The system can't decide pacing, model selection, or quality thresholds without human input
-4. **No error recovery** — If video generation fails for shot 14/30, nothing retries it or works around it
-5. **No completion detection** — Nothing knows "all steps are done, the video is ready"
+### Why this approach
+- **118 component files** all use hardcoded Tailwind color classes (`bg-white`, `text-gray-700`, etc.)
+- Touching all 118 files individually is impractical and error-prone
+- Instead: define global CSS dark-mode overrides in `index.css` that remap common Tailwind classes (`.dark .bg-white`, `.dark .text-gray-900`, etc.)
+- This handles ~90% of the app automatically — only Layout and a few special components need manual `dark:` tweaks
+- ThemeContext manages state + localStorage persistence
+- Animated toggle in the sidebar
 
 ---
 
-## Architecture: The Autopilot Engine
+## Step 1: Tailwind Config — Enable class-based dark mode
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Autopilot Launch UI                       │
-│  Story input → format selection → "Go" button → walk away   │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-┌────────────────────▼────────────────────────────────────────┐
-│               Pipeline Orchestrator Service                  │
-│  State machine that drives the entire pipeline autonomously  │
-│                                                              │
-│  States:                                                     │
-│  script_generation → shot_planning → storyboard_generation   │
-│  → video_generation → dialogue_audio → lip_sync              │
-│  → editorial_assembly → complete                             │
-│                                                              │
-│  Each state:                                                 │
-│  1. Checks preconditions                                     │
-│  2. Invokes the appropriate service                          │
-│  3. Polls for completion                                     │
-│  4. Handles errors (retry / skip / degrade gracefully)       │
-│  5. Advances to next state                                   │
-│  6. Updates progress in real-time                            │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-┌────────────────────▼────────────────────────────────────────┐
-│             Autopilot Decision Engine                         │
-│  Makes the creative/technical decisions humans currently make │
-│                                                              │
-│  - Pacing: derived from format + genre + runtime             │
-│  - Model selection: Veo 3.1 for quality, 3.0-fast for speed │
-│  - Shot duration: from pacing profile                        │
-│  - Voice assignment: from character voice configs             │
-│  - Quality gates: auto-approve if score > threshold          │
-│  - Assembly format: from format profile                      │
-│  - Retry strategy: 2 retries, then skip + log               │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-┌────────────────────▼────────────────────────────────────────┐
-│              Autopilot Monitor UI                             │
-│  Real-time progress dashboard — the "check back" screen      │
-│                                                              │
-│  - Pipeline stage indicator with estimated time remaining     │
-│  - Per-shot status grid (generating / complete / failed)      │
-│  - Live log of decisions made                                │
-│  - "Your video is ready" notification                        │
-│  - Preview + download when complete                          │
-└─────────────────────────────────────────────────────────────┘
-```
+**File:** `tailwind.config.js`
+
+Add `darkMode: 'class'` to the config. This enables Tailwind's `dark:` variant based on a `.dark` class on the root `<html>` element.
 
 ---
 
-## Pipeline States (State Machine)
+## Step 2: CSS Custom Properties + Global Dark Overrides
 
-```
-                    ┌──────────────┐
-                    │   INITIATED   │
-                    │ (user input)  │
-                    └──────┬───────┘
-                           │
-                    ┌──────▼───────┐
-                    │   SCRIPTING   │  ← Gemini generates full script
-                    │  ~30-60s      │    with acts, scenes, dialogue
-                    └──────┬───────┘
-                           │
-                    ┌──────▼───────┐
-                    │ SHOT_PLANNING │  ← Shot list from script
-                    │  ~10-20s      │    auto-configured pacing
-                    └──────┬───────┘
-                           │
-                    ┌──────▼───────┐
-                    │ STORYBOARDING │  ← Image generation per shot
-                    │  ~2-5 min     │    (parallel, batched)
-                    └──────┬───────┘
-                           │
-                    ┌──────▼───────┐
-                    │VIDEO_RENDERING│  ← Veo3 video generation
-                    │  ~5-20 min    │    (parallel, batched by API limits)
-                    └──────┬───────┘
-                           │
-                    ┌──────▼───────┐
-                    │ DIALOGUE_AUDIO│  ← ElevenLabs/Chatterbox TTS
-                    │  ~1-3 min     │    (parallel per character)
-                    └──────┬───────┘
-                           │
-                    ┌──────▼───────┐
-                    │   LIP_SYNC    │  ← SyncLabs/VEED.IO
-                    │  ~2-5 min     │    (parallel per dialogue shot)
-                    └──────┬───────┘
-                           │
-                    ┌──────▼───────┐
-                    │  ASSEMBLING   │  ← Editorial engine → FFmpeg
-                    │  ~1-3 min     │    or Shotstack cloud render
-                    └──────┬───────┘
-                           │
-                    ┌──────▼───────┐
-                    │   COMPLETE    │  ← Video ready for download
-                    └──────────────┘
+**File:** `src/index.css`
 
-    At any point → FAILED (with partial results + retry option)
-```
+### 2a. Define theme CSS variables
 
-**Total estimated time: ~15-40 minutes** depending on episode length, shot count, and API response times. The user walks away after ~10 seconds of input.
+```css
+:root {
+  --color-surface: #ffffff;
+  --color-surface-raised: #f8fafc;
+  --color-surface-overlay: #f1f5f9;
+  --color-content: #0f172a;
+  --color-content-secondary: #475569;
+  --color-content-muted: #94a3b8;
+  --color-border: #e2e8f0;
+  --color-border-subtle: #f1f5f9;
+  --glow-color: transparent;
+}
 
----
-
-## Implementation Steps
-
-### Step 1: Database — Pipeline Runs Table
-
-Track each autonomous pipeline execution.
-
-```sql
-create table autopilot_runs (
-  id uuid primary key default gen_random_uuid(),
-  episode_id uuid references episodes(id),
-  series_id uuid references series(id),
-  organization_id uuid references organizations(id),
-
-  -- Input
-  storyline text not null,
-  format_type text not null default 'streaming',
-  target_runtime_minutes integer default 5,
-  quality_preset text default 'balanced', -- 'fast' | 'balanced' | 'max_quality'
-
-  -- State machine
-  current_state text not null default 'initiated',
-  -- 'initiated' | 'scripting' | 'shot_planning' | 'storyboarding'
-  -- | 'video_rendering' | 'dialogue_audio' | 'lip_sync'
-  -- | 'assembling' | 'complete' | 'failed'
-
-  -- Progress tracking
-  progress_percent integer default 0,
-  current_stage_detail text,          -- e.g., "Rendering shot 14/30"
-  stages_completed text[] default '{}',
-  decision_log jsonb default '[]',    -- Array of {timestamp, decision, rationale}
-
-  -- Timing
-  started_at timestamptz,
-  estimated_completion_at timestamptz,
-  completed_at timestamptz,
-
-  -- Output
-  output_video_url text,
-  output_edl_id uuid references edit_decision_lists(id),
-
-  -- Error handling
-  error_message text,
-  retry_count integer default 0,
-  skipped_shots integer[] default '{}',
-
-  -- Cost tracking
-  estimated_cost_usd numeric(10, 4),
-  actual_cost_usd numeric(10, 4),
-
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-);
-```
-
-**File:** `supabase/migrations/XXXXXX_create_autopilot_runs.sql`
-
-### Step 2: Autopilot Decision Engine
-
-Makes the creative and technical decisions that currently require human input.
-
-```ts
-// Key decisions:
-interface AutopilotDecisions {
-  // Script generation
-  scriptTemperature: number;        // 0.7 for drama, 0.9 for comedy
-  includeVocabularyWords: boolean;
-
-  // Shot planning
-  pacing: 'fast' | 'medium' | 'slow';  // Derived from format
-  averageShotDuration: number;          // Derived from runtime target
-  includeEstablishingShots: boolean;
-
-  // Video generation
-  veoModel: string;                 // Quality preset → model mapping
-  resolution: '720p' | '1080p';
-  samplesPerShot: number;           // 1 for fast, 2 for balanced, 4 for max
-  batchSize: number;                // Parallel generation limit
-
-  // Audio
-  voiceProvider: 'elevenlabs' | 'chatterbox';
-  autoAssignVoices: boolean;
-
-  // Lip sync
-  lipSyncProvider: string;
-  skipLipSyncForNonDialogue: boolean;
-
-  // Assembly
-  assemblyMethod: 'ffmpeg' | 'shotstack';
-  formatProfile: FormatType;
-  editorialQualityThreshold: number;  // Auto-approve above this
-
-  // Error tolerance
-  maxRetriesPerShot: number;
-  allowPartialAssembly: boolean;    // Assemble with stills for failed shots
+.dark {
+  --color-surface: #0f1729;
+  --color-surface-raised: #1a2332;
+  --color-surface-overlay: #243044;
+  --color-content: #f1f5f9;
+  --color-content-secondary: #cbd5e1;
+  --color-content-muted: #94a3b8;
+  --color-border: #2a3a52;
+  --color-border-subtle: #1e2d42;
+  --glow-color: rgba(60, 142, 197, 0.15);
 }
 ```
 
-The decision engine derives all values from three user inputs:
-1. **Storyline** (text)
-2. **Format** (broadcast/streaming/short/etc)
-3. **Quality preset** (fast/balanced/max_quality)
+### 2b. Global class remappings (the key trick)
 
-**File:** `src/services/autopilotDecisionEngine.ts`
+Override the most common Tailwind utility classes when `.dark` is active on the root:
 
-### Step 3: Pipeline Orchestrator Service
+**Backgrounds:**
+- `.dark .bg-white` → dark surface-raised (#1a2332)
+- `.dark .bg-gray-50` → dark surface (#0f1729)
+- `.dark .bg-gray-100` → dark surface-raised
+- `.dark .bg-gray-200` → dark surface-overlay
+- `.dark .bg-blue-50` → subtle blue tint (rgba(0,108,183,0.1))
+- `.dark .bg-red-50`, `.bg-amber-50`, `.bg-green-50` → subtle tinted versions
 
-The state machine that drives everything. This is the core of step-away.
+**Text:**
+- `.dark .text-gray-900` → #f1f5f9 (near-white)
+- `.dark .text-gray-700` → #cbd5e1
+- `.dark .text-gray-600` → #94a3b8
+- `.dark .text-gray-500` → #64748b
+- `.dark .text-blue-600` → #60a5fa (brighter blue)
+- `.dark .text-red-600` → #f87171
+- `.dark .text-green-600` → #4ade80
 
-```ts
-export async function runAutopilotPipeline(runId: string): Promise<void> {
-  // Load run config from database
-  // Enter state machine loop:
+**Borders:**
+- `.dark .border-gray-200`, `.border-gray-300` → dark border color
+- `.dark .border-blue-200` → subtle blue glow border
 
-  while (currentState !== 'complete' && currentState !== 'failed') {
-    switch (currentState) {
-      case 'initiated':
-        // Create episode + series records if needed
-        // Fetch characters for series (or use defaults)
-        advanceTo('scripting');
-        break;
+**Shadows → Glow:**
+- `.dark .shadow-md` → dark shadow + subtle blue glow
+- `.dark .shadow-lg` → deeper shadow + stronger glow
 
-      case 'scripting':
-        // Call geminiService.generateScriptWithGemini()
-        // Save script to database
-        // Parse into acts/scenes/dialogue
-        advanceTo('shot_planning');
-        break;
+**Inputs:**
+- `.dark input, textarea, select` → dark surface-overlay bg, light text, dark border
 
-      case 'shot_planning':
-        // Call shotListGeneratorService.generateShotListFromScript()
-        // Save production_shot_plans to database
-        advanceTo('storyboarding');
-        break;
+**Gradients:**
+- `.dark .from-blue-50` / `.via-sky-50` / `.to-white` → dark-appropriate gradient stops
 
-      case 'storyboarding':
-        // Call storyboardService to generate images for all shots
-        // Batch parallel, poll for completion
-        // Auto-approve all (or quality-gate if max_quality)
-        advanceTo('video_rendering');
-        break;
+**Images:**
+- `.dark img { filter: none; }` — never invert images
 
-      case 'video_rendering':
-        // Generate Veo3 prompts via veo3PromptService
-        // Submit batch via vertexAIService.submitVeo3Request()
-        // Poll all jobs until complete (with retry on failure)
-        // Store results in shot_rendering_results
-        advanceTo('dialogue_audio');
-        break;
-
-      case 'dialogue_audio':
-        // Extract dialogue lines per character
-        // Generate audio via dialogueAudioService
-        // Store in dialogue_audio_clips
-        advanceTo('lip_sync');
-        break;
-
-      case 'lip_sync':
-        // For each shot with dialogue + video:
-        // Submit lip sync job via lipSyncService
-        // Poll for completion
-        advanceTo('assembling');
-        break;
-
-      case 'assembling':
-        // Convert shots to EditorialShot[]
-        // Run editorial engine (generateEDL)
-        // Render via FFmpeg (renderEDL) or Shotstack
-        // Store output URL
-        advanceTo('complete');
-        break;
-    }
-  }
-}
-```
-
-Each state transition:
-- Updates `autopilot_runs.current_state` and `progress_percent`
-- Logs decisions to `decision_log`
-- Handles errors with retry → skip → fail gracefully
-- Writes `current_stage_detail` for the UI to show
-
-**File:** `src/services/autopilotPipelineOrchestrator.ts`
-
-### Step 4: Progress Tracker
-
-Real-time progress updates that the monitor UI can poll or subscribe to.
-
-```ts
-interface PipelineProgress {
-  runId: string;
-  state: PipelineState;
-  progressPercent: number;
-  stageDetail: string;
-  estimatedMinutesRemaining: number;
-  shotsStatus: {
-    total: number;
-    storyboarded: number;
-    rendered: number;
-    withAudio: number;
-    withLipSync: number;
-    failed: number;
-  };
-  recentDecisions: { timestamp: string; decision: string }[];
-  costSoFar: number;
-}
-```
-
-Updates are written to the `autopilot_runs` table on every state change and sub-step completion. The UI polls every 3 seconds or uses Supabase Realtime subscription.
-
-**File:** `src/services/autopilotProgressTracker.ts`
-
-### Step 5: Autopilot Launch UI
-
-The "walk away" interface. Minimal — storyline, format, go.
-
-**Layout:**
-```
-┌─────────────────────────────────────────────────┐
-│  🎬 Autopilot Video Production                  │
-│                                                  │
-│  Storyline:                                      │
-│  ┌─────────────────────────────────────────────┐ │
-│  │ A young chef discovers her grandmother's     │ │
-│  │ secret recipe book and enters a cooking      │ │
-│  │ competition to save the family restaurant... │ │
-│  └─────────────────────────────────────────────┘ │
-│                                                  │
-│  Format: [Streaming ▾]    Runtime: [5 min ▾]    │
-│                                                  │
-│  Quality: ○ Fast (~15 min)                       │
-│           ● Balanced (~25 min)                   │
-│           ○ Maximum (~40 min)                    │
-│                                                  │
-│  Series: [Auto-detect / Select ▾]               │
-│                                                  │
-│  ┌─────────────────────────────────────────────┐ │
-│  │         🚀 Start Production                  │ │
-│  │    You can close this tab and come back.     │ │
-│  └─────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────┘
-```
-
-After clicking "Start Production," immediately transitions to the Monitor UI.
-
-**File:** `src/components/AutopilotLaunch.tsx`
-
-### Step 6: Autopilot Monitor UI
-
-The "check back" dashboard. Shows real-time progress without requiring interaction.
-
-**Layout:**
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Autopilot: "The Secret Recipe" — Streaming, 5 min          │
-│                                                              │
-│  ████████████████████░░░░░░░░░░  67%  ~8 min remaining      │
-│                                                              │
-│  ✅ Script Generated (42s)                                   │
-│  ✅ Shot Plan (24 shots) (18s)                               │
-│  ✅ Storyboards (24/24) (2m 14s)                             │
-│  🔄 Video Rendering (16/24 complete) — Rendering shot 17... │
-│  ⬜ Dialogue Audio                                           │
-│  ⬜ Lip Sync                                                 │
-│  ⬜ Editorial Assembly                                       │
-│                                                              │
-│  ┌─ Shot Grid ─────────────────────────────────────────────┐ │
-│  │ 1✅ 2✅ 3✅ 4✅ 5✅ 6✅ 7✅ 8✅ 9✅ 10✅ 11✅ 12✅  │ │
-│  │ 13✅ 14✅ 15✅ 16🔄 17🔄 18⬜ 19⬜ 20⬜ 21⬜ 22⬜  │ │
-│  │ 23⬜ 24⬜                                               │ │
-│  └─────────────────────────────────────────────────────────┘ │
-│                                                              │
-│  Recent decisions:                                           │
-│  · Shot 15: Used Veo 3.1 (dialogue scene, needs audio sync) │
-│  · Shot 14: Retried once (timeout), succeeded on retry       │
-│  · Pacing set to "medium" (streaming format, 5 min runtime)  │
-│                                                              │
-│  Cost so far: $1.24                                          │
-└─────────────────────────────────────────────────────────────┘
-```
-
-When pipeline reaches `complete`:
-```
-┌─────────────────────────────────────────────────────────────┐
-│  ✅ Your video is ready!                                     │
-│                                                              │
-│  "The Secret Recipe" — 4:52 runtime                          │
-│  24 shots · 18 with video · 6 with lip-sync                 │
-│  Total cost: $2.18 · Total time: 23 min                     │
-│                                                              │
-│  ┌─────────────────────────────────────────────────────────┐ │
-│  │              [Video Player]                              │ │
-│  └─────────────────────────────────────────────────────────┘ │
-│                                                              │
-│  [Download MP4]  [Open in FFmpeg Editor]  [Run Again]        │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**File:** `src/components/AutopilotMonitor.tsx`
-
-### Step 7: Sidebar Navigation
-
-Add "Autopilot" to the sidebar as the first production-related item with a distinctive icon.
-
-**File:** `src/components/Layout.tsx`, `src/App.tsx`
-
-### Step 8: Active Runs Dashboard
-
-When the user navigates to Autopilot, show:
-- Any active/running pipelines with live progress
-- Recent completed pipelines with output links
-- "Start New" button to launch a new run
-
-**File:** `src/components/AutopilotDashboard.tsx`
+**Transitions:**
+- All background/color/border changes get `transition: 0.3s ease` for smooth toggling
 
 ---
 
-## The Autopilot Decision Engine — Detail
+## Step 3: ThemeContext — State management
 
-The key to step-away is that the system must make every decision a producer would. Here's how each is derived:
+**New file:** `src/contexts/ThemeContext.tsx`
 
-### Script Decisions
-| Input | Decision | Logic |
-|-------|----------|-------|
-| Format = short_form | temperature = 0.8, maxTokens = 4000 | Short scripts need punchier writing |
-| Format = broadcast | temperature = 0.7, maxTokens = 16000 | Longer, more structured scripts |
-| Format = spot | temperature = 0.9, maxTokens = 2000 | Creative, concise copy |
-| No characters in series | Auto-create 2-3 from storyline | Use Gemini to extract character descriptions from storyline |
-
-### Shot Planning Decisions
-| Input | Decision | Logic |
-|-------|----------|-------|
-| Runtime ≤ 2 min | pacing = 'fast', avg shot = 4s | Short content = tight cuts |
-| Runtime 2-10 min | pacing = 'medium', avg shot = 6s | Standard pacing |
-| Runtime > 10 min | pacing = 'slow', avg shot = 7s | Room to breathe |
-| Format = spot | pacing = 'fast', avg shot = 3s | Every frame sells |
-| Format = documentary | includeEstablishing = true | Documentary needs establishing shots |
-
-### Video Generation Decisions
-| Quality Preset | Model | Resolution | Samples | Parallel |
-|---------------|-------|-----------|---------|----------|
-| fast | veo-3.0-generate-001 | 720p | 1 | 4 at once |
-| balanced | veo-3.1-generate-001 | 720p | 1 | 3 at once |
-| max_quality | veo-3.1-generate-001 | 1080p | 2 | 2 at once |
-
-### Assembly Decisions
-| Condition | Decision | Logic |
-|-----------|----------|-------|
-| Shotstack API key configured | Use Shotstack | Cloud render, higher quality |
-| No Shotstack key | Use FFmpeg editorial engine | Free, local, still watchable |
-| Quality preset = max_quality | FFmpeg editorial + Shotstack final | Best of both |
-
-### Error Recovery
-| Error | Recovery | Fallback |
-|-------|----------|----------|
-| Video render timeout | Retry once with shorter duration | Use storyboard still |
-| Dialogue audio fails | Retry with alternate provider | Skip dialogue audio for shot |
-| Lip sync fails | Retry once | Use non-lip-synced video |
-| Storyboard generation fails | Retry with simplified prompt | Skip storyboard, use placeholder |
-| Script generation fails | Retry with adjusted temperature | Fail pipeline (can't proceed without script) |
-| Assembly fails | Retry | Fall back to simple concat |
+- Provides: `theme` ('light' | 'dark' | 'system'), `setTheme()`, `resolvedTheme` ('light' | 'dark')
+- On mount: reads from `localStorage('bee-studio-theme')`, defaults to 'system'
+- Applies/removes `.dark` class on `document.documentElement`
+- Listens to `window.matchMedia('(prefers-color-scheme: dark)')` for system mode
+- Smooth class toggle with no flash on page load
 
 ---
 
-## File Summary
+## Step 4: ThemeToggle component — Animated sun/moon toggle
+
+**New file:** `src/components/ThemeToggle.tsx`
+
+- Compact pill-shaped toggle that fits in the sidebar footer
+- Three modes via click cycle: Light → Dark → System
+- Animated sun ↔ moon icon with rotation/scale transition
+- Shows current mode label ("Light" / "Dark" / "Auto")
+- Uses `Moon`, `Sun`, `Monitor` icons from lucide-react
+
+---
+
+## Step 5: Layout.tsx — Integrate toggle + targeted overrides
+
+**File:** `src/components/Layout.tsx`
+
+- Import and place `ThemeToggle` in sidebar footer (between Settings button and Quick Search hint)
+- Also add to mobile sidebar footer
+- Add `dark:` classes to the few elements CSS overrides can't reach:
+  - `<kbd>` elements in Quick Search hint
+  - Mobile overlay backdrop
+  - Any inline gradient styles
+
+---
+
+## Step 6: main.tsx — Wrap app with ThemeProvider
+
+**File:** `src/main.tsx`
+
+- Add `ThemeProvider` as the outermost wrapper (before AuthProvider)
+- This ensures theme is available before any UI renders
+
+---
+
+## Step 7: Spot-check critical components
+
+Most components work automatically via the global CSS overrides. Manually review and add `dark:` variants only to components with:
+- Complex inline gradients (e.g., `bg-gradient-to-r from-scripps-blue...` — these are fine, blue gradients look great on dark)
+- Dynamic className logic that might conflict
+- Modals with backdrop styling
+- Tables with striped rows
+
+Expected components needing minor tweaks:
+- `Dashboard.tsx` — stat card gradients
+- `AutopilotLaunch.tsx` — header gradient (likely fine as-is)
+- `Settings.tsx` — tab panel backgrounds
+
+---
+
+## Dark Mode Design Language
+
+| Element | Light | Dark |
+|---------|-------|------|
+| Page background | White/blue-50 gradient | Deep navy #0f1729 |
+| Cards | White | Slate #1a2332 with subtle blue glow |
+| Primary text | Near-black #0f172a | Near-white #f1f5f9 |
+| Secondary text | Gray #475569 | Light slate #cbd5e1 |
+| Borders | Light gray #e2e8f0 | Dark slate #2a3a52 |
+| Shadows | Standard gray shadows | Dark shadows + blue glow |
+| Active nav | Scripps blue gradient | Same (pops beautifully on dark) |
+| Inputs | White bg, gray border | Dark overlay bg, slate border |
+| Status colors | Standard red/amber/green | Brighter, more saturated versions |
+| Images | As-is | As-is (no filters, no inversion) |
+| Transitions | — | 300ms ease on all color properties |
+
+---
+
+## File Change Summary
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `supabase/migrations/..._autopilot_runs.sql` | Create | Pipeline runs table + RLS |
-| `src/services/autopilotDecisionEngine.ts` | Create | Derives all creative/technical decisions from 3 inputs |
-| `src/services/autopilotPipelineOrchestrator.ts` | Create | State machine that drives the full pipeline |
-| `src/services/autopilotProgressTracker.ts` | Create | Progress updates + cost tracking |
-| `src/components/AutopilotLaunch.tsx` | Create | Story input → format → quality → go |
-| `src/components/AutopilotMonitor.tsx` | Create | Real-time progress dashboard |
-| `src/components/AutopilotDashboard.tsx` | Create | Active runs + history + start new |
-| `src/components/Layout.tsx` | Modify | Add "Autopilot" nav item |
-| `src/App.tsx` | Modify | Add autopilot route |
+| `tailwind.config.js` | Modify | Add `darkMode: 'class'` |
+| `src/index.css` | Modify | CSS variables + global dark overrides |
+| `src/contexts/ThemeContext.tsx` | **New** | Theme state + localStorage + system preference |
+| `src/components/ThemeToggle.tsx` | **New** | Animated sun/moon/auto toggle |
+| `src/main.tsx` | Modify | Wrap with ThemeProvider |
+| `src/components/Layout.tsx` | Modify | Add ThemeToggle + minor dark: tweaks |
+| ~3-5 component files | Minor modify | Targeted dark: overrides where CSS can't reach |
 
-## What This Does NOT Include (Future)
-
-- **Email/push notification** when video is ready (would need a notification service)
-- **Batch production** (generate 10 episodes at once)
-- **A/B variant generation** (make two versions with different pacing)
-- **Human-in-the-loop mode** (pause at each stage for approval)
-- **Scheduling** (start production at 2am when API costs are lower)
-
-These are all natural extensions but not needed for the core step-away experience.
-
-## Success Criteria
-
-The pipeline passes the **"Dinner Test"**:
-1. User types a 2-sentence storyline
-2. Selects format and quality
-3. Clicks "Start Production"
-4. Goes to dinner
-5. Comes back to a watchable video with:
-   - [ ] Coherent script with proper act structure
-   - [ ] Shot variety (establishing, medium, close-up, reaction)
-   - [ ] Generated video for most/all shots (stills for failures)
-   - [ ] Audible, properly mixed dialogue
-   - [ ] Lip sync on dialogue shots (where possible)
-   - [ ] Format-aware editing (pacing, transitions, audio ducking)
-   - [ ] No dead air, no frozen frames, no abrupt ending
-   - [ ] A video they'd actually want to show someone
+**Total new files:** 2
+**Total modified files:** ~5-8
+**Components auto-handled by CSS overrides:** ~110+ of 118
