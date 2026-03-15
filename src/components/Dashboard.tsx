@@ -279,5 +279,3 @@ function QuickAction({ icon: Icon, title, description, onClick }: {
   );
 }
 
-// Re-export icons used in quick actions
-import { GitBranch, Presentation } from 'lucide-react';
