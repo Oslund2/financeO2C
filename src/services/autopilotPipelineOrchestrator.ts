@@ -15,6 +15,7 @@ import {
   markStageCompleted,
   type PipelineState,
 } from './autopilotProgressTracker';
+import { insertAutopilotRun, updateAutopilotRun, fetchAutopilotRun } from './autopilotRunsClient';
 import { generateScriptWithGemini } from './geminiService';
 import { generateStandaloneShotList } from './shotListGeneratorService';
 import { generateStoryboardForScript, generateImagesForStoryboard } from './storyboardService';
@@ -100,7 +101,7 @@ async function stageScripting(config: RunConfig): Promise<{ scriptId: string; ep
     .single();
   if (epErr || !episode) throw new Error(`Failed to create episode: ${epErr?.message}`);
 
-  await supabase.from('autopilot_runs').update({ episode_id: episode.id }).eq('id', runId);
+  await updateAutopilotRun(runId, { episode_id: episode.id });
 
   await logDecision(runId, `Using ${charList.length} characters`, charList.map((c) => c.name).join(', ') || 'None (script will create context)');
 
@@ -144,7 +145,7 @@ async function stageScripting(config: RunConfig): Promise<{ scriptId: string; ep
 
   // Link episode to script
   await supabase.from('episodes').update({ script_id: script.id }).eq('id', episode.id);
-  await supabase.from('autopilot_runs').update({ script_id: script.id }).eq('id', runId);
+  await updateAutopilotRun(runId, { script_id: script.id });
 
   await logDecision(runId, `Script generated: "${generated.title}"`, `${generated.segments.length} segments, ${generated.total_scripted_duration_seconds}s scripted`);
   await markStageCompleted(runId, 'scripting');
@@ -411,7 +412,7 @@ async function stageAssembly(config: RunConfig, episodeId: string): Promise<stri
         .single();
 
       if (assembly?.status === 'completed' && assembly.output_url) {
-        await supabase.from('autopilot_runs').update({ output_video_url: assembly.output_url }).eq('id', runId);
+        await updateAutopilotRun(runId, { output_video_url: assembly.output_url });
         await logDecision(runId, 'Final video assembled');
         return assembly.output_url;
       }
@@ -436,12 +437,7 @@ async function stageAssembly(config: RunConfig, episodeId: string): Promise<stri
 
 export async function runAutopilotPipeline(runId: string): Promise<void> {
   // Load run config
-  const { data: run } = await supabase
-    .from('autopilot_runs')
-    .select('*')
-    .eq('id', runId)
-    .single();
-
+  const run = await fetchAutopilotRun(runId);
   if (!run) throw new Error('Run not found');
 
   const config: RunConfig = {
@@ -454,7 +450,7 @@ export async function runAutopilotPipeline(runId: string): Promise<void> {
     qualityPreset: (run.quality_preset || 'balanced') as QualityPreset,
   };
 
-  await supabase.from('autopilot_runs').update({ started_at: new Date().toISOString() }).eq('id', runId);
+  await updateAutopilotRun(runId, { started_at: new Date().toISOString() });
 
   try {
     // Stage 1: Script
@@ -521,22 +517,16 @@ export async function startAutopilotRun(params: {
   targetRuntimeMinutes?: number;
   qualityPreset?: string;
 }): Promise<string> {
-  const { data, error } = await supabase
-    .from('autopilot_runs')
-    .insert({
-      series_id: params.seriesId,
-      organization_id: params.organizationId,
-      storyline: params.storyline,
-      format_type: params.formatType || 'streaming',
-      target_runtime_minutes: params.targetRuntimeMinutes || 5,
-      quality_preset: params.qualityPreset || 'balanced',
-      current_state: 'initiated',
-      progress_percent: 0,
-    })
-    .select('id')
-    .single();
-
-  if (error || !data) throw new Error(`Failed to create autopilot run: ${error?.message}`);
+  const data = await insertAutopilotRun({
+    series_id: params.seriesId,
+    organization_id: params.organizationId,
+    storyline: params.storyline,
+    format_type: params.formatType || 'streaming',
+    target_runtime_minutes: params.targetRuntimeMinutes || 5,
+    quality_preset: params.qualityPreset || 'balanced',
+    current_state: 'initiated',
+    progress_percent: 0,
+  });
 
   // Fire and forget — pipeline runs in background
   runAutopilotPipeline(data.id).catch((err) => {

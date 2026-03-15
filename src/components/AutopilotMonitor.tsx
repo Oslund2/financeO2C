@@ -3,6 +3,7 @@ import { CheckCircle, XCircle, Loader, Clock, ChevronDown, ChevronUp, Play, Arro
 import { supabase } from '../lib/supabase';
 import type { AutopilotRun, PipelineState } from '../services/autopilotProgressTracker';
 import { STATE_LABELS } from '../services/autopilotProgressTracker';
+import { fetchAutopilotRun } from '../services/autopilotRunsClient';
 
 interface AutopilotMonitorProps {
   runId: string;
@@ -23,15 +24,10 @@ export function AutopilotMonitor({ runId, onBack }: AutopilotMonitorProps) {
   const [showLog, setShowLog] = useState(false);
 
   useEffect(() => {
-    // Initial fetch
-    supabase
-      .from('autopilot_runs')
-      .select('*')
-      .eq('id', runId)
-      .single()
-      .then(({ data }) => { if (data) setRun(data as AutopilotRun); });
+    // Initial fetch via RPC
+    fetchAutopilotRun(runId).then((data) => { if (data) setRun(data); }).catch(console.error);
 
-    // Real-time subscription
+    // Real-time subscription (uses Realtime service, not PostgREST)
     const channel = supabase
       .channel(`autopilot-run-${runId}`)
       .on(
@@ -41,14 +37,12 @@ export function AutopilotMonitor({ runId, onBack }: AutopilotMonitorProps) {
       )
       .subscribe();
 
-    // Also poll every 5s as backup
+    // Also poll every 5s via RPC as backup
     const interval = setInterval(async () => {
-      const { data } = await supabase
-        .from('autopilot_runs')
-        .select('*')
-        .eq('id', runId)
-        .single();
-      if (data) setRun(data as AutopilotRun);
+      try {
+        const data = await fetchAutopilotRun(runId);
+        if (data) setRun(data);
+      } catch { /* ignore poll errors */ }
     }, 5000);
 
     return () => {
