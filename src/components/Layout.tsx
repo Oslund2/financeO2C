@@ -1,254 +1,133 @@
-import { ReactNode, useState, useEffect } from 'react';
+import { ReactNode } from 'react';
 import {
-  Film,
-  Users,
-  FileText,
-  Image,
-  PlayCircle,
-  Settings,
+  LayoutDashboard,
+  GitBranch,
+  Calculator,
+  BarChart3,
+  Presentation,
+  Database,
   Sparkles,
-  Clapperboard,
-  Camera,
-  Shield,
+  ChevronLeft,
+  ChevronRight,
   Menu,
   X,
-  TrendingUp,
-  DollarSign,
-  HelpCircle,
-  Command,
-  Search,
-  Video,
-  Scissors,
-  Wand2,
 } from 'lucide-react';
-import { Logo } from './Logo';
-import { OrganizationSwitcher } from './OrganizationSwitcher';
-import { SeriesSwitcher } from './SeriesSwitcher';
-import { InfoTooltip } from './InfoTooltip';
-import { ThemeToggle } from './ThemeToggle';
-import { useOrganization } from '../contexts/OrganizationContext';
-import { supabase } from '../lib/supabase';
+import { useState } from 'react';
+
+export type View = 'dashboard' | 'workflow' | 'savings' | 'scenarios' | 'presentation' | 'data' | 'ai-demo';
 
 interface LayoutProps {
+  currentView: View;
+  onNavigate: (view: View) => void;
   children: ReactNode;
-  currentView: string;
-  onNavigate: (view: string) => void;
-  currentSeriesId: string | null;
-  onSeriesChange: (seriesId: string) => void;
 }
 
-export function Layout({ children, currentView, onNavigate, currentSeriesId, onSeriesChange }: LayoutProps) {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [activeSeriesName, setActiveSeriesName] = useState<string | null>(null);
-  const { currentOrganization } = useOrganization();
+const NAV_ITEMS: { view: View; label: string; icon: typeof LayoutDashboard; description: string }[] = [
+  { view: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, description: 'O2C overview & metrics' },
+  { view: 'workflow', label: 'Workflow Map', icon: GitBranch, description: 'Visual process editor' },
+  { view: 'savings', label: 'Savings Calculator', icon: Calculator, description: 'ROI & time savings' },
+  { view: 'scenarios', label: 'Scenario Modeler', icon: BarChart3, description: 'What-if analysis' },
+  { view: 'presentation', label: 'Present', icon: Presentation, description: 'Finance meeting mode' },
+  { view: 'data', label: 'Data Explorer', icon: Database, description: 'Snowflake data views' },
+  { view: 'ai-demo', label: 'AI Demos', icon: Sparkles, description: 'Live automation demos' },
+];
 
-  useEffect(() => {
-    if (!currentSeriesId) { setActiveSeriesName(null); return; }
-    supabase
-      .from('series')
-      .select('name')
-      .eq('id', currentSeriesId)
-      .single()
-      .then(({ data }) => setActiveSeriesName(data?.name ?? null));
-  }, [currentSeriesId]);
-
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: Clapperboard },
-    { id: 'characters', label: 'Characters', icon: Users },
-    { id: 'ai-studio', label: 'AI Studio', icon: Sparkles },
-    { id: 'scripts', label: 'Scripts', icon: FileText },
-    { id: 'storyboard-generator', label: 'Storyboards', icon: Camera },
-    { id: 'video-generation', label: 'Video Generation', icon: Video },
-    { id: 'assets', label: 'Asset Library', icon: Image },
-    { id: 'episodes', label: 'Episodes', icon: Film },
-    { id: 'production', label: 'Production', icon: PlayCircle },
-    { id: 'ffmpeg-editor', label: 'FFmpeg Editor', icon: Scissors },
-    { id: 'profit-per-episode', label: 'Production Economics', icon: TrendingUp },
-    { id: 'autopilot', label: 'Autopilot', icon: Wand2 },
-    { id: 'ip-protection', label: 'IP Protection', icon: Shield },
-  ];
-
-  const handleNavigation = (view: string) => {
-    onNavigate(view);
-    setMobileMenuOpen(false);
-  };
+export function Layout({ currentView, onNavigate, children }: LayoutProps) {
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-white flex">
-      <aside className="hidden lg:flex w-64 bg-white border-r border-blue-200 flex-col shadow-lg">
-        <div className="p-8 border-b border-blue-200">
-          <div className="flex flex-col gap-3">
-            <Logo size="xlarge" className="mx-auto" logoUrl={currentOrganization?.logo_url} />
-            <div className="text-center">
-              <p className="text-xs font-medium text-scripps-navy">{activeSeriesName ?? 'Genre'}</p>
+    <div className="min-h-screen flex">
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`
+          fixed lg:static inset-y-0 left-0 z-50 flex flex-col
+          bg-white border-r border-surface-200 transition-all duration-300
+          ${collapsed ? 'w-16' : 'w-64'}
+          ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        `}
+      >
+        {/* Logo area */}
+        <div className={`flex items-center gap-3 p-4 border-b border-surface-200 ${collapsed ? 'justify-center' : ''}`}>
+          <div className="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center flex-shrink-0">
+            <span className="text-white font-bold text-sm">O2C</span>
+          </div>
+          {!collapsed && (
+            <div className="min-w-0">
+              <h1 className="font-bold text-surface-900 text-sm truncate">O2C Automation</h1>
+              <p className="text-xs text-surface-500 truncate">Planning Tool</p>
             </div>
-          </div>
+          )}
         </div>
 
-        <div className="p-4 border-b border-blue-200">
-          <div className="mb-2 flex items-center gap-1.5 px-1">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Workspace</p>
-            <InfoTooltip content="Your workspace can contain multiple animated shows. Think of it as your studio or company." />
-          </div>
-          <OrganizationSwitcher />
-        </div>
-
-        <div className="p-4 border-b border-blue-200">
-          <div className="mb-2 flex items-center gap-1.5 px-1">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Active Show</p>
-            <InfoTooltip content="Select which animated series you want to work on. Each show has its own characters, scripts, and assets." />
-          </div>
-          <SeriesSwitcher currentSeriesId={currentSeriesId} onSeriesChange={onSeriesChange} />
-        </div>
-
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = currentView === item.id ||
-              (item.id === 'storyboard-generator' && currentView === 'storyboard-viewer');
-
+        {/* Nav items */}
+        <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+          {NAV_ITEMS.map(({ view, label, icon: Icon, description }) => {
+            const active = currentView === view;
             return (
               <button
-                key={item.id}
-                onClick={() => onNavigate(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all ${
-                  isActive
-                    ? 'bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white shadow-md'
-                    : 'text-gray-700 hover:bg-blue-50'
-                }`}
+                key={view}
+                onClick={() => { onNavigate(view); setMobileOpen(false); }}
+                className={`
+                  w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left
+                  transition-all duration-150 group
+                  ${active
+                    ? 'bg-brand-50 text-brand-700 font-medium'
+                    : 'text-surface-600 hover:bg-surface-50 hover:text-surface-900'
+                  }
+                  ${collapsed ? 'justify-center' : ''}
+                `}
+                title={collapsed ? label : undefined}
               >
-                <Icon className="w-5 h-5" />
-                <span className="font-medium">{item.label}</span>
+                <Icon className={`w-5 h-5 flex-shrink-0 ${active ? 'text-brand-600' : 'text-surface-400 group-hover:text-surface-600'}`} />
+                {!collapsed && (
+                  <div className="min-w-0">
+                    <div className="text-sm truncate">{label}</div>
+                    {!active && <div className="text-xs text-surface-400 truncate">{description}</div>}
+                  </div>
+                )}
               </button>
             );
           })}
         </nav>
 
-        <div className="p-4 border-t border-blue-200 space-y-2">
+        {/* Collapse toggle */}
+        <div className="p-2 border-t border-surface-200 hidden lg:block">
           <button
-            onClick={() => onNavigate('settings')}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-blue-50 transition-all"
+            onClick={() => setCollapsed(!collapsed)}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-surface-400 hover:text-surface-600 rounded-lg hover:bg-surface-50 transition-colors text-sm"
           >
-            <Settings className="w-5 h-5" />
-            <span className="font-medium">Settings</span>
+            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+            {!collapsed && <span>Collapse</span>}
           </button>
-          <ThemeToggle />
-          <div className="px-4 py-2 bg-gray-50 rounded-lg border border-gray-200">
-            <div className="flex items-center justify-between text-xs text-gray-500">
-              <div className="flex items-center gap-1.5">
-                <Search className="w-3.5 h-3.5" />
-                <span>Quick Search</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <kbd className="px-1.5 py-0.5 bg-white rounded border border-gray-300 text-[10px] font-medium dark:bg-slate-700 dark:border-slate-600 dark:text-slate-300">
-                  {navigator.platform.includes('Mac') ? <Command className="w-3 h-3 inline" /> : 'Ctrl'}
-                </kbd>
-                <kbd className="px-1.5 py-0.5 bg-white rounded border border-gray-300 text-[10px] font-medium dark:bg-slate-700 dark:border-slate-600 dark:text-slate-300">K</kbd>
-              </div>
-            </div>
-          </div>
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="lg:hidden sticky top-0 z-40 bg-white border-b border-blue-200 shadow-sm">
-          <div className="flex items-center justify-between px-4 py-3" style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}>
-            <button
-              onClick={() => setMobileMenuOpen(true)}
-              className="p-2 -ml-2 rounded-lg hover:bg-blue-50 transition-colors"
-              aria-label="Open menu"
-            >
-              <Menu className="w-6 h-6 text-scripps-navy" />
-            </button>
-            <Logo size="medium" logoUrl={currentOrganization?.logo_url} />
-            <div className="w-10" />
-          </div>
-        </header>
+      {/* Main content */}
+      <main className="flex-1 min-w-0">
+        {/* Mobile header */}
+        <div className="lg:hidden flex items-center gap-3 p-4 border-b border-surface-200 bg-white">
+          <button
+            onClick={() => setMobileOpen(true)}
+            className="p-1.5 rounded-lg hover:bg-surface-50"
+          >
+            <Menu className="w-5 h-5 text-surface-600" />
+          </button>
+          <h1 className="font-bold text-surface-900">O2C Automation Planner</h1>
+        </div>
 
-        {mobileMenuOpen && (
-          <>
-            <div
-              className="fixed inset-0 bg-black/50 z-50 lg:hidden"
-              onClick={() => setMobileMenuOpen(false)}
-            />
-            <aside
-              className="fixed top-0 left-0 bottom-0 w-[85vw] max-w-72 bg-white shadow-2xl z-50 flex flex-col lg:hidden transform transition-transform"
-              style={{
-                paddingLeft: 'env(safe-area-inset-left)',
-                paddingTop: 'env(safe-area-inset-top)'
-              }}
-            >
-              <div className="p-6 border-b border-blue-200 flex items-center justify-between">
-                <div className="flex flex-col gap-2">
-                  <Logo size="xlarge" logoUrl={currentOrganization?.logo_url} />
-                  <p className="text-xs font-medium text-scripps-navy">{activeSeriesName ?? 'Genre'}</p>
-                </div>
-                <button
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="p-2 rounded-lg hover:bg-blue-50 transition-colors"
-                  aria-label="Close menu"
-                >
-                  <X className="w-6 h-6 text-gray-600" />
-                </button>
-              </div>
-
-              <div className="p-4 border-b border-blue-200">
-                <div className="mb-2 flex items-center gap-1.5 px-1">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Workspace</p>
-                  <InfoTooltip content="Your workspace can contain multiple animated shows. Think of it as your studio or company." />
-                </div>
-                <OrganizationSwitcher />
-              </div>
-
-              <div className="p-4 border-b border-blue-200">
-                <div className="mb-2 flex items-center gap-1.5 px-1">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Active Show</p>
-                  <InfoTooltip content="Select which animated series you want to work on. Each show has its own characters, scripts, and assets." />
-                </div>
-                <SeriesSwitcher currentSeriesId={currentSeriesId} onSeriesChange={onSeriesChange} />
-              </div>
-
-              <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-                {navItems.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = currentView === item.id ||
-                    (item.id === 'storyboard-generator' && currentView === 'storyboard-viewer');
-
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => handleNavigation(item.id)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all min-h-[44px] ${
-                        isActive
-                          ? 'bg-gradient-to-r from-scripps-blue to-scripps-light-blue text-white shadow-md'
-                          : 'text-gray-700 hover:bg-blue-50 active:bg-blue-100'
-                      }`}
-                    >
-                      <Icon className="w-5 h-5 flex-shrink-0" />
-                      <span className="font-medium">{item.label}</span>
-                    </button>
-                  );
-                })}
-              </nav>
-
-              <div className="p-4 border-t border-blue-200 space-y-2" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
-                <button
-                  onClick={() => handleNavigation('settings')}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-blue-50 active:bg-blue-100 transition-all min-h-[44px]"
-                >
-                  <Settings className="w-5 h-5 flex-shrink-0" />
-                  <span className="font-medium">Settings</span>
-                </button>
-                <ThemeToggle />
-              </div>
-            </aside>
-          </>
-        )}
-
-        <main className="flex-1 overflow-auto">
+        <div className="p-4 lg:p-8">
           {children}
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }
