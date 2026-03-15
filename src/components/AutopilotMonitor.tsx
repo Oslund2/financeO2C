@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, Loader, Clock, ChevronDown, ChevronUp, Play, ArrowLeft } from 'lucide-react';
-import { supabase } from '../lib/supabase';
 import type { AutopilotRun, PipelineState } from '../services/autopilotProgressTracker';
 import { STATE_LABELS } from '../services/autopilotProgressTracker';
 import { fetchAutopilotRun } from '../services/autopilotRunsClient';
+import { subscribe } from '../services/autopilotRunStore';
 
 interface AutopilotMonitorProps {
   runId: string;
@@ -24,29 +24,32 @@ export function AutopilotMonitor({ runId, onBack }: AutopilotMonitorProps) {
   const [showLog, setShowLog] = useState(false);
 
   useEffect(() => {
-    // Initial fetch via RPC
-    fetchAutopilotRun(runId).then((data) => { if (data) setRun(data); }).catch(console.error);
+    // Initial fetch from local store
+    const data = fetchAutopilotRun(runId);
+    if (data instanceof Promise) {
+      data.then((d) => { if (d) setRun(d); });
+    } else if (data) {
+      setRun(data as AutopilotRun);
+    }
 
-    // Real-time subscription (uses Realtime service, not PostgREST)
-    const channel = supabase
-      .channel(`autopilot-run-${runId}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'autopilot_runs', filter: `id=eq.${runId}` },
-        (payload) => setRun(payload.new as AutopilotRun)
-      )
-      .subscribe();
+    // Subscribe to store changes for real-time updates
+    const unsubscribe = subscribe(() => {
+      const updated = fetchAutopilotRun(runId);
+      if (updated instanceof Promise) {
+        updated.then((d) => { if (d) setRun(d); });
+      } else if (updated) {
+        setRun(updated as AutopilotRun);
+      }
+    });
 
-    // Also poll every 5s via RPC as backup
+    // Also poll every 2s as backup
     const interval = setInterval(async () => {
-      try {
-        const data = await fetchAutopilotRun(runId);
-        if (data) setRun(data);
-      } catch { /* ignore poll errors */ }
-    }, 5000);
+      const d = await fetchAutopilotRun(runId);
+      if (d) setRun(d);
+    }, 2000);
 
     return () => {
-      channel.unsubscribe();
+      unsubscribe();
       clearInterval(interval);
     };
   }, [runId]);
