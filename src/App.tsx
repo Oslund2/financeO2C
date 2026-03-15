@@ -7,11 +7,29 @@ import { ScenarioModeler } from './components/ScenarioModeler';
 import { PresentationMode } from './components/PresentationMode';
 import { DataExplorer } from './components/DataExplorer';
 import { AIDemo } from './components/AIDemo';
+import { AIChatbot } from './components/AIChatbot';
 import { useWorkflow } from './hooks/useWorkflow';
+import { calculateSavings, calculatePhaseBreakdown, formatCurrency, formatNumber } from './lib/calculations';
 
 function App() {
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const workflow = useWorkflow();
+
+  // Build context string for chatbot based on current state
+  const savings = calculateSavings(
+    workflow.baselineSteps, workflow.automatedSteps,
+    workflow.assumptions, workflow.enabledPhases
+  );
+  const chatContext = `Current view: ${currentView}
+Active phases: ${workflow.enabledPhases.length}/7
+Total workflow steps: ${workflow.baselineSteps.length}
+Monthly manual hours: ${formatNumber(savings.manualHoursPerMonth, 0)}
+Monthly automated hours: ${formatNumber(savings.automatedHoursPerMonth, 0)}
+Hours saved/month: ${formatNumber(savings.hoursSavedPerMonth, 0)}
+FTE freed: ${formatNumber(savings.fteSaved)}
+Net savings/year: ${formatCurrency(savings.netSavingsPerYear)}
+ROI breakeven: ${savings.roiMonths} months
+Assumptions: ${JSON.stringify(workflow.assumptions)}`;
 
   if (currentView === 'presentation') {
     return (
@@ -26,48 +44,52 @@ function App() {
   }
 
   return (
-    <Layout currentView={currentView} onNavigate={setCurrentView}>
-      {currentView === 'dashboard' && (
-        <Dashboard
-          baselineSteps={workflow.baselineSteps}
-          automatedSteps={workflow.automatedSteps}
-          assumptions={workflow.assumptions}
-          enabledPhases={workflow.enabledPhases}
-          onNavigate={setCurrentView}
-        />
-      )}
-      {currentView === 'workflow' && (
-        <WorkflowMap
-          baselineSteps={workflow.baselineSteps}
-          automatedSteps={workflow.automatedSteps}
-          onEditStep={workflow.updateBaselineStep}
-          onAddStep={workflow.addStep}
-          onRemoveStep={workflow.removeStep}
-          enabledPhases={workflow.enabledPhases}
-          onTogglePhase={workflow.togglePhase}
-        />
-      )}
-      {currentView === 'savings' && (
-        <SavingsCalculator
-          baselineSteps={workflow.baselineSteps}
-          automatedSteps={workflow.automatedSteps}
-          assumptions={workflow.assumptions}
-          enabledPhases={workflow.enabledPhases}
-          onUpdateAssumptions={workflow.updateAssumptions}
-        />
-      )}
-      {currentView === 'scenarios' && (
-        <ScenarioModeler
-          baselineSteps={workflow.baselineSteps}
-          automatedSteps={workflow.automatedSteps}
-          assumptions={workflow.assumptions}
-          enabledPhases={workflow.enabledPhases}
-          onTogglePhase={workflow.togglePhase}
-        />
-      )}
-      {currentView === 'data' && <DataExplorer />}
-      {currentView === 'ai-demo' && <AIDemo />}
-    </Layout>
+    <>
+      <Layout currentView={currentView} onNavigate={setCurrentView}>
+        {currentView === 'dashboard' && (
+          <Dashboard
+            baselineSteps={workflow.baselineSteps}
+            automatedSteps={workflow.automatedSteps}
+            assumptions={workflow.assumptions}
+            enabledPhases={workflow.enabledPhases}
+            onNavigate={setCurrentView}
+          />
+        )}
+        {currentView === 'workflow' && (
+          <WorkflowMap
+            baselineSteps={workflow.baselineSteps}
+            automatedSteps={workflow.automatedSteps}
+            onEditStep={workflow.updateBaselineStep}
+            onAddStep={workflow.addStep}
+            onRemoveStep={workflow.removeStep}
+            enabledPhases={workflow.enabledPhases}
+            onTogglePhase={workflow.togglePhase}
+            assumptions={workflow.assumptions}
+          />
+        )}
+        {currentView === 'savings' && (
+          <SavingsCalculator
+            baselineSteps={workflow.baselineSteps}
+            automatedSteps={workflow.automatedSteps}
+            assumptions={workflow.assumptions}
+            enabledPhases={workflow.enabledPhases}
+            onUpdateAssumptions={workflow.updateAssumptions}
+          />
+        )}
+        {currentView === 'scenarios' && (
+          <ScenarioModeler
+            baselineSteps={workflow.baselineSteps}
+            automatedSteps={workflow.automatedSteps}
+            assumptions={workflow.assumptions}
+            enabledPhases={workflow.enabledPhases}
+            onTogglePhase={workflow.togglePhase}
+          />
+        )}
+        {currentView === 'data' && <DataExplorer />}
+        {currentView === 'ai-demo' && <AIDemo />}
+      </Layout>
+      <AIChatbot context={chatContext} />
+    </>
   );
 }
 

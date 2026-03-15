@@ -8,6 +8,7 @@ import {
   calculateSavings, calculatePhaseBreakdown,
   formatCurrency, formatNumber, formatPercent,
 } from '../lib/calculations';
+import { AISavingsNarrative } from './AISavingsNarrative';
 
 interface SavingsCalculatorProps {
   baselineSteps: WorkflowStep[];
@@ -206,6 +207,9 @@ export function SavingsCalculator({
                 })}
             </div>
           </div>
+
+          {/* AI Executive Summary */}
+          <AISavingsNarrative savings={savings} assumptions={assumptions} breakdown={breakdown} />
 
           {/* Formula transparency */}
           <div className="card p-5">

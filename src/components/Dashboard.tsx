@@ -278,5 +278,3 @@ function QuickAction({ icon: Icon, title, description, onClick }: {
     </button>
   );
 }
-
-
