@@ -126,15 +126,7 @@ export async function generateShotListFromScript(
 ): Promise<ShotPlan[]> {
   const { data: script, error: scriptError } = await supabase
     .from('scripts')
-    .select(`
-      *,
-      script_acts (
-        *,
-        script_scenes (
-          *
-        )
-      )
-    `)
+    .select('*')
     .eq('id', scriptId)
     .maybeSingle();
 
@@ -142,7 +134,18 @@ export async function generateShotListFromScript(
     throw new Error('Script not found');
   }
 
-  const acts = (script.script_acts || []).sort((a, b) => a.act_number - b.act_number);
+  // Query acts and scenes directly to avoid deeply nested PostgREST relation issues
+  const { data: actsWithScenes, error: actsError } = await supabase
+    .from('script_acts')
+    .select('*, script_scenes(*)')
+    .eq('script_id', scriptId)
+    .order('act_number', { ascending: true });
+
+  if (actsError) {
+    throw new Error(`Failed to load script acts: ${actsError.message}`);
+  }
+
+  const acts = (actsWithScenes || []);
   const shots: ShotPlan[] = [];
   let globalShotNumber = 1;
 
