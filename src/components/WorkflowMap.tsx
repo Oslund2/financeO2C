@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Plus, Eye, EyeOff, LayoutGrid, List } from 'lucide-react';
-import { WorkflowStep, O2CPhase, O2C_PHASES, PHASE_LABELS, PHASE_COLORS } from '../types';
+import { WorkflowStep, Assumptions, O2CPhase, O2C_PHASES, PHASE_LABELS, PHASE_COLORS } from '../types';
 import { WorkflowStepCard } from './WorkflowStepCard';
 import { WorkflowStepEditor } from './WorkflowStepEditor';
 
@@ -12,6 +12,7 @@ interface WorkflowMapProps {
   onRemoveStep: (stepId: string) => void;
   enabledPhases: O2CPhase[];
   onTogglePhase: (phase: O2CPhase) => void;
+  assumptions: Assumptions;
 }
 
 type ViewMode = 'comparison' | 'manual' | 'automated';
@@ -24,6 +25,7 @@ export function WorkflowMap({
   onRemoveStep,
   enabledPhases,
   onTogglePhase,
+  assumptions,
 }: WorkflowMapProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('comparison');
   const [editingStep, setEditingStep] = useState<WorkflowStep | null>(null);
@@ -42,6 +44,10 @@ export function WorkflowMap({
   const handleSaveNew = (step: WorkflowStep) => {
     onAddStep(step);
     setAddingStep(false);
+  };
+
+  const handleApplyAIEstimate = (stepId: string, manualTime: number, autoTime: number) => {
+    onEditStep(stepId, { manualTimeMinutes: manualTime, automatedTimeMinutes: autoTime });
   };
 
   const stepsForPhase = (phase: O2CPhase) =>
@@ -139,6 +145,8 @@ export function WorkflowMap({
                       onEdit={handleEdit}
                       onDelete={onRemoveStep}
                       mode={viewMode}
+                      assumptions={assumptions}
+                      onApplyAIEstimate={handleApplyAIEstimate}
                     />
                   ))}
                 </div>
@@ -162,6 +170,8 @@ export function WorkflowMap({
                 onEdit={handleEdit}
                 onDelete={onRemoveStep}
                 mode={viewMode}
+                assumptions={assumptions}
+                onApplyAIEstimate={handleApplyAIEstimate}
               />
             ))}
         </div>

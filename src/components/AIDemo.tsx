@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Sparkles, FileSearch, Mail, Banknote, Clock, CheckCircle2, ArrowRight, Loader2 } from 'lucide-react';
+import { Sparkles, FileSearch, Mail, Banknote, Clock, CheckCircle2, ArrowRight, Loader2, Wifi, WifiOff } from 'lucide-react';
+import { resolveDispute, draftCollectionsEmail } from '../lib/claude';
 
 type DemoType = 'dispute' | 'collections' | 'cash_match';
 
@@ -126,26 +127,72 @@ export function AIDemo() {
   const [running, setRunning] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [showResult, setShowResult] = useState(false);
+  const [liveResult, setLiveResult] = useState<string | null>(null);
+  const [usedLiveAI, setUsedLiveAI] = useState(false);
 
-  const runDemo = (type: DemoType) => {
+  const DISPUTE_DATA = {
+    id: 'DSP-301', agency: 'Dentsu International', type: 'Wrong rate',
+    amount: 4200, orderId: 'WO-2026-4521', invoiceId: 'INV-7834',
+    orderedCPM: 850, billedCPM: 920, spots: 60,
+    contractAmendment: 'CA-2026-0089', flightDates: 'March 1-8, 2026',
+    daypart: 'M-F 6-10a',
+  };
+
+  const COLLECTIONS_DATA = {
+    agency: 'Horizon Media', contactEmail: 'ap@horizonmedia.com',
+    invoices: [
+      { id: 'INV-7756', amount: 12400, campaign: 'Toyota', spots: 15, dates: 'Feb 10-14', daypart: 'M-F Early Morning' },
+      { id: 'INV-7761', amount: 14600, campaign: 'Progressive', spots: 20, dates: 'Feb 12-19', daypart: 'M-F Primetime' },
+      { id: 'INV-7768', amount: 7500, campaign: 'Home Depot', spots: 8, dates: 'Feb 17-21', daypart: 'Weekend Daytime' },
+    ],
+    totalOutstanding: 34500, daysOutstanding: 38, terms: 'Net 30',
+    affidavitsDelivered: 'February 25, 2026',
+  };
+
+  const runDemo = async (type: DemoType) => {
     setActiveDemo(type);
     setRunning(true);
     setCurrentStep(0);
     setShowResult(false);
+    setLiveResult(null);
+    setUsedLiveAI(false);
 
     const steps = DEMO_OUTPUTS[type].steps;
+
+    // Animate the processing steps
     let i = 0;
-    const interval = setInterval(() => {
-      i++;
-      setCurrentStep(i);
-      if (i >= steps.length) {
-        clearInterval(interval);
-        setTimeout(() => {
-          setRunning(false);
-          setShowResult(true);
-        }, 500);
+    await new Promise<void>((resolve) => {
+      const interval = setInterval(() => {
+        i++;
+        setCurrentStep(i);
+        if (i >= steps.length) {
+          clearInterval(interval);
+          resolve();
+        }
+      }, 800);
+    });
+
+    // Try live Claude API, fall back to mock
+    try {
+      let result: string;
+      if (type === 'dispute') {
+        result = await resolveDispute(DISPUTE_DATA);
+      } else if (type === 'collections') {
+        result = await draftCollectionsEmail(COLLECTIONS_DATA, 'first');
+      } else {
+        // Cash match uses mock for now
+        throw new Error('mock');
       }
-    }, 800);
+      setLiveResult(result);
+      setUsedLiveAI(true);
+    } catch {
+      // Fall back to mock output
+      setLiveResult(null);
+      setUsedLiveAI(false);
+    }
+
+    setRunning(false);
+    setShowResult(true);
   };
 
   return (
@@ -228,8 +275,19 @@ export function AIDemo() {
           {/* Result */}
           {showResult && (
             <div className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                {usedLiveAI ? (
+                  <span className="flex items-center gap-1 text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                    <Wifi className="w-3 h-3" /> Live Claude Response
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-xs text-surface-400 bg-surface-100 px-2 py-0.5 rounded-full">
+                    <WifiOff className="w-3 h-3" /> Simulated Output (add ANTHROPIC_API_KEY for live)
+                  </span>
+                )}
+              </div>
               <div className="bg-surface-50 rounded-lg p-4 font-mono text-sm text-surface-700 whitespace-pre-wrap leading-relaxed">
-                {DEMO_OUTPUTS[activeDemo].result}
+                {liveResult || DEMO_OUTPUTS[activeDemo].result}
               </div>
             </div>
           )}

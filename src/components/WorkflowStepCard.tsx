@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { User, Bot, Users, Clock, AlertTriangle, Pencil, Trash2, ChevronDown, ChevronUp, Sparkles, Database } from 'lucide-react';
-import { WorkflowStep, Actor, PHASE_LABELS, PHASE_COLORS } from '../types';
+import { WorkflowStep, Assumptions, Actor, PHASE_LABELS, PHASE_COLORS } from '../types';
 import { formatNumber } from '../lib/calculations';
+import { AIStepAnalyzer } from './AIStepAnalyzer';
 
 interface WorkflowStepCardProps {
   step: WorkflowStep;
@@ -9,6 +10,8 @@ interface WorkflowStepCardProps {
   onEdit: (step: WorkflowStep) => void;
   onDelete: (stepId: string) => void;
   mode: 'manual' | 'automated' | 'comparison';
+  assumptions?: Assumptions;
+  onApplyAIEstimate?: (stepId: string, manualTime: number, autoTime: number) => void;
 }
 
 function ActorBadge({ actor }: { actor: Actor }) {
@@ -17,7 +20,7 @@ function ActorBadge({ actor }: { actor: Actor }) {
   return <span className="badge-hybrid"><Users className="w-3 h-3" /> Hybrid</span>;
 }
 
-export function WorkflowStepCard({ step, automatedStep, onEdit, onDelete, mode }: WorkflowStepCardProps) {
+export function WorkflowStepCard({ step, automatedStep, onEdit, onDelete, mode, assumptions, onApplyAIEstimate }: WorkflowStepCardProps) {
   const [expanded, setExpanded] = useState(false);
 
   const manualHoursMonth = (step.manualTimeMinutes * step.frequencyPerMonth) / 60;
@@ -148,6 +151,18 @@ export function WorkflowStepCard({ step, automatedStep, onEdit, onDelete, mode }
               )}
               {step.notes && (
                 <p className="text-surface-500 italic">{step.notes}</p>
+              )}
+              {assumptions && (
+                <div className="mt-3 pt-3 border-t border-surface-100">
+                  <AIStepAnalyzer
+                    step={step}
+                    assumptions={assumptions}
+                    onApplyEstimate={onApplyAIEstimate
+                      ? (manual, auto) => onApplyAIEstimate(step.id, manual, auto)
+                      : undefined
+                    }
+                  />
+                </div>
               )}
             </div>
           )}
