@@ -48,6 +48,8 @@ import {
   type Veo3Request
 } from '../services/vertexAIService';
 import { FORMAT_PRESETS } from '../types/formatConfig';
+import { type VideoProvider, getProviderCapabilities, getAllProviderCapabilities } from '../services/videoGenerationProvider';
+import { isKlingConfigured, KLING_MODELS, type KlingModel } from '../services/klingVideoService';
 import { generateVeo3Prompt, type Veo3PromptConfig } from '../services/veo3PromptService';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { useWorkspaceCapabilities } from '../hooks/useWorkspaceCapabilities';
@@ -221,7 +223,9 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
   const [aspectRatio, setAspectRatio] = useState<'16:9' | '9:16'>('16:9');
   const [generateAudio, setGenerateAudio] = useState(true);
   const [resolution, setResolution] = useState<'720p' | '1080p'>('1080p');
+  const [selectedProvider, setSelectedProvider] = useState<VideoProvider>('veo3');
   const [selectedModel, setSelectedModel] = useState<VeoModel>('veo-3.1-generate-001');
+  const [selectedKlingModel, setSelectedKlingModel] = useState<KlingModel>('kling-v2');
   const [showPricingInfo, setShowPricingInfo] = useState(false);
 
   const [generatedPrompt, setGeneratedPrompt] = useState<string | null>(null);
@@ -1188,8 +1192,79 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
 
             <div className="space-y-4">
               <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Video Provider</label>
+                <div className="flex gap-2 mb-4">
+                  <button
+                    onClick={() => setSelectedProvider('veo3')}
+                    className={`flex-1 px-4 py-2.5 rounded-lg font-medium text-sm transition-all border ${
+                      selectedProvider === 'veo3'
+                        ? 'bg-blue-50 border-blue-500 text-blue-700 ring-1 ring-blue-500'
+                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <Video className="w-4 h-4" />
+                      Google Veo 3
+                    </div>
+                    <div className="text-[10px] mt-0.5 opacity-75">Audio + Video, Reference Images</div>
+                  </button>
+                  <button
+                    onClick={() => setSelectedProvider('kling')}
+                    className={`flex-1 px-4 py-2.5 rounded-lg font-medium text-sm transition-all border ${
+                      selectedProvider === 'kling'
+                        ? 'bg-purple-50 border-purple-500 text-purple-700 ring-1 ring-purple-500'
+                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <Sparkles className="w-4 h-4" />
+                      Kling AI
+                    </div>
+                    <div className="text-[10px] mt-0.5 opacity-75">Open-source, Budget-friendly</div>
+                  </button>
+                </div>
+
+                {!isKlingConfigured() && selectedProvider === 'kling' && (
+                  <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-xs text-amber-700">
+                      <p className="font-medium">Kling AI not configured</p>
+                      <p>Set <code className="bg-amber-100 px-1 rounded">VITE_KLING_API_KEY</code> in your environment to enable Kling generation.</p>
+                    </div>
+                  </div>
+                )}
+
+                {selectedProvider === 'kling' && (
+                  <div className="mb-4">
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">Kling Model</label>
+                    <div className="flex flex-wrap gap-2">
+                      {KLING_MODELS.map(model => (
+                        <button
+                          key={model.id}
+                          onClick={() => setSelectedKlingModel(model.id)}
+                          className={`px-3 py-2 rounded-lg font-medium text-sm transition-all ${
+                            selectedKlingModel === model.id
+                              ? 'bg-purple-500 text-white ring-2 ring-purple-300'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          {model.name}
+                        </button>
+                      ))}
+                    </div>
+                    {KLING_MODELS.find(m => m.id === selectedKlingModel) && (
+                      <p className="mt-1 text-xs text-gray-500">
+                        {KLING_MODELS.find(m => m.id === selectedKlingModel)!.description} — ${KLING_MODELS.find(m => m.id === selectedKlingModel)!.costPerSecond.toFixed(2)}/sec
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {selectedProvider === 'veo3' && (<>
+              <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm font-medium text-gray-700">Model</label>
+                  <label className="text-sm font-medium text-gray-700">Veo Model</label>
                   <button
                     onClick={() => setShowPricingInfo(!showPricingInfo)}
                     className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
@@ -1287,6 +1362,8 @@ export function VideoGenerationTab({ seriesId, onNavigate }: VideoGenerationTabP
                   </div>
                 </div>
               )}
+            </>
+            )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

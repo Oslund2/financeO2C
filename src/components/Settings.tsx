@@ -13,6 +13,7 @@ import { HeyGenConfigPanel } from './HeyGenConfigPanel';
 import { SettingsBackupPanel } from './SettingsBackupPanel';
 import { SettingsCostConfig } from './SettingsCostConfig';
 import { VEO_MODELS, type VeoModel } from '../services/vertexAIService';
+import { ServiceAccountKeyUpload } from './ServiceAccountKeyUpload';
 
 export function Settings() {
   const { currentOrganization } = useOrganization();
@@ -762,6 +763,10 @@ export function Settings() {
                       </div>
                     </div>
                   </div>
+                </div>
+
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <ServiceAccountKeyUpload />
                 </div>
               </div>
             )}

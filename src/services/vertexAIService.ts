@@ -50,12 +50,15 @@ export interface Veo3Job {
   error?: string;
 }
 
+export type AuthMethod = 'api_key' | 'service_account';
+
 export interface VertexAIConfig {
   projectId: string;
   location: string;
   apiKey: string;
   cloudStorageBucket?: string;
   defaultModel?: VeoModel;
+  authMethod?: AuthMethod;
 }
 
 const VEO_PRICING = {
@@ -138,6 +141,33 @@ export function getVertexAIConfig(): VertexAIConfig | null {
   const cloudStorageBucket = import.meta.env.VITE_VERTEX_AI_CLOUD_STORAGE_BUCKET;
   const defaultModel = (import.meta.env.VITE_VERTEX_AI_DEFAULT_MODEL || 'veo-3.1-generate-001') as VeoModel;
 
+  // Check for service account auth via localStorage status
+  const saStatus = localStorage.getItem('gcp_service_account_status');
+  let authMethod: AuthMethod = 'api_key';
+  let saProjectId: string | undefined;
+
+  if (saStatus) {
+    try {
+      const parsed = JSON.parse(saStatus);
+      if (parsed.configured) {
+        authMethod = 'service_account';
+        saProjectId = parsed.projectId;
+      }
+    } catch { /* ignore */ }
+  }
+
+  // Service account auth doesn't require an API key
+  if (authMethod === 'service_account' && (saProjectId || projectId)) {
+    return {
+      projectId: saProjectId || projectId || '',
+      location,
+      apiKey: apiKey || '',
+      cloudStorageBucket,
+      defaultModel,
+      authMethod,
+    };
+  }
+
   if (!projectId || !apiKey) {
     return null;
   }
@@ -147,8 +177,19 @@ export function getVertexAIConfig(): VertexAIConfig | null {
     location,
     apiKey,
     cloudStorageBucket,
-    defaultModel
+    defaultModel,
+    authMethod: 'api_key',
   };
+}
+
+export function isServiceAccountConfigured(): boolean {
+  const saStatus = localStorage.getItem('gcp_service_account_status');
+  if (!saStatus) return false;
+  try {
+    return JSON.parse(saStatus).configured === true;
+  } catch {
+    return false;
+  }
 }
 
 export function isVertexAIConfigured(): boolean {
@@ -458,17 +499,31 @@ export async function checkJobStatus(jobId: string): Promise<Veo3Job> {
 
   try {
     const model = job.model_version || 'veo-3.1-generate-001';
-    const endpoint = `https://${config.location}-aiplatform.googleapis.com/v1/projects/${config.projectId}/locations/${config.location}/publishers/google/models/${model}:fetchPredictOperation?key=${config.apiKey}`;
+    let response: Response;
 
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        operationName: job.vertex_ai_operation_name
-      })
-    });
+    if (config.authMethod === 'service_account') {
+      // Use edge function proxy for service account auth (keeps private key server-side)
+      const edgeFunctionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/vertex-ai-proxy`;
+      response = await fetch(edgeFunctionUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'fetchPredictOperation',
+          model,
+          operationName: job.vertex_ai_operation_name,
+        }),
+      });
+    } else {
+      const endpoint = `https://${config.location}-aiplatform.googleapis.com/v1/projects/${config.projectId}/locations/${config.location}/publishers/google/models/${model}:fetchPredictOperation?key=${config.apiKey}`;
+      response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ operationName: job.vertex_ai_operation_name }),
+      });
+    }
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -547,14 +602,26 @@ export async function generateSignedUrl(cloudStorageUri: string): Promise<string
   const objectPath = pathParts.join('/');
 
   try {
-    const endpoint = `https://storage.googleapis.com/storage/v1/b/${bucket}/o/${encodeURIComponent(objectPath)}?key=${config.apiKey}`;
+    let response: Response;
 
-    const response = await fetch(endpoint, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
+    if (config.authMethod === 'service_account') {
+      // Use edge function for proper signed URLs with service account
+      const edgeFunctionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gcs-signed-url`;
+      response = await fetch(edgeFunctionUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ bucket, path: objectPath, expirationMinutes: 60 }),
+      });
+    } else {
+      const endpoint = `https://storage.googleapis.com/storage/v1/b/${bucket}/o/${encodeURIComponent(objectPath)}?key=${config.apiKey}`;
+      response = await fetch(endpoint, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
     if (!response.ok) {
       console.error('Failed to generate signed URL:', response.status);
