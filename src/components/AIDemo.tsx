@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Sparkles, FileSearch, Mail, Banknote, Clock, CheckCircle2, ArrowRight, Loader2, Wifi, WifiOff } from 'lucide-react';
+import { Sparkles, FileSearch, Mail, Banknote, Clock, CheckCircle2, ArrowRight, Loader2, Wifi, WifiOff, ArrowLeft } from 'lucide-react';
 import { resolveDispute, draftCollectionsEmail } from '../lib/claude';
+import { View } from './Layout';
 
 type DemoType = 'dispute' | 'collections' | 'cash_match';
 
@@ -122,7 +123,11 @@ Collections Team`,
   },
 };
 
-export function AIDemo() {
+interface AIDemoProps {
+  onNavigate: (view: View) => void;
+}
+
+export function AIDemo({ onNavigate }: AIDemoProps) {
   const [activeDemo, setActiveDemo] = useState<DemoType | null>(null);
   const [running, setRunning] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
@@ -199,6 +204,12 @@ export function AIDemo() {
     <div className="space-y-6">
       {/* Header */}
       <div>
+        <button
+          onClick={() => onNavigate('dashboard')}
+          className="flex items-center gap-1 text-sm text-surface-500 hover:text-brand-600 transition-colors mb-2"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+        </button>
         <h1 className="text-2xl font-bold text-surface-900">AI Automation Demos</h1>
         <p className="text-surface-500 mt-1">
           Live simulations showing how Claude processes real O2C tasks using Snowflake data
