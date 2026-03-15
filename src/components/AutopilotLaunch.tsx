@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { Rocket, Sparkles, Clock, Zap, Scale, Crown } from 'lucide-react';
+import { Rocket, Sparkles, Clock, Zap, Scale, Crown, Wand2 } from 'lucide-react';
 import { startAutopilotRun } from '../services/autopilotPipelineOrchestrator';
 import { estimatePipelineMinutes } from '../services/autopilotDecisionEngine';
+import { generateStorylineWithAI } from '../services/geminiService';
+import { supabase } from '../lib/supabase';
 import type { FormatType, QualityPreset } from '../services/autopilotDecisionEngine';
 
 interface AutopilotLaunchProps {
@@ -30,9 +32,40 @@ export function AutopilotLaunch({ seriesId, organizationId, onRunStarted }: Auto
   const [qualityPreset, setQualityPreset] = useState<QualityPreset>('balanced');
   const [targetRuntime, setTargetRuntime] = useState(5);
   const [launching, setLaunching] = useState(false);
+  const [generatingStoryline, setGeneratingStoryline] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const estimatedMinutes = estimatePipelineMinutes(targetRuntime, qualityPreset);
+
+  const handleGenerateStoryline = async () => {
+    if (!seriesId) return;
+    setGeneratingStoryline(true);
+    setError(null);
+    try {
+      const [{ data: series }, { data: characters }] = await Promise.all([
+        supabase.from('series').select('name, description').eq('id', seriesId).single(),
+        supabase.from('characters').select('name, role, description, tags').eq('series_id', seriesId).limit(10),
+      ]);
+
+      const charList = (characters || []).map((c) => ({
+        name: c.name,
+        role: c.role || 'Ensemble',
+        description: c.description || undefined,
+        tags: c.tags || undefined,
+      }));
+
+      const generated = await generateStorylineWithAI(
+        series?.name || 'Untitled Series',
+        series?.description || '',
+        charList,
+      );
+      setStoryline(generated);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate storyline');
+    } finally {
+      setGeneratingStoryline(false);
+    }
+  };
 
   const handleLaunch = async () => {
     if (!storyline.trim() || !seriesId) return;
@@ -71,13 +104,32 @@ export function AutopilotLaunch({ seriesId, organizationId, onRunStarted }: Auto
         <div className="p-6 space-y-6">
           {/* Storyline */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Storyline</label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-semibold text-gray-700">Storyline</label>
+              <button
+                onClick={handleGenerateStoryline}
+                disabled={!seriesId || generatingStoryline || launching}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-scripps-blue bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {generatingStoryline ? (
+                  <>
+                    <div className="w-3 h-3 border-2 border-scripps-blue border-t-transparent rounded-full animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="w-3 h-3" />
+                    Create with AI
+                  </>
+                )}
+              </button>
+            </div>
             <textarea
               value={storyline}
               onChange={(e) => setStoryline(e.target.value)}
               placeholder="Describe your episode idea... e.g., 'A spelling bee where the contestants discover the words have magical powers that bring objects to life in the arena.'"
               className="w-full h-32 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scripps-blue focus:border-transparent resize-none text-sm"
-              disabled={launching}
+              disabled={launching || generatingStoryline}
             />
             <p className="text-xs text-gray-500 mt-1">{storyline.length} characters</p>
           </div>

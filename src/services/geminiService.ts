@@ -1651,3 +1651,38 @@ Return ONLY valid JSON matching the SpotConcept structure:
 
   return JSON.parse(jsonMatch[0]) as SpotConcept;
 }
+
+/**
+ * Generate a ~75-word episode storyline using series context and characters.
+ */
+export async function generateStorylineWithAI(
+  seriesName: string,
+  seriesDescription: string,
+  characters: { name: string; role: string; description?: string; tags?: string[] }[]
+): Promise<string> {
+  const charBlock = characters
+    .map((c) => `- ${c.name} (${c.role})${c.description ? `: ${c.description}` : ''}${c.tags?.length ? ` [${c.tags.join(', ')}]` : ''}`)
+    .join('\n');
+
+  const prompt = `You are a creative writer for the animated series "${seriesName}".
+
+Series description: ${seriesDescription || 'N/A'}
+
+Characters:
+${charBlock}
+
+Write a single compelling episode storyline in approximately 75 words. The storyline should:
+- Feature several of the main characters naturally
+- Fit the tone and themes of the series
+- Have a clear setup, conflict, and resolution
+- Be written as a brief synopsis paragraph
+
+Return ONLY the storyline text with no extra commentary, labels, or formatting.`;
+
+  const result = await generateText(prompt, undefined, {
+    temperature: 0.85,
+    maxTokens: 300,
+  });
+
+  return result.trim();
+}
