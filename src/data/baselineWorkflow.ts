@@ -40,6 +40,12 @@ function step(
 }
 
 export const MANUAL_BASELINE: WorkflowStep[] = [
+  // Client Profile Setup (upstream of Order Entry)
+  step('order_entry', 0, 'Client profile setup & data entry',
+    'Receiving handwritten paper forms from salespeople, deciphering illegible handwriting, keying client profile data into WideOrbit. Includes error correction cycles. ~20/day, doubles at month-end.',
+    25, 3, 440, 0.12, 0.008, 'Digital form + OCR + AI validation + dedup', 'Paper forms → WideOrbit', 'medium',
+    'Mobile digital form replaces paper. Claude Vision reads photos of handwritten forms. AI validates and catches duplicates before submission.'),
+
   // Order Entry & Validation
   step('order_entry', 1, 'Receive order via email/fax/portal',
     'Orders arrive through multiple channels — email, fax-to-PDF, agency portals — each with inconsistent formatting.',

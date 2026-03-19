@@ -8,6 +8,7 @@ import { PresentationMode } from './components/PresentationMode';
 import { DataExplorer } from './components/DataExplorer';
 import { AIDemo } from './components/AIDemo';
 import { HowItWorks } from './components/HowItWorks';
+import { ClientIntake } from './components/ClientIntake';
 import { AIChatbot } from './components/AIChatbot';
 import { useWorkflow } from './hooks/useWorkflow';
 import { calculateSavings, calculatePhaseBreakdown, formatCurrency, formatNumber } from './lib/calculations';
@@ -90,6 +91,7 @@ Assumptions: ${JSON.stringify(workflow.assumptions)}`;
           />
         )}
         {currentView === 'how-it-works' && <HowItWorks onNavigate={setCurrentView} />}
+        {currentView === 'client-intake' && <ClientIntake onNavigate={setCurrentView} />}
         {currentView === 'data' && <DataExplorer onNavigate={setCurrentView} />}
         {currentView === 'ai-demo' && <AIDemo onNavigate={setCurrentView} />}
       </Layout>

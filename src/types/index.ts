@@ -129,3 +129,116 @@ export interface AIInsight {
   phase?: O2CPhase;
   metric?: string;
 }
+
+// ---------------------------------------------------------------------------
+// Client Profile Types
+// ---------------------------------------------------------------------------
+export type ProfileStatus = 'draft' | 'submitted' | 'ai_validated' | 'approved' | 'pushed_to_wideorbit' | 'rejected';
+export type ProfileSource = 'salesperson_mobile' | 'client_self_service' | 'photo_ocr' | 'manual_entry';
+export type AdvertiserType = 'direct' | 'agency_rep' | 'national' | 'local';
+export type PaymentTerms = 'net_15' | 'net_30' | 'net_45' | 'net_60' | 'prepay' | 'cod';
+
+export const PAYMENT_TERMS_LABELS: Record<PaymentTerms, string> = {
+  net_15: 'Net 15', net_30: 'Net 30', net_45: 'Net 45', net_60: 'Net 60',
+  prepay: 'Prepay', cod: 'COD',
+};
+
+export const ADVERTISER_TYPE_LABELS: Record<AdvertiserType, string> = {
+  direct: 'Direct', agency_rep: 'Agency Rep', national: 'National', local: 'Local',
+};
+
+export const PROFILE_STATUS_LABELS: Record<ProfileStatus, string> = {
+  draft: 'Draft', submitted: 'Submitted', ai_validated: 'AI Validated',
+  approved: 'Approved', pushed_to_wideorbit: 'In WideOrbit', rejected: 'Rejected',
+};
+
+export const SCRIPPS_STATIONS = [
+  'WKRN (Nashville)', 'WTVF (Nashville)', 'KJRH (Tulsa)', 'KSHB (Kansas City)',
+  'WEWS (Cleveland)', 'WCPO (Cincinnati)', 'WPTV (West Palm Beach)', 'WFTS (Tampa)',
+  'KNXV (Phoenix)', 'WXYZ (Detroit)', 'WMAR (Baltimore)', 'WMOR (Tampa)',
+  'KGUN (Tucson)', 'WLEX (Lexington)', 'WRTV (Indianapolis)', 'KERO (Bakersfield)',
+] as const;
+
+export interface ClientProfile {
+  id: string;
+  status: ProfileStatus;
+  source: ProfileSource;
+
+  // Advertiser
+  advertiserName: string;
+  dbaName: string;
+  advertiserType: AdvertiserType;
+  industryCategory: string;
+  taxId: string;
+  website: string;
+
+  // Agency
+  agencyName: string;
+  agencyContactName: string;
+  agencyContactEmail: string;
+  agencyContactPhone: string;
+  agencyCommissionRate: number;
+
+  // Billing Address
+  billingAddress1: string;
+  billingAddress2: string;
+  billingCity: string;
+  billingState: string;
+  billingZip: string;
+
+  // Mailing Address
+  mailingSameAsBilling: boolean;
+  mailingAddress1: string;
+  mailingCity: string;
+  mailingState: string;
+  mailingZip: string;
+
+  // Primary Contact
+  contactName: string;
+  contactTitle: string;
+  contactEmail: string;
+  contactPhone: string;
+
+  // AP Contact
+  apContactName: string;
+  apContactEmail: string;
+  apContactPhone: string;
+
+  // Credit & Terms
+  paymentTerms: PaymentTerms;
+  creditLimit: number;
+  creditAppRequired: boolean;
+  poRequired: boolean;
+
+  // Broadcast
+  stations: string[];
+  defaultDayparts: string[];
+  contractStartDate: string;
+  contractEndDate: string;
+  specialInstructions: string;
+
+  // Meta
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  validationScore?: number;
+  validationIssues?: string[];
+  duplicateWarning?: string;
+}
+
+export function createBlankProfile(): ClientProfile {
+  return {
+    id: `profile-${Date.now()}`,
+    status: 'draft',
+    source: 'salesperson_mobile',
+    advertiserName: '', dbaName: '', advertiserType: 'direct', industryCategory: '', taxId: '', website: '',
+    agencyName: '', agencyContactName: '', agencyContactEmail: '', agencyContactPhone: '', agencyCommissionRate: 15,
+    billingAddress1: '', billingAddress2: '', billingCity: '', billingState: '', billingZip: '',
+    mailingSameAsBilling: true, mailingAddress1: '', mailingCity: '', mailingState: '', mailingZip: '',
+    contactName: '', contactTitle: '', contactEmail: '', contactPhone: '',
+    apContactName: '', apContactEmail: '', apContactPhone: '',
+    paymentTerms: 'net_30', creditLimit: 0, creditAppRequired: false, poRequired: false,
+    stations: [], defaultDayparts: [], contractStartDate: '', contractEndDate: '', specialInstructions: '',
+    createdBy: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+  };
+}

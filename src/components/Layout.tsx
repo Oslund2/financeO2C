@@ -8,6 +8,7 @@ import {
   Database,
   Sparkles,
   Share2,
+  UserPlus,
   ChevronLeft,
   ChevronRight,
   Menu,
@@ -15,7 +16,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 
-export type View = 'dashboard' | 'how-it-works' | 'workflow' | 'savings' | 'scenarios' | 'presentation' | 'data' | 'ai-demo';
+export type View = 'dashboard' | 'how-it-works' | 'client-intake' | 'workflow' | 'savings' | 'scenarios' | 'presentation' | 'data' | 'ai-demo';
 
 interface LayoutProps {
   currentView: View;
@@ -26,6 +27,7 @@ interface LayoutProps {
 const NAV_ITEMS: { view: View; label: string; icon: typeof LayoutDashboard; description: string }[] = [
   { view: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, description: 'O2C overview & metrics' },
   { view: 'how-it-works', label: 'How It Works', icon: Share2, description: 'Architecture & data flow' },
+  { view: 'client-intake', label: 'Client Intake', icon: UserPlus, description: 'Profile setup & OCR' },
   { view: 'workflow', label: 'Workflow Map', icon: GitBranch, description: 'Visual process editor' },
   { view: 'savings', label: 'Savings Calculator', icon: Calculator, description: 'ROI & time savings' },
   { view: 'scenarios', label: 'Scenario Modeler', icon: BarChart3, description: 'What-if analysis' },
