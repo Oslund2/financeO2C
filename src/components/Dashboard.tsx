@@ -18,6 +18,7 @@ import {
 import { WorkflowStep, Assumptions, O2CPhase, PHASE_LABELS, PHASE_COLORS, AIInsight } from '../types';
 import { calculateSavings, calculatePhaseBreakdown, formatCurrency, formatNumber, formatPercent } from '../lib/calculations';
 import { KPI_METRICS } from '../data/syntheticData';
+import { Tooltip } from './Tooltip';
 import { View } from './Layout';
 
 interface DashboardProps {
@@ -117,11 +118,11 @@ export function Dashboard({ baselineSteps, automatedSteps, assumptions, enabledP
 
       {/* Live Data KPI Strip */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <LiveKPI label="Total Open AR" value={`$${(KPI_METRICS.totalOpenAR / 1000000).toFixed(2)}M`} />
-        <LiveKPI label="Avg DSO" value={`${KPI_METRICS.avgDSO} days`} />
-        <LiveKPI label="Active Disputes" value={`${KPI_METRICS.activeDisputes} ($${(KPI_METRICS.disputeTotal / 1000).toFixed(0)}K)`} warn />
-        <LiveKPI label="Unmatched Payments" value={`$${(KPI_METRICS.unmatchedPaymentsValue / 1000).toFixed(0)}K`} warn />
-        <LiveKPI label="Unbilled Revenue" value={`$${(KPI_METRICS.unbilledOrdersValue / 1000).toFixed(0)}K at risk`} danger />
+        <LiveKPI label="Total Open AR" tooltip="Total dollar amount of all outstanding invoices across all agencies — current plus overdue. This is the total receivables balance from the WideOrbit Snowflake mirror." value={`$${(KPI_METRICS.totalOpenAR / 1000000).toFixed(2)}M`} />
+        <LiveKPI label="Avg DSO" tooltip="Days Sales Outstanding — the average number of days it takes to collect payment after an invoice is issued. Lower is better. Industry benchmark for broadcast media is 35-45 days." value={`${KPI_METRICS.avgDSO} days`} />
+        <LiveKPI label="Active Disputes" tooltip="Open billing disputes from agencies — wrong rates, missed makegoods, preempted spots, etc. Each dispute requires research and evidence assembly before resolution." value={`${KPI_METRICS.activeDisputes} ($${(KPI_METRICS.disputeTotal / 1000).toFixed(0)}K)`} warn />
+        <LiveKPI label="Unmatched Payments" tooltip="Payments received that haven't been matched to specific invoices yet. Common when agencies pay in bulk or omit remittance detail. These need manual research or AI-assisted matching." value={`$${(KPI_METRICS.unmatchedPaymentsValue / 1000).toFixed(0)}K`} warn />
+        <LiveKPI label="Unbilled Revenue" tooltip="Orders that have aired (confirmed in as-run logs) but haven't been invoiced yet. This is revenue leakage risk — every day unbilled is a day the cash clock isn't ticking." value={`$${(KPI_METRICS.unbilledOrdersValue / 1000).toFixed(0)}K at risk`} danger />
       </div>
 
       {/* Automation Savings Metrics */}
@@ -129,6 +130,7 @@ export function Dashboard({ baselineSteps, automatedSteps, assumptions, enabledP
         <MetricCard
           icon={Clock}
           label="Hours Saved / Month"
+          tooltip="Total manual hours eliminated by automation each month across all enabled O2C phases."
           value={formatNumber(savings.hoursSavedPerMonth, 0)}
           subtext={`${formatNumber(savings.manualHoursPerMonth, 0)}h manual → ${formatNumber(savings.automatedHoursPerMonth, 0)}h automated`}
           color="blue"
@@ -136,6 +138,7 @@ export function Dashboard({ baselineSteps, automatedSteps, assumptions, enabledP
         <MetricCard
           icon={Users}
           label="FTE Equivalents Freed"
+          tooltip="Hours saved ÷ 160 work hours/month. Represents capacity that can be redeployed to higher-value work — not necessarily headcount reduction."
           value={formatNumber(savings.fteSaved)}
           subtext={`From ${assumptions.fteCount} current FTEs in AR/AP`}
           color="purple"
@@ -143,6 +146,7 @@ export function Dashboard({ baselineSteps, automatedSteps, assumptions, enabledP
         <MetricCard
           icon={DollarSign}
           label="Net Savings / Year"
+          tooltip="Annual labor savings minus the cost of AI processing (Claude API calls). This is the true bottom-line impact of automation."
           value={formatCurrency(savings.netSavingsPerYear)}
           subtext={`${formatCurrency(savings.dollarSavingsPerYear)} gross − ${formatCurrency(savings.aiCostPerMonth * 12)} AI cost`}
           color="green"
@@ -150,6 +154,7 @@ export function Dashboard({ baselineSteps, automatedSteps, assumptions, enabledP
         <MetricCard
           icon={Target}
           label="ROI Breakeven"
+          tooltip="Months until cumulative net savings equal the total implementation investment. After breakeven, every month is pure savings."
           value={`${savings.roiMonths} months`}
           subtext={`On ${formatCurrency(assumptions.implementationCostMonths * assumptions.implementationMonthlyCost)} implementation`}
           color="amber"
@@ -287,14 +292,17 @@ export function Dashboard({ baselineSteps, automatedSteps, assumptions, enabledP
   );
 }
 
-function LiveKPI({ label, value, warn, danger }: { label: string; value: string; warn?: boolean; danger?: boolean }) {
+function LiveKPI({ label, tooltip, value, warn, danger }: { label: string; tooltip?: string; value: string; warn?: boolean; danger?: boolean }) {
   return (
     <div className={`rounded-lg p-3 border ${
       danger ? 'bg-red-50 border-red-200' :
       warn ? 'bg-amber-50 border-amber-200' :
       'bg-surface-50 border-surface-200'
     }`}>
-      <div className="text-xs text-surface-500">{label}</div>
+      <div className="text-xs text-surface-500 flex items-center gap-1">
+        {label}
+        {tooltip && <Tooltip text={tooltip} />}
+      </div>
       <div className={`text-lg font-bold ${
         danger ? 'text-red-700' : warn ? 'text-amber-700' : 'text-surface-900'
       }`}>{value}</div>
@@ -302,9 +310,10 @@ function LiveKPI({ label, value, warn, danger }: { label: string; value: string;
   );
 }
 
-function MetricCard({ icon: Icon, label, value, subtext, color }: {
+function MetricCard({ icon: Icon, label, tooltip, value, subtext, color }: {
   icon: typeof TrendingUp;
   label: string;
+  tooltip?: string;
   value: string;
   subtext: string;
   color: 'blue' | 'green' | 'purple' | 'amber';
@@ -321,7 +330,10 @@ function MetricCard({ icon: Icon, label, value, subtext, color }: {
         <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${colorMap[color]}`}>
           <Icon className="w-5 h-5" />
         </div>
-        <span className="text-sm text-surface-500 font-medium">{label}</span>
+        <span className="text-sm text-surface-500 font-medium flex items-center gap-1">
+          {label}
+          {tooltip && <Tooltip text={tooltip} />}
+        </span>
       </div>
       <div className="text-2xl font-bold text-surface-900 savings-value">{value}</div>
       <p className="text-xs text-surface-400 mt-1">{subtext}</p>

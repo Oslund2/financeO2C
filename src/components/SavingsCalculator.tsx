@@ -3,6 +3,7 @@ import {
   DollarSign, Clock, Users, TrendingUp, ShieldCheck,
   ChevronDown, ChevronUp, Info, Sparkles, ArrowLeft,
 } from 'lucide-react';
+import { Tooltip } from './Tooltip';
 import { WorkflowStep, Assumptions, O2CPhase, O2C_PHASES, PHASE_LABELS, PHASE_COLORS } from '../types';
 import {
   calculateSavings, calculatePhaseBreakdown,
@@ -76,6 +77,7 @@ export function SavingsCalculator({
             <div className="space-y-4">
               <AssumptionInput
                 label="Hourly FTE Cost (fully loaded)"
+                tooltip="The total cost per hour for an AR/AP team member, including salary, benefits, overhead, and workspace. Typically 1.3-1.5x the base hourly wage."
                 value={assumptions.hourlyFteCost}
                 onChange={v => onUpdateAssumptions({ hourlyFteCost: v })}
                 prefix="$"
@@ -85,6 +87,7 @@ export function SavingsCalculator({
               />
               <AssumptionInput
                 label="Current AR/AP FTEs"
+                tooltip="Full-time equivalent headcount currently dedicated to Orders-to-Cash tasks. Can be fractional — e.g., 3.2 means 3 full-time staff plus one person spending ~20% of their time on O2C."
                 value={assumptions.fteCount}
                 onChange={v => onUpdateAssumptions({ fteCount: v })}
                 min={0.5}
@@ -93,6 +96,7 @@ export function SavingsCalculator({
               />
               <AssumptionInput
                 label="Monthly Order Volume"
+                tooltip="Total number of advertising orders processed per month across all stations and channels. Each order may contain multiple spots. This drives the frequency multipliers for every workflow step."
                 value={assumptions.monthlyOrderVolume}
                 onChange={v => onUpdateAssumptions({ monthlyOrderVolume: v })}
                 min={100}
@@ -101,6 +105,7 @@ export function SavingsCalculator({
               />
               <AssumptionInput
                 label="AI Cost per Transaction"
+                tooltip="The estimated cost each time Claude AI processes a task (e.g., parsing an order, matching a payment, drafting an email). Based on API token usage. At $0.03/transaction and 4,200 orders/month, AI costs ~$126/month."
                 value={assumptions.aiCostPerTransaction}
                 onChange={v => onUpdateAssumptions({ aiCostPerTransaction: v })}
                 prefix="$"
@@ -110,7 +115,8 @@ export function SavingsCalculator({
                 decimals={3}
               />
               <AssumptionInput
-                label="Implementation Duration (months)"
+                label="Implementation Duration"
+                tooltip="How many months to deploy the automation across all phases. This is the period during which you're paying implementation costs (integration, testing, training, parallel runs) before the full savings kick in. Longer timelines = higher total investment before ROI."
                 value={assumptions.implementationCostMonths}
                 onChange={v => onUpdateAssumptions({ implementationCostMonths: v })}
                 min={1}
@@ -119,6 +125,7 @@ export function SavingsCalculator({
               />
               <AssumptionInput
                 label="Implementation Cost / Month"
+                tooltip="Monthly spend during the implementation period. Includes developer/integrator time, Snowflake connector setup, Claude API integration, testing, training, and change management. Total investment = duration × monthly cost."
                 value={assumptions.implementationMonthlyCost}
                 onChange={v => onUpdateAssumptions({ implementationMonthlyCost: v })}
                 prefix="$"
@@ -151,6 +158,7 @@ export function SavingsCalculator({
             <SavingsMetric
               icon={Clock}
               label="Hours Saved / Month"
+              tooltip="Total manual hours eliminated per month. Calculated as: sum of (manual time × frequency) minus sum of (automated time × frequency) across all enabled phases."
               value={formatNumber(savings.hoursSavedPerMonth, 0)}
               unit="hours"
               color="blue"
@@ -158,6 +166,7 @@ export function SavingsCalculator({
             <SavingsMetric
               icon={Users}
               label="FTE Freed"
+              tooltip="Hours saved divided by 160 work hours/month. This represents reallocation capacity — not necessarily headcount reduction. These FTEs can shift to higher-value work like relationship management and strategic planning."
               value={formatNumber(savings.fteSaved)}
               unit="people"
               color="purple"
@@ -165,6 +174,7 @@ export function SavingsCalculator({
             <SavingsMetric
               icon={DollarSign}
               label="Gross Savings / Year"
+              tooltip="Hours saved per month × hourly FTE cost × 12 months. This is the total labor value recovered before subtracting AI processing costs."
               value={formatCurrency(savings.dollarSavingsPerYear)}
               unit=""
               color="green"
@@ -172,6 +182,7 @@ export function SavingsCalculator({
             <SavingsMetric
               icon={TrendingUp}
               label="Net Savings / Year"
+              tooltip="Gross savings minus the annual cost of AI processing (API calls). This is the actual bottom-line impact. AI costs are typically 1-3% of gross savings."
               value={formatCurrency(savings.netSavingsPerYear)}
               unit={`after ${formatCurrency(savings.aiCostPerMonth * 12)} AI cost`}
               color="emerald"
@@ -179,6 +190,7 @@ export function SavingsCalculator({
             <SavingsMetric
               icon={ShieldCheck}
               label="Error Reduction"
+              tooltip="Percentage reduction in processing errors (wrong rates, missed spots, mismatched payments). Calculated by comparing total manual error events vs. automated error events across all workflow steps."
               value={formatPercent(savings.errorReductionPercent)}
               unit=""
               color="teal"
@@ -186,6 +198,7 @@ export function SavingsCalculator({
             <SavingsMetric
               icon={DollarSign}
               label="ROI Breakeven"
+              tooltip="Months until net savings recoup the total implementation investment. Calculated as: (implementation months × monthly cost) ÷ net monthly savings. Lower is better — under 6 months is excellent."
               value={`${savings.roiMonths}`}
               unit="months"
               color="amber"
@@ -193,6 +206,7 @@ export function SavingsCalculator({
             <SavingsMetric
               icon={Clock}
               label="Est. DSO Improvement"
+              tooltip="Days Sales Outstanding (DSO) measures how quickly you collect payment. Automating aging, collections, disputes, and cash application accelerates the back end of the O2C cycle. This is a conservative estimate (30% of proportional improvement)."
               value={`${dsoImprovement} days`}
               unit={`${KPI_METRICS.avgDSO} → ~${KPI_METRICS.avgDSO - dsoImprovement} days`}
               color="blue"
@@ -200,6 +214,7 @@ export function SavingsCalculator({
             <SavingsMetric
               icon={ShieldCheck}
               label="Revenue Protected / Year"
+              tooltip="Dollar value of billing errors avoided annually. Calculated as: (manual errors per month - automated errors per month) × average invoice value × 12. These are errors that would otherwise cause disputes, credit memos, or revenue leakage."
               value={formatCurrency(revenueProtected)}
               unit="billing errors avoided"
               color="teal"
@@ -323,8 +338,9 @@ export function SavingsCalculator({
   );
 }
 
-function AssumptionInput({ label, value, onChange, prefix, min, max, step, decimals = 1 }: {
+function AssumptionInput({ label, tooltip, value, onChange, prefix, min, max, step, decimals = 1 }: {
   label: string;
+  tooltip?: string;
   value: number;
   onChange: (v: number) => void;
   prefix?: string;
@@ -335,7 +351,10 @@ function AssumptionInput({ label, value, onChange, prefix, min, max, step, decim
 }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-surface-600 mb-1">{label}</label>
+      <label className="flex items-center gap-1.5 text-xs font-medium text-surface-600 mb-1">
+        {label}
+        {tooltip && <Tooltip text={tooltip} />}
+      </label>
       <div className="flex items-center gap-2">
         {prefix && <span className="text-sm text-surface-400 font-medium">{prefix}</span>}
         <input
@@ -361,9 +380,10 @@ function AssumptionInput({ label, value, onChange, prefix, min, max, step, decim
   );
 }
 
-function SavingsMetric({ icon: Icon, label, value, unit, color }: {
+function SavingsMetric({ icon: Icon, label, tooltip, value, unit, color }: {
   icon: typeof DollarSign;
   label: string;
+  tooltip?: string;
   value: string;
   unit: string;
   color: string;
@@ -382,7 +402,10 @@ function SavingsMetric({ icon: Icon, label, value, unit, color }: {
         <Icon className="w-4 h-4" />
       </div>
       <div className="text-xl font-bold text-surface-900 savings-value">{value}</div>
-      <div className="text-xs text-surface-500 mt-0.5">{label}</div>
+      <div className="text-xs text-surface-500 mt-0.5 flex items-center gap-1">
+        {label}
+        {tooltip && <Tooltip text={tooltip} />}
+      </div>
       {unit && <div className="text-xs text-surface-400">{unit}</div>}
     </div>
   );
