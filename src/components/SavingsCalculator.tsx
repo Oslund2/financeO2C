@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   DollarSign, Clock, Users, TrendingUp, ShieldCheck,
-  ChevronDown, ChevronUp, Info, Sparkles, ArrowLeft,
+  ChevronDown, ChevronUp, Info, Sparkles, ArrowLeft, AlertTriangle,
 } from 'lucide-react';
 import { Tooltip } from './Tooltip';
 import { WorkflowStep, Assumptions, O2CPhase, O2C_PHASES, PHASE_LABELS, PHASE_COLORS } from '../types';
@@ -68,6 +68,28 @@ export function SavingsCalculator({
           Adjust assumptions below — all savings recalculate in real-time
         </p>
       </div>
+
+      {/* Sanity check */}
+      {(() => {
+        const fteCapacityHours = assumptions.fteCount * 160;
+        const impliedFtes = savings.manualHoursPerMonth / 160;
+        if (savings.manualHoursPerMonth > fteCapacityHours * 1.1) {
+          return (
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
+              <div className="text-sm">
+                <p className="font-medium text-amber-800">Workload exceeds FTE capacity</p>
+                <p className="text-amber-700 mt-0.5">
+                  Workflow steps total {formatNumber(savings.manualHoursPerMonth, 0)} hrs/month ({formatNumber(impliedFtes)} implied FTEs),
+                  but only {assumptions.fteCount} FTEs entered. Savings are capped at your actual headcount.
+                  Adjust the FTE count above to match reality, or review step frequencies.
+                </p>
+              </div>
+            </div>
+          );
+        }
+        return null;
+      })()}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Assumptions Panel */}

@@ -108,6 +108,11 @@ export function Dashboard({ baselineSteps, automatedSteps, assumptions, enabledP
 
   const topPhases = [...phaseBreakdown].sort((a, b) => b.hoursSaved - a.hoursSaved).slice(0, 3);
 
+  // Sanity check: does the calculated workload exceed stated FTE capacity?
+  const fteCapacityHours = assumptions.fteCount * 160;
+  const workloadExceedsCapacity = savings.manualHoursPerMonth > fteCapacityHours * 1.1; // 10% tolerance
+  const impliedFtes = savings.manualHoursPerMonth / 160;
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -115,6 +120,21 @@ export function Dashboard({ baselineSteps, automatedSteps, assumptions, enabledP
         <h1 className="text-2xl font-bold text-surface-900">Orders-to-Cash Automation</h1>
         <p className="text-surface-500 mt-1">WideOrbit data via Snowflake — real-time automation opportunity analysis</p>
       </div>
+
+      {/* Sanity check warning */}
+      {workloadExceedsCapacity && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
+          <div className="text-sm">
+            <p className="font-medium text-amber-800">FTE assumption may need adjustment</p>
+            <p className="text-amber-700 mt-0.5">
+              The workflow steps total {formatNumber(savings.manualHoursPerMonth, 0)} manual hours/month — that implies {formatNumber(impliedFtes)} FTEs,
+              but you have {assumptions.fteCount} FTEs entered. Either increase the FTE count to match actual headcount, or reduce step frequencies
+              to match reality. Savings are capped at your actual FTE count so figures stay accurate.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Live Data KPI Strip */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">

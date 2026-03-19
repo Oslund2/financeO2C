@@ -30,8 +30,16 @@ export function calculateSavings(
   );
 
   const hoursSavedPerMonth = manualHoursPerMonth - automatedHoursPerMonth;
-  const fteSaved = hoursSavedPerMonth / 160; // ~160 work hours/month
-  const dollarSavingsPerMonth = hoursSavedPerMonth * assumptions.hourlyFteCost;
+
+  // FTE saved = hours saved / 160 work hours per month,
+  // but CAPPED at the actual FTE count — you can't save more people than you have.
+  const rawFteSaved = hoursSavedPerMonth / 160;
+  const fteSaved = Math.min(rawFteSaved, assumptions.fteCount);
+
+  // Dollar savings are also capped — savings can't exceed what the team actually costs.
+  const maxMonthlySavings = assumptions.fteCount * 160 * assumptions.hourlyFteCost;
+  const rawDollarSavingsPerMonth = hoursSavedPerMonth * assumptions.hourlyFteCost;
+  const dollarSavingsPerMonth = Math.min(rawDollarSavingsPerMonth, maxMonthlySavings);
   const dollarSavingsPerYear = dollarSavingsPerMonth * 12;
 
   // Error reduction
