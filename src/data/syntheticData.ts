@@ -80,7 +80,6 @@ export interface AgingBucket {
 }
 
 const TOTAL_OPEN_AR = 6762000;
-const OTHER_AGENCIES_AR = TOTAL_OPEN_AR - NAMED_AGENCY_TOTAL;
 
 export const AR_AGING: AgingBucket[] = [
   { bucket: 'Current', invoiceCount: 1245, totalAmount: 2848440, pctOfTotal: 42.1 },
