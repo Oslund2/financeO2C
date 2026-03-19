@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Plus, Eye, EyeOff, LayoutGrid, List, ArrowLeft } from 'lucide-react';
 import { WorkflowStep, Assumptions, O2CPhase, O2C_PHASES, PHASE_LABELS, PHASE_COLORS } from '../types';
+import { calculateStepHoursPerMonth } from '../lib/calculations';
 import { WorkflowStepCard } from './WorkflowStepCard';
 import { WorkflowStepEditor } from './WorkflowStepEditor';
 import { View } from './Layout';
@@ -74,6 +75,16 @@ export function WorkflowMap({
           <p className="text-surface-500 mt-1">
             {baselineSteps.length} steps across {O2C_PHASES.length} phases — click any step to edit
           </p>
+          {viewMode === 'comparison' && (() => {
+            const manualH = baselineSteps.reduce((s, st) => s + calculateStepHoursPerMonth(st, 'manual'), 0);
+            const autoH = automatedSteps.reduce((s, st) => s + calculateStepHoursPerMonth(st, 'automated'), 0);
+            const pct = manualH > 0 ? ((manualH - autoH) / manualH * 100) : 0;
+            return (
+              <p className="text-sm font-medium text-emerald-600 mt-1">
+                Total: {Math.round(manualH)}h manual/mo → {Math.round(autoH)}h automated/mo ({Math.round(pct)}% reduction)
+              </p>
+            );
+          })()}
         </div>
         <div className="flex items-center gap-2">
           {/* View mode toggle */}

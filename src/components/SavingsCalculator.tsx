@@ -9,6 +9,7 @@ import {
   formatCurrency, formatNumber, formatPercent,
 } from '../lib/calculations';
 import { AISavingsNarrative } from './AISavingsNarrative';
+import { KPI_METRICS } from '../data/syntheticData';
 import { View } from './Layout';
 
 interface SavingsCalculatorProps {
@@ -30,6 +31,26 @@ export function SavingsCalculator({
   const totalManualTransactions = baselineSteps
     .filter(s => enabledPhases.includes(s.phase))
     .reduce((sum, s) => sum + s.frequencyPerMonth, 0);
+
+  // DSO improvement estimate: back-end phases (aging, collections, disputes, cash_application)
+  // drive DSO. Conservative: automate X% of back-end hours → reduce DSO by X% * 0.3
+  const backEndPhases: O2CPhase[] = ['aging', 'collections', 'disputes', 'cash_application'];
+  const backEndBreakdown = breakdown.filter(b => backEndPhases.includes(b.phase));
+  const backEndManualH = backEndBreakdown.reduce((s, b) => s + b.manualHours, 0);
+  const backEndSavedH = backEndBreakdown.reduce((s, b) => s + b.hoursSaved, 0);
+  const backEndPct = backEndManualH > 0 ? backEndSavedH / backEndManualH : 0;
+  const dsoImprovement = Math.round(KPI_METRICS.avgDSO * backEndPct * 0.3);
+
+  // Revenue protected: manual errors avoided × avg invoice value
+  const avgInvoiceValue = KPI_METRICS.totalOpenAR / KPI_METRICS.totalInvoiceCount;
+  const monthlyManualErrors = baselineSteps
+    .filter(s => enabledPhases.includes(s.phase))
+    .reduce((sum, s) => sum + s.errorRateManual * s.frequencyPerMonth, 0);
+  const monthlyAutoErrors = automatedSteps
+    .filter(s => enabledPhases.includes(s.phase))
+    .reduce((sum, s) => sum + s.errorRateAutomated * s.frequencyPerMonth, 0);
+  const errorsAvoided = monthlyManualErrors - monthlyAutoErrors;
+  const revenueProtected = errorsAvoided * avgInvoiceValue * 12;
 
   return (
     <div className="space-y-8">
@@ -126,7 +147,7 @@ export function SavingsCalculator({
         {/* Results Panel */}
         <div className="lg:col-span-2 space-y-6">
           {/* Key metrics */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <SavingsMetric
               icon={Clock}
               label="Hours Saved / Month"
@@ -168,6 +189,20 @@ export function SavingsCalculator({
               value={`${savings.roiMonths}`}
               unit="months"
               color="amber"
+            />
+            <SavingsMetric
+              icon={Clock}
+              label="Est. DSO Improvement"
+              value={`${dsoImprovement} days`}
+              unit={`${KPI_METRICS.avgDSO} → ~${KPI_METRICS.avgDSO - dsoImprovement} days`}
+              color="blue"
+            />
+            <SavingsMetric
+              icon={ShieldCheck}
+              label="Revenue Protected / Year"
+              value={formatCurrency(revenueProtected)}
+              unit="billing errors avoided"
+              color="teal"
             />
           </div>
 

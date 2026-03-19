@@ -109,6 +109,62 @@ The email should:
 4. Include a clear call to action with deadline
 
 This is a ${data.noticeLevel || 'first'} notice.`,
+
+      nl_data_query: `You are answering a natural language question about a media company's Orders-to-Cash data from their WideOrbit Snowflake mirror.
+
+${data.dataContext}
+
+USER QUESTION: ${data.question}
+
+Answer the question using ONLY the data provided above. Be specific — reference exact invoice IDs, order IDs, agency names, and dollar amounts. Format your response clearly:
+- Use markdown tables when presenting multiple rows of data
+- Use bold for key numbers and totals
+- If the data doesn't contain enough info to fully answer, say what you can answer and what's missing
+- Keep the answer concise and actionable — this is for an AR/AP team member`,
+
+      cash_match_analysis: `You are an AI cash application assistant for a media company. Analyze this incoming payment and determine the best invoice match.
+
+Payment details:
+${JSON.stringify(data.payment, null, 2)}
+
+Open AR for this agency:
+${JSON.stringify(data.openAR, null, 2)}
+
+Provide a detailed cash application analysis:
+1. **Match Results** — which invoices this payment most likely covers, with confidence percentages
+2. **Analysis** — explain the matching logic (remittance clues, amount combinations, timing)
+3. **Short-pay detection** — flag any differences between payment and matched invoice totals
+4. **Recommendation** — clear action (auto-apply, review, escalate)
+
+Format the match results as a markdown table. Be specific with invoice IDs and amounts.`,
+
+      ap_verification: `You are an AI accounts payable verification assistant for a media company. Cross-reference this vendor invoice against the original order terms and contract.
+
+Invoice/order details:
+${JSON.stringify(data.details, null, 2)}
+
+Verify:
+1. **Rate verification** — does the billed rate match the contracted/ordered rate?
+2. **Spot count verification** — do the billed spots match what aired per as-run logs?
+3. **Terms verification** — are payment terms correctly applied?
+4. **Commission calculation** — if applicable, verify agency commission is correct
+5. **Discrepancies found** — list any mismatches with specific dollar impact
+
+Format findings clearly with a summary table of checks passed/failed.`,
+
+      discrepancy_scan: `You are an AI audit assistant scanning for discrepancies in a media company's O2C data.
+
+Reconciliation data:
+${JSON.stringify(data.reconciliation, null, 2)}
+
+Analyze this batch and provide:
+1. **Summary** — total records, clean matches, and issues found
+2. **Issues by type** — group discrepancies (unbilled, under-billed, over-billed, spot mismatches)
+3. **Revenue impact** — total dollars at risk by category
+4. **Priority actions** — ranked list of what to fix first based on dollar impact
+5. **Root cause patterns** — any patterns you notice (same agency, same daypart, timing)
+
+Be specific with order IDs and dollar amounts. This is for a weekly audit review.`,
     };
 
     const prompt = prompts[type];

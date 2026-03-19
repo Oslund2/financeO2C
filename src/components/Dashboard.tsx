@@ -11,9 +11,13 @@ import {
   GitBranch,
   Presentation,
   Calculator,
+  Database,
+  Zap,
+  AlertTriangle,
 } from 'lucide-react';
 import { WorkflowStep, Assumptions, O2CPhase, PHASE_LABELS, PHASE_COLORS, AIInsight } from '../types';
 import { calculateSavings, calculatePhaseBreakdown, formatCurrency, formatNumber, formatPercent } from '../lib/calculations';
+import { KPI_METRICS } from '../data/syntheticData';
 import { View } from './Layout';
 
 interface DashboardProps {
@@ -24,50 +28,82 @@ interface DashboardProps {
   onNavigate: (view: View) => void;
 }
 
-const AI_INSIGHTS: AIInsight[] = [
-  {
-    id: '1',
-    title: 'Cash Application is your highest-volume bottleneck',
-    description: 'With 2,800 payment matches and 500 short-pay investigations per month, cash application consumes the most manual hours. AI probabilistic matching could auto-apply 92% of clean matches.',
+function generateInsights(
+  savings: ReturnType<typeof calculateSavings>,
+  breakdown: ReturnType<typeof calculatePhaseBreakdown>,
+  assumptions: Assumptions,
+): AIInsight[] {
+  const sorted = [...breakdown].sort((a, b) => b.hoursSaved - a.hoursSaved);
+  const topPhase = sorted[0];
+  const insights: AIInsight[] = [];
+
+  if (topPhase) {
+    insights.push({
+      id: 'top-phase',
+      title: `${PHASE_LABELS[topPhase.phase]} drives the most savings`,
+      description: `${formatNumber(topPhase.hoursSaved, 0)} hours/month saved in this phase alone — that's ${formatCurrency(topPhase.dollarsSaved)}/month. ${topPhase.stepCount} steps can be substantially automated.`,
+      impact: 'high',
+      phase: topPhase.phase,
+      metric: `${formatNumber(topPhase.hoursSaved, 0)}h/mo`,
+    });
+  }
+
+  insights.push({
+    id: 'unbilled-risk',
+    title: `${formatCurrency(KPI_METRICS.unbilledOrdersValue)} in unbilled revenue at risk`,
+    description: `${KPI_METRICS.unbilledOrders} orders have aired but haven't been invoiced yet. Automated reconciliation between as-run logs and billing could catch these within hours instead of days.`,
     impact: 'high',
-    phase: 'cash_application',
-    metric: '2,800 matches/mo',
-  },
-  {
-    id: '2',
-    title: 'Dispute resolution has the highest per-incident cost',
-    description: 'At 45 minutes to research plus 30 minutes to compile evidence per dispute, each resolution costs ~$56 in labor. Claude can reduce this to ~$4 by auto-assembling evidence from Snowflake.',
+    phase: 'traffic_billing',
+    metric: `${KPI_METRICS.unbilledOrders} orders`,
+  });
+
+  insights.push({
+    id: 'disputes',
+    title: `${KPI_METRICS.activeDisputes} active disputes totaling ${formatCurrency(KPI_METRICS.disputeTotal)}`,
+    description: `At 45 min to research + 30 min to compile evidence per dispute, each resolution costs ~$56 in labor. Claude can reduce this to ~$4 by auto-assembling evidence from the Snowflake mirror.`,
     impact: 'high',
     phase: 'disputes',
-    metric: '$56 → $4 per dispute',
-  },
-  {
-    id: '3',
-    title: 'Order entry errors cascade through the entire O2C cycle',
-    description: 'A 4.2% error rate on 4,200 monthly orders means ~176 orders with issues that compound into billing disputes, delayed collections, and revenue leakage downstream.',
-    impact: 'high',
-    phase: 'order_entry',
-    metric: '176 error orders/mo',
-  },
-  {
-    id: '4',
-    title: 'Collections outreach could be 85% automated',
-    description: 'First and second notices are highly templatable. Referencing specific invoice numbers, spot IDs, and flight dates from WideOrbit data makes AI-drafted outreach more specific than generic templates.',
+    metric: `$56 → $4 per dispute`,
+  });
+
+  const orderEntryPhase = breakdown.find(b => b.phase === 'order_entry');
+  if (orderEntryPhase && orderEntryPhase.hoursSaved > 0) {
+    const monthlyErrors = Math.round(assumptions.monthlyOrderVolume * 0.042);
+    insights.push({
+      id: 'order-errors',
+      title: `~${monthlyErrors} order entry errors cascade downstream each month`,
+      description: `A 4.2% error rate on ${assumptions.monthlyOrderVolume.toLocaleString()} monthly orders compounds into billing disputes, delayed collections, and revenue leakage. AI validation catches errors at entry.`,
+      impact: 'high',
+      phase: 'order_entry',
+      metric: `${monthlyErrors} errors/mo`,
+    });
+  }
+
+  insights.push({
+    id: 'unmatched-payments',
+    title: `${formatCurrency(KPI_METRICS.unmatchedPaymentsValue)} in payments need matching`,
+    description: `${KPI_METRICS.unmatchedPayments} payments received without clear remittance detail. AI probabilistic matching analyzes amount patterns, remittance notes, and payment history to suggest matches at 90%+ confidence.`,
     impact: 'medium',
-    phase: 'collections',
-    metric: '1,200 notices/mo',
-  },
-  {
-    id: '5',
-    title: 'Snowflake mirror enables risk-free automation',
-    description: 'Because Claude queries the read-only Snowflake mirror (not live WideOrbit), automation risk is minimal. The mirror provides a safety buffer while the AI layer matures.',
+    phase: 'cash_application',
+    metric: `${KPI_METRICS.unmatchedPayments} unmatched`,
+  });
+
+  insights.push({
+    id: 'dso-opportunity',
+    title: `Current DSO of ${KPI_METRICS.avgDSO} days — automation can improve by 5-8 days`,
+    description: `Faster invoicing, automated first-notice collections, and proactive aging prioritization reduce the average days outstanding. ${KPI_METRICS.agingDistribution.days90plus}% of AR is 90+ days — targeted automation here has the highest dollar impact.`,
     impact: 'medium',
-  },
-];
+    phase: 'aging',
+    metric: `${KPI_METRICS.avgDSO} → ~${KPI_METRICS.avgDSO - 6} days`,
+  });
+
+  return insights;
+}
 
 export function Dashboard({ baselineSteps, automatedSteps, assumptions, enabledPhases, onNavigate }: DashboardProps) {
   const savings = calculateSavings(baselineSteps, automatedSteps, assumptions, enabledPhases);
   const phaseBreakdown = calculatePhaseBreakdown(baselineSteps, automatedSteps, assumptions, enabledPhases);
+  const insights = generateInsights(savings, phaseBreakdown, assumptions);
 
   const topPhases = [...phaseBreakdown].sort((a, b) => b.hoursSaved - a.hoursSaved).slice(0, 3);
 
@@ -76,17 +112,25 @@ export function Dashboard({ baselineSteps, automatedSteps, assumptions, enabledP
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-surface-900">Orders-to-Cash Automation</h1>
-        <p className="text-surface-500 mt-1">Wide Orbit data via Snowflake — real-time automation opportunity analysis</p>
+        <p className="text-surface-500 mt-1">WideOrbit data via Snowflake — real-time automation opportunity analysis</p>
       </div>
 
-      {/* Key metrics */}
+      {/* Live Data KPI Strip */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <LiveKPI label="Total Open AR" value={`$${(KPI_METRICS.totalOpenAR / 1000000).toFixed(2)}M`} />
+        <LiveKPI label="Avg DSO" value={`${KPI_METRICS.avgDSO} days`} />
+        <LiveKPI label="Active Disputes" value={`${KPI_METRICS.activeDisputes} ($${(KPI_METRICS.disputeTotal / 1000).toFixed(0)}K)`} warn />
+        <LiveKPI label="Unmatched Payments" value={`$${(KPI_METRICS.unmatchedPaymentsValue / 1000).toFixed(0)}K`} warn />
+        <LiveKPI label="Unbilled Revenue" value={`$${(KPI_METRICS.unbilledOrdersValue / 1000).toFixed(0)}K at risk`} danger />
+      </div>
+
+      {/* Automation Savings Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           icon={Clock}
           label="Hours Saved / Month"
           value={formatNumber(savings.hoursSavedPerMonth, 0)}
           subtext={`${formatNumber(savings.manualHoursPerMonth, 0)}h manual → ${formatNumber(savings.automatedHoursPerMonth, 0)}h automated`}
-          trend="up"
           color="blue"
         />
         <MetricCard
@@ -94,7 +138,6 @@ export function Dashboard({ baselineSteps, automatedSteps, assumptions, enabledP
           label="FTE Equivalents Freed"
           value={formatNumber(savings.fteSaved)}
           subtext={`From ${assumptions.fteCount} current FTEs in AR/AP`}
-          trend="up"
           color="purple"
         />
         <MetricCard
@@ -102,7 +145,6 @@ export function Dashboard({ baselineSteps, automatedSteps, assumptions, enabledP
           label="Net Savings / Year"
           value={formatCurrency(savings.netSavingsPerYear)}
           subtext={`${formatCurrency(savings.dollarSavingsPerYear)} gross − ${formatCurrency(savings.aiCostPerMonth * 12)} AI cost`}
-          trend="up"
           color="green"
         />
         <MetricCard
@@ -110,12 +152,11 @@ export function Dashboard({ baselineSteps, automatedSteps, assumptions, enabledP
           label="ROI Breakeven"
           value={`${savings.roiMonths} months`}
           subtext={`On ${formatCurrency(assumptions.implementationCostMonths * assumptions.implementationMonthlyCost)} implementation`}
-          trend="down"
           color="amber"
         />
       </div>
 
-      {/* Error reduction + quick actions */}
+      {/* Error reduction + top phases */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="card p-6 lg:col-span-1">
           <div className="flex items-center gap-2 mb-4">
@@ -159,7 +200,7 @@ export function Dashboard({ baselineSteps, automatedSteps, assumptions, enabledP
         </div>
       </div>
 
-      {/* AI Insights */}
+      {/* AI Insights — now dynamic */}
       <div>
         <div className="flex items-center gap-2 mb-4">
           <Sparkles className="w-5 h-5 text-brand-600" />
@@ -169,7 +210,7 @@ export function Dashboard({ baselineSteps, automatedSteps, assumptions, enabledP
           </span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {AI_INSIGHTS.map(insight => (
+          {insights.map(insight => (
             <div key={insight.id} className="card-hover p-5 flex flex-col">
               <div className="flex items-start justify-between mb-2">
                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
@@ -203,8 +244,8 @@ export function Dashboard({ baselineSteps, automatedSteps, assumptions, enabledP
         </div>
       </div>
 
-      {/* Quick navigation */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* Quick navigation — 6 actions */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <QuickAction
           icon={GitBranch}
           title="Explore Workflow"
@@ -223,17 +264,49 @@ export function Dashboard({ baselineSteps, automatedSteps, assumptions, enabledP
           description="Full-screen presentation mode"
           onClick={() => onNavigate('presentation')}
         />
+        <QuickAction
+          icon={Database}
+          title="Explore Data"
+          description="Query WideOrbit mirror with NL or presets"
+          onClick={() => onNavigate('data')}
+        />
+        <QuickAction
+          icon={Zap}
+          title="AI Demos"
+          description="Live dispute, collections & cash match demos"
+          onClick={() => onNavigate('ai-demo')}
+        />
+        <QuickAction
+          icon={AlertTriangle}
+          title="Model Scenarios"
+          description="What-if analysis with phase toggles"
+          onClick={() => onNavigate('scenarios')}
+        />
       </div>
     </div>
   );
 }
 
-function MetricCard({ icon: Icon, label, value, subtext, trend, color }: {
+function LiveKPI({ label, value, warn, danger }: { label: string; value: string; warn?: boolean; danger?: boolean }) {
+  return (
+    <div className={`rounded-lg p-3 border ${
+      danger ? 'bg-red-50 border-red-200' :
+      warn ? 'bg-amber-50 border-amber-200' :
+      'bg-surface-50 border-surface-200'
+    }`}>
+      <div className="text-xs text-surface-500">{label}</div>
+      <div className={`text-lg font-bold ${
+        danger ? 'text-red-700' : warn ? 'text-amber-700' : 'text-surface-900'
+      }`}>{value}</div>
+    </div>
+  );
+}
+
+function MetricCard({ icon: Icon, label, value, subtext, color }: {
   icon: typeof TrendingUp;
   label: string;
   value: string;
   subtext: string;
-  trend: 'up' | 'down';
   color: 'blue' | 'green' | 'purple' | 'amber';
 }) {
   const colorMap = {

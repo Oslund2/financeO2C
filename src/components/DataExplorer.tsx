@@ -1,105 +1,89 @@
 import { useState } from 'react';
-import { Database, Search, Table, BarChart3, Sparkles, AlertCircle, RefreshCw, ArrowLeft } from 'lucide-react';
+import { Database, Search, Sparkles, RefreshCw, ArrowLeft, Loader2, Wifi, WifiOff, AlertTriangle, TrendingDown, FileWarning, CreditCard, Scale, ListOrdered, GitCompare, Banknote } from 'lucide-react';
 import { View } from './Layout';
+import { queryDataNL } from '../lib/claude';
+import {
+  getAgingQueryResult,
+  getTopAgenciesQueryResult,
+  getUnbilledOrdersQueryResult,
+  getUnmatchedPaymentsQueryResult,
+  getDisputesQueryResult,
+  getCollectionsQueueQueryResult,
+  getReconciliationQueryResult,
+  getCashMatchQueryResult,
+  getDataContextForClaude,
+  KPI_METRICS,
+  QueryResult,
+} from '../data/syntheticData';
 
-interface QueryResult {
-  columns: string[];
-  rows: (string | number)[][];
+interface PresetQuery {
+  id: string;
+  name: string;
+  description: string;
+  icon: typeof Database;
+  getData: () => QueryResult;
+  highlight?: 'warning' | 'danger';
 }
 
-const PRESET_QUERIES: { id: string; name: string; description: string; mockData: QueryResult }[] = [
-  {
-    id: 'aging_summary',
-    name: 'AR Aging Summary',
-    description: 'Open receivables by aging bucket',
-    mockData: {
-      columns: ['Bucket', 'Invoice Count', 'Total Amount', '% of Total'],
-      rows: [
-        ['Current', 1245, '$2,847,000', '42.1%'],
-        ['1-30 Days', 632, '$1,523,000', '22.5%'],
-        ['31-60 Days', 298, '$891,000', '13.2%'],
-        ['61-90 Days', 187, '$634,000', '9.4%'],
-        ['90+ Days', 156, '$867,000', '12.8%'],
-      ],
-    },
-  },
-  {
-    id: 'top_agencies',
-    name: 'Top 20 Agencies by Open AR',
-    description: 'Agencies with the largest outstanding balances',
-    mockData: {
-      columns: ['Agency', 'Open Invoices', 'Total Outstanding', 'Avg Days Out', 'Last Payment'],
-      rows: [
-        ['GroupM Media', 47, '$423,000', '34', '2026-03-01'],
-        ['Publicis Groupe', 38, '$387,000', '28', '2026-03-05'],
-        ['Dentsu International', 31, '$312,000', '41', '2026-02-22'],
-        ['IPG Mediabrands', 29, '$298,000', '22', '2026-03-10'],
-        ['Horizon Media', 24, '$267,000', '38', '2026-02-28'],
-        ['Omnicom Media Group', 22, '$234,000', '31', '2026-03-03'],
-        ['Havas Media', 19, '$198,000', '45', '2026-02-15'],
-        ['Starcom', 17, '$176,000', '27', '2026-03-07'],
-      ],
-    },
-  },
-  {
-    id: 'orders_missing_billing',
-    name: 'Orders Missing Billing',
-    description: 'Aired spots not yet moved to billing',
-    mockData: {
-      columns: ['Order ID', 'Advertiser', 'Agency', 'Air Date', 'Spots', 'Revenue', 'Days Since Air'],
-      rows: [
-        ['WO-2026-4521', 'Toyota Motor', 'Saatchi', '2026-03-08', 12, '$18,400', '7'],
-        ['WO-2026-4498', 'Progressive Ins', 'Arnold', '2026-03-06', 8, '$12,200', '9'],
-        ['WO-2026-4467', 'Home Depot', 'Richards', '2026-03-04', 15, '$23,100', '11'],
-        ['WO-2026-4432', 'AT&T', 'BBDO', '2026-03-02', 6, '$9,800', '13'],
-        ['WO-2026-4401', 'Walmart', 'Publicis', '2026-02-28', 20, '$31,500', '15'],
-      ],
-    },
-  },
-  {
-    id: 'unmatched_payments',
-    name: 'Unmatched Payments',
-    description: 'Received payments not yet applied to invoices',
-    mockData: {
-      columns: ['Payment Ref', 'Agency', 'Amount', 'Received', 'Possible Match', 'Confidence'],
-      rows: [
-        ['CHK-89234', 'GroupM Media', '$87,450', '2026-03-12', 'INV-7823, INV-7824', '92%'],
-        ['ACH-11298', 'Publicis', '$143,200', '2026-03-11', 'INV-7801 thru 7806', '88%'],
-        ['CHK-89201', 'Horizon Media', '$34,500', '2026-03-10', 'Unknown', '15%'],
-        ['ACH-11287', 'IPG Mediabrands', '$67,800', '2026-03-09', 'INV-7789 (short $2,100)', '78%'],
-      ],
-    },
-  },
-  {
-    id: 'dispute_summary',
-    name: 'Active Disputes',
-    description: 'Open disputes requiring resolution',
-    mockData: {
-      columns: ['Dispute ID', 'Agency', 'Type', 'Amount', 'Filed', 'Status', 'Days Open'],
-      rows: [
-        ['DSP-301', 'Dentsu', 'Wrong rate', '$4,200', '2026-03-01', 'Under review', '14'],
-        ['DSP-298', 'Havas', 'Missed makegood', '$2,800', '2026-02-25', 'Evidence gathered', '18'],
-        ['DSP-295', 'GroupM', 'Wrong daypart', '$6,100', '2026-02-20', 'Pending response', '23'],
-        ['DSP-291', 'Omnicom', 'Preempted spots', '$8,400', '2026-02-15', 'Escalated', '28'],
-      ],
-    },
-  },
+const PRESET_QUERIES: PresetQuery[] = [
+  { id: 'aging_summary', name: 'AR Aging Summary', description: 'Open receivables by aging bucket', icon: TrendingDown, getData: getAgingQueryResult },
+  { id: 'top_agencies', name: 'Top Agencies by Open AR', description: `${KPI_METRICS.totalInvoiceCount.toLocaleString()} invoices across 18 agencies`, icon: Database, getData: getTopAgenciesQueryResult },
+  { id: 'unbilled_orders', name: 'Unbilled Orders', description: `$${(KPI_METRICS.unbilledOrdersValue / 1000).toFixed(0)}K revenue at risk`, icon: FileWarning, getData: getUnbilledOrdersQueryResult, highlight: 'danger' },
+  { id: 'unmatched_payments', name: 'Unmatched Payments', description: `${KPI_METRICS.unmatchedPayments} payments need matching`, icon: CreditCard, getData: getUnmatchedPaymentsQueryResult, highlight: 'warning' },
+  { id: 'disputes', name: 'Active Disputes', description: `${KPI_METRICS.activeDisputes} open, $${(KPI_METRICS.disputeTotal / 1000).toFixed(0)}K total`, icon: Scale, getData: getDisputesQueryResult },
+  { id: 'collections_queue', name: 'Collections Priority Queue', description: 'AI-ranked overdue accounts', icon: ListOrdered, getData: getCollectionsQueueQueryResult },
+  { id: 'reconciliation', name: 'Order-to-Invoice Reconciliation', description: 'Ordered vs. aired vs. billed', icon: GitCompare, getData: getReconciliationQueryResult, highlight: 'warning' },
+  { id: 'cash_match', name: 'Cash Application Status', description: 'Payment matching with confidence', icon: Banknote, getData: getCashMatchQueryResult },
 ];
+
+// Pre-canned NL fallbacks in case Claude API is unavailable
+const NL_FALLBACKS: Record<string, string> = {
+  default: `**Unable to reach Claude API** — showing pre-built view instead.\n\nTo enable live natural language queries, ensure your ANTHROPIC_API_KEY is configured in Netlify environment variables. Claude will answer questions using your WideOrbit Snowflake mirror data.`,
+};
 
 interface DataExplorerProps {
   onNavigate: (view: View) => void;
 }
 
 export function DataExplorer({ onNavigate }: DataExplorerProps) {
-  const [activeQuery, setActiveQuery] = useState(PRESET_QUERIES[0]);
+  const [activeQueryId, setActiveQueryId] = useState(PRESET_QUERIES[0].id);
   const [nlQuery, setNlQuery] = useState('');
-  const [showNlResult, setShowNlResult] = useState(false);
+  const [nlResult, setNlResult] = useState<string | null>(null);
+  const [nlLoading, setNlLoading] = useState(false);
+  const [nlUsedLive, setNlUsedLive] = useState(false);
 
-  const handleNlQuery = () => {
-    if (nlQuery.trim()) {
-      setShowNlResult(true);
+  const activePreset = PRESET_QUERIES.find(q => q.id === activeQueryId)!;
+  const queryResult = activePreset.getData();
+
+  const handleNlQuery = async () => {
+    const q = nlQuery.trim();
+    if (!q) return;
+
+    setNlLoading(true);
+    setNlResult(null);
+    setNlUsedLive(false);
+
+    try {
+      const dataContext = getDataContextForClaude();
+      const result = await queryDataNL(q, dataContext);
+      setNlResult(result);
+      setNlUsedLive(true);
+    } catch {
+      setNlResult(NL_FALLBACKS.default);
+      setNlUsedLive(false);
     }
+
+    setNlLoading(false);
   };
+
+  const suggestedQuestions = [
+    'Show me all invoices over 90 days past due by advertiser',
+    'Which accounts have the largest open balances?',
+    'Find spots that aired but haven\'t been billed yet',
+    'What\'s our DSO trend by agency?',
+    'Compare booked orders to invoiced amounts and flag mismatches',
+    'Which make-goods are still unresolved?',
+  ];
 
   return (
     <div className="space-y-6">
@@ -113,8 +97,17 @@ export function DataExplorer({ onNavigate }: DataExplorerProps) {
         </button>
         <h1 className="text-2xl font-bold text-surface-900">Data Explorer</h1>
         <p className="text-surface-500 mt-1">
-          Query Wide Orbit data via Snowflake mirror — read-only access, real-time metrics
+          Query WideOrbit data via Snowflake mirror — read-only access, real-time metrics
         </p>
+      </div>
+
+      {/* KPI Strip */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <KPIBadge label="Total Open AR" value={`$${(KPI_METRICS.totalOpenAR / 1000000).toFixed(2)}M`} />
+        <KPIBadge label="Avg DSO" value={`${KPI_METRICS.avgDSO} days`} />
+        <KPIBadge label="Active Disputes" value={`${KPI_METRICS.activeDisputes}`} warn />
+        <KPIBadge label="Unmatched Payments" value={`$${(KPI_METRICS.unmatchedPaymentsValue / 1000).toFixed(0)}K`} warn />
+        <KPIBadge label="Unbilled Revenue" value={`$${(KPI_METRICS.unbilledOrdersValue / 1000).toFixed(0)}K`} danger />
       </div>
 
       {/* Natural Language Query */}
@@ -129,22 +122,44 @@ export function DataExplorer({ onNavigate }: DataExplorerProps) {
             className="input flex-1"
             placeholder='e.g., "Show me all invoices over 90 days for GroupM Media"'
             value={nlQuery}
-            onChange={e => { setNlQuery(e.target.value); setShowNlResult(false); }}
-            onKeyDown={e => e.key === 'Enter' && handleNlQuery()}
+            onChange={e => setNlQuery(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && !nlLoading && handleNlQuery()}
           />
-          <button onClick={handleNlQuery} className="btn-primary flex items-center gap-2">
-            <Search className="w-4 h-4" /> Query
+          <button onClick={handleNlQuery} disabled={nlLoading || !nlQuery.trim()} className="btn-primary flex items-center gap-2">
+            {nlLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+            {nlLoading ? 'Querying...' : 'Query'}
           </button>
         </div>
-        {showNlResult && (
-          <div className="mt-3 p-3 bg-surface-50 rounded-lg border border-surface-200">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
-              <div className="text-sm text-surface-600">
-                <strong>Snowflake connection required.</strong> Connect your Snowflake credentials in Settings
-                to enable live natural language queries. Claude will translate your question to safe, read-only SQL
-                and execute it against your Wide Orbit mirror.
-              </div>
+
+        {/* Suggested questions */}
+        <div className="flex flex-wrap gap-2 mt-3">
+          {suggestedQuestions.map(q => (
+            <button
+              key={q}
+              onClick={() => { setNlQuery(q); }}
+              className="text-xs px-2.5 py-1 rounded-full border border-surface-200 text-surface-500 hover:border-brand-300 hover:text-brand-600 hover:bg-brand-50 transition-all"
+            >
+              {q}
+            </button>
+          ))}
+        </div>
+
+        {/* NL Result */}
+        {nlResult && (
+          <div className="mt-4 p-4 bg-surface-50 rounded-lg border border-surface-200">
+            <div className="flex items-center gap-2 mb-2">
+              {nlUsedLive ? (
+                <span className="flex items-center gap-1 text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                  <Wifi className="w-3 h-3" /> Live Claude Response
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-xs text-surface-400 bg-surface-100 px-2 py-0.5 rounded-full">
+                  <WifiOff className="w-3 h-3" /> Fallback
+                </span>
+              )}
+            </div>
+            <div className="prose prose-sm max-w-none text-surface-700 whitespace-pre-wrap leading-relaxed">
+              {nlResult}
             </div>
           </div>
         )}
@@ -160,24 +175,31 @@ export function DataExplorer({ onNavigate }: DataExplorerProps) {
           {PRESET_QUERIES.map(q => (
             <button
               key={q.id}
-              onClick={() => setActiveQuery(q)}
+              onClick={() => setActiveQueryId(q.id)}
               className={`w-full text-left p-3 rounded-lg border transition-all ${
-                activeQuery.id === q.id
+                activeQueryId === q.id
                   ? 'border-brand-300 bg-brand-50'
                   : 'border-surface-200 hover:border-surface-300 hover:bg-surface-50'
               }`}
             >
-              <div className="font-medium text-sm text-surface-900">{q.name}</div>
-              <div className="text-xs text-surface-500 mt-0.5">{q.description}</div>
+              <div className="flex items-center gap-2">
+                <q.icon className={`w-4 h-4 ${
+                  q.highlight === 'danger' ? 'text-red-500' :
+                  q.highlight === 'warning' ? 'text-amber-500' :
+                  'text-brand-600'
+                }`} />
+                <div className="font-medium text-sm text-surface-900">{q.name}</div>
+              </div>
+              <div className="text-xs text-surface-500 mt-0.5 ml-6">{q.description}</div>
             </button>
           ))}
           <div className="pt-3 mt-3 border-t border-surface-200">
             <div className="flex items-center gap-2 text-xs text-surface-400">
               <RefreshCw className="w-3 h-3" />
-              <span>Last sync: Demo data</span>
+              <span>Data from WideOrbit mirror</span>
             </div>
-            <p className="text-xs text-surface-400 mt-2">
-              Connect Snowflake to see live data from your Wide Orbit mirror.
+            <p className="text-xs text-surface-400 mt-1">
+              Synthetic demo data — connect Snowflake for live queries
             </p>
           </div>
         </div>
@@ -186,12 +208,18 @@ export function DataExplorer({ onNavigate }: DataExplorerProps) {
         <div className="lg:col-span-3 card overflow-hidden">
           <div className="p-4 border-b border-surface-200 flex items-center justify-between">
             <div>
-              <h3 className="font-semibold text-surface-900">{activeQuery.name}</h3>
-              <p className="text-xs text-surface-500">{activeQuery.description}</p>
+              <h3 className="font-semibold text-surface-900 flex items-center gap-2">
+                <activePreset.icon className="w-4 h-4 text-brand-600" />
+                {activePreset.name}
+              </h3>
+              <p className="text-xs text-surface-500">{activePreset.description}</p>
             </div>
             <div className="flex items-center gap-2">
+              {activePreset.highlight && (
+                <AlertTriangle className={`w-4 h-4 ${activePreset.highlight === 'danger' ? 'text-red-500' : 'text-amber-500'}`} />
+              )}
               <span className="text-xs text-surface-400 bg-surface-100 px-2 py-1 rounded">
-                {activeQuery.mockData.rows.length} rows
+                {queryResult.rows.length} rows
               </span>
             </div>
           </div>
@@ -199,7 +227,7 @@ export function DataExplorer({ onNavigate }: DataExplorerProps) {
             <table className="w-full text-sm">
               <thead className="bg-surface-50">
                 <tr>
-                  {activeQuery.mockData.columns.map(col => (
+                  {queryResult.columns.map(col => (
                     <th key={col} className="text-left px-4 py-3 font-medium text-surface-500 whitespace-nowrap">
                       {col}
                     </th>
@@ -207,13 +235,27 @@ export function DataExplorer({ onNavigate }: DataExplorerProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-100">
-                {activeQuery.mockData.rows.map((row, i) => (
+                {queryResult.rows.map((row, i) => (
                   <tr key={i} className="hover:bg-surface-50">
-                    {row.map((cell, j) => (
-                      <td key={j} className="px-4 py-3 text-surface-700 whitespace-nowrap">
-                        {typeof cell === 'number' ? cell.toLocaleString() : cell}
-                      </td>
-                    ))}
+                    {row.map((cell, j) => {
+                      const cellStr = typeof cell === 'number' ? cell.toLocaleString() : String(cell);
+                      const isNegativeVariance = cellStr.startsWith('-$');
+                      const isPositiveVariance = cellStr.startsWith('+$');
+                      const isAtRisk = cellStr.includes('at risk') || cellStr.includes('TOTAL AT RISK');
+                      const isUnbilled = cellStr === 'Unbilled' || cellStr.includes('Unbilled');
+                      const isLowConfidence = cellStr.includes('%') && j === queryResult.columns.indexOf('Confidence') && parseInt(cellStr) < 50;
+
+                      return (
+                        <td key={j} className={`px-4 py-3 whitespace-nowrap ${
+                          isNegativeVariance || isAtRisk || isUnbilled ? 'text-red-600 font-medium' :
+                          isPositiveVariance ? 'text-amber-600 font-medium' :
+                          isLowConfidence ? 'text-red-500 font-medium' :
+                          'text-surface-700'
+                        }`}>
+                          {cellStr}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody>
@@ -221,6 +263,21 @@ export function DataExplorer({ onNavigate }: DataExplorerProps) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function KPIBadge({ label, value, warn, danger }: { label: string; value: string; warn?: boolean; danger?: boolean }) {
+  return (
+    <div className={`rounded-lg p-3 border ${
+      danger ? 'bg-red-50 border-red-200' :
+      warn ? 'bg-amber-50 border-amber-200' :
+      'bg-surface-50 border-surface-200'
+    }`}>
+      <div className="text-xs text-surface-500">{label}</div>
+      <div className={`text-lg font-bold ${
+        danger ? 'text-red-700' : warn ? 'text-amber-700' : 'text-surface-900'
+      }`}>{value}</div>
     </div>
   );
 }

@@ -99,8 +99,13 @@ export function Layout({ currentView, onNavigate, children }: LayoutProps) {
           })}
         </nav>
 
-        {/* Collapse toggle */}
-        <div className="p-2 border-t border-surface-200 hidden lg:block">
+        {/* Data mode indicator + collapse toggle */}
+        <div className="p-2 border-t border-surface-200 hidden lg:block space-y-1">
+          {!collapsed && (
+            <div className="px-3 py-1.5 text-xs text-amber-600 bg-amber-50 rounded-lg text-center border border-amber-200">
+              Synthetic Demo Data
+            </div>
+          )}
           <button
             onClick={() => setCollapsed(!collapsed)}
             className="w-full flex items-center justify-center gap-2 px-3 py-2 text-surface-400 hover:text-surface-600 rounded-lg hover:bg-surface-50 transition-colors text-sm"
